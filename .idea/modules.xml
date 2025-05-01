@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/genaiz.iml" filepath="$PROJECT_DIR$/genaiz.iml" />
-      <module fileurl="file://$PROJECT_DIR$/sdk.iml" filepath="$PROJECT_DIR$/sdk.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/genaiz.iml" filepath="$PROJECT_DIR$/.idea/genaiz.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/sdk.iml" filepath="$PROJECT_DIR$/.idea/sdk.iml" />
     </modules>
   </component>
 </project>
