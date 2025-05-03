@@ -8,12 +8,14 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
 	DefaultPath string
+	Logger      *logrus.Logger
 )
 
 func BindCmd(cmd *cobra.Command, keys map[string]string) {
@@ -35,17 +37,14 @@ func BindDefaults(defaults map[string]func() string) {
 func Default(customPath string) {
 	if customPath == "" {
 		viper.AddConfigPath(DefaultPath)
-		viper.SetConfigType("yaml")
 		viper.SetConfigName("genaiz")
 	} else {
 		viper.SetConfigFile(customPath)
 	}
 
+	viper.SetEnvPrefix("genaiz")
 	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	}
+	cobra.CheckErr(viper.ReadInConfig())
 }
 
 func Display(bindings ...map[string]string) {
@@ -61,6 +60,12 @@ func Display(bindings ...map[string]string) {
 		}
 
 		cobra.CheckErr(writer.Flush())
+	}
+}
+
+func InfoNonEmpty(output string) {
+	if output != "" {
+		Logger.Infof(output)
 	}
 }
 
