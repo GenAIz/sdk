@@ -3,8 +3,10 @@ module genaiz.com/genaiz
 go 1.24.2
 
 require (
+	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
+	github.com/t-tomalak/logrus-easy-formatter v0.0.0-20190827215021-c074f06c5816
 )
 
 require (

@@ -1,22 +1,28 @@
 package sf
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/docker"
 )
 
 var (
+	// SmartFunction debug command for running a Docker image in interactive mode, the command will build and/or use tag and version params to figure out what to debug
 	debugCmd = &cobra.Command{
 		Use:     "debug",
 		Short:   "Debugs a Smart Function image interactively",
 		Long:    "Debugs a Smart Function image, building it first if necessary, opening a shell on a disposable container. If the image is not specified build parameters are used",
 		Example: "genaiz sf debug --image genaiz.com/sf/smartfunc:latest",
 		Run: func(cmd *cobra.Command, args []string) {
-			if !DryExecute(cmd, dryDebug) {
-				ConfirmExecute(cmd, confirmDebug, execDebug)
+			var displayDebug = func() {
+				config.Display(sfMappings, runMappings)
+			}
+
+			if !DryExecute(cmd, displayDebug) {
+				ConfirmExecute(cmd, execDebug, displayDebug)
 			}
 		},
 	}
@@ -26,25 +32,36 @@ func init() {
 	initRun(debugCmd)
 }
 
+// bindDebug binds runMappings between shell and config files to debugCmd with runDefaults
 func bindDebug() {
-	config.BindCmd(debugCmd, runBindings)
+	config.BindCmd(debugCmd, runMappings)
+	config.BindDefaults(runDefaults)
 }
 
-func confirmDebug() {
-	fmt.Println("Confirming genaiz sf debug on:")
-	displayDebug()
-}
-
-func displayDebug() {
-	config.Display(sfBindings, runBindings)
-}
-
-func dryDebug() {
-	fmt.Println("Dry-run for genaiz sf debug:")
-	displayDebug()
-}
-
+// execDebug executes the debugCmd after ensuring the image specified is available, otherwise it will attempt building an image and then run it.
+//
+// Note: it does the same logic as execRun but with a docker.DebugTask instead
 func execDebug() {
-	// TODO
-	fmt.Println("Executing genaiz sf debug... TODO")
+	var runParams = makeRunParams()
+	var plan = &task.Plan[docker.RunParams]{
+		Logger: config.Logger,
+		OnError: func(err error) {
+			config.Logger.Errorf("Could not debug image %s, error: %s", dockerImage, err)
+		},
+		OnSuccess: func(out string) {
+			var image = viper.GetString(keyRunImage)
+
+			config.InfoNonEmpty(out)
+			config.Logger.Printf("Running %s in interactive mode", image)
+		},
+	}
+
+	if dockerImage == "" {
+		plan.Sequence(
+			task.Execution(makeBuildParams(), docker.BuildTask()),
+			task.Execution(runParams, docker.DebugTask()),
+		)
+	} else {
+		plan.Single(runParams, docker.DebugTask())
+	}
 }
