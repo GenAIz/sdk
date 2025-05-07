@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang/logz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
@@ -61,7 +62,7 @@ func execStop() {
 			config.Logger.Errorf("Could not stop container %s, error: %s", params.Name, err)
 		},
 		OnSuccess: func(out string) {
-			config.InfoNonEmpty(out)
+			logz.InfoOutput(config.Logger, out)
 			config.Logger.Printf("Stopped container %s", params.Name)
 		},
 	}

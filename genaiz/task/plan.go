@@ -1,6 +1,8 @@
 package task
 
 import (
+	"errors"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -58,10 +60,12 @@ func (p Plan[P]) Sequence(execs ...func(state *State) error) {
 }
 
 func (p Plan[P]) Single(params *P, task Task[P]) {
-	if state := task.Execute(params, p.Logger); state.Completed {
-		p.OnSuccess(state.Output)
-	} else if state.Error != nil {
+	if state := task.Execute(params, p.Logger); state.Error != nil {
 		p.OnError(state.Error)
 		cobra.CheckErr(state.Error)
+	} else if state.Completed {
+		p.OnSuccess(state.Output)
+	} else {
+		cobra.CheckErr(errors.New("incomplete task failed without error"))
 	}
 }

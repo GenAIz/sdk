@@ -1,10 +1,13 @@
 package sf
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang/logz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
@@ -22,7 +25,9 @@ var (
 			}
 
 			if !DryExecute(cmd, displayTest) {
-				ConfirmExecute(cmd, execTest, displayTest)
+				ConfirmExecute(cmd,
+					func() { execTest(cmd.Context()) },
+					displayTest)
 			}
 		},
 	}
@@ -41,7 +46,7 @@ func bindTest() {
 // execTest executes the testCmd after ensuring the image specified is available, otherwise it will attempt building an image and then run it.
 //
 // Note: it does the same logic as execRun but with a docker.TestTask instead
-func execTest() {
+func execTest(ctx context.Context) {
 	var runParams = makeRunParams()
 	var plan = &task.Plan[docker.RunParams]{
 		Logger: config.Logger,
@@ -51,14 +56,14 @@ func execTest() {
 		OnSuccess: func(out string) {
 			var image = viper.GetString(keyRunImage)
 
-			config.InfoNonEmpty(out)
+			logz.InfoOutput(config.Logger, out)
 			config.Logger.Printf("Testing %s in attached mode", image)
 		},
 	}
 
 	if dockerImage == "" {
 		plan.Sequence(
-			task.Execution(makeBuildParams(), docker.BuildTask()),
+			task.Execution(makeBuildParams(ctx), docker.BuildTask()),
 			task.Execution(runParams, docker.TestTask()),
 		)
 	} else {

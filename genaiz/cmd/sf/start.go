@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang/logz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
@@ -83,7 +84,7 @@ func execStart() {
 			config.Logger.Errorf("Could not start container %s, error: %s", params.Name, err)
 		},
 		OnSuccess: func(out string) {
-			config.InfoNonEmpty(out)
+			logz.InfoOutput(config.Logger, out)
 			config.Logger.Printf("Started container %s", params.Name)
 		},
 	}

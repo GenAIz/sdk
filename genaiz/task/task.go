@@ -1,6 +1,8 @@
 package task
 
 import (
+	"context"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -8,6 +10,10 @@ import (
 type Executor[P any] interface {
 	Execute(params P, logger logrus.Logger) State
 	Pretend(params P, logger logrus.Logger)
+}
+
+type Env struct {
+	Context context.Context
 }
 
 type State struct {
@@ -37,12 +43,11 @@ func (t Task[P]) Execute(params *P, logger *logrus.Logger) *State {
 			result.Error = err
 			result.Completed = true
 		} else {
-			result.Error = err
-
 			if err := t.OnIncomplete(params, result); err != nil {
 				logger.Errorf("Handling incomplete task %s failed: %s", t.Name, err)
 				result.Error = err
-				result.Completed = true
+			} else {
+				result.Error = nil
 			}
 		}
 	}
@@ -54,6 +59,8 @@ func (t Task[P]) Execute(params *P, logger *logrus.Logger) *State {
 			result.Completed = false
 			result.Error = err
 		}
+	} else {
+		result.Completed = true
 	}
 
 	logger.Debugf("Completed task %s", t.Name)
