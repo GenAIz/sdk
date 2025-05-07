@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -34,7 +35,7 @@ func BindDefaults(defaults map[string]func() string) {
 	}
 }
 
-func Default(customPath string) {
+func Default(customPath string) error {
 	if customPath == "" {
 		viper.AddConfigPath(DefaultPath)
 		viper.SetConfigName("genaiz")
@@ -44,7 +45,12 @@ func Default(customPath string) {
 
 	viper.SetEnvPrefix("genaiz")
 	viper.AutomaticEnv()
-	cobra.CheckErr(viper.ReadInConfig())
+
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func Display(bindings ...map[string]string) {
@@ -63,10 +69,17 @@ func Display(bindings ...map[string]string) {
 	}
 }
 
-func InfoNonEmpty(output string) {
-	if output != "" {
-		Logger.Infof(output)
+func FollowUp(flags *pflag.FlagSet, flag string, on func()) bool {
+	var follow, err = flags.GetBool(flag)
+
+	cobra.CheckErr(err)
+
+	if follow {
+		on()
+		return true
 	}
+
+	return false
 }
 
 func init() {

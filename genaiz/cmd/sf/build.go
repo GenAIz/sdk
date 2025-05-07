@@ -1,13 +1,16 @@
 package sf
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang/logz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
@@ -31,8 +34,12 @@ var (
 				config.Display(sfMappings, buildMappings)
 			}
 
-			if !DryExecute(cmd, displayBuild) {
-				ConfirmExecute(cmd, execBuild, displayBuild)
+			if !PretendExecute(cmd, func() { pretendBuild(cmd.Context()) }) {
+				if !DryExecute(cmd, displayBuild) {
+					ConfirmExecute(cmd,
+						func() { execBuild(cmd.Context()) },
+						displayBuild)
+				}
 			}
 		},
 	}
@@ -74,8 +81,8 @@ func initBuild(cmd *cobra.Command) {
 //
 //   - If --tag is present with no --version, we'll assume we need to tag latest, this may be refused on publish
 //   - If --tag contains a revision, we'll ignore whatever is in --version
-func execBuild() {
-	var params = makeBuildParams()
+func execBuild(ctx context.Context) {
+	var params = makeBuildParams(ctx)
 	var plan = &task.Plan[docker.BuildParams]{
 		Logger: config.Logger,
 		OnError: func(err error) {
@@ -83,7 +90,7 @@ func execBuild() {
 		},
 		OnSuccess: func(out string) {
 			config.Logger.Println("Build completed")
-			config.InfoNonEmpty(out)
+			logz.InfoOutput(config.Logger, out)
 		},
 	}
 
@@ -91,11 +98,37 @@ func execBuild() {
 }
 
 // makeBuildParams creates a docker.BuildParams from resolving parameters, configuration files and environment variables
-func makeBuildParams() *docker.BuildParams {
+func makeBuildParams(ctx context.Context) *docker.BuildParams {
+	var cwd, _ = os.Getwd()
+	var dockerContext = viper.GetString(keyDockerContext)
+	var dockerFile = viper.GetString(keyDockerFile)
+
+	if cwd == dockerContext {
+		dockerContext = "."
+	}
+
+	if dir := filepath.Dir(dockerFile); dir != cwd && strings.Contains(dir, cwd) {
+		dockerFile = filepath.Join(dir[len(cwd)+1:], filepath.Base(dockerFile))
+	} else if dir == cwd {
+		var base = filepath.Base(dockerFile)
+
+		if base != "Dockerfile" {
+			dockerFile = filepath.Base(dockerFile)
+		} else {
+			dockerFile = ""
+		}
+	}
+
 	return &docker.BuildParams{
-		Dockerfile:    viper.GetString(keyDockerFile),
-		DockerContext: viper.GetString(keyDockerContext),
+		Env:           task.Env{Context: ctx},
+		Dockerfile:    dockerFile,
+		DockerContext: dockerContext,
 		DockerTag:     viper.GetString(keyDockerTag),
 		DockerVersion: viper.GetString(keyDockerVersion),
+		Prune:         true,
 	}
+}
+
+func pretendBuild(ctx context.Context) {
+	docker.BuildTask().Pretend(makeBuildParams(ctx), config.Logger)
 }

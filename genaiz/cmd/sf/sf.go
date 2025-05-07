@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -23,22 +24,39 @@ const (
 	paramDry           = "dry"                      // Parameter label used from the shell for specifying a dry execution
 	paramDockerFile    = "file"                     // Parameter label used from the shell for specifying the Dockerfile path
 	paramDockerContext = "context"                  // Parameter label used from the shell for specifying the Docker build context
+	paramPretend       = "pretend"                  // Parameter label used from the shell for specifying a pretend output
 )
 
 var (
 	// SmartFunction command for initiating sub-commands, resolving the default context the default Dockerfile and the current work dir
 	sfCmd = &cobra.Command{
-		Use:   "sf",
-		Short: "Genaiz Smart Function Utilities",
+		Use:     "sf",
+		Aliases: []string{"function"},
+		Short:   "Genaiz Smart Function Utilities",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			var context, err = os.Getwd()
+			var context = ChangeContext(viper.GetString(keyDockerContext))
 
-			cobra.CheckErr(err)
 			viper.SetDefault(keyDockerContext, context)
 			viper.SetDefault(keyDockerFile, context+"/Dockerfile")
 
-			if viperCtx := viper.GetString(keyDockerContext); !strings.EqualFold(context, viperCtx) {
-				cobra.CheckErr(os.Chdir(context))
+			if flag := cmd.Flags().Lookup(paramDockerFile); flag != nil && flag.Value != nil {
+				var flagValue = flag.Value.String()
+
+				if filepath.IsLocal(flagValue) {
+					cobra.CheckErr(flag.Value.Set(filepath.Join(context, flagValue)))
+				} else if strings.HasPrefix(flagValue, ".") {
+					var value, err = filepath.Abs(flagValue)
+
+					cobra.CheckErr(err)
+					err = flag.Value.Set(value)
+					cobra.CheckErr(err)
+				}
+			}
+
+			if flag := cmd.Flags().Lookup(paramDockerContext); flag != nil {
+				if flag.Value != nil {
+					cobra.CheckErr(flag.Value.Set(context))
+				}
 			}
 		},
 	}
@@ -53,6 +71,24 @@ var (
 // Cmd returns a fully initialized sf command with all sub-commands initialized with shell, config and default configuration bindings
 func Cmd() *cobra.Command {
 	return sfCmd
+}
+
+func ChangeContext(ctx string) string {
+	var cwd, err = os.Getwd()
+	var result string
+
+	cobra.CheckErr(err)
+	result = cwd
+
+	if ctx != "" && cwd != ctx {
+		// See if we need to change context
+		config.Logger.Debugf("Changing working dir [%s]", ctx)
+		cobra.CheckErr(os.Chdir(ctx))
+		bindBuild()
+		result, _ = os.Getwd()
+	}
+
+	return filepath.Clean(result)
 }
 
 // Confirm returns true if the user acknowledges the display func, false otherwise
@@ -106,18 +142,14 @@ func ConfirmExecute(cmd *cobra.Command, exec func(), display ...func()) {
 	}
 }
 
-// DryExecute will invoke display if the cmd is set in dry-run mode
+// DryExecute will invoke displaying parameter resolution if the cmd is set in dry-run mode
 func DryExecute(cmd *cobra.Command, display func()) bool {
-	var dry, err = cmd.Flags().GetBool(paramDry)
+	return config.FollowUp(cmd.Flags(), paramDry, display)
+}
 
-	cobra.CheckErr(err)
-
-	if dry {
-		display()
-		return true
-	}
-
-	return false
+// PretendExecute will invoke displaying actual command execution if the cmd is set in pretend mode
+func PretendExecute(cmd *cobra.Command, display func()) bool {
+	return config.FollowUp(cmd.Flags(), paramPretend, display)
 }
 
 func init() {
@@ -125,6 +157,7 @@ func init() {
 	sfCmd.PersistentFlags().StringP(paramDockerContext, "c", "", "path of Docker context, PWD by default")
 	sfCmd.PersistentFlags().Bool(paramConfirm, false, "confirm parameters before executing")
 	sfCmd.PersistentFlags().Bool(paramDry, false, "dry-run only displays parameter resolution then exits")
+	sfCmd.PersistentFlags().Bool(paramPretend, false, "pretending displays the shell command that would be executed to accomplish the toolkit command")
 	sfCmd.AddCommand(buildCmd, debugCmd, runCmd, startCmd, stopCmd, testCmd)
 	cobra.OnInitialize(bindSf, bindBuild, bindDebug, bindRun, bindStart, bindStop, bindTest)
 }

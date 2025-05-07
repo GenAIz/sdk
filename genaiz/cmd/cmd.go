@@ -76,7 +76,12 @@ func init() {
 
 // initConfig initializes the configuration path, the root parameter/configuration mappings and defaults and the logger for the process
 func initConfig() {
-	config.Default(configPath)
+	var defaultErr = config.Default(configPath)
+
+	if defaultErr != nil && configPath != "" {
+		cobra.CheckErr(defaultErr)
+	}
+
 	config.BindCmd(rootCmd, rootMappings)
 	config.BindDefaults(rootDefaults)
 	config.Logger = &logrus.Logger{
@@ -84,6 +89,11 @@ func initConfig() {
 		Level:     getLevel(),
 		Formatter: getFormatter(),
 	}
+
+	if defaultErr != nil {
+		config.Logger.Debugf("Could not locate default config path [%s]", config.DefaultPath)
+	}
+
 	config.Logger.Debugf("Using config file [%s]", viper.ConfigFileUsed())
 }
 

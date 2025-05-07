@@ -1,12 +1,14 @@
 package sf
 
 import (
+	"context"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang/logz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
@@ -35,7 +37,9 @@ var (
 			}
 
 			if !DryExecute(cmd, displayRun) {
-				ConfirmExecute(cmd, execRun, displayRun)
+				ConfirmExecute(cmd,
+					func() { execRun(cmd.Context()) },
+					displayRun)
 			}
 		},
 	}
@@ -76,7 +80,7 @@ func bindRun() {
 //
 //   - If the --image flag has a value we assume it means ignore the context, and we'll ignore --tag and --version.
 //   - If --tag and/or --version are present without --image, we'll attempt finding or building a local image before running.
-func execRun() {
+func execRun(ctx context.Context) {
 	var runParams = makeRunParams()
 	var plan = &task.Plan[docker.RunParams]{
 		Logger: config.Logger,
@@ -86,14 +90,14 @@ func execRun() {
 		OnSuccess: func(out string) {
 			var image = viper.GetString(keyRunImage)
 
-			config.InfoNonEmpty(out)
+			logz.InfoOutput(config.Logger, out)
 			config.Logger.Printf("Running %s in detached mode", image)
 		},
 	}
 
 	if dockerImage == "" {
 		plan.Sequence(
-			task.Execution(makeBuildParams(), docker.BuildTask()),
+			task.Execution(makeBuildParams(ctx), docker.BuildTask()),
 			task.Execution(runParams, docker.RunTask()),
 		)
 	} else {
