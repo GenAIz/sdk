@@ -1,127 +1,169 @@
 package sf
 
 import (
-	"os"
-	"path/filepath"
+	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
-	"genaiz.com/genaiz/lang/logz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
 
-const (
-	keyDockerContainer          = "SmartFunction.Start.Container" // Configuration key used in config files for specifying the Docker container to start/stop/dispose
-	keyDockerContainerReplace   = "SmartFunction.Start.Replace"   // Configuration key used in config files for replacing any containers on creation
-	paramDockerContainer        = "name"                          // Parameter label used from the shell for specifying  the Docker container to start/stop/dispose
-	paramDockerContainerReplace = "replace"                       // Parameter label used from the shell for replacing any containers on creation
-)
+type StartExecutor struct {
+	BaseExecutor
+	*StartOptions
+}
 
-var (
-	// SmartFunction start command for starting a Docker container by name, potentially creating it and building an image beforehand
-	startCmd = &cobra.Command{
+func (se *StartExecutor) Display() {
+	var options = []*config.Option{
+		&se.optionRunImage.Option,
+		&se.optionContainerName.Option,
+		&se.optionContainerPrefix.Option,
+		&se.optionContainerReplace.Option,
+		&se.optionMountInput.Option,
+		&se.optionMountOutput.Option,
+	}
+
+	options = append(options, se.Cli.SfOptions()...)
+	se.Repo.DisplayOptions(options...)
+}
+
+func (se *StartExecutor) Pretend() {
+	var force = se.Repo.GetBool(se.optionContainerReplace)
+	var params = se.makeStartParams(force)
+
+	docker.NewStartTask().Pretend(params, se.Repo.Logger)
+}
+
+func (se *StartExecutor) Proceed() {
+	var replace = se.Repo.GetBool(se.optionContainerReplace)
+	var preserve = se.Repo.GetBool(se.optionContainerPreserve)
+	var buildParams = makeBuildParams(se.BaseExecutor)
+	var params = se.makeStartParams(replace)
+	var plan = task.Plan[docker.ContainerParams]{
+		Logger: se.Repo.Logger,
+		OnError: func(err error) {
+			se.Repo.Logger.Errorf("Could not start container %s, error: %s", params.Name, err)
+		},
+		OnSuccess: func(out string) {
+			if out != "" {
+				se.Repo.Logger.Infof("Started container [%s]", out)
+				fmt.Printf("%s\n", out)
+			}
+		},
+	}
+	var executions = []func(*task.State) error{
+		task.Execution(buildParams, docker.NewBuildTask()),
+	}
+
+	if replace {
+		executions = append(executions, task.Execution(params, docker.NewDisposeTask()))
+	}
+
+	executions = append(executions,
+		task.Execution(params, docker.NewCreateTask()),
+		task.Execution(params, docker.NewStartTask()))
+
+	if !preserve {
+		var disposeParams = se.makeStartParams(false)
+
+		executions = append(executions, task.Execution(disposeParams, docker.NewDisposeTask()))
+	}
+
+	plan.Sequence(executions...)
+}
+
+func (se *StartExecutor) makeStartParams(force bool) *docker.ContainerParams {
+	var result = makeContainerParams(se.BaseExecutor, se.StartOptions.StopOptions, se.StartOptions.RunOptions)
+
+	result.MountOutput = se.Repo.GetString(se.optionMountOutput)
+	result.MountInput = se.Repo.GetString(se.optionMountInput)
+	result.Force = force
+	return result
+}
+
+type StartOptions struct {
+	*RunOptions
+	*StopOptions
+	optionContainerReplace *config.BoolOption
+}
+
+func (so *StartOptions) allDefiners() []config.Definer {
+	return []config.Definer{
+		so.optionContainerPrefix,
+		so.optionContainerName,
+		so.optionContainerReplace,
+		so.optionMountInput,
+		so.optionMountLog,
+		so.optionMountOutput,
+		so.optionMountVar,
+		so.optionRunImage,
+	}
+}
+
+func NewStart(repo *config.Repo, cli *Cli) *cobra.Command {
+	var options = NewStartOptions(cli)
+	var start = &cobra.Command{
 		Use:     "start",
 		Short:   "Starts the Smart Function, creating a container if necessary",
 		Long:    "Starts the Smart Function, building it first if necessary, and creating a container matching the name and version of its context if it doesn't exist",
 		Example: "genaiz sf start --image myproject/myfunc:latest --name mycontainer-myfunc --replace",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			repo.FromWorkDir(options.optionMountInput, cmd.Flags())
+			repo.FromWorkDir(options.optionMountLog, cmd.Flags())
+			repo.FromWorkDir(options.optionMountOutput, cmd.Flags())
+			repo.FromWorkDir(options.optionMountVar, cmd.Flags())
+		},
 		Run: func(cmd *cobra.Command, args []string) {
-			var displayStart = func() {
-				config.Display(sfMappings, runMappings, startMappings)
-			}
-
-			if !DryExecute(cmd, displayStart) {
-				ConfirmExecute(cmd, execStart, displayStart)
-			}
+			options.rebuildImage = needsRebuildingImage(cmd, options.RunOptions.optionRunImage)
+			cli.Exec(repo, NewStartExecutor(cmd.Context(), repo, cli, options))
 		},
 	}
 
-	// Default values for the startCmd parameters
-	startDefaults = map[string]func() string{
-		keyDockerContainer: func() string {
-			var wd, err = os.Getwd()
+	repo.Register(start, options.allDefiners()...)
+	return start
+}
 
-			cobra.CheckErr(err)
-			return filepath.Base(filepath.Dir(wd)) + "-" + filepath.Base(wd)
+func NewStartExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *StartOptions) *StartExecutor {
+	return &StartExecutor{
+		BaseExecutor: BaseExecutor{
+			Context: ctx,
+			Repo:    repo,
+			Cli:     cli,
 		},
+		StartOptions: options,
 	}
-
-	// startCmd mappings between config files and shell
-	startMappings = map[string]string{
-		keyDockerContainer:         paramDockerContainer,
-		keyDockerContainerPreserve: paramDockerContainerPreserve,
-		keyDockerContainerReplace:  paramDockerContainerReplace,
-	}
-)
-
-func init() {
-	initRun(startCmd)
-	initStop(startCmd)
-	initStart(startCmd)
-	startCmd.PersistentFlags().BoolP(paramDockerContainerReplace, "r", false, "removes any previous containers before creating a new one. By default, the command will use an incremental naming scheme of [name]-i")
 }
 
-// bindStart binds startMappings between shell and config files to startCmd with startDefaults
-func bindStart() {
-	config.BindCmd(startCmd, startMappings)
-	config.BindDefaults(startDefaults)
-}
+func NewStartOptions(cli *Cli) *StartOptions {
+	var outputOption = newOptionMountOutput("Start")
 
-// execStart executes the startCmd after ensuring the container specified exists, potentially replacing existing one.
-//
-//   - If the --replace flag is specified, the current container will be forced stopped and disposed of before creating a new one
-//   - If the --preserve flag is not specified the container will be disposed of after stoppage.
-//   - With both flags set to false, the command will attempt creating a newly named container with an increment and start it
-func execStart() {
-	var replace = viper.GetBool(keyDockerContainerReplace)
-	var preserve = viper.GetBool(keyDockerContainerPreserve)
-	var params = makeStartParams(false)
-	var plan = task.Plan[docker.ContainerParams]{
-		Logger: config.Logger,
-		OnError: func(err error) {
-			config.Logger.Errorf("Could not start container %s, error: %s", params.Name, err)
+	return &StartOptions{
+		RunOptions: &RunOptions{
+			optionRunImage:    newOptionCmdImage("Start"),
+			optionMountInput:  newOptionMountInput("Start"),
+			optionMountLog:    newOptionMountLog("Start", outputOption),
+			optionMountOutput: outputOption,
+			optionMountVar:    newOptionMountVar("Start", outputOption),
 		},
-		OnSuccess: func(out string) {
-			logz.InfoOutput(config.Logger, out)
-			config.Logger.Printf("Started container %s", params.Name)
+		StopOptions: &StopOptions{
+			optionContainerName:   NewOptionContainerName("Start"),
+			optionContainerPrefix: NewOptionContainerPrefix("Start", cli),
 		},
-	}
-
-	if replace && preserve {
-		plan.Sequence(
-			task.Execution(params, docker.DisposeTask()),
-			task.Execution(params, docker.CreateTask()),
-			task.Execution(params, docker.StartTask()))
-	} else if replace {
-		plan.Sequence(
-			task.Execution(makeStartParams(true), docker.DisposeTask()),
-			task.Execution(params, docker.CreateTask()),
-			task.Execution(params, docker.StartTask()),
-			task.Execution(params, docker.DisposeTask()))
-	} else if preserve {
-		plan.Sequence(
-			task.Execution(params, docker.CreateTask()),
-			task.Execution(params, docker.StartTask()))
-	} else {
-		plan.Sequence(
-			task.Execution(params, docker.CreateTask()),
-			task.Execution(params, docker.StartTask()),
-			task.Execution(params, docker.DisposeTask()))
+		optionContainerReplace: NewOptionContainerReplace(),
 	}
 }
 
-func initStart(cmd *cobra.Command) {
-	cmd.PersistentFlags().StringP(paramDockerContainer, "n", "", "name of the container to start/stop, defaults to the [parentDir-currentDir] if none specified")
-}
-
-// makeStartParams creates a docker.ContainerParams from resolving parameters, configuration files and environment variables
-func makeStartParams(force bool) *docker.ContainerParams {
-	// It's the same as stop for now, but creating containers can get very hairy, very quickly, so leave it be.
-	return &docker.ContainerParams{
-		RunParams: *makeRunParams(),
-		Name:      viper.GetString(keyDockerContainer),
-		Force:     force,
+func NewOptionContainerReplace() *config.BoolOption {
+	return &config.BoolOption{
+		Option: config.Option{
+			Key:          "SF.Start.Replace",
+			Param:        "replace",
+			Short:        "r",
+			Usage:        "removes any previous containers before creating a new one",
+			DefaultValue: "false",
+		},
 	}
 }

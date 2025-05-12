@@ -2,122 +2,272 @@ package sf
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
-	"genaiz.com/genaiz/lang/logz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
 
-const (
-	keyRunImage        = "SmartFunction.Run.Image"      // Configuration key used in config files for specifying the Docker image to run
-	keyRunInputPath    = "SmartFunction.Run.InputPath"  // Configuration key used in config files for specifying the input mount path
-	keyRunOutputPath   = "SmartFunction.Run.OutputPath" // Configuration key used in config files for specifying the output mount path
-	paramRunImage      = "image"                        // Parameter label used from the shell for specifying the Docker image to run
-	paramRunInputPath  = "in"                           // Parameter label used from the shell for specifying the input mount path
-	paramRunOutputPath = "out"                          // Parameter label used from the shell for specifying the output mount path
-)
+type RunExecutor struct {
+	BaseExecutor
+	*RunOptions
+}
 
-var (
-	dockerImage string // full name of the Docker image to run
+func (re *RunExecutor) Display() {
+	displayRunOptions(re.BaseExecutor, re.RunOptions)
+}
 
-	// SmartFunction run command for running a Docker image in detached mode, the command will build and/or use tag and version params to figure out what to run
-	runCmd = &cobra.Command{
+func (re *RunExecutor) Pretend() {
+	var params = re.makeRunParams()
+
+	re.Repo.DisplayChangeDir()
+	docker.NewRunTask().Pretend(params, re.Repo.Logger)
+}
+
+func (re *RunExecutor) Proceed() {
+	var runParams = re.makeRunParams()
+
+	execRunParamsTask(re.BaseExecutor, re.RunOptions, runParams, docker.NewRunTask())
+}
+
+func (re *RunExecutor) makeRunParams() *docker.ContainerParams {
+	return makeRunParams(re.BaseExecutor, re.RunOptions)
+}
+
+type RunOptions struct {
+	optionMountInput  *config.StringOption
+	optionMountLog    *config.StringOption
+	optionMountOutput *config.StringOption
+	optionMountVar    *config.StringOption
+	optionRunImage    *config.StringOption
+	optionRunPrefix   *config.StringOption
+	rebuildImage      bool
+}
+
+func (ro *RunOptions) allDefiners() []config.Definer {
+	return []config.Definer{
+		ro.optionRunImage,
+		ro.optionRunPrefix,
+		ro.optionMountInput,
+		ro.optionMountLog,
+		ro.optionMountOutput,
+		ro.optionMountVar,
+	}
+}
+
+func NewRun(repo *config.Repo, cli *Cli) *cobra.Command {
+	var options = NewRunOptions(cli)
+	var run = &cobra.Command{
 		Use:     "run",
-		Short:   "Runs a Smart Function in detach mode",
-		Long:    "Runs a Smart Function image detached, building it first if necessary. If the image is not specified build parameters are used",
+		Short:   "Runs a Smart Function detached from the current shell",
+		Long:    "Runs a Smart Function image detached, building it first if necessary, assigning it a disposable container",
 		Example: "genaiz sf run --image genaiz.com/sf/smartfunc:latest",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			repo.FromWorkDir(options.optionMountInput, cmd.Flags())
+			repo.FromWorkDir(options.optionMountLog, cmd.Flags())
+			repo.FromWorkDir(options.optionMountOutput, cmd.Flags())
+			repo.FromWorkDir(options.optionMountVar, cmd.Flags())
+		},
 		Run: func(cmd *cobra.Command, args []string) {
-			var displayRun = func() {
-				config.Display(sfMappings, runMappings)
-			}
-
-			if !DryExecute(cmd, displayRun) {
-				ConfirmExecute(cmd,
-					func() { execRun(cmd.Context()) },
-					displayRun)
-			}
+			options.rebuildImage = needsRebuildingImage(cmd, options.optionRunImage)
+			cli.Exec(repo, NewRunExecutor(cmd.Context(), repo, cli, options))
 		},
 	}
 
-	// Default values for the runCmd parameters
-	runDefaults = map[string]func() string{
-		keyRunImage: func() string {
-			var tag = viper.GetString(keyDockerTag)
-			var version = viper.GetString(keyDockerVersion)
+	repo.Register(run, options.allDefiners()...)
+	return run
+}
 
-			if version == "" || strings.Contains(tag, ":") {
-				return tag
-			}
+func NewRunExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *RunOptions) *RunExecutor {
+	return &RunExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:     cli,
+			Context: ctx,
+			Repo:    repo,
+		},
+		RunOptions: options,
+	}
+}
 
-			return tag + ":" + version
+func NewRunOptions(cli *Cli) *RunOptions {
+	var outputOption = NewOptionMountOutput()
+
+	return &RunOptions{
+		optionMountInput:  NewOptionMountInput(),
+		optionMountLog:    NewOptionMountLog(outputOption),
+		optionMountOutput: outputOption,
+		optionMountVar:    NewOptionMountVar(outputOption),
+		optionRunImage:    NewOptionRunImage(cli),
+		optionRunPrefix:   NewOptionContainerPrefix("Run", cli),
+	}
+}
+
+func NewOptionMountInput() *config.StringOption {
+	return newOptionMountInput("Run")
+}
+
+func NewOptionMountLog(defaultOption *config.StringOption) *config.StringOption {
+	return newOptionMountLog("Run", defaultOption)
+}
+
+func NewOptionMountOutput() *config.StringOption {
+	return newOptionMountOutput("Run")
+}
+
+func NewOptionMountVar(defaultOption *config.StringOption) *config.StringOption {
+	return newOptionMountVar("Run", defaultOption)
+}
+
+func NewOptionRunImage(cli *Cli) *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF.Run.Image",
+			Param: "image",
+			Usage: "reference to an image with or without the version",
+			DefaultSetter: func(repo *config.Repo) any {
+				var tag = repo.GetString(cli.optionDockerTag)
+				var version = repo.GetString(cli.optionDockerVersion)
+
+				if version == "" || strings.Contains(tag, ":") {
+					return tag
+				}
+
+				return tag + ":" + version
+			},
 		},
 	}
+}
 
-	// runCmd mappings between config files and shell
-	runMappings = map[string]string{
-		keyRunImage:      paramRunImage,
-		keyRunInputPath:  paramRunInputPath,
-		keyRunOutputPath: paramRunOutputPath,
+func displayRunOptions(be BaseExecutor, ro *RunOptions) {
+	var options = []*config.Option{
+		&ro.optionRunImage.Option,
+		&ro.optionRunPrefix.Option,
+		&ro.optionMountInput.Option,
+		&ro.optionMountLog.Option,
+		&ro.optionMountOutput.Option,
+		&ro.optionMountVar.Option,
 	}
-)
 
-func init() {
-	initRun(runCmd)
+	options = append(options, be.Cli.SfOptions()...)
+	be.Repo.DisplayOptions(options...)
 }
 
-// bindRun binds runMappings between shell and config files to runCmd with runDefaults
-func bindRun() {
-	config.BindCmd(runCmd, runMappings)
-	config.BindDefaults(runDefaults)
-}
-
-// execRun executes the runCmd after ensuring the image specified is available, otherwise it will attempt building an image and then run it.
-//
-//   - If the --image flag has a value we assume it means ignore the context, and we'll ignore --tag and --version.
-//   - If --tag and/or --version are present without --image, we'll attempt finding or building a local image before running.
-func execRun(ctx context.Context) {
-	var runParams = makeRunParams()
-	var plan = &task.Plan[docker.RunParams]{
-		Logger: config.Logger,
+func execRunParamsTask(be BaseExecutor, ro *RunOptions, params *docker.ContainerParams, runTask *task.Task[docker.ContainerParams]) {
+	var plan = &task.Plan[docker.ContainerParams]{
+		Logger: be.Repo.Logger,
 		OnError: func(err error) {
-			config.Logger.Errorf("Could not run image %s, error: %s", dockerImage, err)
+			be.Repo.Logger.Errorf("Could not %s on image %s, error: %s", runTask.Name, params.DockerImage, err)
+			cobra.CheckErr(err)
 		},
 		OnSuccess: func(out string) {
-			var image = viper.GetString(keyRunImage)
-
-			logz.InfoOutput(config.Logger, out)
-			config.Logger.Printf("Running %s in detached mode", image)
+			if out != "" {
+				fmt.Printf("%s\n", out)
+			}
 		},
 	}
+	var executions []func(*task.State) error
 
-	if dockerImage == "" {
-		plan.Sequence(
-			task.Execution(makeBuildParams(ctx), docker.BuildTask()),
-			task.Execution(runParams, docker.RunTask()),
-		)
-	} else {
-		plan.Single(runParams, docker.RunTask())
+	if ro.rebuildImage {
+		executions = append(executions, task.Execution(makeBuildParams(be), docker.NewBuildTask()))
+	}
+
+	executions = append(executions, task.Execution(params, runTask))
+	plan.Sequence(executions...)
+}
+
+func makeRunParams(be BaseExecutor, ro *RunOptions) *docker.ContainerParams {
+	return &docker.ContainerParams{
+		RunParams: docker.RunParams{
+			Env:      task.Env{Context: be.Context},
+			Attached: false,
+			Dispose:  true,
+		},
+		DockerImage: be.Repo.GetString(ro.optionRunImage),
+		MountInput:  be.Repo.GetString(ro.optionMountInput),
+		MountLog:    be.Repo.GetString(ro.optionMountLog),
+		MountOutput: be.Repo.GetString(ro.optionMountOutput),
+		MountVar:    be.Repo.GetString(ro.optionMountVar),
+		Prefix:      be.Repo.GetString(be.Cli.optionDockerTag),
 	}
 }
 
-// initRun initializes a cobra.Command with the parameter flags to satisfy a build and a run call
-func initRun(cmd *cobra.Command) {
-	initBuild(cmd)
-	cmd.PersistentFlags().StringVar(&dockerImage, "image", "", "full name of an image with the version, defaults to build params if not specified")
-	cmd.PersistentFlags().String("in", "", "full path of the input files folder. No input will be configured if not specified")
-	cmd.PersistentFlags().String("out", "", "full path of the output files folder. No output will be configured if not specified")
+func needsRebuildingImage(cmd *cobra.Command, option *config.StringOption) bool {
+	var imageFlag = cmd.Flags().Lookup(option.Param)
+
+	return imageFlag.Value.String() == ""
 }
 
-// makeRunParams creates a docker.RunParams from resolving parameters, configuration files and environment variables
-func makeRunParams() *docker.RunParams {
-	return &docker.RunParams{
-		DockerImage: viper.GetString(keyRunImage),
-		MountInput:  viper.GetString(keyRunInputPath),
-		MountOutput: viper.GetString(keyRunOutputPath),
+func newOptionCmdImage(cmd string) *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF." + cmd + ".Image",
+			Param: "image",
+			Usage: "reference to an image with or without the version",
+			DefaultGetter: func(repo *config.Repo) any {
+				return repo.GetValue("SF.Run.Image")
+			},
+		},
+	}
+}
+
+func newOptionMountInput(cmd string) *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF." + cmd + ".InputPath",
+			Param: "in",
+			Usage: "path of the input files folder, read-only, if any",
+			Validator: func(value any) bool {
+				return config.ValidateOptional(value, config.ValidateDir)
+			},
+		},
+	}
+}
+
+func newOptionMountLog(cmd string, defaultOption *config.StringOption) *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF." + cmd + ".LogPath",
+			Param: "log",
+			Usage: "path of the log files folder, if any. " + cmd + " will attempt creating the path if does not exist",
+			DefaultGetter: func(repo *config.Repo) any {
+				return repo.Get(&defaultOption.Option)
+			},
+			Validator: func(value any) bool {
+				return config.ValidateOptional(value, config.ValidateDirCreation)
+			},
+		},
+	}
+}
+
+func newOptionMountOutput(cmd string) *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF." + cmd + ".OutputPath",
+			Param: "out",
+			Usage: "path of the output files folder, if any. " + cmd + " will attempt creating the path if does not exist",
+			Validator: func(value any) bool {
+				return config.ValidateOptional(value, config.ValidateDirCreation)
+			},
+		},
+	}
+}
+
+func newOptionMountVar(cmd string, defaultOption *config.StringOption) *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF." + cmd + ".VarPath",
+			Param: "var",
+			Usage: "path of a solution state files folder, if any. " + cmd + " will attempt creating the path if does not exist",
+			DefaultGetter: func(repo *config.Repo) any {
+				return repo.Get(&defaultOption.Option)
+			},
+			Validator: func(value any) bool {
+				return config.ValidateOptional(value, config.ValidateDirCreation)
+			},
+		},
 	}
 }

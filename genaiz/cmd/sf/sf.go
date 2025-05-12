@@ -1,140 +1,79 @@
 // Package sf provides commands for managing Genaiz Smart Functions.
-// Smart Functions commands include build, create, debug, init, run, start, stop and test.
+// Smart Functions commands include build, create, debug, init, list, run, start, stop and test.
 //
 // See: genaiz sf --help
 package sf
 
 import (
-	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
 )
 
-const (
-	keyDockerFile      = "SmartFunction.Dockerfile" // Configuration key used in config files for specifying the Dockerfile path
-	keyDockerContext   = "SmartFunction.Context"    // Configuration key used in config files for specifying the Docker build context
-	paramConfirm       = "confirm"                  // Parameter label used from the shell for specifying the execution confirmation flag
-	paramDry           = "dry"                      // Parameter label used from the shell for specifying a dry execution
-	paramDockerFile    = "file"                     // Parameter label used from the shell for specifying the Dockerfile path
-	paramDockerContext = "context"                  // Parameter label used from the shell for specifying the Docker build context
-	paramPretend       = "pretend"                  // Parameter label used from the shell for specifying a pretend output
-)
+type Decisive func(*config.Repo) bool
 
-var (
-	// SmartFunction command for initiating sub-commands, resolving the default context the default Dockerfile and the current work dir
-	sfCmd = &cobra.Command{
-		Use:     "sf",
-		Aliases: []string{"function"},
-		Short:   "Genaiz Smart Function Utilities",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			var context = ChangeContext(viper.GetString(keyDockerContext))
+type Interactive func(*config.Repo, ...func()) bool
 
-			viper.SetDefault(keyDockerContext, context)
-			viper.SetDefault(keyDockerFile, context+"/Dockerfile")
+type Executor interface {
+	Display()
 
-			if flag := cmd.Flags().Lookup(paramDockerFile); flag != nil && flag.Value != nil {
-				var flagValue = flag.Value.String()
+	Pretend()
 
-				if filepath.IsLocal(flagValue) {
-					cobra.CheckErr(flag.Value.Set(filepath.Join(context, flagValue)))
-				} else if strings.HasPrefix(flagValue, ".") {
-					var value, err = filepath.Abs(flagValue)
-
-					cobra.CheckErr(err)
-					err = flag.Value.Set(value)
-					cobra.CheckErr(err)
-				}
-			}
-
-			if flag := cmd.Flags().Lookup(paramDockerContext); flag != nil {
-				if flag.Value != nil {
-					cobra.CheckErr(flag.Value.Set(context))
-				}
-			}
-		},
-	}
-
-	// sfCmd mappings between config files and shell
-	sfMappings = map[string]string{
-		keyDockerFile:    paramDockerFile,
-		keyDockerContext: paramDockerContext,
-	}
-)
-
-// Cmd returns a fully initialized sf command with all sub-commands initialized with shell, config and default configuration bindings
-func Cmd() *cobra.Command {
-	return sfCmd
+	Proceed()
 }
 
-func ChangeContext(ctx string) string {
-	var cwd, err = os.Getwd()
-	var result string
-
-	cobra.CheckErr(err)
-	result = cwd
-
-	if ctx != "" && cwd != ctx {
-		// See if we need to change context
-		config.Logger.Debugf("Changing working dir [%s]", ctx)
-		cobra.CheckErr(os.Chdir(ctx))
-		bindBuild()
-		result, _ = os.Getwd()
-	}
-
-	return filepath.Clean(result)
+type BaseExecutor struct {
+	Cli     *Cli
+	Context context.Context
+	Repo    *config.Repo
 }
 
-// Confirm returns true if the user acknowledges the display func, false otherwise
-//
-// Note: if display is not used, the method will still ask to proceed or not
-func Confirm(cmd *cobra.Command, display ...func()) bool {
-	if confirm, err := cmd.Flags().GetBool(paramConfirm); err == nil && confirm {
-		var r = bufio.NewReader(os.Stdin)
-		var message = "Proceed?"
+type Cli struct {
+	Confirm Interactive
+	Dry     Decisive
+	Pretend Decisive
 
-		if len(display) > 0 {
-			for _, d := range display {
-				d()
-			}
+	optionDockerContext *config.StringOption
+	optionDockerFile    *config.StringOption
+	optionDockerTag     *config.StringOption
+	optionDockerVersion *config.StringOption
+}
 
-			message = "Confirm all options?"
-		}
-
-		for {
-			if _, err := fmt.Fprintf(os.Stdout, "%s (%s) ", message, "[y/n]"); err == nil {
-				var s, _ = r.ReadString('\n')
-
-				s = strings.TrimSpace(s)
-				s = strings.ToLower(s)
-
-				if s != "" {
-					if s == "y" || s == "yes" {
-						return true
-					}
-
-					if s == "n" || s == "no" {
-						return false
-					}
-				}
-			} else {
-				return false
-			}
+func (c *Cli) Exec(repo *config.Repo, executor Executor) {
+	if !c.isDry(repo, executor.Display) {
+		if c.isPretend(repo) {
+			executor.Pretend()
+		} else {
+			c.execConfirm(repo, executor.Proceed, executor.Display)
 		}
 	}
-
-	return true
 }
 
-// ConfirmExecute will call exec if the cmd requires confirmation through the display function
-func ConfirmExecute(cmd *cobra.Command, exec func(), display ...func()) {
-	if Confirm(cmd, display...) {
+func (c *Cli) SfOptions() []*config.Option {
+	return []*config.Option{
+		&c.optionDockerContext.Option,
+		&c.optionDockerFile.Option,
+		&c.optionDockerTag.Option,
+		&c.optionDockerVersion.Option,
+	}
+}
+
+func (c *Cli) allDefiners() []config.Definer {
+	return []config.Definer{
+		c.optionDockerContext,
+		c.optionDockerFile,
+		c.optionDockerTag,
+		c.optionDockerVersion,
+	}
+}
+
+func (c *Cli) execConfirm(repo *config.Repo, exec func(), display ...func()) {
+	if c.Confirm != nil && c.Confirm(repo, display...) {
 		exec()
 	} else {
 		fmt.Println("Cancelled, exiting")
@@ -142,27 +81,118 @@ func ConfirmExecute(cmd *cobra.Command, exec func(), display ...func()) {
 	}
 }
 
-// DryExecute will invoke displaying parameter resolution if the cmd is set in dry-run mode
-func DryExecute(cmd *cobra.Command, display func()) bool {
-	return config.FollowUp(cmd.Flags(), paramDry, display)
+func (c *Cli) isDecisive(repo *config.Repo, decisive Decisive, display ...func()) bool {
+	if decisive != nil && decisive(repo) {
+		for _, d := range display {
+			d()
+		}
+
+		return true
+	}
+
+	return false
 }
 
-// PretendExecute will invoke displaying actual command execution if the cmd is set in pretend mode
-func PretendExecute(cmd *cobra.Command, display func()) bool {
-	return config.FollowUp(cmd.Flags(), paramPretend, display)
+func (c *Cli) isDry(repo *config.Repo, display ...func()) bool {
+	return c.isDecisive(repo, c.Dry, display...)
 }
 
-func init() {
-	sfCmd.PersistentFlags().StringP(paramDockerFile, "f", "", "path of the Dockerfile, [context]/Dockerfile by default")
-	sfCmd.PersistentFlags().StringP(paramDockerContext, "c", "", "path of Docker context, PWD by default")
-	sfCmd.PersistentFlags().Bool(paramConfirm, false, "confirm parameters before executing")
-	sfCmd.PersistentFlags().Bool(paramDry, false, "dry-run only displays parameter resolution then exits")
-	sfCmd.PersistentFlags().Bool(paramPretend, false, "pretending displays the shell command that would be executed to accomplish the toolkit command")
-	sfCmd.AddCommand(buildCmd, debugCmd, runCmd, startCmd, stopCmd, testCmd)
-	cobra.OnInitialize(bindSf, bindBuild, bindDebug, bindRun, bindStart, bindStop, bindTest)
+func (c *Cli) isPretend(repo *config.Repo) bool {
+	return c.isDecisive(repo, c.Pretend)
 }
 
-// bindSf binds sfMappings between shell and config files to sfCmd
-func bindSf() {
-	config.BindCmd(sfCmd, sfMappings)
+func NewSf(repo *config.Repo, confirm Interactive, dry, pretend Decisive) *cobra.Command {
+	var cli = NewCli(confirm, dry, pretend)
+	var sf = &cobra.Command{
+		Use:     "sf",
+		Aliases: []string{"function"},
+		Short:   "Genaiz Smart Function Toolkit",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			var flags = cmd.Flags()
+
+			repo.ToWorkDir(cli.optionDockerContext, flags)
+			repo.FromWorkDir(cli.optionDockerFile, flags)
+		},
+	}
+
+	repo.Register(sf, cli.allDefiners()...)
+	sf.AddCommand(
+		NewBuild(repo, cli),
+		NewRun(repo, cli),
+		NewDebug(repo, cli),
+		NewTest(repo, cli),
+		NewStop(repo, cli),
+		NewStart(repo, cli),
+	)
+	// The sf command captures context modifications and those are needed before the repo sets defaults
+	cobra.OnInitialize(func() { repo.ChangeWorkDir(cli.optionDockerContext) })
+	return sf
+}
+
+func NewCli(confirm Interactive, dry, pretend Decisive) *Cli {
+	return &Cli{
+		Confirm:             confirm,
+		Dry:                 dry,
+		Pretend:             pretend,
+		optionDockerContext: NewOptionDockerContext(),
+		optionDockerFile:    NewOptionDockerFile(),
+		optionDockerTag:     NewOptionDockerTag(),
+		optionDockerVersion: NewOptionDockerVersion(),
+	}
+}
+
+func NewOptionDockerContext() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:          "SF.DockerContext",
+			Param:        "context",
+			Short:        "c",
+			Usage:        "Docker build context path",
+			DefaultValue: "$PWD",
+			DefaultGetter: func(repo *config.Repo) any {
+				return repo.WorkDir
+			},
+			Validator: config.ValidateDir,
+		},
+	}
+}
+
+func NewOptionDockerFile() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:          "SF.Dockerfile",
+			Param:        "file",
+			Short:        "f",
+			Usage:        "Dockerfile path",
+			DefaultValue: "$PWD/Dockerfile",
+			DefaultGetter: func(repo *config.Repo) any {
+				return filepath.Join(repo.WorkDir, "Dockerfile")
+			},
+			Validator: config.ValidateFile,
+		},
+	}
+}
+
+func NewOptionDockerTag() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF.Build.Tag",
+			Param: "tag",
+			Usage: "tag the smart function image, defaults to the context dir name",
+			DefaultSetter: func(repo *config.Repo) any {
+				return filepath.Base(repo.WorkDir)
+			},
+		},
+	}
+}
+
+func NewOptionDockerVersion() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:          "SF.Build.Version",
+			Param:        "version",
+			Usage:        "version of the smart image",
+			DefaultValue: "latest",
+		},
+	}
 }

@@ -1,17 +1,18 @@
-// Package cmd provides commands for the Genaiz command line toolkit.
+// Package cmd provides commands for the Genaiz SDK Toolkits
 //
 // See: genaiz --help
 package cmd
 
 import (
-	"context"
+	"bufio"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/cmd/sf"
 	"genaiz.com/genaiz/config"
@@ -20,87 +21,204 @@ import (
 	easy "github.com/t-tomalak/logrus-easy-formatter"
 )
 
-const (
-	keyGenaizLogFormat   = "SmartFunction.LogFormat" // Configuration key used in config files for specifying the log format
-	keyGenaizLogLevel    = "SmartFunction.LogLevel"  // Configuration key used in config files for specifying the log level
-	paramGenaizLogFormat = "logFormat"               // Parameter label used from the shell for specifying the log format
-	paramGenaizLogLevel  = "logLevel"                // Parameter label used from the shell for specifying the log level
-)
+type Runner interface {
+	Confirm(*config.Repo, ...func()) bool
 
-var (
-	configPath string // Path of the configuration file specified on the shell
+	Dry(repo *config.Repo) bool
 
-	// Global root command for initiating sub-commands sf and other toolkit utilities
-	rootCmd = &cobra.Command{
+	Pretend(repo *config.Repo) bool
+}
+
+type RunnerOptions struct {
+	logFormat      *config.StringOption
+	logLevel       *config.StringOption
+	overrideConfig *config.StringOption
+	runConfirm     *config.BoolOption
+	runDry         *config.BoolOption
+	runPretend     *config.BoolOption
+	solutionPath   *config.StringOption
+}
+
+func (ro *RunnerOptions) Confirm(repo *config.Repo, display ...func()) bool {
+	if repo.GetBool(ro.runConfirm) {
+		var r = bufio.NewReader(os.Stdin)
+		var message = "Proceed?"
+
+		if len(display) > 0 {
+			for _, d := range display {
+				d()
+			}
+
+			message = "Confirm all options?"
+		}
+
+		for {
+			if _, err := fmt.Fprintf(os.Stdout, "%s (%s) ", message, "[y/n]"); err == nil {
+				var s, _ = r.ReadString('\n')
+
+				s = strings.TrimSpace(s)
+				s = strings.ToLower(s)
+
+				if s != "" {
+					if s == "y" || s == "yes" {
+						return true
+					}
+
+					if s == "n" || s == "no" {
+						return false
+					}
+				}
+			} else {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (ro *RunnerOptions) Dry(repo *config.Repo) bool {
+	return repo.GetBool(ro.runDry)
+}
+
+func (ro *RunnerOptions) Pretend(repo *config.Repo) bool {
+	return repo.GetBool(ro.runPretend)
+}
+
+func (ro *RunnerOptions) allDefiners() []config.Definer {
+	return []config.Definer{
+		ro.overrideConfig,
+		ro.solutionPath,
+		ro.logFormat,
+		ro.logLevel,
+		ro.runConfirm,
+		ro.runDry,
+		ro.runPretend,
+	}
+}
+
+func New(repo *config.Repo) *cobra.Command {
+	var options = NewRunnerOptions()
+	var root = &cobra.Command{
 		Use:     "genaiz",
 		Short:   "Genaiz SDK Toolkits",
 		Version: version.Version,
 	}
 
-	// Default values for the rootCmd parameters
-	rootDefaults = map[string]func() string{
-		keyGenaizLogLevel: func() string {
-			return "info"
+	repo.LoggerFactory = func(repo *config.Repo) *logrus.Logger {
+		var level, err = getLevel(repo.GetString(options.logLevel))
+
+		if err != nil {
+			repo.LogError("Could not set log level with error %s", err)
+		}
+
+		return &logrus.Logger{
+			Out:       os.Stdout,
+			Level:     level,
+			Formatter: getFormatter(repo.GetString(options.logFormat)),
+		}
+	}
+
+	repo.Register(root, options.allDefiners()...)
+	root.AddCommand(sf.NewSf(repo, options.Confirm, options.Dry, options.Pretend))
+	return root
+}
+
+func NewOptionRunConfirm() *config.BoolOption {
+	return &config.BoolOption{
+		Option: config.Option{
+			Param:        "confirm",
+			Usage:        "confirm command options before executing",
+			DefaultValue: false,
 		},
 	}
-
-	// Mappings between parametric log levels and their associated Logrus levels
-	rootLogLevels = map[string]logrus.Level{
-		"debug":   logrus.DebugLevel,
-		"error":   logrus.ErrorLevel,
-		"info":    logrus.InfoLevel,
-		"quiet":   logrus.FatalLevel,
-		"trace":   logrus.TraceLevel,
-		"warning": logrus.WarnLevel,
-	}
-
-	// rootCmd mappings between config files and shell
-	rootMappings = map[string]string{
-		keyGenaizLogFormat: paramGenaizLogFormat,
-		keyGenaizLogLevel:  paramGenaizLogLevel,
-	}
-)
-
-// Execute calls the rootCmd with the specified shell context
-func Execute(ctx context.Context) error {
-	return rootCmd.ExecuteContext(ctx)
 }
 
-func init() {
-	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "config path (default is "+config.DefaultPath+")")
-	rootCmd.PersistentFlags().String(paramGenaizLogFormat, "", "log format. Valid values are \"json\" or a custom format string. By default a custom format string with timestamp and level is used")
-	rootCmd.PersistentFlags().String(paramGenaizLogLevel, "", "log level. Valid values are trace, debug, error, warning, info and quiet. Defaults to info")
-	rootCmd.AddCommand(sf.Cmd())
+func NewOptionRunDry() *config.BoolOption {
+	return &config.BoolOption{
+		Option: config.Option{
+			Param:        "dry",
+			Usage:        "dry-run displays command option resolution only",
+			DefaultValue: false,
+		},
+	}
 }
 
-// initConfig initializes the configuration path, the root parameter/configuration mappings and defaults and the logger for the process
-func initConfig() {
-	var defaultErr = config.Default(configPath)
-
-	if defaultErr != nil && configPath != "" {
-		cobra.CheckErr(defaultErr)
+func NewOptionRunPretend() *config.BoolOption {
+	return &config.BoolOption{
+		Option: config.Option{
+			Param:        "pretend",
+			Usage:        "pretending displays shell commands that would be executed to accomplish the toolkit command, if there are any",
+			DefaultValue: false,
+		},
 	}
+}
 
-	config.BindCmd(rootCmd, rootMappings)
-	config.BindDefaults(rootDefaults)
-	config.Logger = &logrus.Logger{
-		Out:       os.Stdout,
-		Level:     getLevel(),
-		Formatter: getFormatter(),
+func NewOptionLogFormat() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:          "SF.LogFormat",
+			Param:        "logFormat",
+			Usage:        "log format as supported by Logrus. Also supports \"json\" for structured logging",
+			DefaultValue: "[%time%|%lvl%] %msg%",
+		},
 	}
+}
 
-	if defaultErr != nil {
-		config.Logger.Debugf("Could not locate default config path [%s]", config.DefaultPath)
+func NewOptionLogLevel() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:          "SF.LogLevel",
+			Param:        "logLevel",
+			Usage:        "log level for controlling logging details. Supported case insensitive values: debug, d, error e, info, i, quiet q, trace t, warning and w",
+			DefaultValue: "quiet",
+		},
 	}
+}
 
-	config.Logger.Debugf("Using config file [%s]", viper.ConfigFileUsed())
+func NewOptionOverrideConfig() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF.Config",
+			Param: "config",
+			Usage: "configuration file path of the smart function or a solution",
+			DefaultSetter: func(repo *config.Repo) any {
+				return filepath.Join(repo.WorkDir, ".genaiz")
+			},
+			Validator: func(value any) bool {
+				return config.ValidateFile(value.(string))
+			},
+		},
+	}
+}
+
+func NewOptionSolutionPath() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "WF.Path",
+			Param: "solution",
+			Usage: "configuration file path of the smart function solution, if any",
+			Validator: func(value any) bool {
+				return config.ValidateDir(value.(string))
+			},
+		},
+	}
+}
+
+func NewRunnerOptions() *RunnerOptions {
+	return &RunnerOptions{
+		logFormat:      NewOptionLogFormat(),
+		logLevel:       NewOptionLogLevel(),
+		overrideConfig: NewOptionOverrideConfig(),
+		runConfirm:     NewOptionRunConfirm(),
+		runDry:         NewOptionRunDry(),
+		runPretend:     NewOptionRunPretend(),
+		solutionPath:   NewOptionSolutionPath(),
+	}
 }
 
 // getFormatter determines the log format used by the logger for the process
-func getFormatter() logrus.Formatter {
-	var format = viper.GetString(keyGenaizLogFormat)
-
+func getFormatter(format string) logrus.Formatter {
 	if format == "json" {
 		return &logrus.JSONFormatter{
 			TimestampFormat: time.DateTime,
@@ -118,11 +236,24 @@ func getFormatter() logrus.Formatter {
 	}
 }
 
-// getLevel determines the log level to set on the logger for the process
-func getLevel() logrus.Level {
-	if level, ok := rootLogLevels[viper.GetString(keyGenaizLogLevel)]; ok {
-		return level
+// getLevel returns the logrus.Level corresponding to the lower cased levelString specified, logrus.InfoLevel if not recognized
+func getLevel(levelString string) (logrus.Level, error) {
+	switch strings.ToLower(levelString) {
+	case "d", "v", "debug", "verbose":
+		return logrus.DebugLevel, nil
+	case "e", "err", "error":
+		return logrus.ErrorLevel, nil
+	case "i", "nfo", "info":
+		return logrus.InfoLevel, nil
+	case "q", "qq", "quiet":
+		return logrus.FatalLevel, nil
+	case "t", "trc", "trace":
+		return logrus.TraceLevel, nil
+	case "w", "warn", "warning":
+		return logrus.WarnLevel, nil
+	case "":
+		return logrus.InfoLevel, nil
 	}
 
-	return logrus.InfoLevel
+	return logrus.InfoLevel, fmt.Errorf("level [%s] not supported, info will be used", levelString)
 }

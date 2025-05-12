@@ -1,4 +1,4 @@
-# Genaiz Smart Function Toolkit
+# Genaiz Smart Function Kit
 
 ## Minimal Build
 

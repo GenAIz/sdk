@@ -5,6 +5,9 @@
     <exclude-output />
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.registry" />
+      <excludeFolder url="file://$MODULE_DIR$/example/smart-function-1/out" />
+      <excludeFolder url="file://$MODULE_DIR$/example/out" />
+      <excludeFolder url="file://$MODULE_DIR$/var" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
