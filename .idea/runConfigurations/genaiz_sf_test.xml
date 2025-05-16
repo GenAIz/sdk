@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz sf test" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$/example/smart-function-1" />
+    <parameters value="sf test --logLevel=debug --in=test/input --out=../../out" />
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>

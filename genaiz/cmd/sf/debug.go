@@ -4,69 +4,80 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
-	"genaiz.com/genaiz/lang/logz"
-	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
 
-var (
-	// SmartFunction debug command for running a Docker image in interactive mode, the command will build and/or use tag and version params to figure out what to debug
-	debugCmd = &cobra.Command{
+type DebugExecutor struct {
+	BaseExecutor
+	*RunOptions
+}
+
+func (de *DebugExecutor) Display() {
+	displayRunOptions(de.BaseExecutor, de.RunOptions)
+}
+
+func (de *DebugExecutor) Pretend() {
+	var params = de.makeDebugParams()
+
+	de.Repo.DisplayChangeDir()
+	docker.NewDebugTask().Pretend(params, de.Repo.Logger)
+}
+
+func (de *DebugExecutor) Proceed() {
+	var debugParams = de.makeDebugParams()
+
+	execRunParamsTask(de.BaseExecutor, de.RunOptions, debugParams, docker.NewDebugTask())
+}
+
+func (de *DebugExecutor) makeDebugParams() *docker.ContainerParams {
+	return makeRunParams(de.BaseExecutor, de.RunOptions)
+}
+
+func NewDebug(repo *config.Repo, cli *Cli) *cobra.Command {
+	var options = NewDebugOptions(cli)
+	var debug = &cobra.Command{
 		Use:     "debug",
-		Short:   "Debugs a Smart Function image interactively",
-		Long:    "Debugs a Smart Function image, building it first if necessary, opening a shell on a disposable container. If the image is not specified build parameters are used",
+		Short:   "Debugs a Smart Function interactively",
+		Long:    "Debugs a Smart Function image, building it first if necessary",
 		Example: "genaiz sf debug --image genaiz.com/sf/smartfunc:latest",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			repo.FromWorkDir(options.optionMountInput, cmd.Flags())
+			repo.FromWorkDir(options.optionMountLog, cmd.Flags())
+			repo.FromWorkDir(options.optionMountOutput, cmd.Flags())
+			repo.FromWorkDir(options.optionMountVar, cmd.Flags())
+		},
 		Run: func(cmd *cobra.Command, args []string) {
-			var displayDebug = func() {
-				config.Display(sfMappings, runMappings)
-			}
-
-			if !DryExecute(cmd, displayDebug) {
-				ConfirmExecute(cmd,
-					func() { execDebug(cmd.Context()) },
-					displayDebug)
-			}
-		},
-	}
-)
-
-func init() {
-	initRun(debugCmd)
-}
-
-// bindDebug binds runMappings between shell and config files to debugCmd with runDefaults
-func bindDebug() {
-	config.BindCmd(debugCmd, runMappings)
-	config.BindDefaults(runDefaults)
-}
-
-// execDebug executes the debugCmd after ensuring the image specified is available, otherwise it will attempt building an image and then run it.
-//
-// Note: it does the same logic as execRun but with a docker.DebugTask instead
-func execDebug(ctx context.Context) {
-	var runParams = makeRunParams()
-	var plan = &task.Plan[docker.RunParams]{
-		Logger: config.Logger,
-		OnError: func(err error) {
-			config.Logger.Errorf("Could not debug image %s, error: %s", dockerImage, err)
-		},
-		OnSuccess: func(out string) {
-			var image = viper.GetString(keyRunImage)
-
-			logz.InfoOutput(config.Logger, out)
-			config.Logger.Printf("Running %s in interactive mode", image)
+			options.rebuildImage = needsRebuildingImage(cmd, options.optionRunImage)
+			cli.Exec(repo, NewDebugExecutor(cmd.Context(), repo, cli, options))
 		},
 	}
 
-	if dockerImage == "" {
-		plan.Sequence(
-			task.Execution(makeBuildParams(ctx), docker.BuildTask()),
-			task.Execution(runParams, docker.DebugTask()),
-		)
-	} else {
-		plan.Single(runParams, docker.DebugTask())
+	repo.Register(debug, options.allDefiners()...)
+	return debug
+}
+
+func NewDebugExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *RunOptions) *DebugExecutor {
+	return &DebugExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:     cli,
+			Context: ctx,
+			Repo:    repo,
+		},
+		RunOptions: options,
+	}
+}
+
+func NewDebugOptions(cli *Cli) *RunOptions {
+	var outputOption = newOptionMountOutput("Debug")
+
+	return &RunOptions{
+		optionMountInput:  newOptionMountInput("Debug"),
+		optionMountLog:    newOptionMountLog("Debug", outputOption),
+		optionMountOutput: outputOption,
+		optionMountVar:    newOptionMountVar("Debug", outputOption),
+		optionRunImage:    newOptionCmdImage("Debug"),
+		optionRunPrefix:   NewOptionContainerPrefix("Debug", cli),
 	}
 }

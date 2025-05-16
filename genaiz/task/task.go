@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -17,10 +18,23 @@ type Env struct {
 }
 
 type State struct {
-	Completed bool
-	Error     error
-	Output    string
-	Logger    *logrus.Logger
+	Completed  bool
+	Containers *[]container.Summary
+	Error      error
+	Output     string
+	Logger     *logrus.Logger
+}
+
+func (s State) GetContainersSize() int {
+	if s.Containers == nil {
+		return 0
+	}
+
+	return len(*s.Containers)
+}
+
+func (s State) HasContainers() bool {
+	return s.Containers != nil && len(*s.Containers) > 0
 }
 
 type Task[P any] struct {
@@ -35,16 +49,16 @@ type Task[P any] struct {
 func (t Task[P]) Execute(params *P, logger *logrus.Logger) *State {
 	var result = &State{Completed: false, Logger: logger}
 
-	logger.Debugf("Preparing task %s", t.Name)
+	logger.Debugf("Preparing task [%s]", t.Name)
 
 	if err := t.OnPrepare(params, result); err != nil {
 		if t.OnIncomplete == nil {
-			logger.Errorf("Preparing task %s failed: %s", t.Name, err)
+			logger.Errorf("Preparing task [%s] failed with error: %s", t.Name, err)
 			result.Error = err
 			result.Completed = true
 		} else {
 			if err := t.OnIncomplete(params, result); err != nil {
-				logger.Errorf("Handling incomplete task %s failed: %s", t.Name, err)
+				logger.Errorf("Handling incomplete task [%s] failed with error: %s", t.Name, err)
 				result.Error = err
 			} else {
 				result.Error = nil
@@ -63,19 +77,23 @@ func (t Task[P]) Execute(params *P, logger *logrus.Logger) *State {
 		result.Completed = true
 	}
 
-	logger.Debugf("Completed task %s", t.Name)
+	logger.Debugf("Completed task [%s]", t.Name)
 	return result
 }
 
 func (t Task[P]) Pretend(params *P, logger *logrus.Logger) {
 	var result = &State{Completed: false, Logger: logger}
 
-	if t.OnPretend == nil {
-		logger.Warningf("No pretend for task %s, skipping", t.Name)
-	} else {
-		if err := t.OnPretend(params, result); err != nil {
-			logger.Errorf("Pretending task %s failed with err: %s", t.Name, err)
+	if err := t.OnPrepare(params, result); err != nil {
+		if t.OnIncomplete == nil {
 			cobra.CheckErr(err)
 		}
+	}
+
+	if t.OnPretend == nil {
+		logger.Warningf("No pretend for task [%s], skipping", t.Name)
+	} else if err := t.OnPretend(params, result); err != nil {
+		logger.Errorf("Pretending task [%s] failed with error: %s", t.Name, err)
+		cobra.CheckErr(err)
 	}
 }

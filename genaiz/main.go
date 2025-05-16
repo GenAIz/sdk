@@ -1,13 +1,21 @@
 package main
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cmd"
+	"genaiz.com/genaiz/config"
 )
 
 func main() {
-	cobra.CheckErr(cmd.Execute(context.Background()))
+	var repo = config.NewRepo()
+
+	cobra.OnInitialize(repo.Init)
+	root := cmd.New(repo)
+	cobra.OnInitialize(repo.InitDefaults)
+	cobra.OnInitialize(repo.InitLogging)
+
+	if err := root.Execute(); err != nil {
+		cobra.CheckErr(err)
+	}
 }

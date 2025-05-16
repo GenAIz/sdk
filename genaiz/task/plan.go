@@ -21,7 +21,7 @@ type Plan[P any] struct {
 	OnError   func(error)
 }
 
-func Execution[P any](params *P, task Task[P]) func(*State) error {
+func Execution[P any](params *P, task *Task[P]) func(*State) error {
 	return func(state *State) error {
 		var st = task.Execute(params, state.Logger)
 
@@ -59,7 +59,7 @@ func (p Plan[P]) Sequence(execs ...func(state *State) error) {
 	cobra.CheckErr(result.Error)
 }
 
-func (p Plan[P]) Single(params *P, task Task[P]) {
+func (p Plan[P]) Single(params *P, task *Task[P]) {
 	if state := task.Execute(params, p.Logger); state.Error != nil {
 		p.OnError(state.Error)
 		cobra.CheckErr(state.Error)
