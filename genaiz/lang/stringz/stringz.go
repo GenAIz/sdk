@@ -1,6 +1,8 @@
 package stringz
 
-import "strings"
+import (
+	"strings"
+)
 
 // AllNonEmpty filters empty strings out of the provided strings, returning a new array of strings
 func AllNonEmpty(ss ...string) []string {
@@ -17,7 +19,7 @@ func AllNonEmpty(ss ...string) []string {
 
 // FirstNonEmpty returns the first non-empty provided as argument: YAY!
 func FirstNonEmpty(s1 string, s2 ...string) string {
-	if s1 == "" {
+	if s1 == "" && len(s2) > 0 {
 		return FirstNonEmpty(s2[0], s2[1:]...)
 	}
 

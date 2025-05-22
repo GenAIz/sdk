@@ -64,7 +64,9 @@ func (p Plan[P]) Single(params *P, task *Task[P]) {
 		p.OnError(state.Error)
 		cobra.CheckErr(state.Error)
 	} else if state.Completed {
-		p.OnSuccess(state.Output)
+		if p.OnSuccess != nil {
+			p.OnSuccess(state.Output)
+		}
 	} else {
 		cobra.CheckErr(errors.New("incomplete task failed without error"))
 	}

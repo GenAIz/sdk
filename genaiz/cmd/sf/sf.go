@@ -104,8 +104,8 @@ func (c *Cli) isPretend(repo *config.Repo) bool {
 func NewSf(repo *config.Repo, confirm Interactive, dry, pretend Decisive) *cobra.Command {
 	var cli = NewCli(confirm, dry, pretend)
 	var sf = &cobra.Command{
-		Use:     "sf",
-		Aliases: []string{"function"},
+		Use:     "function",
+		Aliases: []string{"sf"},
 		Short:   "Genaiz Smart Function Toolkit",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			var flags = cmd.Flags()

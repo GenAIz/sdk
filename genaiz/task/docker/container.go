@@ -325,7 +325,7 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 	if resp, err := dockerClient.ContainerCreate(params.Context, createConfig, hostConfig,
 		nil, nil, containerName); err == nil {
 		for _, w := range resp.Warnings {
-			state.Logger.Warningf(w)
+			state.Logger.Warningf("%s", w)
 		}
 
 		state.Output = resp.ID[:12]

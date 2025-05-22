@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz/cmd/ac"
 	"genaiz.com/genaiz/cmd/sf"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/version"
@@ -121,6 +122,7 @@ func New(repo *config.Repo) *cobra.Command {
 
 	repo.Register(root, options.allDefiners()...)
 	root.AddCommand(sf.NewSf(repo, options.Confirm, options.Dry, options.Pretend))
+	root.AddCommand(ac.NewAc(repo))
 	return root
 }
 
