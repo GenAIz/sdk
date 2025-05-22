@@ -1,0 +1,21 @@
+services:
+  wiremock:
+    container_name: genaiz_wiremock
+    image: wiremock/wiremock:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./wiremock:/home/wiremock
+
+  genaiz-login:
+    depends_on:
+      - wiremock
+    container_name: genaiz_login
+    image: genaiz.com/sdk/genaiz:latest
+    command: ac login wiremock:8080 --username _test@genaiz.com
+    environment:
+      - GENAIZ_PASSWORD=success
+    volumes:
+      - ./out:/home/genaiz
+    profiles:
+      - tests.genaiz-login

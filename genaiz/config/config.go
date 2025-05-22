@@ -2,10 +2,13 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 
 	"github.com/sirupsen/logrus"
@@ -13,10 +16,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"golang.org/x/term"
 
 	"genaiz.com/genaiz/lang/filez"
 	"genaiz.com/genaiz/lang/mapz"
 	"genaiz.com/genaiz/lang/panicz"
+	"genaiz.com/genaiz/lang/stringz"
 )
 
 // Definer provides methods for defining a pflag.Flag in a pflag.FlagSet, and its associated default value in a config.Repo
@@ -44,24 +49,17 @@ type Option struct {
 
 // bindDefValue binds a DefValue on a pflag.Flag if the DefaultValue of the Option and the flag are defined
 func (o *Option) bindDefValue(flag *pflag.Flag) {
-	if flag != nil && o.DefaultValue != nil {
-		flag.DefValue = fmt.Sprintf("%v", o.DefaultValue)
-	}
-}
+	panicz.RequiresNotNil("flag", flag)
 
-// bindKeyFlag binds the Key or the Param of the Option under viper if the pflag.Flag is defined. The Key always has priority over the Param
-func (o *Option) bindKeyFlag(viper *viper.Viper, flag *pflag.Flag) {
-	if flag != nil {
-		if o.Key != "" {
-			panicz.PanicIfError(viper.BindPFlag(o.Key, flag))
-		} else if o.Param != "" {
-			panicz.PanicIfError(viper.BindPFlag(o.Param, flag))
-		}
+	if o.DefaultValue != nil {
+		flag.DefValue = fmt.Sprintf("%v", o.DefaultValue)
 	}
 }
 
 // bindKeyEnv binds an environment variable lookup under viper if the Key of the Option is defined
 func (o *Option) bindKeyEnv(viper *viper.Viper) {
+	panicz.RequiresNotNil("viper", viper)
+
 	if o.Key != "" {
 		var envKey = o.GetEnvKey()
 
@@ -69,6 +67,15 @@ func (o *Option) bindKeyEnv(viper *viper.Viper) {
 			panicz.PanicIfError(viper.BindEnv(o.Key, envKey))
 		}
 	}
+}
+
+// bindKeyFlag binds the Key or the Param of the Option under viper with the pflag.Flag provided. The Key always has priority over the Param
+func (o *Option) bindKeyFlag(viper *viper.Viper, flag *pflag.Flag) {
+	panicz.RequiresNotNil("flag", flag)
+	panicz.PanicIfError(viper.BindPFlag(
+		stringz.FirstNonEmpty(o.Key, o.Param),
+		flag,
+	))
 }
 
 // GetEnvKey returns the Env value of the Option if it's defined, otherwise it will replace all '.' with '_' on the Key of the Option, capitalized. If no Key is defined, it returns the empty string
@@ -89,6 +96,8 @@ func (o *Option) GetEnvKey() string {
 func (o *Option) Default(repo *Repo) {
 	var value any
 
+	panicz.RequiresNotNil("repo", repo)
+
 	if o.DefaultSetter == nil {
 		value = o.DefaultValue
 	} else {
@@ -106,10 +115,13 @@ func (o *Option) Default(repo *Repo) {
 
 // Defined provides a strategy for defining how to retrieve the Option from a pflag.FlagSet, viper, its DefaultSetter, DefaultGetter and DefaultValue
 func (o *Option) Defined(repo *Repo, set *pflag.FlagSet) {
-	var flag = set.Lookup(o.Param)
+	panicz.RequiresNotNil("repo", repo)
 
-	o.bindKeyFlag(repo.viper, flag)
-	o.bindDefValue(flag)
+	if flag := set.Lookup(o.Param); flag != nil {
+		o.bindKeyFlag(repo.viper, flag)
+		o.bindDefValue(flag)
+	}
+
 	o.bindKeyEnv(repo.viper)
 }
 
@@ -119,12 +131,15 @@ type BoolOption struct {
 }
 
 // Defined of a BoolOption defines its pflag.Flag under a pflag.FlagSet as a Bool or BoolP with a short value
-func (bo *BoolOption) Defined(repo *Repo, set *pflag.FlagSet) {
+func (bo *BoolOption) Defined(repo *Repo, flags *pflag.FlagSet) {
+	panicz.RequiresNotNil("repo", repo)
+	panicz.RequiresNotNil("flags", flags)
+
 	if bo.Param != "" {
-		set.BoolP(bo.Param, bo.Short, false, bo.Usage)
+		flags.BoolP(bo.Param, bo.Short, false, bo.Usage)
 	}
 
-	bo.Option.Defined(repo, set)
+	bo.Option.Defined(repo, flags)
 }
 
 // StringOption treats the value of an option as a string when defining its pflag.Flag and processing its DefaultValue
@@ -134,6 +149,9 @@ type StringOption struct {
 
 // Defined of a StringOption defines its pflag.Flag under a pflag.FlagSet as a String or StringP with a short value
 func (so *StringOption) Defined(repo *Repo, set *pflag.FlagSet) {
+	panicz.RequiresNotNil("repo", repo)
+	panicz.RequiresNotNil("set", set)
+
 	if so.Param != "" {
 		set.StringP(so.Param, so.Short, "", so.Usage)
 	}
@@ -158,33 +176,34 @@ type Registrar interface {
 
 // Repo defines a Mediator which pilots a series of cobra.Command(s), mediating configuration retrieval, work directory and logging services
 type Repo struct {
+	AuthFile      string                     // AuthFile, set to the current authentification file to query broker accounts
 	Logger        *logrus.Logger             // Logger, set to the current logger configurations
 	LoggerFactory func(*Repo) *logrus.Logger // LoggerFactory is called OnLogging when the Logger is initialized
 	UserPath      string                     // UserPath is where to find the user's general configuration for genaiz toolkits
 	WorkDir       string                     // WorkDir is by default the context dir, unless a change was recorded
 
-	defaulters  []func(*Repo)                 // defaulters containers all default resolution functions registered
-	loggers     []func(logger *logrus.Logger) // loggers is a list of delayed logging instructions for the repo to call OnLogging
-	originalDir string                        // originalDir is set to the dir the genaiz command was launched from
-	viper       *viper.Viper                  // viper internal reference
-	workspace   *StringOption                 // workspace refers to an owning classification which may enter naming conventions by default
+	defaulters        []func(*Repo)                 // defaulters containers all default resolution functions registered
+	input             io.Reader                     // os.Stdin by default, swapped to other writers when testing
+	loggers           []func(logger *logrus.Logger) // loggers is a list of delayed logging instructions for the repo to call OnLogging
+	output            io.Writer                     // os.Stdout by default, swapped to other writers when testing
+	originalDir       string                        // originalDir is set to the dir the genaiz command was launched from
+	validationHandler func(interface{})             // validationHandler is invoked when an option is not valid
+	viper             *viper.Viper                  // viper internal reference
+	workspace         *StringOption                 // workspace refers to an owning classification which may enter naming conventions by default
 }
 
 // ChangeWorkDir changes the work directory under the program's execution, tracking the change for all Option(s) value resolution
 func (r *Repo) ChangeWorkDir(option *StringOption) string {
-	var optionPath = r.GetString(option)
+	panicz.RequiresNotNil("option", option)
 
-	if optionPath != "" {
-		var cleanPath = filepath.Clean(optionPath)
+	if path := r.GetString(option); path != "" {
+		var cleanPath = filepath.Clean(path)
+		var absPath = filez.AbsOrPanic(cleanPath)
 
-		if option.Validator == nil || option.Validator(cleanPath) {
-			var absPath = filez.AbsOrPanic(optionPath)
-
-			if r.WorkDir != absPath {
-				r.LogDebug("Changing working dir %s", absPath)
-				panicz.PanicIfError(os.Chdir(absPath))
-				r.WorkDir = absPath
-			}
+		if r.WorkDir != absPath {
+			r.LogDebug("Changing working dir %s", absPath)
+			panicz.PanicIfError(os.Chdir(absPath))
+			r.WorkDir = absPath
 		}
 	}
 
@@ -194,14 +213,14 @@ func (r *Repo) ChangeWorkDir(option *StringOption) string {
 // DisplayChangeDir displays the command that would be executed if the program's execution work directory was changed
 func (r *Repo) DisplayChangeDir() {
 	if r.originalDir != r.WorkDir {
-		fmt.Printf("cd %s\n", r.WorkDir)
+		_, _ = fmt.Fprintf(r.output, "cd %s\n", r.WorkDir)
 	}
 }
 
 // DisplayOptions displays the provided Option(s) param string and their associated values in the Repo
 func (r *Repo) DisplayOptions(options ...*Option) {
 	if len(options) > 0 {
-		var writer = tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
+		var writer = tabwriter.NewWriter(r.output, 1, 1, 1, ' ', 0)
 		var mapped = mapOptionsByParam(r, options...)
 
 		mapz.Sorted(mapped, func(key string) {
@@ -215,40 +234,40 @@ func (r *Repo) DisplayOptions(options ...*Option) {
 
 // LogDebug will log a Debug message with the logger if it has been initialized, otherwise will defer it to logging initialization
 func (r *Repo) LogDebug(message string, args ...interface{}) {
-	if r.Logger != nil {
-		r.Logger.Debugf(message, args)
-	} else {
+	if r.Logger == nil {
 		r.loggers = append(r.loggers, func(l *logrus.Logger) {
-			l.Debugf(message, args)
+			l.Debugf(message, args...)
 		})
+	} else {
+		r.Logger.Debugf(message, args...)
 	}
 }
 
 // LogError will log an Error message with the logger if it has been initialized, otherwise will defer it to logging initialization
 func (r *Repo) LogError(message string, args ...interface{}) {
-	if r.Logger != nil {
-		r.Logger.Errorf(message, args)
-	} else {
+	if r.Logger == nil {
 		r.loggers = append(r.loggers, func(l *logrus.Logger) {
-			l.Errorf(message, args)
+			l.Errorf(message, args...)
 		})
+	} else {
+		r.Logger.Errorf(message, args...)
 	}
 }
 
 // LogInfo will log an Info message with the logger if it has been initialized, otherwise will defer it to logging initialization
 func (r *Repo) LogInfo(message string, args ...interface{}) {
-	if r.Logger != nil {
-		r.Logger.Infof(message, args)
-	} else {
+	if r.Logger == nil {
 		r.loggers = append(r.loggers, func(l *logrus.Logger) {
-			l.Infof(message, args)
+			l.Infof(message, args...)
 		})
+	} else {
+		r.Logger.Infof(message, args...)
 	}
 }
 
 // FromWorkDir updates a pflag.Flag of pflag.FlagSet corresponding to a StringOption with a relative path to a value using the current Repo.WorkDir
 func (r *Repo) FromWorkDir(option *StringOption, flags *pflag.FlagSet) {
-	if flag := flags.Lookup(option.Param); flag != nil && flag.Value != nil {
+	if flag := flags.Lookup(option.Param); flag != nil {
 		var flagValue = flag.Value.String()
 
 		if filepath.IsLocal(flagValue) {
@@ -295,10 +314,10 @@ func (r *Repo) GetBool(option *BoolOption) bool {
 
 // GetString returns the value of a StringOption from Get as a string
 func (r *Repo) GetString(option *StringOption) string {
-	var result = r.Get(&option.Option).(string)
+	var result = cast.ToString(r.Get(&option.Option))
 
 	if option.Validator != nil && !option.Validator(result) {
-		cobra.CheckErr(fmt.Errorf("option %s is invalid", option.Key))
+		r.validationHandler(fmt.Errorf("option %s is invalid", option.Key))
 	}
 
 	return result
@@ -312,7 +331,7 @@ func (r *Repo) GetValue(key string) string {
 // GetWorkspace returns the workspace path which should own the definition of the Repo
 func (r *Repo) GetWorkspace() string {
 	if r.workspace != nil {
-		r.viper.GetString(r.workspace.Param)
+		return r.viper.GetString(r.workspace.Param)
 	}
 
 	return ""
@@ -320,12 +339,14 @@ func (r *Repo) GetWorkspace() string {
 
 // Init initializes the repository primary service facades
 func (r *Repo) Init() {
-	viper.AddConfigPath(r.UserPath)
-	viper.SetConfigName(".genaiz")
-	viper.SetEnvPrefix("genaiz")
-	viper.AutomaticEnv()
+	r.viper.AddConfigPath(r.UserPath)
+	r.viper.SetConfigName(".genaiz")
+	r.viper.SetEnvPrefix("genaiz")
+	r.viper.AutomaticEnv()
 
-	if err := viper.ReadInConfig(); err != nil {
+	if err := r.viper.ReadInConfig(); err == nil {
+		r.LogDebug("Using config file [%s]", r.viper.ConfigFileUsed())
+	} else {
 		r.LogDebug("Cound not read user configurations under %s", r.UserPath)
 	}
 }
@@ -341,21 +362,50 @@ func (r *Repo) InitDefaults() {
 func (r *Repo) InitLogging() {
 	if r.LoggerFactory == nil {
 		r.Logger = logrus.New()
+	} else {
+		r.Logger = r.LoggerFactory(r)
 	}
-
-	r.Logger = r.LoggerFactory(r)
 
 	for _, logFn := range r.loggers {
 		logFn(r.Logger)
 	}
 
 	r.loggers = nil
-	r.Logger.Debugf("Using config file [%s]", viper.ConfigFileUsed())
 }
 
 // InitWorkspace initializes workspace resolution from the provided StringOption
 func (r *Repo) InitWorkspace(option *StringOption) {
 	r.workspace = option
+}
+
+// QueryMandatory queries the user for input using the provided message and will keep on asking until the input is not the empty string
+func (r *Repo) QueryMandatory(message string) string {
+	var buff = bufio.NewReader(r.input)
+	var result string
+
+	for {
+		if _, err := fmt.Fprint(r.output, message); err == nil {
+			result, _ = buff.ReadString('\n')
+		}
+
+		if result == "" {
+			continue
+		}
+
+		return result
+	}
+}
+
+// QuerySecret queries the user for a secret input and will take whatever is passed, returning it as a byte array
+func (r *Repo) QuerySecret(message string) *[]byte {
+	var result []byte
+
+	if _, err := fmt.Fprint(r.output, message); err == nil {
+		result, _ = term.ReadPassword(syscall.Stdin)
+	}
+
+	_, _ = fmt.Fprintln(r.output)
+	return &result
 }
 
 // Register configures Option Definer(s) with the provided cobra.Command and add their Definer.Default method as deferred initialization to be called on InitDefaults
@@ -388,19 +438,33 @@ func (r *Repo) Validate(option *Option) bool {
 	return true
 }
 
-// NewRepo returns a pointer to a new Repo instance, initialized with Repo.UserPath, Repo.WorkDir and an instance of viper
+// NewRepo returns a pointer to a new Repo instance, initialized with Repo.UserPath, Repo.WorkDir and an instance of viper.Viper
 func NewRepo() *Repo {
+	return NewRepoWithViper(viper.GetViper())
+}
+
+// NewRepoWithViper returns a pointer to a new Repo instance, initialized with Repo.UserPath, Repo.WorkDir and the provided instance of viper.Viper
+func NewRepoWithViper(v *viper.Viper) *Repo {
+	return NewRepoWith(v, os.Stdin, os.Stdout)
+}
+
+// NewRepoWith returns a pointer to a new Repo instance, using the provided instance of viper.Viper and the input io.Reader and output io.Writer specified for stdin and stdout
+func NewRepoWith(v *viper.Viper, i io.Reader, o io.Writer) *Repo {
 	home, err := os.UserHomeDir()
 	cobra.CheckErr(err)
 	cwd, err := os.Getwd()
 	cobra.CheckErr(err)
 
 	return &Repo{
-		UserPath: home + "/.config/genaiz",
+		AuthFile: filepath.Join(home, "/.config/genaiz/.genaiz.auth"),
+		UserPath: filepath.Join(home, "/.config/genaiz"),
 		WorkDir:  cwd,
 
-		originalDir: cwd,
-		viper:       viper.GetViper(),
+		input:             i,
+		output:            o,
+		originalDir:       cwd,
+		validationHandler: cobra.CheckErr,
+		viper:             v,
 	}
 }
 
