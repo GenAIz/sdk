@@ -7,7 +7,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -121,101 +120,21 @@ func New(repo *config.Repo) *cobra.Command {
 	}
 
 	repo.Register(root, options.allDefiners()...)
+	repo.AddConfigOption(options.overrideConfig)
 	root.AddCommand(sf.NewSf(repo, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(ac.NewAc(repo))
 	return root
 }
 
-func NewOptionRunConfirm() *config.BoolOption {
-	return &config.BoolOption{
-		Option: config.Option{
-			Param:        "confirm",
-			Usage:        "confirm command options before executing",
-			DefaultValue: false,
-		},
-	}
-}
-
-func NewOptionRunDry() *config.BoolOption {
-	return &config.BoolOption{
-		Option: config.Option{
-			Param:        "dry",
-			Usage:        "dry-run displays command option resolution only",
-			DefaultValue: false,
-		},
-	}
-}
-
-func NewOptionRunPretend() *config.BoolOption {
-	return &config.BoolOption{
-		Option: config.Option{
-			Param:        "pretend",
-			Usage:        "pretending displays shell commands that would be executed to accomplish the toolkit command, if there are any",
-			DefaultValue: false,
-		},
-	}
-}
-
-func NewOptionLogFormat() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "SF.LogFormat",
-			Param:        "logFormat",
-			Usage:        "log format as supported by Logrus. Also supports \"json\" for structured logging",
-			DefaultValue: "[%time%|%lvl%] %msg%",
-		},
-	}
-}
-
-func NewOptionLogLevel() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "SF.LogLevel",
-			Param:        "logLevel",
-			Usage:        "log level for controlling logging details. Supported case insensitive values: debug, d, error e, info, i, quiet q, trace t, warning and w",
-			DefaultValue: "quiet",
-		},
-	}
-}
-
-func NewOptionOverrideConfig() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF.Config",
-			Param: "config",
-			Usage: "configuration file path of the smart function or a solution",
-			DefaultSetter: func(repo *config.Repo) any {
-				return filepath.Join(repo.WorkDir, ".genaiz")
-			},
-			Validator: func(value any) bool {
-				return config.ValidateFile(value.(string))
-			},
-		},
-	}
-}
-
-func NewOptionSolutionPath() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "WF.Path",
-			Param: "solution",
-			Usage: "configuration file path of the smart function solution, if any",
-			Validator: func(value any) bool {
-				return config.ValidateDir(value.(string))
-			},
-		},
-	}
-}
-
 func NewRunnerOptions() *RunnerOptions {
 	return &RunnerOptions{
-		logFormat:      NewOptionLogFormat(),
-		logLevel:       NewOptionLogLevel(),
-		overrideConfig: NewOptionOverrideConfig(),
-		runConfirm:     NewOptionRunConfirm(),
-		runDry:         NewOptionRunDry(),
-		runPretend:     NewOptionRunPretend(),
-		solutionPath:   NewOptionSolutionPath(),
+		logFormat:      newOptionLogFormat(),
+		logLevel:       newOptionLogLevel(),
+		overrideConfig: newOptionOverrideConfig(),
+		runConfirm:     newOptionRunConfirm(),
+		runDry:         newOptionRunDry(),
+		runPretend:     newOptionRunPretend(),
+		solutionPath:   newOptionSolutionPath(),
 	}
 }
 
@@ -258,4 +177,80 @@ func getLevel(levelString string) (logrus.Level, error) {
 	}
 
 	return logrus.InfoLevel, fmt.Errorf("level [%s] not supported, info will be used", levelString)
+}
+
+func newOptionRunConfirm() *config.BoolOption {
+	return &config.BoolOption{
+		Option: config.Option{
+			Param:        "confirm",
+			Usage:        "confirm command options before executing",
+			DefaultValue: false,
+		},
+	}
+}
+
+func newOptionRunDry() *config.BoolOption {
+	return &config.BoolOption{
+		Option: config.Option{
+			Param:        "dry",
+			Usage:        "dry-run displays command option resolution only",
+			DefaultValue: false,
+		},
+	}
+}
+
+func newOptionRunPretend() *config.BoolOption {
+	return &config.BoolOption{
+		Option: config.Option{
+			Param:        "pretend",
+			Usage:        "pretending displays shell commands that would be executed to accomplish the toolkit command, if there are any",
+			DefaultValue: false,
+		},
+	}
+}
+
+func newOptionLogFormat() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:          "SF.LogFormat",
+			Param:        "logFormat",
+			Usage:        "log format as supported by Logrus. Also supports \"json\" for structured logging",
+			DefaultValue: "[%time%|%lvl%] %msg%",
+		},
+	}
+}
+
+func newOptionLogLevel() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:          "SF.LogLevel",
+			Param:        "logLevel",
+			Usage:        "log level for controlling logging details. Supported case insensitive values: debug, d, error e, info, i, quiet q, trace t, warning and w",
+			DefaultValue: "quiet",
+		},
+	}
+}
+
+func newOptionOverrideConfig() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF.Config",
+			Param: "config",
+			Usage: "configuration file path of the smart function or a solution",
+			DefaultGetter: func(repo *config.Repo) any {
+				return repo.WorkDir
+			},
+		},
+	}
+}
+
+func newOptionSolutionPath() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:       "WF.Path",
+			Param:     "solution",
+			Usage:     "configuration file path of the smart function solution, if any",
+			Validator: config.Optionally(config.Validation.FileExists),
+		},
+	}
 }

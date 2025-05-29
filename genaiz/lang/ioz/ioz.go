@@ -9,18 +9,14 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
+type Streams interface {
+	Stream(context.Context) error
+}
+
 type HiJackedIoStreamer struct {
 	outStream io.Writer
 	errStream io.Writer
 	reader    *bufio.Reader
-}
-
-func NewHiJackedStdStreamer(reader *bufio.Reader) *HiJackedIoStreamer {
-	return &HiJackedIoStreamer{
-		outStream: os.Stdout,
-		errStream: os.Stderr,
-		reader:    reader,
-	}
 }
 
 func (s *HiJackedIoStreamer) begin() <-chan error {
@@ -46,13 +42,11 @@ func (s *HiJackedIoStreamer) Stream(ctx context.Context) error {
 	}
 }
 
-func NewHiJackedChannel(ctx context.Context, reader *bufio.Reader) chan error {
+func NewHiJackedChannel(ctx context.Context, streamer Streams) chan error {
 	var result = make(chan error, 1)
 
 	go func() {
 		result <- func() error {
-			var streamer = NewHiJackedStdStreamer(reader)
-
 			if err := streamer.Stream(ctx); err != nil {
 				return err
 			}
@@ -61,4 +55,16 @@ func NewHiJackedChannel(ctx context.Context, reader *bufio.Reader) chan error {
 		}()
 	}()
 	return result
+}
+
+func NewHiJackedStreamer(reader *bufio.Reader, out, err io.Writer) *HiJackedIoStreamer {
+	return &HiJackedIoStreamer{
+		outStream: out,
+		errStream: err,
+		reader:    reader,
+	}
+}
+
+func NewHiJackedStreamerStd(reader *bufio.Reader) *HiJackedIoStreamer {
+	return NewHiJackedStreamer(reader, os.Stdout, os.Stderr)
 }

@@ -87,9 +87,9 @@ func makeBuildParams(base BaseExecutor) *docker.BuildParams {
 	if dir := filepath.Dir(dockerFile); dir != cwd && strings.Contains(dir, cwd) {
 		dockerFile = filepath.Join(dir[len(cwd)+1:], filepath.Base(dockerFile))
 	} else if dir == cwd {
-		var base = filepath.Base(dockerFile)
+		var baseFile = filepath.Base(dockerFile)
 
-		if base != "Dockerfile" {
+		if baseFile != "Dockerfile" {
 			dockerFile = filepath.Base(dockerFile)
 		} else {
 			dockerFile = ""

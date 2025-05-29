@@ -138,25 +138,18 @@ func NewStartExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options 
 }
 
 func NewStartOptions(cli *Cli) *StartOptions {
-	var outputOption = newOptionMountOutput("Start")
+	var startCmd = "Start"
+	var runOptions = newRunOptions(cli, startCmd)
+	var stopOptions = newStopOptions(cli, runOptions, startCmd)
 
 	return &StartOptions{
-		RunOptions: &RunOptions{
-			optionRunImage:    newOptionCmdImage("Start"),
-			optionMountInput:  newOptionMountInput("Start"),
-			optionMountLog:    newOptionMountLog("Start", outputOption),
-			optionMountOutput: outputOption,
-			optionMountVar:    newOptionMountVar("Start", outputOption),
-		},
-		StopOptions: &StopOptions{
-			optionContainerName:   NewOptionContainerName("Start"),
-			optionContainerPrefix: NewOptionContainerPrefix("Start", cli),
-		},
-		optionContainerReplace: NewOptionContainerReplace(),
+		RunOptions:             runOptions,
+		StopOptions:            stopOptions,
+		optionContainerReplace: newOptionContainerReplace(),
 	}
 }
 
-func NewOptionContainerReplace() *config.BoolOption {
+func newOptionContainerReplace() *config.BoolOption {
 	return &config.BoolOption{
 		Option: config.Option{
 			Key:          "SF.Start.Replace",

@@ -3,7 +3,6 @@ package sf
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -94,52 +93,7 @@ func NewRunExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *R
 }
 
 func NewRunOptions(cli *Cli) *RunOptions {
-	var outputOption = NewOptionMountOutput()
-
-	return &RunOptions{
-		optionMountInput:  NewOptionMountInput(),
-		optionMountLog:    NewOptionMountLog(outputOption),
-		optionMountOutput: outputOption,
-		optionMountVar:    NewOptionMountVar(outputOption),
-		optionRunImage:    NewOptionRunImage(cli),
-		optionRunPrefix:   NewOptionContainerPrefix("Run", cli),
-	}
-}
-
-func NewOptionMountInput() *config.StringOption {
-	return newOptionMountInput("Run")
-}
-
-func NewOptionMountLog(defaultOption *config.StringOption) *config.StringOption {
-	return newOptionMountLog("Run", defaultOption)
-}
-
-func NewOptionMountOutput() *config.StringOption {
-	return newOptionMountOutput("Run")
-}
-
-func NewOptionMountVar(defaultOption *config.StringOption) *config.StringOption {
-	return newOptionMountVar("Run", defaultOption)
-}
-
-func NewOptionRunImage(cli *Cli) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF.Run.Image",
-			Param: "image",
-			Usage: "reference to an image with or without the version",
-			DefaultSetter: func(repo *config.Repo) any {
-				var tag = repo.GetString(cli.optionDockerTag)
-				var version = repo.GetString(cli.optionDockerVersion)
-
-				if version == "" || strings.Contains(tag, ":") {
-					return tag
-				}
-
-				return tag + ":" + version
-			},
-		},
-	}
+	return newRunOptions(cli, "Run")
 }
 
 func displayRunOptions(be BaseExecutor, ro *RunOptions) {
@@ -201,6 +155,19 @@ func needsRebuildingImage(cmd *cobra.Command, option *config.StringOption) bool 
 	return imageFlag.Value.String() == ""
 }
 
+func newRunOptions(cli *Cli, cmd string) *RunOptions {
+	var defaultOption = newOptionMountOutput(cmd, true)
+
+	return &RunOptions{
+		optionMountInput:  newOptionMountInput(cmd, true),
+		optionMountLog:    newOptionMountLog(cmd, defaultOption),
+		optionMountOutput: defaultOption,
+		optionMountVar:    newOptionMountVar(cmd, defaultOption),
+		optionRunImage:    newOptionCmdImage(cmd),
+		optionRunPrefix:   newOptionContainerPrefix(cmd, cli),
+	}
+}
+
 func newOptionCmdImage(cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
@@ -214,15 +181,19 @@ func newOptionCmdImage(cmd string) *config.StringOption {
 	}
 }
 
-func newOptionMountInput(cmd string) *config.StringOption {
+func newOptionMountInput(cmd string, validated bool) *config.StringOption {
+	var validator func(any) bool
+
+	if validated {
+		validator = config.Optionally(config.Validation.DirExists)
+	}
+
 	return &config.StringOption{
 		Option: config.Option{
-			Key:   "SF." + cmd + ".InputPath",
-			Param: "in",
-			Usage: "path of the input files folder, read-only, if any",
-			Validator: func(value any) bool {
-				return config.ValidateOptional(value, config.ValidateDir)
-			},
+			Key:       "SF." + cmd + ".InputPath",
+			Param:     "in",
+			Usage:     "path of the input files folder, read-only, if any",
+			Validator: validator,
 		},
 	}
 }
@@ -236,22 +207,24 @@ func newOptionMountLog(cmd string, defaultOption *config.StringOption) *config.S
 			DefaultGetter: func(repo *config.Repo) any {
 				return repo.Get(&defaultOption.Option)
 			},
-			Validator: func(value any) bool {
-				return config.ValidateOptional(value, config.ValidateDirCreation)
-			},
+			Validator: config.Optionally(config.Validation.DirCreated),
 		},
 	}
 }
 
-func newOptionMountOutput(cmd string) *config.StringOption {
+func newOptionMountOutput(cmd string, validated bool) *config.StringOption {
+	var validator func(any) bool
+
+	if validated {
+		validator = config.Optionally(config.Validation.DirCreated)
+	}
+
 	return &config.StringOption{
 		Option: config.Option{
-			Key:   "SF." + cmd + ".OutputPath",
-			Param: "out",
-			Usage: "path of the output files folder, if any. " + cmd + " will attempt creating the path if does not exist",
-			Validator: func(value any) bool {
-				return config.ValidateOptional(value, config.ValidateDirCreation)
-			},
+			Key:       "SF." + cmd + ".OutputPath",
+			Param:     "out",
+			Usage:     "path of the output files folder, if any. " + cmd + " will attempt creating the path if does not exist",
+			Validator: validator,
 		},
 	}
 }
@@ -265,9 +238,7 @@ func newOptionMountVar(cmd string, defaultOption *config.StringOption) *config.S
 			DefaultGetter: func(repo *config.Repo) any {
 				return repo.Get(&defaultOption.Option)
 			},
-			Validator: func(value any) bool {
-				return config.ValidateOptional(value, config.ValidateDirCreation)
-			},
+			Validator: config.Optionally(config.Validation.DirCreated),
 		},
 	}
 }

@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz ac login localhost" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$/example/smart-function-1" />
+    <parameters value="ac login localhost:8080 --username=_test@genaiz.com --logLevel=d" />
+    <envs>
+      <env name="GENAIZ_PASSWORD" value="success" />
+    </envs>
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>

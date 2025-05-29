@@ -70,14 +70,5 @@ func NewDebugExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options 
 }
 
 func NewDebugOptions(cli *Cli) *RunOptions {
-	var outputOption = newOptionMountOutput("Debug")
-
-	return &RunOptions{
-		optionMountInput:  newOptionMountInput("Debug"),
-		optionMountLog:    newOptionMountLog("Debug", outputOption),
-		optionMountOutput: outputOption,
-		optionMountVar:    newOptionMountVar("Debug", outputOption),
-		optionRunImage:    newOptionCmdImage("Debug"),
-		optionRunPrefix:   NewOptionContainerPrefix("Debug", cli),
-	}
+	return newRunOptions(cli, "Debug")
 }

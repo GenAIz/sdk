@@ -1,7 +1,7 @@
 REGISTRY ?=
 
 .PHONY: all
-all: build install
+all: install
 
 .PHONY: build
 build:
@@ -9,7 +9,7 @@ build:
 	go build
 
 .PHONY: docker
-docker:
+docker: build
 	./buildDocker.sh $(REGISTRY)
 
 .PHONY: test

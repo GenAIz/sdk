@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -21,267 +20,82 @@ import (
 	"genaiz.com/genaiz/lang/panicz"
 )
 
-type stringValue string
-
-func newStringValue(val string, p *string) *stringValue {
-	*p = val
-	return (*stringValue)(p)
+type configStruct struct {
+	Key   string
+	Value string
 }
 
-func (s *stringValue) Set(val string) error {
-	*s = stringValue(val)
-	return nil
+func TestRepo_backupConfigsInvalidUserPath(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+
+	testRepo.UserPath = "/notValid"
+	assert.ErrorIs(t, testRepo.backupConfigs(), os.ErrNotExist)
 }
 
-func (s *stringValue) Type() string {
-	return "string"
+func TestRepo_backupConfigs(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+	var testStruct = configStruct{Key: "key", Value: "value"}
+
+	testRepo.UserPath = "/tmp"
+	_ = testRepo.makeConfigs(&testStruct)
+	assert.NoError(t, testRepo.backupConfigs())
+	assert.NoError(t, testRepo.backupConfigs())
+	assert.NoError(t, os.Remove("/tmp/genaiz.yaml.back"))
 }
 
-func (s *stringValue) String() string {
-	return string(*s)
+func TestRepo_makeConfigsNoOverwriting(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+	var testStruct = configStruct{Key: "key", Value: "value"}
+
+	testRepo.UserPath = "/tmp"
+	_ = testRepo.makeConfigs(&testStruct)
+	assert.Error(t, testRepo.makeConfigs(&testStruct))
+	assert.NoError(t, os.Remove("/tmp/genaiz.yaml"))
 }
 
-func TestOption_bindDefValueNilFlag(t *testing.T) {
-	var testOption = &Option{}
+func TestRepo_rollbackConfigsInvalidUserPath(t *testing.T) {
+	var _, testRepo = newTestConfigs()
 
-	assert.Panics(t, func() {
-		testOption.bindDefValue(nil)
-	})
+	testRepo.UserPath = "/notValid"
+	assert.ErrorIs(t, testRepo.rollbackConfigs(), os.ErrNotExist)
 }
 
-func TestOption_bindDefValueNilValue(t *testing.T) {
-	var expectedValue = "value"
-	var testFlag = &pflag.Flag{DefValue: expectedValue}
-	var testOption = &Option{}
+func TestRepo_rollbackConfigs(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+	var testStruct = configStruct{Key: "key", Value: "value"}
 
-	testOption.bindDefValue(testFlag)
-	assert.EqualValues(t, testFlag.DefValue, expectedValue)
+	testRepo.UserPath = "/tmp"
+	_ = testRepo.makeConfigs(&testStruct)
+	assert.NoError(t, testRepo.backupConfigs())
+	assert.NoError(t, testRepo.rollbackConfigs())
+	assert.NoError(t, os.Remove("/tmp/genaiz.yaml"))
 }
 
-func TestOption_bindDefValueInteger(t *testing.T) {
-	var testFlag = &pflag.Flag{DefValue: "value"}
-	var testOption = &Option{DefaultValue: 1}
-
-	testOption.bindDefValue(testFlag)
-	assert.EqualValues(t, testFlag.DefValue, cast.ToString(testOption.DefaultValue))
-}
-
-func TestOption_bindKeyFlagNilFlag(t *testing.T) {
-	var testOption = &Option{Key: "key"}
-	var testViper = viper.New()
-
-	assert.Panics(t, func() {
-		testOption.bindKeyFlag(testViper, nil)
-	})
-}
-
-func TestOption_bindKeyFlagViperKey(t *testing.T) {
-	var testViper = viper.New()
-	var expectedValue = "keyValue"
-	var flagValue string
-	var testOption = &Option{Key: "key", Param: "param"}
-	var testFlag = &pflag.Flag{
-		Name:  testOption.Key,
-		Value: newStringValue(expectedValue, &flagValue),
-	}
-
-	testOption.bindKeyFlag(testViper, testFlag)
-	assert.EqualValues(t, expectedValue, testViper.GetString(testOption.Key))
-}
-
-func TestOption_bindKeyFlagViperParam(t *testing.T) {
-	var testViper = viper.New()
-	var expectedValue = "paramValue"
-	var flagValue string
-	var testOption = &Option{Param: "param"}
-	var testFlag = &pflag.Flag{
-		Name:  testOption.Param,
-		Value: newStringValue(expectedValue, &flagValue),
-	}
-
-	testOption.bindKeyFlag(testViper, testFlag)
-	assert.EqualValues(t, expectedValue, testViper.GetString(testOption.Param))
-}
-
-func TestOption_bindKeyEnvViperNil(t *testing.T) {
-	var testOption = &Option{}
-
-	assert.Panics(t, func() {
-		testOption.bindKeyEnv(nil)
-	})
-}
-
-func TestOption_bindKeyEnvNoKey(t *testing.T) {
-	var testOption = &Option{}
-	var testViper = viper.New()
-
-	testOption.bindKeyEnv(testViper)
-	assert.Empty(t, testViper.AllKeys())
-}
-
-func TestOption_bindKeyEnv(t *testing.T) {
-	var testOption = &Option{Key: "key", Env: "env"}
-	var testViper = viper.New()
-	var expectedValue = "expected"
-
-	testOption.bindKeyEnv(testViper)
-
-	if err := os.Setenv("env", expectedValue); err != nil {
-		t.Errorf("could not set environment variable [%s]", testOption.Env)
-	}
-
-	assert.EqualValues(t, expectedValue, testViper.GetString(testOption.Key))
-}
-
-func TestOption_GetEnvKeyWithEnv(t *testing.T) {
-	var testOption = &Option{Env: "env"}
-
-	assert.EqualValues(t, testOption.Env, testOption.GetEnvKey())
-}
-
-func TestOption_GetEnvKeyWithKey(t *testing.T) {
-	var testOption = &Option{Key: "test.key"}
-	var expected = "TEST_KEY"
-
-	assert.EqualValues(t, expected, testOption.GetEnvKey())
-}
-
-func TestOption_GetEnvKeyWithNothing(t *testing.T) {
-	var testOption = &Option{}
-
-	assert.Empty(t, testOption.GetEnvKey())
-}
-
-func TestOption_DefaultRepoNil(t *testing.T) {
-	var testOption = &Option{}
-
-	assert.Panics(t, func() {
-		testOption.Default(nil)
-	})
-}
-
-func TestOption_DefaultDefaultParamValue(t *testing.T) {
-	var repo = NewRepoWithViper(viper.New())
-	var expectedDefault = "defaultValue"
+func TestRepo_AddConfigOption(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+	var testPath = "/tmp"
+	var expectedFile = filepath.Join(testPath, testRepo.ConfigName+".yaml")
+	var _, err = os.Create(expectedFile)
 	var testOption = &StringOption{
-		Option: Option{
-			Param:        "param",
-			DefaultValue: "defaultValue",
-		},
-	}
-
-	testOption.Default(repo)
-	assert.EqualValues(t, expectedDefault, repo.GetString(testOption))
-}
-
-func TestOption_DefaultDefaultSetterKeyValue(t *testing.T) {
-	var repo = NewRepoWithViper(viper.New())
-	var expectedDefault = "defaultValue"
-	var testOption = &StringOption{
-		Option: Option{
+		Option{
 			Key: "key",
-			DefaultSetter: func(repo *Repo) any {
-				return expectedDefault
+			DefaultGetter: func(repo *Repo) any {
+				return testPath
 			},
 		},
 	}
 
-	testOption.Default(repo)
-	assert.EqualValues(t, expectedDefault, repo.GetString(testOption))
-}
-
-func TestOption_DefinedRepoNil(t *testing.T) {
-	var testOption = &Option{}
-
-	assert.Panics(t, func() {
-		testOption.Defined(nil, nil)
-	})
-}
-
-func TestOption_DefinedNoFlag(t *testing.T) {
-	var repo = NewRepoWithViper(viper.New())
-	var flagSet = pflag.NewFlagSet("test", pflag.ContinueOnError)
-	var expectedValue = "envValue"
-	var testOption = &StringOption{
-		Option: Option{
-			Key: "key",
-			Env: "env",
-		},
-	}
-
-	testOption.Defined(repo, flagSet)
-
-	if err := os.Setenv(testOption.Env, expectedValue); err != nil {
-		t.Errorf("could not set environment variable %s", testOption.Env)
-	}
-
-	assert.EqualValues(t, expectedValue, repo.GetString(testOption))
-}
-
-func TestOption_DefinedWithFlag(t *testing.T) {
-	var repo = NewRepoWithViper(viper.New())
-	var flagSet = pflag.NewFlagSet("test", pflag.ContinueOnError)
-	var expectedValue = "flagValue"
-	var testOption = &StringOption{
-		Option: Option{
-			Key:   "key",
-			Param: "param",
-		},
-	}
-
-	testOption.Defined(repo, flagSet)
-
-	if err := flagSet.Lookup(testOption.Param).Value.Set(expectedValue); err != nil {
-		t.Errorf("could not set value [%s]", err)
-	}
-
-	assert.EqualValues(t, expectedValue, repo.GetString(testOption))
-}
-
-func TestBoolOption_DefinedFlagsNil(t *testing.T) {
-	var repo = NewRepoWithViper(viper.New())
-	var testOption = &BoolOption{}
-
-	assert.Panics(t, func() {
-		testOption.Defined(repo, nil)
-	})
-}
-
-func TestBoolOption_DefinedRepoNil(t *testing.T) {
-	var testOption = &BoolOption{}
-
-	assert.Panics(t, func() {
-		testOption.Defined(nil, nil)
-	})
-}
-
-func TestBoolOption_Defined(t *testing.T) {
-	var repo = NewRepoWithViper(viper.New())
-	var flags = pflag.NewFlagSet("test", pflag.ContinueOnError)
-	var expectedParam = "param"
-	var expectedShort = "p"
-	var expectedUsage = "usage"
-	var testOption = &BoolOption{
-		Option: Option{
-			Param: expectedParam,
-			Short: expectedShort,
-			Usage: expectedUsage,
-		},
-	}
-
-	testOption.Defined(repo, flags)
-
-	if flag := flags.Lookup(expectedParam); flag == nil {
-		t.Errorf("could not find defined flag [%s]", expectedParam)
-	} else {
-		assert.EqualValues(t, expectedShort, flag.Shorthand)
-		assert.EqualValues(t, expectedUsage, expectedUsage)
-		assert.False(t, cast.ToBool(flag.Value.String()))
-	}
+	assert.NoError(t, err)
+	testRepo.Init()
+	testRepo.AddConfigOption(testOption)
+	testRepo.InitDefaults()
+	assert.NoError(t, testRepo.viper.ReadInConfig())
+	assert.EqualValues(t, expectedFile, testRepo.viper.ConfigFileUsed())
+	assert.NoError(t, os.Remove(expectedFile))
 }
 
 func TestRepo_ChangeWorkDirEmptyDir(t *testing.T) {
-	var testRepo = NewRepoWithViper(viper.New())
+	var _, testRepo = newTestConfigs()
 	var expectedWorkDir = testRepo.WorkDir
 	var testOption = &StringOption{}
 
@@ -290,15 +104,15 @@ func TestRepo_ChangeWorkDirEmptyDir(t *testing.T) {
 }
 
 func TestRepo_ChangeWorkDirOptionNil(t *testing.T) {
-	var repo = NewRepoWithViper(viper.New())
+	var _, testRepo = newTestConfigs()
 
 	assert.Panics(t, func() {
-		repo.ChangeWorkDir(nil)
+		testRepo.ChangeWorkDir(nil)
 	})
 }
 
 func TestRepo_ChangeWorkDir(t *testing.T) {
-	var testRepo = NewRepoWithViper(viper.New())
+	var _, testRepo = newTestConfigs()
 	var currentWorkDir = testRepo.WorkDir
 	var expectedWorkDir = "/tmp"
 	var testOption = &StringOption{
@@ -318,8 +132,7 @@ func TestRepo_ChangeWorkDir(t *testing.T) {
 }
 
 func TestRepo_DisplayChangeDir(t *testing.T) {
-	var buff bytes.Buffer
-	var testRepo = NewRepoWith(viper.New(), io.Reader(&buff), io.Writer(&buff))
+	var buff, _, testRepo = newTestConfigsWithBuffer()
 	var expectedWorkDir = "/tmp"
 	var testOption = &StringOption{
 		Option{
@@ -336,10 +149,9 @@ func TestRepo_DisplayChangeDir(t *testing.T) {
 }
 
 func TestRepo_DisplayOptions(t *testing.T) {
-	var buff bytes.Buffer
+	var buff, _, testRepo = newTestConfigsWithBuffer()
 	var expectedOne = "one"
 	var expectedTwo = "two"
-	var testRepo = NewRepoWith(viper.New(), io.Reader(&buff), io.Writer(&buff))
 	var testOption1 = &StringOption{
 		Option{
 			Param:        "paramA",
@@ -367,132 +179,28 @@ func TestRepo_DisplayOptions(t *testing.T) {
 	}
 }
 
-func TestRepo_DisplayOptionsNoOptions(t *testing.T) {
-	var buff bytes.Buffer
-	var testRepo = NewRepoWith(viper.New(), io.Reader(&buff), io.Writer(&buff))
+func TestRepo_DisplayOptionsWithMap(t *testing.T) {
+	var buff, _, testRepo = newTestConfigsWithBuffer()
+	var expectedKey = "key"
+	var expectedValue = "value"
+	var testMap = map[string]string{expectedKey: expectedValue}
 
-	testRepo.DisplayOptions()
-	assert.Empty(t, buff)
-}
+	testRepo.DisplayOptionsWithMap(&testMap)
 
-func TestRepo_LogDebug(t *testing.T) {
-	var buff bytes.Buffer
-	var expectedString = "arg"
-	var testRepo = NewRepoWithViper(viper.New())
-
-	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
-		return &logrus.Logger{
-			Out:   io.Writer(&buff),
-			Level: logrus.DebugLevel,
-			Formatter: &easy.Formatter{
-				TimestampFormat: time.DateTime,
-				LogFormat:       "%msg%",
-			},
-		}
+	if s := buff.String(); s != "" {
+		assert.Contains(t, s, expectedKey)
+		assert.Contains(t, s, expectedValue)
+		// tests the sorting
+		assert.True(t, strings.Index(s, expectedKey) < strings.Index(s, expectedValue))
+	} else {
+		assert.Fail(t, "could not read output")
 	}
-	testRepo.InitLogging()
-	testRepo.LogDebug("%s", expectedString)
-	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
-}
-
-func TestRepo_LogDebugNoLogger(t *testing.T) {
-	var buff bytes.Buffer
-	var expectedString = "arg"
-	var testRepo = NewRepoWithViper(viper.New())
-
-	testRepo.LogDebug("%s", expectedString)
-	assert.NotEmpty(t, testRepo.loggers)
-	testRepo.loggers[0](&logrus.Logger{
-		Out:   io.Writer(&buff),
-		Level: logrus.DebugLevel,
-		Formatter: &easy.Formatter{
-			TimestampFormat: time.DateTime,
-			LogFormat:       "%msg%",
-		},
-	})
-	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
-}
-
-func TestRepo_LogInfo(t *testing.T) {
-	var buff bytes.Buffer
-	var expectedString = "arg"
-	var testRepo = NewRepoWithViper(viper.New())
-
-	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
-		return &logrus.Logger{
-			Out:   io.Writer(&buff),
-			Level: logrus.InfoLevel,
-			Formatter: &easy.Formatter{
-				TimestampFormat: time.DateTime,
-				LogFormat:       "%msg%",
-			},
-		}
-	}
-	testRepo.InitLogging()
-	testRepo.LogInfo("%s", expectedString)
-	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
-}
-
-func TestRepo_LogInfoNoLogger(t *testing.T) {
-	var buff bytes.Buffer
-	var expectedString = "arg"
-	var testRepo = NewRepoWithViper(viper.New())
-
-	testRepo.LogInfo("%s", expectedString)
-	assert.NotEmpty(t, testRepo.loggers)
-	testRepo.loggers[0](&logrus.Logger{
-		Out:   io.Writer(&buff),
-		Level: logrus.InfoLevel,
-		Formatter: &easy.Formatter{
-			TimestampFormat: time.DateTime,
-			LogFormat:       "%msg%",
-		},
-	})
-	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
-}
-
-func TestRepo_LogError(t *testing.T) {
-	var buff bytes.Buffer
-	var expectedString = "arg"
-	var testRepo = NewRepoWithViper(viper.New())
-
-	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
-		return &logrus.Logger{
-			Out:   io.Writer(&buff),
-			Level: logrus.ErrorLevel,
-			Formatter: &easy.Formatter{
-				TimestampFormat: time.DateTime,
-				LogFormat:       "%msg%",
-			},
-		}
-	}
-	testRepo.InitLogging()
-	testRepo.LogError("%s", expectedString)
-	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
-}
-
-func TestRepo_LogErrorNoLogger(t *testing.T) {
-	var buff bytes.Buffer
-	var expectedString = "arg"
-	var testRepo = NewRepoWithViper(viper.New())
-
-	testRepo.LogError("%s", expectedString)
-	assert.NotEmpty(t, testRepo.loggers)
-	testRepo.loggers[0](&logrus.Logger{
-		Out:   io.Writer(&buff),
-		Level: logrus.ErrorLevel,
-		Formatter: &easy.Formatter{
-			TimestampFormat: time.DateTime,
-			LogFormat:       "%msg%",
-		},
-	})
-	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
 }
 
 func TestRepo_FromWorkDirAbs(t *testing.T) {
 	var expectedParam = "param"
 	var expectedValue = "/path"
-	var testRepo = NewRepoWithViper(viper.New())
+	var _, testRepo = newTestConfigs()
 	var testFlags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var testOption = &StringOption{
 		Option{
@@ -508,7 +216,7 @@ func TestRepo_FromWorkDirAbs(t *testing.T) {
 
 func TestRepo_FromWorkDirFailLookup(t *testing.T) {
 	var expectedParam = "param"
-	var testRepo = NewRepoWithViper(viper.New())
+	var _, testRepo = newTestConfigs()
 	var testFlags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var testOption = &StringOption{
 		Option{
@@ -522,7 +230,7 @@ func TestRepo_FromWorkDirFailLookup(t *testing.T) {
 
 func TestRepo_FromWorkDirLocalValue(t *testing.T) {
 	var expectedParam = "param"
-	var testRepo = NewRepoWithViper(viper.New())
+	var _, testRepo = newTestConfigs()
 	var expectedValue = testRepo.WorkDir + "/path"
 	var testFlags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var testOption = &StringOption{
@@ -539,7 +247,7 @@ func TestRepo_FromWorkDirLocalValue(t *testing.T) {
 
 func TestRepo_FromWorkDirRelativeValue(t *testing.T) {
 	var expectedParam = "param"
-	var testRepo = NewRepoWithViper(viper.New())
+	var _, testRepo = newTestConfigs()
 	var expectedValue, _ = filepath.Abs(testRepo.WorkDir + "/../path")
 	var testFlags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var testOption = &StringOption{
@@ -556,8 +264,7 @@ func TestRepo_FromWorkDirRelativeValue(t *testing.T) {
 
 func TestRepo_GetKey(t *testing.T) {
 	var expectedValue = "value"
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var testViper, testRepo = newTestConfigs()
 	var testOption = &Option{Key: "key"}
 
 	testViper.SetDefault(testOption.Key, expectedValue)
@@ -566,8 +273,7 @@ func TestRepo_GetKey(t *testing.T) {
 
 func TestRepo_GetParam(t *testing.T) {
 	var expectedValue = "value"
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var testViper, testRepo = newTestConfigs()
 	var testOption = &Option{Param: "param"}
 
 	testViper.SetDefault(testOption.Param, expectedValue)
@@ -576,8 +282,7 @@ func TestRepo_GetParam(t *testing.T) {
 
 func TestRepo_GetDefaultValue(t *testing.T) {
 	var expectedValue = "expected"
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var testViper, testRepo = newTestConfigs()
 	var testOption = &Option{
 		Param:        "param",
 		DefaultValue: "value",
@@ -592,8 +297,7 @@ func TestRepo_GetDefaultValue(t *testing.T) {
 
 func TestRepo_GetEnvPlaceholder(t *testing.T) {
 	var expectedValue = "expected"
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var testViper, testRepo = newTestConfigs()
 	var testOption = &Option{
 		Param:        "param",
 		DefaultValue: "$value",
@@ -605,15 +309,14 @@ func TestRepo_GetEnvPlaceholder(t *testing.T) {
 }
 
 func TestRepo_GetBoolNoResult(t *testing.T) {
-	var testRepo = NewRepoWithViper(viper.New())
+	var _, testRepo = newTestConfigs()
 	var testOption = &BoolOption{}
 
 	assert.False(t, testRepo.GetBool(testOption))
 }
 
 func TestRepo_GetBool(t *testing.T) {
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var testViper, testRepo = newTestConfigs()
 	var testOption = &BoolOption{
 		Option: Option{
 			Key: "key",
@@ -624,10 +327,71 @@ func TestRepo_GetBool(t *testing.T) {
 	assert.True(t, testRepo.GetBool(testOption))
 }
 
+func TestRepo_GetList(t *testing.T) {
+	var expectedValue = "value"
+	var testViper, testRepo = newTestConfigs()
+	var testOption = &ListOption{
+		Option: Option{
+			Key: "key",
+		},
+	}
+
+	testViper.Set(testOption.Key, []string{expectedValue, "two"})
+	assert.Contains(t, testRepo.GetList(testOption), expectedValue)
+}
+
+func TestRepo_GetListAsString(t *testing.T) {
+	var expectedValue = "value"
+	var testViper, testRepo = newTestConfigs()
+	var testOption = &ListOption{
+		Option: Option{
+			Key: "key",
+		},
+	}
+
+	testViper.Set(testOption.Key, expectedValue+" two")
+	assert.Contains(t, testRepo.GetList(testOption), expectedValue)
+}
+
+func TestRepo_GetListEmptyString(t *testing.T) {
+	var testViper, testRepo = newTestConfigs()
+	var testOption = &ListOption{
+		Option: Option{
+			Key: "key",
+		},
+	}
+
+	testViper.Set(testOption.Key, "")
+	assert.Empty(t, testRepo.GetList(testOption))
+}
+
+func TestRepo_GetListNil(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+	var testOption = &ListOption{
+		Option: Option{
+			Key: "key",
+		},
+	}
+
+	assert.Empty(t, testRepo.GetList(testOption))
+}
+
+func TestRepo_GetListSingle(t *testing.T) {
+	var expectedValue = "value"
+	var testViper, testRepo = newTestConfigs()
+	var testOption = &ListOption{
+		Option: Option{
+			Key: "key",
+		},
+	}
+
+	testViper.Set(testOption.Key, expectedValue)
+	assert.Contains(t, testRepo.GetList(testOption), expectedValue)
+}
+
 func TestRepo_GetString(t *testing.T) {
 	var expectedValue = "value"
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var testViper, testRepo = newTestConfigs()
 	var testOption = &StringOption{
 		Option: Option{
 			Key: "key",
@@ -639,8 +403,7 @@ func TestRepo_GetString(t *testing.T) {
 }
 
 func TestRepo_GetStringInvalid(t *testing.T) {
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var _, testRepo = newTestConfigs()
 	var testOption = &StringOption{
 		Option: Option{
 			Key: "key",
@@ -658,8 +421,7 @@ func TestRepo_GetStringInvalid(t *testing.T) {
 
 func TestRepo_GetStringValid(t *testing.T) {
 	var expectedValue = "value"
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var testViper, testRepo = newTestConfigs()
 	var testOption = &StringOption{
 		Option: Option{
 			Key: "key",
@@ -679,24 +441,21 @@ func TestRepo_GetStringValid(t *testing.T) {
 func TestRepo_GetValue(t *testing.T) {
 	var testKey = "key"
 	var expectedValue = "value"
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var testViper, testRepo = newTestConfigs()
 
 	testViper.Set(testKey, expectedValue)
 	assert.EqualValues(t, expectedValue, testRepo.GetValue(testKey))
 }
 
 func TestRepo_GetWorkspaceEmpty(t *testing.T) {
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var _, testRepo = newTestConfigs()
 
 	assert.Empty(t, testRepo.GetWorkspace())
 }
 
 func TestRepo_GetWorkspace(t *testing.T) {
 	var expectedValue = "value"
-	var testViper = viper.New()
-	var testRepo = NewRepoWithViper(testViper)
+	var testViper, testRepo = newTestConfigs()
 	var testOption = &StringOption{
 		Option{
 			Param: "param",
@@ -710,7 +469,31 @@ func TestRepo_GetWorkspace(t *testing.T) {
 
 func TestRepo_InitNoConfig(t *testing.T) {
 	var buff bytes.Buffer
-	var testRepo = NewRepoWithViper(viper.New())
+	var _, testRepo = newTestConfigs()
+
+	testRepo.UserPath = "/tmp"
+	testRepo.Init()
+	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
+		return &logrus.Logger{
+			Out:   io.Writer(&buff),
+			Level: logrus.DebugLevel,
+			Formatter: &easy.Formatter{
+				TimestampFormat: time.DateTime,
+				LogFormat:       "%msg%",
+			},
+		}
+	}
+	testRepo.InitLogging()
+	assert.Contains(t, buff.String(), "Could not")
+}
+
+func TestRepo_Init(t *testing.T) {
+	var buff bytes.Buffer
+	var _, testRepo = newTestConfigs()
+	var testStruct = configStruct{Key: "key", Value: "value"}
+
+	testRepo.UserPath = "/tmp"
+	assert.NoError(t, testRepo.makeConfigs(&testStruct))
 
 	testRepo.Init()
 	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
@@ -724,5 +507,233 @@ func TestRepo_InitNoConfig(t *testing.T) {
 		}
 	}
 	testRepo.InitLogging()
-	assert.Contains(t, buff.String(), testRepo.UserPath)
+	assert.Contains(t, buff.String(), "Using")
+}
+
+func TestRepo_InitLogging(t *testing.T) {
+	var testRepo = NewRepo()
+
+	testRepo.LogDebug("TestRepo_InitLogging")
+	testRepo.InitLogging()
+	assert.Empty(t, testRepo.loggers)
+}
+
+func TestRepo_InitValue(t *testing.T) {
+	var expectedKey = "key"
+	var expectedValue = "value"
+	var _, testRepo = newTestConfigs()
+	var testOption = &StringOption{
+		Option{
+			Key: expectedKey,
+		},
+	}
+
+	testRepo.InitValue(testOption, expectedValue)
+	assert.EqualValues(t, expectedValue, testRepo.GetString(testOption))
+}
+
+func TestRepo_InitValueAlreadySet(t *testing.T) {
+	var expectedKey = "key"
+	var expectedValue = "other"
+	var testViper, testRepo = newTestConfigs()
+	var testOption = &StringOption{
+		Option{
+			Key: expectedKey,
+		},
+	}
+
+	testViper.Set(expectedKey, expectedValue)
+	testRepo.InitValue(testOption, "value")
+	assert.EqualValues(t, expectedValue, testRepo.GetString(testOption))
+}
+
+func TestRepo_LogDebug(t *testing.T) {
+	var buff bytes.Buffer
+	var expectedString = "arg"
+	var _, testRepo = newTestConfigs()
+
+	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
+		return &logrus.Logger{
+			Out:   io.Writer(&buff),
+			Level: logrus.DebugLevel,
+			Formatter: &easy.Formatter{
+				TimestampFormat: time.DateTime,
+				LogFormat:       "%msg%",
+			},
+		}
+	}
+	testRepo.InitLogging()
+	testRepo.LogDebug("%s", expectedString)
+	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
+}
+
+func TestRepo_LogDebugNoLogger(t *testing.T) {
+	var buff bytes.Buffer
+	var expectedString = "arg"
+	var _, testRepo = newTestConfigs()
+
+	testRepo.LogDebug("%s", expectedString)
+	assert.NotEmpty(t, testRepo.loggers)
+	testRepo.loggers[0](&logrus.Logger{
+		Out:   io.Writer(&buff),
+		Level: logrus.DebugLevel,
+		Formatter: &easy.Formatter{
+			TimestampFormat: time.DateTime,
+			LogFormat:       "%msg%",
+		},
+	})
+	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
+}
+
+func TestRepo_LogInfo(t *testing.T) {
+	var buff bytes.Buffer
+	var expectedString = "arg"
+	var _, testRepo = newTestConfigs()
+
+	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
+		return &logrus.Logger{
+			Out:   io.Writer(&buff),
+			Level: logrus.InfoLevel,
+			Formatter: &easy.Formatter{
+				TimestampFormat: time.DateTime,
+				LogFormat:       "%msg%",
+			},
+		}
+	}
+	testRepo.InitLogging()
+	testRepo.LogInfo("%s", expectedString)
+	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
+}
+
+func TestRepo_LogInfoNoLogger(t *testing.T) {
+	var buff bytes.Buffer
+	var expectedString = "arg"
+	var _, testRepo = newTestConfigs()
+
+	testRepo.LogInfo("%s", expectedString)
+	assert.NotEmpty(t, testRepo.loggers)
+	testRepo.loggers[0](&logrus.Logger{
+		Out:   io.Writer(&buff),
+		Level: logrus.InfoLevel,
+		Formatter: &easy.Formatter{
+			TimestampFormat: time.DateTime,
+			LogFormat:       "%msg%",
+		},
+	})
+	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
+}
+
+func TestRepo_LogError(t *testing.T) {
+	var buff bytes.Buffer
+	var expectedString = "arg"
+	var _, testRepo = newTestConfigs()
+
+	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
+		return &logrus.Logger{
+			Out:   io.Writer(&buff),
+			Level: logrus.ErrorLevel,
+			Formatter: &easy.Formatter{
+				TimestampFormat: time.DateTime,
+				LogFormat:       "%msg%",
+			},
+		}
+	}
+	testRepo.InitLogging()
+	testRepo.LogError("%s", expectedString)
+	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
+}
+
+func TestRepo_LogErrorNoLogger(t *testing.T) {
+	var buff bytes.Buffer
+	var expectedString = "arg"
+	var _, testRepo = newTestConfigs()
+
+	testRepo.LogError("%s", expectedString)
+	assert.NotEmpty(t, testRepo.loggers)
+	testRepo.loggers[0](&logrus.Logger{
+		Out:   io.Writer(&buff),
+		Level: logrus.ErrorLevel,
+		Formatter: &easy.Formatter{
+			TimestampFormat: time.DateTime,
+			LogFormat:       "%msg%",
+		},
+	})
+	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
+}
+
+func TestRepo_QueryMandatory(t *testing.T) {
+	var buff, _, testRepo = newTestConfigsWithInput(strings.NewReader("input"))
+	var expectedInput = "input"
+	var expectedOutput = "test"
+
+	assert.EqualValues(t, expectedInput, testRepo.QueryMandatory("test"))
+	assert.EqualValues(t, expectedOutput, buff.String())
+}
+
+func TestRepo_QuerySecret(t *testing.T) {
+	var buff, _, testRepo = newTestConfigsWithInput(os.Stdin)
+
+	assert.Empty(t, testRepo.QuerySecret("secret"))
+	assert.EqualValues(t, "secret\n", buff.String())
+}
+
+func TestRepo_ToWorkDir(t *testing.T) {
+	var expectedFlag = "flag"
+	var expectedPath = "path"
+	var testOption = &StringOption{Option{Param: expectedFlag}}
+	var testFlagSet = pflag.NewFlagSet("test", pflag.ContinueOnError)
+	var _, testRepo = newTestConfigs()
+	var testValue = testFlagSet.String(expectedFlag, expectedPath, "usage")
+
+	testRepo.ToWorkDir(testOption, testFlagSet)
+	assert.EqualValues(t, testRepo.WorkDir, *testValue)
+}
+
+func TestRepo_ValidateValidatorNil(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+	var testOption = &Option{Key: "key"}
+
+	assert.True(t, testRepo.Validate(testOption))
+}
+
+func TestRepo_Validate(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+	var testOption = &Option{
+		Key: "key",
+		Validator: func(value any) bool {
+			return false
+		},
+	}
+
+	assert.False(t, testRepo.Validate(testOption))
+}
+
+func newTestConfigs() (*viper.Viper, *Repo) {
+	var v = viper.New()
+
+	return v, NewBuilder().
+		WithViper(v).
+		Build()
+}
+
+func newTestConfigsWithBuffer() (*bytes.Buffer, *viper.Viper, *Repo) {
+	var v = viper.New()
+	var buff bytes.Buffer
+
+	return &buff, v, NewBuilder().
+		WithInput(io.Reader(&buff)).
+		WithOutput(io.Writer(&buff)).
+		WithViper(v).
+		Build()
+}
+
+func newTestConfigsWithInput(input io.Reader) (*bytes.Buffer, *viper.Viper, *Repo) {
+	var v = viper.New()
+	var buff bytes.Buffer
+
+	return &buff, v, NewBuilder().
+		WithInput(input).
+		WithOutput(io.Writer(&buff)).
+		WithViper(v).
+		Build()
 }

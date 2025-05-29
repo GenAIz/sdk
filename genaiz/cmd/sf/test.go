@@ -41,7 +41,7 @@ func NewTest(repo *config.Repo, cli *Cli) *cobra.Command {
 		Use:     "test",
 		Short:   "Runs the Smart Function attached for testing",
 		Long:    "Runs the Smart Function, building it first if necessary",
-		Example: "genaiz sf test --tag mytag/myfunction --version latest",
+		Example: "genaiz sf test --tag my-tag/my-function --version latest",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			repo.FromWorkDir(options.optionMountInput, cmd.Flags())
 			repo.FromWorkDir(options.optionMountLog, cmd.Flags())
@@ -70,14 +70,5 @@ func NewTestExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *
 }
 
 func NewTestOptions(cli *Cli) *RunOptions {
-	var optionOutput = newOptionMountOutput("Test")
-
-	return &RunOptions{
-		optionMountInput:  newOptionMountInput("Test"),
-		optionMountLog:    newOptionMountLog("Test", optionOutput),
-		optionMountOutput: optionOutput,
-		optionMountVar:    newOptionMountVar("Test", optionOutput),
-		optionRunImage:    newOptionCmdImage("Test"),
-		optionRunPrefix:   NewOptionContainerPrefix("Test", cli),
-	}
+	return newRunOptions(cli, "Test")
 }

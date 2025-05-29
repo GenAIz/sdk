@@ -3,7 +3,6 @@ package ac
 import (
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -68,21 +67,11 @@ func (le *LoginExecutor) queryUsername() string {
 func NewLogin(repo *config.Repo) *cobra.Command {
 	var exec = NewLoginExecutor(repo)
 	var login = &cobra.Command{
-		Use:     "login",
+		Use:     "login host",
 		Short:   "Authenticates an account with a Genaiz broker",
 		Long:    "Authenticates a username and password with a Genaiz broker provided a url as argument",
 		Example: "genaiz ac login www.genaiz.com",
-		Args: func(cmd *cobra.Command, args []string) error {
-			var size = len(args)
-
-			if size == 1 {
-				return nil
-			} else if size > 1 {
-				return errors.Errorf("too many arguments, login requires a single non-empty broker url")
-			}
-
-			return errors.Errorf("login requires a non-empty broker url")
-		},
+		Args:    cobra.MatchAll(cobra.ExactArgs(1)),
 		Run: func(cmd *cobra.Command, args []string) {
 			exec.Login(args[0])
 		},
