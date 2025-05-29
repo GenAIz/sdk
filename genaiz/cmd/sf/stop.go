@@ -106,15 +106,37 @@ func NewStopExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *
 }
 
 func NewStopOptions(cli *Cli) *StopOptions {
-	return &StopOptions{
-		RunOptions:              &RunOptions{optionRunImage: newOptionCmdImage("Stop")},
-		optionContainerName:     NewOptionContainerName("Stop"),
-		optionContainerPrefix:   NewOptionContainerPrefix("Stop", cli),
-		optionContainerPreserve: NewOptionContainerPreserve(),
+	var stopCmd = "Stop"
+	var runOptions = &RunOptions{
+		optionRunImage: newOptionCmdImage(stopCmd),
+	}
+
+	return newStopOptions(cli, runOptions, stopCmd)
+}
+
+func makeContainerParams(be BaseExecutor, so *StopOptions, ro *RunOptions) *docker.ContainerParams {
+	return &docker.ContainerParams{
+		RunParams: docker.RunParams{
+			Env: task.Env{
+				Context: be.Context,
+			},
+		},
+		DockerImage: be.Repo.GetString(ro.optionRunImage),
+		Name:        be.Repo.GetString(so.optionContainerName),
+		Prefix:      be.Repo.GetString(so.optionContainerPrefix),
 	}
 }
 
-func NewOptionContainerName(cmd string) *config.StringOption {
+func newStopOptions(cli *Cli, runOptions *RunOptions, cmd string) *StopOptions {
+	return &StopOptions{
+		RunOptions:              runOptions,
+		optionContainerName:     newOptionContainerName(cmd),
+		optionContainerPrefix:   newOptionContainerPrefix(cmd, cli),
+		optionContainerPreserve: newOptionContainerPreserve(),
+	}
+}
+
+func newOptionContainerName(cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key:   "SF.Container." + cmd + "Name",
@@ -125,7 +147,7 @@ func NewOptionContainerName(cmd string) *config.StringOption {
 	}
 }
 
-func NewOptionContainerPrefix(cmd string, cli *Cli) *config.StringOption {
+func newOptionContainerPrefix(cmd string, cli *Cli) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key:   "SF.Container." + cmd + "Prefix",
@@ -146,7 +168,7 @@ func NewOptionContainerPrefix(cmd string, cli *Cli) *config.StringOption {
 	}
 }
 
-func NewOptionContainerPreserve() *config.BoolOption {
+func newOptionContainerPreserve() *config.BoolOption {
 	return &config.BoolOption{
 		Option: config.Option{
 			Key:          "SF.Container.Preserve",
@@ -154,18 +176,5 @@ func NewOptionContainerPreserve() *config.BoolOption {
 			Usage:        "preserves the container after it exits",
 			DefaultValue: "false",
 		},
-	}
-}
-
-func makeContainerParams(be BaseExecutor, so *StopOptions, ro *RunOptions) *docker.ContainerParams {
-	return &docker.ContainerParams{
-		RunParams: docker.RunParams{
-			Env: task.Env{
-				Context: be.Context,
-			},
-		},
-		DockerImage: be.Repo.GetString(ro.optionRunImage),
-		Name:        be.Repo.GetString(so.optionContainerName),
-		Prefix:      be.Repo.GetString(so.optionContainerPrefix),
 	}
 }

@@ -172,7 +172,7 @@ func fmtMountParams(params *ContainerParams) string {
 
 func fmtMountBindParam(mount *ContainerMountPoint, path string) string {
 	if path != "" {
-		var local = filez.RelativeIfWithinWorkDir(path)
+		var local = filez.FromWorkDir(path)
 		var readOnly = ""
 
 		if mount.ReadOnly {
@@ -219,7 +219,7 @@ func handleContainerAttach(params *ContainerParams, state *task.State) error {
 			}
 
 			if response, err = dockerClient.ContainerAttach(wait, summary.ID, attachOptions); err == nil {
-				channelReader = ioz.NewHiJackedChannel(wait, response.Reader)
+				channelReader = ioz.NewHiJackedChannel(wait, ioz.NewHiJackedStreamerStd(response.Reader))
 				channelContainer = makeContainerChannel(wait, params, summary.ID)
 				defer response.Close()
 			} else {

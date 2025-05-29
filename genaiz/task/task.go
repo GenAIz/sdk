@@ -2,15 +2,17 @@ package task
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 type Executor[P any] interface {
-	Execute(params P, logger logrus.Logger) State
-	Pretend(params P, logger logrus.Logger)
+	Execute(params *P, logger *logrus.Logger) *State
+
+	Pretend(params *P, logger *logrus.Logger)
 }
 
 type Env struct {
@@ -34,30 +36,30 @@ func (s State) GetContainersSize() int {
 }
 
 func (s State) HasContainers() bool {
-	return s.Containers != nil && len(*s.Containers) > 0
+	return s.GetContainersSize() > 0
 }
 
 type Task[P any] struct {
-	Name          string
-	OnPrepare     func(params *P, state *State) error
-	OnIncomplete  func(params *P, state *State) error
-	OnComplete    func(params *P, state *State) error
-	OnPretend     func(params *P, state *State) error
-	StopOnFailure bool
+	Name         string
+	OnPrepare    func(params *P, state *State) error
+	OnIncomplete func(params *P, state *State) error
+	OnComplete   func(params *P, state *State) error
+	OnPretend    func(params *P, state *State) error
 }
 
 func (t Task[P]) Execute(params *P, logger *logrus.Logger) *State {
 	var result = &State{Completed: false, Logger: logger}
+	var err error
 
 	logger.Debugf("Preparing task [%s]", t.Name)
 
-	if err := t.OnPrepare(params, result); err != nil {
+	if err = t.OnPrepare(params, result); err != nil {
 		if t.OnIncomplete == nil {
 			logger.Errorf("Preparing task [%s] failed with error: %s", t.Name, err)
 			result.Error = err
 			result.Completed = true
 		} else {
-			if err := t.OnIncomplete(params, result); err != nil {
+			if err = t.OnIncomplete(params, result); err != nil {
 				logger.Errorf("Handling incomplete task [%s] failed with error: %s", t.Name, err)
 				result.Error = err
 			} else {
@@ -67,7 +69,7 @@ func (t Task[P]) Execute(params *P, logger *logrus.Logger) *State {
 	}
 
 	if !result.Completed && t.OnComplete != nil {
-		if err := t.OnComplete(params, result); err == nil {
+		if err = t.OnComplete(params, result); err == nil {
 			result.Completed = true
 		} else {
 			result.Completed = false
@@ -85,15 +87,21 @@ func (t Task[P]) Pretend(params *P, logger *logrus.Logger) {
 	var result = &State{Completed: false, Logger: logger}
 
 	if err := t.OnPrepare(params, result); err != nil {
-		if t.OnIncomplete == nil {
-			cobra.CheckErr(err)
-		}
+		t.handleExit(err)
+		return
 	}
 
 	if t.OnPretend == nil {
 		logger.Warningf("No pretend for task [%s], skipping", t.Name)
 	} else if err := t.OnPretend(params, result); err != nil {
 		logger.Errorf("Pretending task [%s] failed with error: %s", t.Name, err)
-		cobra.CheckErr(err)
+		t.handleExit(err)
+	}
+}
+
+func (t Task[P]) handleExit(msg interface{}) {
+	if msg != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "Error:", msg)
+		os.Exit(1)
 	}
 }

@@ -1,4 +1,4 @@
-# Genaiz Smart Function Kit
+# Genaiz SmartFunction Kit
 
 ## Makefile
 
@@ -8,113 +8,114 @@ Build the project with its associated make file can install the application, its
 cd genaiz && make all
 ```
 
+To build a docker image of the sdk
+
+```shell
+cd genaiz && make docker
+```
+
+To execute tests alone or to get coverage metrics
+
+```shell
+cd genaiz
+make test
+make coverage
+```
+
 ## Minimal Build
 
 ```shell
 cd genaiz
 go build
-./genaiz sf --help
+./genaiz --help
 ```
 
 ## Commands
 
-### Build
+### function (sf)
+
+The function modules is used to manage smart functions and publish them as Docker images to an Orchestrating Broker.
+
+```shell
+genaiz sf --help
+```
+
+#### build
 
 Simply builds the Smart Function image. Build should always be called as part of other commands, except stop, if no image with the Function definition can be found.
 
 ```shell
-cd genaiz
-go build
-./genaiz sf build --help
+genaiz sf build --help
 ```
 
-### Create
+### create
 
-The command creates a new Smart Function folder with a typical layout. By default, the command will ask the user interactively to confirm all initial values assigned to the function. The layout create should have a .genaiz.yaml file populated with the values passed to this command.
+The command creates a new Smart Function folder with a typical layout. By default, the command will ask the user interactively to confirm all initial values assigned to the function. The layout created should have a genaiz.yaml file populated with the values passed to this command.
 
 ```shell
-cd genaiz
-go build
-./genaiz sf create --help
+genaiz sf create --help
 ```
 
-> [!CAUTION]
-> The Create command is planned, not yet implemented
-
-### Debug
+#### debug
 
 This should start the image with a disposable container in interactive mode.
 
 ```shell
-cd genaiz
-go build
-./genaiz sf debug --help
-```
-
-### Init
-
-The command initiates a new Smart Function under an existing folder. By default, the command will ask the user interactively to confirm what it found under the folder, creating the .genaiz.yaml file for the Smart Function.
-
-```shell
-cd genaiz
-go build
-./genaiz sf init --help
+genaiz sf debug --help
 ```
 
 > [!CAUTION]
-> The Init command is planned, not yet implemented
+> The debug command is planned, not yet implemented
 
-### Publish
+#### init
+
+The command initiates a new Smart Function under an existing folder. By default, the command will ask the user interactively to confirm what it found under the folder, creating the genaiz.yaml file for the Smart Function.
+
+```shell
+genaiz sf init --help
+```
+
+#### publish
 
 The command initiates a session with the Genaiz broker retrieving authorization tokens to publish a Smart Function image onto the Genaiz marketplace. This would require the user to be logged in using a **genaiz ac login** preamble to retrieve licensing agreements.
 
 ```shell
-cd genaiz
-go build
-./genaiz sf publish --help
+genaiz sf publish --help
 ```
 
 > [!CAUTION]
 > The Publish command is planned, not yet implemented
 
-### Run
+#### run
 
 This should start the image with a disposable container in detached mode.
 
 ```shell
-cd genaiz
-go build
-./genaiz sf run --help
+genaiz sf run --help
 ```
 
-### Start
+#### start
 
 This should start the image with a named container, potentially replacing any existing one, and potentially disposing of it after completion.
 
 ```shell
-cd genaiz
-go build
-./genaiz sf start --help
+genaiz sf start --help
 ```
 
-### Stop
+#### stop
 
 This should stop a named container, potentially disposing of it after it exits.
 
 ```shell
-cd genaiz
-go build
-./genaiz sf stop --help
+genaiz sf stop --help
 ```
 
-### Test
+#### test
 
 Similar to run, but starting a disposable container attached to the current shell.
 
 ```shell
-cd genaiz
-go build
-./genaiz sf test --help
+genaiz sf test --help
 ```
 
 ## Integration Testing

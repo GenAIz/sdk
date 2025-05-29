@@ -26,7 +26,7 @@ func FirstNonEmpty(s1 string, s2 ...string) string {
 	return s1
 }
 
-// MultiTagLabel appends a tag its label with the provided delimiter if both the tag and delimiter are not empty
+// MultiTagLabel appends a tag to a label with the provided delimiter if both the tag and delimiter are not empty
 func MultiTagLabel(label string, delimiter string, tag string) string {
 	if tag != "" && delimiter != "" {
 		return label + delimiter + tag

@@ -102,7 +102,7 @@ func (c *Cli) isPretend(repo *config.Repo) bool {
 }
 
 func NewSf(repo *config.Repo, confirm Interactive, dry, pretend Decisive) *cobra.Command {
-	var cli = NewCli(confirm, dry, pretend)
+	var cli = NewSfCli(confirm, dry, pretend)
 	var sf = &cobra.Command{
 		Use:     "function",
 		Aliases: []string{"sf"},
@@ -118,6 +118,8 @@ func NewSf(repo *config.Repo, confirm Interactive, dry, pretend Decisive) *cobra
 	repo.Register(sf, cli.allDefiners()...)
 	sf.AddCommand(
 		NewBuild(repo, cli),
+		NewCreate(repo, cli),
+		NewInit(repo, cli),
 		NewRun(repo, cli),
 		NewDebug(repo, cli),
 		NewTest(repo, cli),
@@ -129,19 +131,19 @@ func NewSf(repo *config.Repo, confirm Interactive, dry, pretend Decisive) *cobra
 	return sf
 }
 
-func NewCli(confirm Interactive, dry, pretend Decisive) *Cli {
+func NewSfCli(confirm Interactive, dry, pretend Decisive) *Cli {
 	return &Cli{
 		Confirm:             confirm,
 		Dry:                 dry,
 		Pretend:             pretend,
-		optionDockerContext: NewOptionDockerContext(),
-		optionDockerFile:    NewOptionDockerFile(),
-		optionDockerTag:     NewOptionDockerTag(),
-		optionDockerVersion: NewOptionDockerVersion(),
+		optionDockerContext: newOptionDockerContext(),
+		optionDockerFile:    newOptionDockerFile(),
+		optionDockerTag:     newOptionDockerTag(),
+		optionDockerVersion: newOptionDockerVersion(),
 	}
 }
 
-func NewOptionDockerContext() *config.StringOption {
+func newOptionDockerContext() *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key:          "SF.DockerContext",
@@ -152,12 +154,12 @@ func NewOptionDockerContext() *config.StringOption {
 			DefaultGetter: func(repo *config.Repo) any {
 				return repo.WorkDir
 			},
-			Validator: config.ValidateDir,
+			Validator: config.Validation.DirExists,
 		},
 	}
 }
 
-func NewOptionDockerFile() *config.StringOption {
+func newOptionDockerFile() *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key:          "SF.Dockerfile",
@@ -168,12 +170,12 @@ func NewOptionDockerFile() *config.StringOption {
 			DefaultGetter: func(repo *config.Repo) any {
 				return filepath.Join(repo.WorkDir, "Dockerfile")
 			},
-			Validator: config.ValidateFile,
+			Validator: config.Validation.FileExists,
 		},
 	}
 }
 
-func NewOptionDockerTag() *config.StringOption {
+func newOptionDockerTag() *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key:   "SF.Build.Tag",
@@ -186,7 +188,7 @@ func NewOptionDockerTag() *config.StringOption {
 	}
 }
 
-func NewOptionDockerVersion() *config.StringOption {
+func newOptionDockerVersion() *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key:          "SF.Build.Version",
