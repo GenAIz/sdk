@@ -16,25 +16,25 @@ type ConfigType = string
 type FunctionType = string
 
 const (
-	archTypeX86    ArchType = "x86"
-	archTypeX86_64 ArchType = "x86_64"
-	archTypeArm    ArchType = "arm"
-	archTypeArm64  ArchType = "arm64"
+	ArchTypeX86    ArchType = "x86"
+	ArchTypeX86_64 ArchType = "x86_64"
+	ArchTypeArm    ArchType = "arm"
+	ArchTypeArm64  ArchType = "arm64"
 
-	configTypeJson ConfigType = "json"
-	configTypeNone ConfigType = ""
-	configTypeToml ConfigType = "toml"
-	configTypeYaml ConfigType = "yaml"
+	ConfigTypeJson ConfigType = "json"
+	ConfigTypeNone ConfigType = ""
+	ConfigTypeToml ConfigType = "toml"
+	ConfigTypeYaml ConfigType = "yaml"
 
-	functionTypeConnector FunctionType = "connector"
-	functionTypeFunction  FunctionType = "function"
-	functionTypeTrigger   FunctionType = "trigger"
+	FunctionTypeConnector FunctionType = "connector"
+	FunctionTypeFunction  FunctionType = "function"
+	FunctionTypeTrigger   FunctionType = "trigger"
 )
 
 var (
-	ArchTypes     = enumz.NewEnumType(archTypeX86, archTypeX86_64, archTypeArm, archTypeArm64)
-	ConfigTypes   = enumz.NewEnumType(configTypeJson, configTypeNone, configTypeToml, configTypeYaml)
-	FunctionTypes = enumz.NewEnumType(functionTypeConnector, functionTypeFunction, functionTypeTrigger)
+	ArchTypes     = enumz.NewEnumType(ArchTypeX86, ArchTypeX86_64, ArchTypeArm, ArchTypeArm64)
+	ConfigTypes   = enumz.NewEnumType(ConfigTypeJson, ConfigTypeNone, ConfigTypeToml, ConfigTypeYaml)
+	FunctionTypes = enumz.NewEnumType(FunctionTypeConnector, FunctionTypeFunction, FunctionTypeTrigger)
 )
 
 type ConfigPretender interface {
@@ -63,11 +63,11 @@ func newConfigPretender(path string) ConfigPretender {
 
 	panicz.PanicIfError(err)
 	switch *ct {
-	case configTypeJson:
+	case ConfigTypeJson:
 		break
-	case configTypeToml:
+	case ConfigTypeToml:
 		break
-	case configTypeYaml:
+	case ConfigTypeYaml:
 		return &keyValueFilePretender{
 			filename:   path,
 			pretendFmt: "yq -i e '.%s=%s' %s",

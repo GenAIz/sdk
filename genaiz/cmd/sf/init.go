@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang/filez"
 	"genaiz.com/genaiz/lang/panicz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/layout"
@@ -25,11 +27,15 @@ type InitWriter struct {
 }
 
 func (iw *InitWriter) BuildArches() (string, []string) {
-	return iw.optionArchTypes.Key, iw.vp.GetStringSlice(iw.optionArchTypes.Key)
+	return iw.optionArches.Key, iw.vp.GetStringSlice(iw.optionArches.Key)
 }
 
 func (iw *InitWriter) BuildFqdn() (string, string) {
 	return iw.optionFqdn.Key, iw.vp.GetString(iw.optionFqdn.Key)
+}
+
+func (iw *InitWriter) BuildHandle() (string, string) {
+	return iw.optionHandle.Key, iw.vp.GetString(iw.optionHandle.Key)
 }
 
 func (iw *InitWriter) BuildInput() (string, string) {
@@ -37,7 +43,7 @@ func (iw *InitWriter) BuildInput() (string, string) {
 }
 
 func (iw *InitWriter) BuildName() (string, string) {
-	return iw.optionFunctionName.Key, iw.vp.GetString(iw.optionFunctionName.Key)
+	return iw.optionName.Key, iw.vp.GetString(iw.optionName.Key)
 }
 
 func (iw *InitWriter) BuildOem() (string, string) {
@@ -53,7 +59,7 @@ func (iw *InitWriter) BuildOutput() map[string]string {
 }
 
 func (iw *InitWriter) BuildType() (string, string) {
-	return iw.optionFunctionType.Key, iw.vp.GetString(iw.optionFunctionType.Key)
+	return iw.optionType.Key, iw.vp.GetString(iw.optionType.Key)
 }
 
 func (iw *InitWriter) BuildVersion() (string, string) {
@@ -62,27 +68,40 @@ func (iw *InitWriter) BuildVersion() (string, string) {
 
 func (iw *InitWriter) WithArches(values []string) layout.ConfigWriter {
 	if values != nil {
-		iw.vp.Set(iw.optionArchTypes.Key, values)
+		iw.vp.Set(iw.optionArches.Key, values)
 	}
 
 	return iw
 }
 
 func (iw *InitWriter) WithConfigFile(file string) layout.ConfigWriter {
-	var fd, err = os.Open(file)
+	if fd, err := os.Open(file); fd != nil {
+		defer filez.CloseSilently(fd)
+		panicz.PanicIfError(err)
+		iw.vp.SetConfigType(filepath.Ext(file))
+		panicz.PanicIfError(iw.vp.ReadConfig(fd))
+	}
 
-	panicz.PanicIfError(err)
-	iw.vp.SetConfigType(filepath.Ext(file))
-	panicz.PanicIfError(iw.vp.ReadConfig(fd))
 	return iw
 }
 
 func (iw *InitWriter) WithFqdn(value string) layout.ConfigWriter {
 	if value != "" {
-		var name = iw.vp.GetString(iw.optionFunctionName.Key)
+		var handle = iw.vp.GetString(iw.optionHandle.Key)
 
-		iw.setTag(value, name)
+		iw.setTag(value, handle)
 		iw.vp.Set(iw.optionFqdn.Key, value)
+	}
+
+	return iw
+}
+
+func (iw *InitWriter) WithHandle(value string) layout.ConfigWriter {
+	if value != "" {
+		var fqdn = iw.vp.GetString(iw.optionFqdn.Key)
+
+		iw.setTag(fqdn, value)
+		iw.vp.Set(iw.optionHandle.Key, value)
 	}
 
 	return iw
@@ -98,10 +117,7 @@ func (iw *InitWriter) WithInput(value string) layout.ConfigWriter {
 
 func (iw *InitWriter) WithName(value string) layout.ConfigWriter {
 	if value != "" {
-		var fqdn = iw.vp.GetString(iw.optionFqdn.Key)
-
-		iw.setTag(fqdn, value)
-		iw.vp.Set(iw.optionFunctionName.Key, value)
+		iw.vp.Set(iw.optionName.Key, value)
 	}
 	return iw
 }
@@ -122,7 +138,7 @@ func (iw *InitWriter) WithOutput(value string) layout.ConfigWriter {
 }
 
 func (iw *InitWriter) WithType(value string) layout.ConfigWriter {
-	iw.vp.Set(iw.optionFunctionType.Key, value)
+	iw.vp.Set(iw.optionType.Key, value)
 	return iw
 }
 
@@ -139,7 +155,7 @@ func (iw *InitWriter) Write(filepath string) error {
 	return iw.vp.WriteConfigAs(filepath)
 }
 
-func (iw *InitWriter) setTag(fqdn string, name string) {
+func (iw *InitWriter) setTag(fqdn string, handle string) {
 	var tagTokens []string
 
 	if fqdn != "" {
@@ -155,8 +171,8 @@ func (iw *InitWriter) setTag(fqdn string, name string) {
 		}
 	}
 
-	if name != "" {
-		tagTokens = append(tagTokens, name)
+	if handle != "" {
+		tagTokens = append(tagTokens, handle)
 	}
 
 	iw.vp.Set(iw.baseTag.Key, strings.Join(tagTokens, "/"))
@@ -169,11 +185,11 @@ type InitExecutor struct {
 
 func (ie *InitExecutor) Display() {
 	ie.Repo.DisplayOptions(
-		&ie.optionArchTypes.Option,
+		&ie.optionArches.Option,
 		&ie.optionConfigType.Option,
 		&ie.optionFqdn.Option,
-		&ie.optionFunctionName.Option,
-		&ie.optionFunctionType.Option,
+		&ie.optionName.Option,
+		&ie.optionType.Option,
 		&ie.optionMountInput.Option,
 		&ie.optionMountOutput.Option,
 		&ie.optionOem.Option,
@@ -192,20 +208,22 @@ func (ie *InitExecutor) Pretend() {
 func (ie *InitExecutor) Proceed() {
 	var builder = ie.makeInitBuilder()
 	var params = ie.makeInitParams()
-	var plan = &task.Plan[layout.InitParams]{
+	var plan = &task.Plan{
 		Logger: ie.Repo.Logger,
-		OnError: func(err error) {
-			ie.Repo.Logger.Errorf("Could not run init error: %s", err)
-			cobra.CheckErr(err)
+		OnFailure: func(msg interface{}) {
+			ie.Repo.Logger.Errorf("Could not run init error: %s", msg)
+			cobra.CheckErr(msg)
 		},
-		OnSuccess: func(out string) {
+		OnSuccess: func(msg interface{}) {
+			var out = cast.ToString(msg)
+
 			if out != "" {
 				fmt.Printf("%s\n", out)
 			}
 		},
 	}
 
-	plan.Single(params, layout.NewInitTask(builder))
+	task.Single(plan, params, layout.NewInitTask(builder))
 }
 
 func (ie *InitExecutor) makeInitBuilder() *InitWriter {
@@ -226,11 +244,12 @@ type InitOptions struct {
 
 func (io *InitOptions) allDefiners() []config.Definer {
 	return []config.Definer{
-		io.optionArchTypes,
+		io.optionArches,
 		io.optionConfigType,
+		io.optionHandle,
 		io.optionFqdn,
-		io.optionFunctionName,
-		io.optionFunctionType,
+		io.optionName,
+		io.optionType,
 		io.optionInteractive,
 		io.optionMountInput,
 		io.optionMountOutput,
@@ -289,8 +308,8 @@ func makeInitBuilder(cli *Cli) *InitWriter {
 }
 
 func makeInitParams(repo *config.Repo, initOptions *InitOptions) *layout.InitParams {
-	var archTypeStrings = repo.GetList(initOptions.optionArchTypes)
-	var functionTypeString = repo.GetString(initOptions.optionFunctionType)
+	var archTypeStrings = repo.GetList(initOptions.optionArches)
+	var functionTypeString = repo.GetString(initOptions.optionType)
 	var archTypes []layout.ArchType
 	var functionType *layout.FunctionType
 	var err error
@@ -308,14 +327,15 @@ func makeInitParams(repo *config.Repo, initOptions *InitOptions) *layout.InitPar
 			ConfigType: toConfigType(repo, initOptions.optionConfigType),
 			ConfigName: repo.ConfigName,
 		},
-		Arches:       archTypes,
-		FQDN:         repo.GetString(initOptions.optionFqdn),
-		FunctionType: *functionType,
-		FunctionName: repo.GetString(initOptions.optionFunctionName),
-		MountInput:   repo.GetString(initOptions.optionMountInput),
-		MountOutput:  repo.GetString(initOptions.optionMountOutput),
-		OEM:          repo.GetString(initOptions.optionOem),
-		Version:      repo.GetString(initOptions.optionVersion),
+		Arches:      archTypes,
+		FQDN:        repo.GetString(initOptions.optionFqdn),
+		Type:        *functionType,
+		Handle:      repo.GetString(initOptions.optionHandle),
+		Name:        repo.GetString(initOptions.optionName),
+		MountInput:  repo.GetString(initOptions.optionMountInput),
+		MountOutput: repo.GetString(initOptions.optionMountOutput),
+		OEM:         repo.GetString(initOptions.optionOem),
+		Version:     repo.GetString(initOptions.optionVersion),
 	}
 }
 

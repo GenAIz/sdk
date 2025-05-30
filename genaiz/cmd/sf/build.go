@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -31,19 +32,21 @@ func (be *BuildExecutor) Pretend() {
 
 func (be *BuildExecutor) Proceed() {
 	var params = be.makeBuildParams()
-	var plan = &task.Plan[docker.BuildParams]{
+	var plan = &task.Plan{
 		Logger: be.Repo.Logger,
-		OnError: func(err error) {
-			be.Repo.Logger.Errorf("Build incomplete with error: %s", err)
+		OnFailure: func(msg interface{}) {
+			be.Repo.Logger.Errorf("Build incomplete with error: %s", msg)
 		},
-		OnSuccess: func(out string) {
+		OnSuccess: func(msg interface{}) {
+			var out = cast.ToString(msg)
+
 			if out != "" {
 				fmt.Printf("%s\n", out)
 			}
 		},
 	}
 
-	plan.Single(params, docker.NewBuildTask())
+	task.Single(plan, params, docker.NewBuildTask())
 }
 
 // makeBuildParams creates a docker.BuildParams from resolving parameters, configuration files and environment variables

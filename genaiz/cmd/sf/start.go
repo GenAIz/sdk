@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -42,37 +43,39 @@ func (se *StartExecutor) Proceed() {
 	var preserve = se.Repo.GetBool(se.optionContainerPreserve)
 	var buildParams = makeBuildParams(se.BaseExecutor)
 	var params = se.makeStartParams(replace)
-	var plan = task.Plan[docker.ContainerParams]{
+	var plan = task.Plan{
 		Logger: se.Repo.Logger,
-		OnError: func(err error) {
-			se.Repo.Logger.Errorf("Could not start container %s, error: %s", params.Name, err)
+		OnFailure: func(msg interface{}) {
+			se.Repo.Logger.Errorf("Could not start container %s, error: %s", params.Name, msg)
 		},
-		OnSuccess: func(out string) {
+		OnSuccess: func(msg interface{}) {
+			var out = cast.ToString(msg)
+
 			if out != "" {
 				se.Repo.Logger.Infof("Started container [%s]", out)
 				fmt.Printf("%s\n", out)
 			}
 		},
 	}
-	var executions = []func(*task.State) error{
-		task.Execution(buildParams, docker.NewBuildTask()),
+	var workers = []task.Worker{
+		task.NewWorker(buildParams, docker.NewBuildTask()),
 	}
 
 	if replace {
-		executions = append(executions, task.Execution(params, docker.NewDisposeTask()))
+		workers = append(workers, task.NewWorker(params, docker.NewDisposeTask()))
 	}
 
-	executions = append(executions,
-		task.Execution(params, docker.NewCreateTask()),
-		task.Execution(params, docker.NewStartTask()))
+	workers = append(workers,
+		task.NewWorker(params, docker.NewCreateTask()),
+		task.NewWorker(params, docker.NewStartTask()))
 
 	if !preserve {
 		var disposeParams = se.makeStartParams(false)
 
-		executions = append(executions, task.Execution(disposeParams, docker.NewDisposeTask()))
+		workers = append(workers, task.NewWorker(disposeParams, docker.NewDisposeTask()))
 	}
 
-	plan.Sequence(executions...)
+	plan.Sequence(workers...)
 }
 
 func (se *StartExecutor) makeStartParams(force bool) *docker.ContainerParams {

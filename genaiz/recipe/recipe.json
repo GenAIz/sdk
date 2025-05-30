@@ -1,0 +1,47 @@
+{
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "aliases": {
+      "type": "array",
+      "contains": {
+        "type": "string"
+      }
+    },
+    "type": {
+      "type": "string"
+    },
+    "initCommands": {
+      "type": "array",
+      "contains": {
+        "type": "string"
+      }
+    },
+    "postCommands": {
+      "type": "array",
+      "contains": {
+        "type": "string"
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "contains": {
+        "type": "object",
+        "contains": {
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "commands": {
+              "type": "array",
+              "contains": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

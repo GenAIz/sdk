@@ -187,18 +187,34 @@ func (so *StringOption) Defined(repo *Repo, flags *pflag.FlagSet) {
 	so.Option.Defined(repo, flags)
 }
 
-// mapOptionsByParam returns a map of Option.Param keys to their resolved Repo value
-func mapOptionsByParam(repo *Repo, options ...*Option) map[string]string {
+// MapOptionsByEnvKey returns a map of Option.Env keys to their resolved Repo value
+func MapOptionsByEnvKey(repo *Repo, options ...*Option) map[string]string {
+	return mapOptionsByKeyFunc(repo, func(opt *Option) string {
+		return opt.GetEnvKey()
+	}, options...)
+}
+
+// MapOptionsByParam returns a map of Option.Param keys to their resolved Repo value
+func MapOptionsByParam(repo *Repo, options ...*Option) map[string]string {
+	return mapOptionsByKeyFunc(repo, func(opt *Option) string {
+		return opt.Param
+	}, options...)
+}
+
+// mapOptionsByKeyFunc returns a map of Option keys, according to the provided toKey function, to their resolved Repo value
+func mapOptionsByKeyFunc(repo *Repo, toKey func(*Option) string, options ...*Option) map[string]string {
 	var result = make(map[string]string, len(options))
 
 	for _, opt := range options {
-		if opt.Param != "" {
+		var key = toKey(opt)
+
+		if key != "" {
 			var value = repo.Get(opt)
 
 			if value == nil {
-				result[opt.Param] = ""
+				result[key] = ""
 			} else {
-				result[opt.Param] = fmt.Sprintf("%v", value)
+				result[key] = fmt.Sprintf("%v", value)
 			}
 		}
 	}

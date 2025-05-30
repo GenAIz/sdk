@@ -359,7 +359,25 @@ func TestMapOptionsByParam(t *testing.T) {
 
 	testRepo.Register(&cobra.Command{}, testValueOption)
 	testRepo.InitDefaults()
-	testOptions := mapOptionsByParam(testRepo, testNoParamOption, testNilValueOption, testValueOption)
+	testOptions := MapOptionsByParam(testRepo, testNoParamOption, testNilValueOption, testValueOption)
+	assert.NotEmpty(t, testOptions)
+	assert.EqualValues(t, expectedValue, testOptions[expectedKey])
+}
+
+func TestMapOptionsByEnvKey(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+	var expectedKey = "KEY"
+	var expectedValue = "value"
+	var testNoKeyOption = &Option{Param: "param"}
+	var testNilValueOption = &Option{Key: "nilParam"}
+	var testValueOption = &Option{
+		Key:          expectedKey,
+		DefaultValue: expectedValue,
+	}
+
+	testRepo.Register(&cobra.Command{}, testValueOption)
+	testRepo.InitDefaults()
+	testOptions := MapOptionsByEnvKey(testRepo, testNoKeyOption, testNilValueOption, testValueOption)
 	assert.NotEmpty(t, testOptions)
 	assert.EqualValues(t, expectedValue, testOptions[expectedKey])
 }

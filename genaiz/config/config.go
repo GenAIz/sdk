@@ -27,7 +27,6 @@ import (
 
 const (
 	defaultConfigName = "genaiz"
-	defaultEnvPrefix  = "genaiz"
 )
 
 // Definer provides methods for defining a pflag.Flag in a pflag.FlagSet, and its associated default value in a config.Repo
@@ -62,6 +61,7 @@ type Repo struct {
 	Logger        *logrus.Logger             // Logger, set to the current logger configurations
 	LoggerFactory func(*Repo) *logrus.Logger // LoggerFactory is called OnLogging when the Logger is initialized
 	UserPath      string                     // UserPath is where to find the user's general configuration for genaiz toolkits
+	TemplatePaths []string                   // TemplatePaths is a list of local filesystem paths to inspect to find recipes
 	WorkDir       string                     // WorkDir is by default the context dir, unless a change was recorded
 
 	configurers       []func(*Repo)                 // configurers are a set of functions which modify the configuration paths to read before setting default values
@@ -180,7 +180,7 @@ func (r *Repo) DisplayOptions(options ...*Option) {
 // DisplayOptionsWithMap will display the provided Option(s) with the provided kay value map
 func (r *Repo) DisplayOptionsWithMap(keyValues *map[string]string, options ...*Option) {
 	var writer = tabwriter.NewWriter(r.output, 1, 1, 1, ' ', 0)
-	var mapped = mapOptionsByParam(r, options...)
+	var mapped = MapOptionsByParam(r, options...)
 
 	if keyValues != nil {
 		maps.Copy(mapped, *keyValues)
@@ -285,7 +285,6 @@ func (r *Repo) GetWorkspace() string {
 func (r *Repo) Init() {
 	r.viper.AddConfigPath(r.UserPath)
 	r.viper.SetConfigName(r.ConfigName)
-	r.viper.SetEnvPrefix(r.EnvPrefix)
 	r.viper.AutomaticEnv()
 
 	if err := r.viper.ReadInConfig(); err == nil {
@@ -429,24 +428,28 @@ func NewRepo() *Repo {
 
 // Builder is an instance of the builder pattern for deferring construction of Repo to runtime
 type Builder struct {
-	Viper  func() *viper.Viper
-	Input  func() io.Reader
-	Output func() io.Writer
+	Viper         func() *viper.Viper
+	Input         func() io.Reader
+	Output        func() io.Writer
+	TemplatePaths []string
 }
 
 // Build builds a Repo with the recorded Viper, Input and Output factory methods
 func (b *Builder) Build() *Repo {
+	var templatePaths = b.TemplatePaths
+
 	home, err := os.UserHomeDir()
 	cobra.CheckErr(err)
 	cwd, err := os.Getwd()
 	cobra.CheckErr(err)
+	templatePaths = append(templatePaths, filepath.Join(home, "/.local/genaiz/recipes"))
 
 	return &Repo{
-		AuthFile:   filepath.Join(home, "/.cache/genaiz/.auth"),
-		ConfigName: defaultConfigName,
-		EnvPrefix:  defaultEnvPrefix,
-		UserPath:   filepath.Join(home, "/.config/genaiz"),
-		WorkDir:    cwd,
+		AuthFile:      filepath.Join(home, "/.cache/genaiz/.auth"),
+		ConfigName:    defaultConfigName,
+		UserPath:      filepath.Join(home, "/.config/genaiz"),
+		TemplatePaths: templatePaths,
+		WorkDir:       cwd,
 
 		input:             b.Input(),
 		output:            b.Output(),
@@ -469,6 +472,12 @@ func (b *Builder) WithOutput(o io.Writer) *Builder {
 	b.Output = func() io.Writer {
 		return o
 	}
+	return b
+}
+
+// WithTemplates will build the repository adding the specified paths to Repo.TemplatePaths
+func (b *Builder) WithTemplates(paths ...string) *Builder {
+	b.TemplatePaths = paths
 	return b
 }
 

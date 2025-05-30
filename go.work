@@ -1,0 +1,10 @@
+go 1.24.2
+
+use (
+	genaiz
+	genaiz-it
+)
+
+replace (
+	"genaiz.com/genaiz-it@latest" => ./genaiz-it
+)

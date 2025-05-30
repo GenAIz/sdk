@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="genaiz sf start --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
-    <working_directory value="$PROJECT_DIR$/example/smart-function-1" />
+    <working_directory value="$PROJECT_DIR$/out/myBashExample" />
     <parameters value="sf start --pretend --logLevel=debug" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />

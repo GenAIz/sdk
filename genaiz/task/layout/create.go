@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"genaiz.com/genaiz/lang/filez"
 	"genaiz.com/genaiz/task"
 )
 
@@ -15,8 +16,12 @@ type CreateParams struct {
 	FolderPath string
 }
 
+func (cp CreateParams) GetConfigFile(path string) string {
+	return filepath.Join(path, cp.ConfigName+"."+*cp.ConfigType)
+}
+
 func (cp CreateParams) NeedsConfigFile() bool {
-	return cp.ConfigType != nil && *cp.ConfigType != configTypeNone
+	return cp.ConfigType != nil && *cp.ConfigType != ConfigTypeNone
 }
 
 func NewCreateTask() *task.Task[CreateParams] {
@@ -29,28 +34,55 @@ func NewCreateTask() *task.Task[CreateParams] {
 }
 
 func handleLayoutCreate(params *CreateParams, state *task.State) error {
-	var file, path string
+	var path string
 	var err error
 
-	if state.Output == "" {
-		path = params.FolderPath
-		file, _ = filepath.Abs(filepath.Join(path, params.ConfigName+"."+*params.ConfigType))
-	} else {
-		path = filepath.Dir(state.Output)
-		file, _ = filepath.Abs(state.Output)
-	}
-
-	state.Logger.Debugf("Creating path [%s]", path)
-
-	if err = os.MkdirAll(path, 0750); err == nil {
-		state.Logger.Debugf("Configuration file [%s]", file)
-
-		if err = os.Chdir(path); err == nil {
-			_, err = os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0640)
+	if path, err = handleLayoutCreatePath(params, state); err == nil {
+		if params.NeedsConfigFile() || state.Output != "" {
+			state.Output, err = handleLayoutCreateFile(path, params, state)
 		}
 	}
 
 	return err
+}
+
+func handleLayoutCreateFile(path string, params *CreateParams, state *task.State) (string, error) {
+	var err error
+	var filePath string
+
+	if params.NeedsConfigFile() {
+		filePath = params.GetConfigFile(path)
+	} else if state.Output != "" {
+		filePath = state.Output
+	}
+
+	state.Logger.Debugf("Configuration file [%s]", filePath)
+
+	if err = os.Chdir(path); err == nil {
+		var absPath, _ = filepath.Abs(filePath)
+		var fd *os.File
+
+		if fd, err = os.OpenFile(absPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0640); fd != nil {
+			filez.CloseSilently(fd)
+		}
+	}
+
+	return filePath, err
+}
+
+func handleLayoutCreatePath(params *CreateParams, state *task.State) (string, error) {
+	var path string
+	var err error
+
+	if state.Output == "" {
+		path = params.FolderPath
+	} else {
+		path = filepath.Dir(state.Output)
+	}
+
+	state.Logger.Debugf("Creating path [%s]", path)
+	err = os.MkdirAll(path, 0750)
+	return path, err
 }
 
 func handleLayoutCreateContext(params *CreateParams, state *task.State) error {
@@ -76,6 +108,10 @@ func handleLayoutCreateContext(params *CreateParams, state *task.State) error {
 
 func handleLayoutCreatePretend(params *CreateParams, state *task.State) error {
 	fmt.Printf("mkdir %s && cd %s\n", params.FolderPath, params.FolderPath)
-	fmt.Printf("touch %s\n", state.Output)
+
+	if state.Output != "" {
+		fmt.Printf("touch %s\n", state.Output)
+	}
+
 	return nil
 }

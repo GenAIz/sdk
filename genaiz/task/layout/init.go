@@ -3,6 +3,7 @@ package layout
 import (
 	"errors"
 
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/lang/filez"
 	"genaiz.com/genaiz/task"
 )
@@ -13,6 +14,8 @@ type ConfigWriter interface {
 	BuildArches() (string, []string)
 
 	BuildFqdn() (string, string)
+
+	BuildHandle() (string, string)
 
 	BuildInput() (string, string)
 
@@ -29,6 +32,8 @@ type ConfigWriter interface {
 	WithConfigFile(string) ConfigWriter
 
 	WithArches([]string) ConfigWriter
+
+	WithHandle(string) ConfigWriter
 
 	WithInput(string) ConfigWriter
 
@@ -47,39 +52,35 @@ type ConfigWriter interface {
 
 type InitParams struct {
 	CreateParams
-	Arches       []ArchType
-	FQDN         string
-	FunctionName string
-	FunctionType FunctionType
-	MountInput   string
-	MountOutput  string
-	OEM          string
-	Version      string
+	Arches      []ArchType
+	FQDN        string
+	Handle      string
+	Name        string
+	Type        FunctionType
+	MountInput  string
+	MountOutput string
+	OEM         string
+	Version     string
 }
 
 func NewInitTask(writer ConfigWriter) *task.Task[InitParams] {
 	return &task.Task[InitParams]{
-		Name:      "layout-init",
-		OnPrepare: handleLayoutInitContext,
-		OnIncomplete: func(params *InitParams, state *task.State) error {
-			return handleLayoutInitUpdate(params, writer, state)
-		},
-		OnComplete: func(params *InitParams, state *task.State) error {
-			return handleLayoutInitCreate(params, writer, state)
-		},
-		OnPretend: func(params *InitParams, state *task.State) error {
-			return handleLayoutInitPretend(params, writer, state)
-		},
+		Name:         "layout-init",
+		OnPrepare:    handleLayoutInitContext,
+		OnIncomplete: lang.Assists(writer, handleLayoutInitUpdate),
+		OnComplete:   lang.Assists(writer, handleLayoutInitCreate),
+		OnPretend:    lang.Assists(writer, handleLayoutInitPretend),
 	}
 }
 
-func handleLayoutInitCreate(params *InitParams, writer ConfigWriter, state *task.State) error {
+func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task.State) error {
 	if state.Output != "" {
 		state.Logger.Debugf("Init writing to [%s]", state.Output)
 		return writer.WithArches(params.Arches).
 			WithFqdn(params.FQDN).
-			WithName(params.FunctionName).
-			WithType(params.FunctionType).
+			WithHandle(params.Handle).
+			WithName(params.Name).
+			WithType(params.Type).
 			WithInput(params.MountInput).
 			WithOutput(params.MountOutput).
 			WithOem(params.OEM).
@@ -111,18 +112,19 @@ func handleLayoutInitContext(params *InitParams, state *task.State) error {
 	return nil
 }
 
-func handleLayoutInitPretend(params *InitParams, writer ConfigWriter, state *task.State) error {
+func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *task.State) error {
 	if state.Output != "" {
 		var pretender = newConfigPretender(state.Output)
 
 		state.Logger.Debugf("Pretending to initialize [%s]", state.Output)
 
 		writer.WithFqdn(params.FQDN)
-		writer.WithName(params.FunctionName)
+		writer.WithHandle(params.Handle)
 		pretendSlice(pretender, writer.WithArches(params.Arches).BuildArches)
 		pretendValue(pretender, writer.BuildFqdn)
-		pretendValue(pretender, writer.BuildName)
-		pretendValue(pretender, writer.WithType(params.FunctionType).BuildType)
+		pretendValue(pretender, writer.WithName(params.Name).BuildName)
+		pretendValue(pretender, writer.BuildHandle)
+		pretendValue(pretender, writer.WithType(params.Type).BuildType)
 		pretendValue(pretender, writer.WithInput(params.MountInput).BuildInput)
 		pretendMap(pretender, writer.WithOutput(params.MountOutput).BuildOutput)
 		pretendValue(pretender, writer.WithOem(params.OEM).BuildOem)
@@ -133,11 +135,11 @@ func handleLayoutInitPretend(params *InitParams, writer ConfigWriter, state *tas
 	return errors.New("no configuration file to write")
 }
 
-func handleLayoutInitUpdate(params *InitParams, writer ConfigWriter, state *task.State) error {
+func handleLayoutInitUpdate(writer ConfigWriter, params *InitParams, state *task.State) error {
 	if state.Output != "" {
 		state.Logger.Debugf("Init updating existing [%s]", state.Output)
-		return handleLayoutInitCreate(params, writer.WithConfigFile(state.Output), state)
+		return handleLayoutInitCreate(writer.WithConfigFile(state.Output), params, state)
 	}
 
-	return errors.New("no configuration file to update")
+	return nil
 }
