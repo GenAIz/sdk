@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -38,12 +39,14 @@ func (se *StopExecutor) Pretend() {
 func (se *StopExecutor) Proceed() {
 	var preserve = se.Repo.GetBool(se.optionContainerPreserve)
 	var params = se.makeContainerParams()
-	var plan = &task.Plan[docker.ContainerParams]{
+	var plan = &task.Plan{
 		Logger: se.Repo.Logger,
-		OnError: func(err error) {
-			se.Repo.Logger.Errorf("Could not stop container %s, error: %s", params.Name, err)
+		OnFailure: func(msg interface{}) {
+			se.Repo.Logger.Errorf("Could not stop container %s, error: %s", params.Name, msg)
 		},
-		OnSuccess: func(out string) {
+		OnSuccess: func(msg interface{}) {
+			var out = cast.ToString(msg)
+
 			if out != "" {
 				se.Repo.Logger.Infof("Stopped container [%s]", out)
 				fmt.Printf("%s\n", out)
@@ -51,11 +54,9 @@ func (se *StopExecutor) Proceed() {
 		},
 	}
 
-	if preserve {
-		plan.Single(params, docker.NewStopTask())
-	} else {
-		plan.Single(params, docker.NewDisposeTask())
-	}
+	task.Conditional(plan, preserve, params,
+		docker.NewStopTask,
+		docker.NewDisposeTask)
 }
 
 func (se *StopExecutor) makeContainerParams() *docker.ContainerParams {

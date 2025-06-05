@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/recipe"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/layout"
 )
@@ -21,12 +23,14 @@ func (ce *CreateExecutor) Display() {
 	ce.Repo.DisplayOptionsWithMap(&map[string]string{
 		"folder": ce.FolderPath,
 	},
-		&ce.optionArchTypes.Option,
+		&ce.optionArches.Option,
 		&ce.optionConfigType.Option,
 		&ce.optionFqdn.Option,
-		&ce.optionFunctionName.Option,
-		&ce.optionFunctionType.Option,
+		&ce.optionHandle.Option,
+		&ce.optionName.Option,
+		&ce.optionType.Option,
 		&ce.optionOem.Option,
+		&ce.optionRecipe.Option,
 		&ce.optionVersion.Option,
 	)
 }
@@ -34,10 +38,18 @@ func (ce *CreateExecutor) Display() {
 func (ce *CreateExecutor) Pretend() {
 	var createParams = ce.makeCreateParams()
 	var initParams = makeInitParams(ce.Repo, ce.InitOptions)
+	var recipeName = ce.Repo.GetString(ce.optionRecipe)
 	var writer = makeInitBuilder(ce.Cli)
 
 	ce.Repo.DisplayChangeDir()
 	layout.NewCreateTask().Pretend(createParams, ce.Repo.Logger)
+
+	if recipeName != "" {
+		var recipeParams = ce.makeRecipeParams(recipeName, ce.FolderPath)
+
+		layout.NewRecipeTask().Pretend(recipeParams, ce.Repo.Logger)
+	}
+
 	layout.NewInitTask(writer).Pretend(initParams, ce.Repo.Logger)
 }
 
@@ -45,18 +57,26 @@ func (ce *CreateExecutor) Proceed() {
 	var builder = makeInitBuilder(ce.Cli)
 	var createParams = ce.makeCreateParams()
 	var initParams = makeInitParams(ce.Repo, ce.InitOptions)
-	var plan = &task.Plan[layout.InitParams]{
+	var recipeName = ce.Repo.GetString(ce.optionRecipe)
+	var plan = &task.Plan{
 		Logger: ce.Repo.Logger,
-		OnError: func(err error) {
-			ce.Repo.Logger.Errorf("Could not run create, error: %s", err)
-			cobra.CheckErr(err)
+		OnFailure: func(msg interface{}) {
+			ce.Repo.Logger.Errorf("Could not run create, error: %s", msg)
+			lang.HandleExit(msg)
 		},
 	}
+	var workers = []task.Worker{
+		task.NewWorker(createParams, layout.NewCreateTask()),
+		task.NewWorker(initParams, layout.NewInitTask(builder)),
+	}
 
-	plan.Sequence(
-		task.Execution(createParams, layout.NewCreateTask()),
-		task.Execution(initParams, layout.NewInitTask(builder)),
-	)
+	if recipeName != "" {
+		var recipeParams = ce.makeRecipeParams(recipeName, ce.FolderPath)
+
+		workers = append(workers, task.NewWorker(recipeParams, layout.NewRecipeTask(ce.Repo.TemplatePaths...)))
+	}
+
+	plan.Sequence(workers...)
 }
 
 func (ce *CreateExecutor) makeCreateParams() *layout.CreateParams {
@@ -67,21 +87,46 @@ func (ce *CreateExecutor) makeCreateParams() *layout.CreateParams {
 	}
 }
 
+func (ce *CreateExecutor) makeRecipeParams(recipeName string, folderPath string) *layout.RecipeParams {
+	var handleName = ce.Repo.GetString(ce.optionHandle)
+	var recipeOptions = []*config.Option{
+		&ce.optionArches.Option,
+		&ce.optionFqdn.Option,
+		&ce.optionHandle.Option,
+		&ce.optionName.Option,
+		&ce.optionOem.Option,
+		&ce.optionType.Option,
+		&ce.optionVersion.Option,
+	}
+
+	return &layout.RecipeParams{
+		Name:         recipeName,
+		InstanceName: handleName,
+		Type:         recipe.TypeFunction,
+		Destination:  folderPath,
+		Options:      config.MapOptionsByEnvKey(ce.Repo, recipeOptions...),
+		Parameters:   config.MapOptionsByParam(ce.Repo, recipeOptions...),
+	}
+}
+
 type CreateOptions struct {
 	*InitOptions
+	optionRecipe *config.StringOption
 }
 
 func (co *CreateOptions) allDefiners() []config.Definer {
 	return []config.Definer{
-		co.optionArchTypes,
+		co.optionArches,
 		co.optionConfigType,
 		co.optionFqdn,
-		co.optionFunctionName,
-		co.optionFunctionType,
+		co.optionHandle,
+		co.optionName,
+		co.optionType,
 		co.optionInteractive,
 		co.optionMountInput,
 		co.optionMountOutput,
 		co.optionOem,
+		co.optionRecipe,
 		co.optionVersion,
 	}
 }
@@ -94,14 +139,14 @@ func NewCreate(repo *config.Repo, cli *Cli) *cobra.Command {
 		Long:    "Creates a Smart Function from scratch, interactively by default, optionally using a selected template",
 		Example: "genaiz sf create smart-function-1",
 		Args: cobra.MatchAll(cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
-			if !options.optionFunctionName.Validator(args[0]) {
+			if !options.optionHandle.Validator(args[0]) {
 				return errors.New("invalid folder name, only alphanumeric characters, dots, dashes and underscores are allowed")
 			}
 
 			return nil
 		}),
 		Run: func(cmd *cobra.Command, args []string) {
-			repo.InitValue(options.optionFunctionName, args[0])
+			repo.InitValue(options.optionHandle, args[0])
 			cli.Exec(repo, NewCreateExecutor(cmd.Context(), repo, cli, options, args[0]))
 		},
 	}
@@ -133,6 +178,18 @@ func NewCreateOptions() *CreateOptions {
 			optionMountInput:  newOptionMountInput(createCmd, false),
 			optionMountOutput: newOptionMountOutput(createCmd, false),
 		},
+		optionRecipe: newOptionRecipe(),
+	}
+}
+
+func newOptionRecipe() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:   "SF.Create.Recipe",
+			Param: "recipe",
+			Short: "r",
+			Usage: "name of a recipe to use as template for the Smart Function",
+		},
 	}
 }
 
@@ -143,7 +200,7 @@ func toConfigType(repo *config.Repo, option *config.StringOption) *layout.Config
 
 	if configTypeString != "" {
 		result, err = layout.ConfigTypes.FromString(configTypeString)
-		cobra.CheckErr(err)
+		lang.HandleExit(err)
 	}
 
 	return result

@@ -1,0 +1,19 @@
+name: bash-example
+aliases:
+  - bash_ex
+  - bash_example
+  - bash.example
+type: function
+artifacts:
+  - name: app.sh.tmpl
+    commands:
+      - "mv app.sh.tmpl app.sh"
+      - "chmod 0750 app.sh"
+  - name: Dockerfile.tmpl
+    commands:
+      - "mv Dockerfile.tmpl Dockerfile"
+initCommands:
+  - "ls /bin/bash"
+postCommands:
+  - 'mkdir -p {{or .in "input"}}'
+  - 'mkdir -p {{or .out "output"}}'

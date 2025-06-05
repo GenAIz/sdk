@@ -9,24 +9,25 @@ import (
 )
 
 type PublishOptions struct {
-	optionArchTypes    *config.ListOption
-	optionFqdn         *config.StringOption
-	optionFunctionName *config.StringOption
-	optionFunctionType *config.StringOption
-	optionOem          *config.StringOption
-	optionVersion      *config.StringOption
+	optionArches  *config.ListOption
+	optionFqdn    *config.StringOption
+	optionHandle  *config.StringOption
+	optionName    *config.StringOption
+	optionType    *config.StringOption
+	optionOem     *config.StringOption
+	optionVersion *config.StringOption
 }
 
 func NewPublishOptions() *PublishOptions {
 	return newPublishOptions("Publish")
 }
 
-func newOptionArchTypes(cmd string) *config.ListOption {
+func newOptionArches(cmd string) *config.ListOption {
 	return &config.ListOption{
 		Option: config.Option{
 			Key:       "SF." + cmd + ".Arches",
 			Param:     "arch",
-			Usage:     "a list of architecture types assigned to the function scope of execution. Supported: x86, x86_64, arm and arm64",
+			Usage:     "a list of architectures assigned to the function scope of execution. Supported: x86, x86_64, arm and arm64",
 			Validator: config.AllFromEnumerated(layout.ArchTypes),
 		},
 	}
@@ -42,14 +43,13 @@ func newOptionFqdn(cmd string) *config.StringOption {
 	}
 }
 
-func newOptionFunctionName(cmd string) *config.StringOption {
+func newOptionHandle(cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:   "SF." + cmd + ".FunctionName",
-			Param: "functionName",
-			Short: "n",
-			Usage: "name of the function to create, one character or more. Only alphanumeric, dots, dashes and underscores are allowed",
-			DefaultGetter: func(repo *config.Repo) any {
+			Key:   "SF." + cmd + ".Handle",
+			Param: "handle",
+			Usage: "a unique string identifying the function across its oem, valid characters can only be alphanumerics, the dot, dash and underscore",
+			DefaultSetter: func(repo *config.Repo) any {
 				var wd, _ = os.Getwd()
 
 				return filepath.Base(wd)
@@ -59,15 +59,16 @@ func newOptionFunctionName(cmd string) *config.StringOption {
 	}
 }
 
-func newOptionFunctionType(cmd string) *config.StringOption {
+func newOptionName(defaultOption *config.StringOption, cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:          "SF." + cmd + ".FunctionType",
-			Param:        "functionType",
-			Short:        "t",
-			DefaultValue: "function",
-			Usage:        "type of the function to create, only \"connector\", \"function\" or \"trigger\" are supported",
-			Validator:    config.AnyOfEnumerated(layout.FunctionTypes),
+			Key:   "SF." + cmd + ".Name",
+			Param: "name",
+			Short: "n",
+			Usage: "display name of the function to create, defaults to the handle value if not provided",
+			DefaultGetter: func(repo *config.Repo) any {
+				return repo.GetString(defaultOption)
+			},
 		},
 	}
 }
@@ -93,13 +94,29 @@ func newOptionVersion(cmd string) *config.StringOption {
 	}
 }
 
+func newOptionType(cmd string) *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Key:          "SF." + cmd + ".Type",
+			Param:        "type",
+			Short:        "t",
+			DefaultValue: "function",
+			Usage:        "type of the function to create, only \"connector\", \"function\" or \"trigger\" are supported",
+			Validator:    config.AnyOfEnumerated(layout.FunctionTypes),
+		},
+	}
+}
+
 func newPublishOptions(cmd string) *PublishOptions {
+	var optionHandle = newOptionHandle(cmd)
+
 	return &PublishOptions{
-		optionArchTypes:    newOptionArchTypes(cmd),
-		optionFqdn:         newOptionFqdn(cmd),
-		optionFunctionName: newOptionFunctionName(cmd),
-		optionFunctionType: newOptionFunctionType(cmd),
-		optionOem:          newOptionOem(cmd),
-		optionVersion:      newOptionVersion(cmd),
+		optionArches:  newOptionArches(cmd),
+		optionFqdn:    newOptionFqdn(cmd),
+		optionHandle:  optionHandle,
+		optionName:    newOptionName(optionHandle, cmd),
+		optionType:    newOptionType(cmd),
+		optionOem:     newOptionOem(cmd),
+		optionVersion: newOptionVersion(cmd),
 	}
 }

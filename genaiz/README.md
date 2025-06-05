@@ -34,7 +34,7 @@ go build
 
 ### function (sf)
 
-The function modules is used to manage smart functions and publish them as Docker images to an Orchestrating Broker.
+The function module is used to manage smart functions and publish them as Docker images to an Orchestrating Broker.
 
 ```shell
 genaiz sf --help
@@ -48,7 +48,7 @@ Simply builds the Smart Function image. Build should always be called as part of
 genaiz sf build --help
 ```
 
-### create
+#### create
 
 The command creates a new Smart Function folder with a typical layout. By default, the command will ask the user interactively to confirm all initial values assigned to the function. The layout created should have a genaiz.yaml file populated with the values passed to this command.
 
@@ -116,6 +116,18 @@ Similar to run, but starting a disposable container attached to the current shel
 
 ```shell
 genaiz sf test --help
+```
+
+### account (ac)
+
+The account module is used to manage account credentials and configuration policies with an Orchestrating Broker.
+
+#### login
+
+The login command obtains an identity token from the specified Orchestrating Broker and registers the current active account for a specified amount of time by the broker.
+
+```shell
+genaiz ac login www.genaiz.com
 ```
 
 ## Integration Testing

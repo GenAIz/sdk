@@ -25,6 +25,13 @@ type configStruct struct {
 	Value string
 }
 
+func TestBuilder_WithTemplates(t *testing.T) {
+	var expectedPath = "/tmp"
+	var testRepo = NewBuilder().WithTemplates(expectedPath).Build()
+
+	assert.Contains(t, testRepo.TemplatePaths, expectedPath)
+}
+
 func TestRepo_backupConfigsInvalidUserPath(t *testing.T) {
 	var _, testRepo = newTestConfigs()
 

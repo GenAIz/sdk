@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+// CloseSilently ignores any error on calling Close on an os.File
+func CloseSilently(file *os.File) {
+	if file != nil {
+		_ = file.Close()
+	}
+}
+
 // DoIfPathExist will invoke the provided call if the path provided exist
 func DoIfPathExist(path string, call func() error) error {
 	if stat, _ := os.Stat(path); stat != nil {

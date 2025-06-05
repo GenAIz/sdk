@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -111,26 +112,28 @@ func displayRunOptions(be BaseExecutor, ro *RunOptions) {
 }
 
 func execRunParamsTask(be BaseExecutor, ro *RunOptions, params *docker.ContainerParams, runTask *task.Task[docker.ContainerParams]) {
-	var plan = &task.Plan[docker.ContainerParams]{
+	var workers []task.Worker
+	var plan = &task.Plan{
 		Logger: be.Repo.Logger,
-		OnError: func(err error) {
-			be.Repo.Logger.Errorf("Could not %s on image %s, error: %s", runTask.Name, params.DockerImage, err)
-			cobra.CheckErr(err)
+		OnFailure: func(msg interface{}) {
+			be.Repo.Logger.Errorf("Could not %s on image %s, error: %s", runTask.Name, params.DockerImage, msg)
+			cobra.CheckErr(msg)
 		},
-		OnSuccess: func(out string) {
+		OnSuccess: func(msg interface{}) {
+			var out = cast.ToString(msg)
+
 			if out != "" {
 				fmt.Printf("%s\n", out)
 			}
 		},
 	}
-	var executions []func(*task.State) error
 
 	if ro.rebuildImage {
-		executions = append(executions, task.Execution(makeBuildParams(be), docker.NewBuildTask()))
+		workers = append(workers, task.NewWorker(makeBuildParams(be), docker.NewBuildTask()))
 	}
 
-	executions = append(executions, task.Execution(params, runTask))
-	plan.Sequence(executions...)
+	workers = append(workers, task.NewWorker(params, runTask))
+	plan.Sequence(workers...)
 }
 
 func makeRunParams(be BaseExecutor, ro *RunOptions) *docker.ContainerParams {
@@ -190,7 +193,7 @@ func newOptionMountInput(cmd string, validated bool) *config.StringOption {
 
 	return &config.StringOption{
 		Option: config.Option{
-			Key:       "SF." + cmd + ".InputPath",
+			Key:       "SF." + cmd + ".Input",
 			Param:     "in",
 			Usage:     "path of the input files folder, read-only, if any",
 			Validator: validator,
@@ -201,7 +204,7 @@ func newOptionMountInput(cmd string, validated bool) *config.StringOption {
 func newOptionMountLog(cmd string, defaultOption *config.StringOption) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:   "SF." + cmd + ".LogPath",
+			Key:   "SF." + cmd + ".Log",
 			Param: "log",
 			Usage: "path of the log files folder, if any. " + cmd + " will attempt creating the path if does not exist",
 			DefaultGetter: func(repo *config.Repo) any {
@@ -221,7 +224,7 @@ func newOptionMountOutput(cmd string, validated bool) *config.StringOption {
 
 	return &config.StringOption{
 		Option: config.Option{
-			Key:       "SF." + cmd + ".OutputPath",
+			Key:       "SF." + cmd + ".Output",
 			Param:     "out",
 			Usage:     "path of the output files folder, if any. " + cmd + " will attempt creating the path if does not exist",
 			Validator: validator,
@@ -232,7 +235,7 @@ func newOptionMountOutput(cmd string, validated bool) *config.StringOption {
 func newOptionMountVar(cmd string, defaultOption *config.StringOption) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:   "SF." + cmd + ".VarPath",
+			Key:   "SF." + cmd + ".Var",
 			Param: "var",
 			Usage: "path of a solution state files folder, if any. " + cmd + " will attempt creating the path if does not exist",
 			DefaultGetter: func(repo *config.Repo) any {

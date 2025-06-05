@@ -1,0 +1,97 @@
+#!/bin/sh
+
+trap "echo; echo Caught SIGINT signal; exit 1" INT
+trap "echo; echo Caught SIGTERM signal; exit 1" TERM
+
+echo
+echo "============================================================="
+echo 'Smart Function {{.InstanceName}} version {{or .version "0.1-dev"}} is starting up'
+echo " - Handle: {{.handle}}"
+echo " - FQDN: {{.fqdn}}"
+echo " - OEM: {{.oem}}"
+
+echo
+echo "Smart Function Environment"
+echo " - UID: $(id -u)"
+echo " - Input Path: $SF_INPUT_PATH"
+echo " - Output Path: $SF_OUTPUT_PATH"
+echo " - Log Path: $SF_LOG_PATH"
+echo " - Var Path: $SF_VAR_PATH"
+
+if [ -z "$SF_PROGRESS_FILE" ]; then
+  SF_PROGRESS_FILE="$SF_VAR_PATH"/'{{or .SF_PROGRESS_FILE "progress.txt"}}'
+fi
+
+if [ -z "$SF_RESULT_FILE" ]; then
+  SF_RESULT_FILE="$SF_VAR_PATH"/'{{or .SF_RESULT_FILE "result.txt"}}'
+fi
+
+if [ -n "$SF_INPUT_PATH" ]; then
+	echo
+	echo "Input Files"
+	ls -l "$SF_INPUT_PATH"
+
+	if [ -n "$SF_OUTPUT_PATH" ]; then
+		echo
+		echo "Copying all files to the output directory"
+		for x in "$SF_INPUT_PATH"/*; do
+			cp "$SF_INPUT_PATH/$x" "$SF_OUTPUT_PATH/$x"
+		done
+	fi
+fi
+
+if [ -n "$SF_LOG_PATH" ]; then
+	echo
+	echo "Logging current time within log/time.txt"
+	date -Is > "$SF_LOG_PATH/time.txt"
+fi
+
+if [ -n "$SF_VAR_PATH" ]; then
+	echo
+	echo "20% complete"
+	echo 20 > "$SF_PROGRESS_FILE"
+fi
+
+echo
+echo "Executing work for 2 seconds..."
+sleep 2s
+
+if [ -n "$SF_PROGRESS_FILE" ]; then
+	echo "50% complete"
+	echo 50 > "$SF_PROGRESS_FILE"
+fi
+
+echo
+echo "Executing more work for 2 seconds..."
+sleep 2s
+
+if [ -n "$SF_PROGRESS_FILE" ]; then
+	echo "75% complete"
+	echo 75 > "$SF_PROGRESS_FILE"
+fi
+
+if [ -n "$SF_RESULT_FILE" ]; then
+	RESULT="branch1"
+	echo
+	echo "Result, useful for branching: $RESULT"
+	echo "$RESULT" > "$SF_RESULT_FILE"
+fi
+
+echo
+echo "Executing more work for 2 seconds..."
+sleep 2
+
+if [ -n "$SF_PROGRESS_FILE" ]; then
+	echo "100% complete"
+	echo 100 > "$SF_PROGRESS_FILE"
+fi
+
+if [ -n "$SF_STATUS_FILE" ]; then
+	echo "SUCCESS" > "$SF_RESULT_FILE"
+fi
+
+echo
+echo "Smart Function is shutting down"
+echo "============================================================="
+echo
+

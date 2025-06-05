@@ -1,0 +1,8 @@
+FROM bash:latest
+
+{{- $bin_path := or .SF_BIN_PATH "/opt/genaiz/bash-example/bin"}}
+
+ADD app.sh {{$bin_path}}/
+RUN chmod +x {{$bin_path}}/app.sh
+
+CMD ["{{$bin_path}}/app.sh"]

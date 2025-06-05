@@ -19,14 +19,14 @@ type LoginExecutor struct {
 
 func (le *LoginExecutor) Login(brokerAddr string) {
 	var params = le.makeLoginParams(le.repo, brokerAddr)
-	var plan = &task.Plan[broker.LoginParams]{
+	var plan = &task.Plan{
 		Logger: le.repo.Logger,
-		OnError: func(err error) {
-			le.repo.Logger.Errorf("Could not authenticate with broker: %s", err)
+		OnFailure: func(msg interface{}) {
+			le.repo.Logger.Errorf("Could not authenticate with broker: %s", msg)
 		},
 	}
 
-	plan.Single(params, broker.NewLoginTask())
+	task.Single(plan, params, broker.NewLoginTask())
 }
 
 func (le *LoginExecutor) makeLoginParams(repo *config.Repo, brokerAddr string) *broker.LoginParams {

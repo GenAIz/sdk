@@ -11,6 +11,17 @@ import (
 	"genaiz.com/genaiz/lang/panicz"
 )
 
+func TestCloseSilently(t *testing.T) {
+	if fd, err := os.CreateTemp("/tmp", "genaiz-filez"); err == nil {
+		assert.NotPanics(t, func() { CloseSilently(fd) })
+		assert.NoError(t, os.Remove(fd.Name()))
+	} else {
+		assert.Fail(t, "failed with error", err)
+	}
+
+	assert.NotPanics(t, func() { CloseSilently(nil) })
+}
+
 func TestDoIfPathExist(t *testing.T) {
 	var cwd, _ = os.Getwd()
 	var expectedError = errors.New("expected")

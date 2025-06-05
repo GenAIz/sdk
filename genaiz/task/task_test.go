@@ -2,42 +2,14 @@ package task
 
 import (
 	"errors"
-	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
+
+	"genaiz.com/genaiz-it/mock"
 )
-
-type PatchedExit struct {
-	called     bool
-	calledWith int
-	patchFunc  *mpatch.Patch
-}
-
-func (p *PatchedExit) unpatch() {
-	_ = p.patchFunc.Unpatch()
-}
-
-func newPatchedExit(t *testing.T, impl func(int)) *PatchedExit {
-	patchedExit := &PatchedExit{called: false}
-
-	patchFunc, err := mpatch.PatchMethod(os.Exit, func(code int) {
-		patchedExit.called = true
-		patchedExit.calledWith = code
-		impl(code)
-	})
-
-	if err != nil {
-		t.Errorf("Failed to patch os.Exit due to an error: %v", err)
-		return nil
-	}
-
-	patchedExit.patchFunc = patchFunc
-	return patchedExit
-}
 
 var (
 	testLogger = &logrus.Logger{}
@@ -135,8 +107,7 @@ func TestTask_ExecuteOnPrepareComplete(t *testing.T) {
 }
 
 func TestTask_PretendOnPretend(t *testing.T) {
-	var mockExit = func(int) {}
-	var patch = newPatchedExit(t, mockExit)
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "test"
 	var testTask = &Task[string]{
 		OnPrepare: func(params *string, state *State) error {
@@ -147,14 +118,13 @@ func TestTask_PretendOnPretend(t *testing.T) {
 		},
 	}
 
-	defer patch.unpatch()
+	defer patch.Unpatch()
 	testTask.Pretend(&testParam, testLogger)
-	assert.False(t, patch.called)
+	assert.False(t, patch.Called)
 }
 
 func TestTask_PretendOnPrepareFailure(t *testing.T) {
-	var mockExit = func(int) {}
-	var patch = newPatchedExit(t, mockExit)
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var expectedError = errors.New("expected")
 	var testParam = "test"
 	var testTask = &Task[string]{
@@ -163,15 +133,14 @@ func TestTask_PretendOnPrepareFailure(t *testing.T) {
 		},
 	}
 
-	defer patch.unpatch()
+	defer patch.Unpatch()
 	testTask.Pretend(&testParam, testLogger)
-	assert.True(t, patch.called)
-	assert.EqualValues(t, 1, patch.calledWith)
+	assert.True(t, patch.Called)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestTask_PretendOnPretendFailure(t *testing.T) {
-	var mockExit = func(int) {}
-	var patch = newPatchedExit(t, mockExit)
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var expectedError = errors.New("expected")
 	var testParam = "test"
 	var testTask = &Task[string]{
@@ -183,15 +152,14 @@ func TestTask_PretendOnPretendFailure(t *testing.T) {
 		},
 	}
 
-	defer patch.unpatch()
+	defer patch.Unpatch()
 	testTask.Pretend(&testParam, testLogger)
-	assert.True(t, patch.called)
-	assert.EqualValues(t, 1, patch.calledWith)
+	assert.True(t, patch.Called)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestTask_PretendOnPretendNil(t *testing.T) {
-	var mockExit = func(int) {}
-	var patch = newPatchedExit(t, mockExit)
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "test"
 	var testTask = &Task[string]{
 		OnPrepare: func(params *string, state *State) error {
@@ -199,7 +167,7 @@ func TestTask_PretendOnPretendNil(t *testing.T) {
 		},
 	}
 
-	defer patch.unpatch()
+	defer patch.Unpatch()
 	testTask.Pretend(&testParam, testLogger)
-	assert.False(t, patch.called)
+	assert.False(t, patch.Called)
 }

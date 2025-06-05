@@ -4,9 +4,15 @@ REGISTRY ?=
 all: install
 
 .PHONY: build
-build:
-	go clean -testcache
+build: clean
 	go build
+
+.PHONY: clean
+clean:
+	go clean -testcache
+	rm -f cover.out
+	rm -f genaiz
+	rm -rf ../out
 
 .PHONY: docker
 docker: build
@@ -24,3 +30,6 @@ coverage:
 .PHONY: install
 install: test
 	go install
+
+.PHONY: recipes
+recipes:
