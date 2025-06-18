@@ -1,21 +1,15 @@
-services:
-  wiremock:
-    container_name: genaiz_wiremock
-    image: wiremock/wiremock:latest
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./wiremock:/home/wiremock
+include:
+  - compose/profiles/mock-build-simple-compose.yaml
+  - compose/profiles/mock-create-simple-compose.yaml
+  - compose/profiles/mock-publish-simple-compose.yaml
+  - compose/profiles/mock-account-login-compose.yaml
 
-  genaiz-login:
-    depends_on:
-      - wiremock
-    container_name: genaiz_login
-    image: genaiz.com/sdk/genaiz:latest
-    command: ac login wiremock:8080 --username _test@genaiz.com
-    environment:
-      - GENAIZ_PASSWORD=success
+services:
+  genaiz-it:
+    container_name: genaiz_it_reporter
+    image: genaiz.com/sdk/genaiz-it:latest
+    command: --version > version.txt
     volumes:
-      - ./out:/home/genaiz
+      - ${ROOT_MOUNT:-.}:/home/genaiz
     profiles:
-      - tests.genaiz-login
+      - report

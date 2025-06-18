@@ -1,0 +1,11 @@
+{
+  "request": {
+    "urlPath": "/favicon.ico"
+  },
+  "response": {
+    "bodyFileName": "../__files/favicon.ico",
+    "headers": {
+      "Content-Type": "image/x-icon"
+    }
+  }
+}

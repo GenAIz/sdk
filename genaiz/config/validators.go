@@ -17,6 +17,7 @@ type Validates func(value any) bool
 type validators struct {
 	DirCreated Validates
 	DirExists  Validates
+	DomainName Validates
 	FileExists Validates
 	FolderName Validates
 }
@@ -25,8 +26,9 @@ var (
 	Validation = &validators{
 		DirCreated: validateDirCreated,
 		DirExists:  validateDirExists,
+		DomainName: stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),
 		FileExists: validateFileExists,
-		FolderName: stringMatches("[a-zA-Z0-9\\-._]"),
+		FolderName: stringMatches(`^[a-zA-Z0-9\-._\/]+$`),
 	}
 )
 

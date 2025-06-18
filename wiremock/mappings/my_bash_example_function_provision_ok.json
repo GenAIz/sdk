@@ -1,0 +1,60 @@
+{
+  "name": "my_bash_example_function_provision_ok",
+  "scenarioName": "my-bash-example",
+  "request": {
+    "urlPath": "/v1/sf/provision",
+    "method": "POST",
+    "formParameters": {
+      "name": {
+        "equalTo": "My Bash Example"
+      },
+      "description": {
+        "equalTo": "My Bash Example"
+      },
+      "fqdn": {
+        "equalTo": "dev.genaiz.com"
+      },
+      "oem": {
+        "equalTo": "com.genaiz"
+      },
+      "handle": {
+        "equalTo": "my-bash-example"
+      },
+      "type": {
+        "equalTo": "FUNCTION"
+      },
+      "version": {
+        "equalTo": "0.1"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "code": 200,
+      "status": "OK",
+      "data": {
+        "sf": {
+          "id": 1,
+          "nco": 1,
+          "nms": 1,
+          "flags": 1,
+          "seq": 1,
+          "name": "My Bash Example",
+          "description": "My Bash Example",
+          "oem": "com.genaiz",
+          "handle": "my-bash-example",
+          "fqdn": "com.genaiz",
+          "img": "registry/my-bash-example",
+          "digest": "",
+          "version": "0.1-dev",
+          "type": "FUNCTION"
+        },
+        "Auth": ""
+      }
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

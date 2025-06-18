@@ -7,6 +7,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestGetOrDefault(t *testing.T) {
+	var expectedDefault = "default"
+	var expectedValue = "value"
+	var testKey = "key"
+	var testAbsentKey = "absent"
+	var testSupplier = func() *string {
+		return &expectedDefault
+	}
+	var testMap = map[string]*string{
+		testKey:       &expectedValue,
+		testAbsentKey: nil,
+	}
+
+	assert.EqualValues(t, expectedValue, *GetOrDefault(testMap, testKey, testSupplier))
+	assert.EqualValues(t, expectedDefault, *GetOrDefault(testMap, "unexpectedKey", testSupplier))
+	assert.Empty(t, GetOrDefault(testMap, testAbsentKey, testSupplier))
+}
+
 func TestMapped(t *testing.T) {
 	var testKey = "key"
 	var testSlice = []string{"value"}

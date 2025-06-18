@@ -11,9 +11,9 @@ import (
 
 // Executor qualifies methods for executing and pretending provided params P potentially handling a task.State
 type Executor[P any] interface {
-	Execute(params *P, logger *logrus.Logger) *State
+	Execute(*P, *State) *State
 
-	Pretend(params *P, logger *logrus.Logger)
+	Pretend(*P, *State) *State
 }
 
 // Env contains references to the environment Context handling the task execution
@@ -23,11 +23,12 @@ type Env struct {
 
 // State tracks the result(s) and state values of Task(s)' execution
 type State struct {
-	Completed  bool                 // Indicates whether a Task completed, this could be completed with error, incomplete tasks should invalidate any Plan associated with their execution
+	Completed  bool                 // Indicates whether a Task completed, this could be completed with error, incomplete tasks may invalidate Plan execution or not
 	Containers *[]container.Summary // Containers contains the docker container summaries handled by tasks in a Plan
 	Error      error                // If a Task completed with an error it will be in this field, it should be mutually exclusive with Output
-	Output     string               // If a Task completed successfully, it may have stored a value in this field, it should be mutually exclusive with Error
+	Internal   interface{}          // Internal is meant to allow tracking of structured task data
 	Logger     *logrus.Logger       // A reference to the Logger used by the Task and its associated Plan if any
+	Output     string               // If a Task completed successfully, it may have stored a value in this field, it should be mutually exclusive with Error
 }
 
 // GetContainersSize returns the amount of containers held under Containers, or 0 if it was never initialized
@@ -60,57 +61,63 @@ type Task[P any] struct {
 //   - If preparation with or without incomplete is not completed and OnComplete is set, Execute will invoke it and return the result of this call in the returned State
 //   - The task is always deemed completed unless OnComplete returns an error, in which case the task is considered incomplete
 func (t Task[P]) Execute(params *P, logger *logrus.Logger) *State {
-	var result = &State{Completed: false, Logger: logger}
+	return t.execute(params, &State{Logger: logger})
+}
+
+// Pretend invokes the OnPretend member of a task, after OnPrepare is called. The returned errors from OnPrepare are ignored and should be processed by OnPretend.
+func (t Task[P]) Pretend(params *P, logger *logrus.Logger) *State {
+	return t.pretend(params, &State{Logger: logger})
+}
+
+func (t Task[P]) execute(params *P, state *State) *State {
+	var logger = state.Logger
 	var err error
 
 	logger.Debugf("Preparing task [%s]", t.Name)
 
-	if err = t.OnPrepare(params, result); err != nil {
+	if err = t.OnPrepare(params, state); err != nil {
 		if t.OnIncomplete == nil {
 			logger.Errorf("Preparing task [%s] failed with error: %s", t.Name, err)
-			result.Error = err
-			result.Completed = true
+			state.Error = err
+			state.Completed = true
 		} else {
-			if err = t.OnIncomplete(params, result); err != nil {
+			if err = t.OnIncomplete(params, state); err != nil {
 				logger.Errorf("Handling incomplete task [%s] failed with error: %s", t.Name, err)
-				result.Error = err
+				state.Error = err
 			} else {
-				result.Error = nil
+				state.Error = nil
 			}
 		}
 	}
 
-	if !result.Completed && t.OnComplete != nil {
-		if err = t.OnComplete(params, result); err == nil {
-			result.Completed = true
+	if !state.Completed && t.OnComplete != nil {
+		if err = t.OnComplete(params, state); err == nil {
+			state.Completed = true
 		} else {
-			result.Completed = false
-			result.Error = err
+			state.Completed = false
+			state.Error = err
 		}
 	} else {
-		result.Completed = true
+		state.Completed = true
 	}
 
 	logger.Debugf("Completed task [%s]", t.Name)
-	return result
+	return state
 }
 
-// Pretend invokes the OnPretend member of a task, after OnPrepare is called.
-//
-//   - If OnPretend is not set, the task simply does not support pretending and the execution returns with no errors
-//   - If OnPrepare fails with an error Pretending is considered failed, no OnIncomplete handlers are called, as those may not be pretending anything
-func (t Task[P]) Pretend(params *P, logger *logrus.Logger) {
-	var result = &State{Completed: false, Logger: logger}
+func (t Task[P]) pretend(params *P, state *State) *State {
+	var logger = state.Logger
 
-	if err := t.OnPrepare(params, result); err != nil {
-		lang.HandleExit(err)
-		return
-	}
+	state.Error = t.OnPrepare(params, state)
 
 	if t.OnPretend == nil {
 		logger.Warningf("No pretend for task [%s], skipping", t.Name)
-	} else if err := t.OnPretend(params, result); err != nil {
+	} else if err := t.OnPretend(params, state); err != nil {
 		logger.Errorf("Pretending task [%s] failed with error: %s", t.Name, err)
 		lang.HandleExit(err)
+	} else {
+		state.Error = nil
 	}
+
+	return state
 }

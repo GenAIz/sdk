@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz sf publish" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="sf publish localhost:8080 --context=out/samples/myBashExample --rebuild --version=0.1 --logLevel=debug" />
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>

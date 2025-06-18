@@ -41,7 +41,7 @@ func (se *StartExecutor) Pretend() {
 func (se *StartExecutor) Proceed() {
 	var replace = se.Repo.GetBool(se.optionContainerReplace)
 	var preserve = se.Repo.GetBool(se.optionContainerPreserve)
-	var buildParams = makeBuildParams(se.BaseExecutor)
+	var buildParams = makeBuildParams(&se.BaseExecutor)
 	var params = se.makeStartParams(replace)
 	var plan = task.Plan{
 		Logger: se.Repo.Logger,

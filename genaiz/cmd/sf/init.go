@@ -2,16 +2,15 @@ package sf
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/lang/filez"
 	"genaiz.com/genaiz/lang/panicz"
 	"genaiz.com/genaiz/task"
@@ -77,9 +76,10 @@ func (iw *InitWriter) WithArches(values []string) layout.ConfigWriter {
 func (iw *InitWriter) WithConfigFile(file string) layout.ConfigWriter {
 	if fd, err := os.Open(file); fd != nil {
 		defer filez.CloseSilently(fd)
-		panicz.PanicIfError(err)
-		iw.vp.SetConfigType(filepath.Ext(file))
+		iw.vp.SetConfigType(filez.GetFileType(file))
 		panicz.PanicIfError(iw.vp.ReadConfig(fd))
+	} else {
+		panicz.PanicIfError(err)
 	}
 
 	return iw
@@ -123,7 +123,10 @@ func (iw *InitWriter) WithName(value string) layout.ConfigWriter {
 }
 
 func (iw *InitWriter) WithOem(value string) layout.ConfigWriter {
-	iw.vp.Set(iw.optionOem.Key, value)
+	if value != "" {
+		iw.vp.Set(iw.optionOem.Key, value)
+	}
+
 	return iw
 }
 
@@ -138,14 +141,17 @@ func (iw *InitWriter) WithOutput(value string) layout.ConfigWriter {
 }
 
 func (iw *InitWriter) WithType(value string) layout.ConfigWriter {
-	iw.vp.Set(iw.optionType.Key, value)
+	if value != "" {
+		iw.vp.Set(iw.optionType.Key, value)
+	}
+
 	return iw
 }
 
 func (iw *InitWriter) WithVersion(value string) layout.ConfigWriter {
 	if value != "" {
 		iw.vp.Set(iw.optionVersion.Key, value)
-		iw.vp.Set(iw.baseVersion.Key, value)
+		iw.vp.Set(iw.baseVersion.Key, "latest")
 	}
 
 	return iw
@@ -162,12 +168,8 @@ func (iw *InitWriter) setTag(fqdn string, handle string) {
 		var fqdnTokens = strings.Split(fqdn, ".")
 		var size = len(fqdnTokens)
 
-		if size > 0 {
-			if size == 1 {
-				tagTokens = append(tagTokens, fqdnTokens[0])
-			} else {
-				tagTokens = append(tagTokens, strings.Join(fqdnTokens[size-2:], "."))
-			}
+		if size > 1 {
+			tagTokens = append(tagTokens, strings.Join(fqdnTokens[size-2:], "."))
 		}
 	}
 
@@ -178,9 +180,13 @@ func (iw *InitWriter) setTag(fqdn string, handle string) {
 	iw.vp.Set(iw.baseTag.Key, strings.Join(tagTokens, "/"))
 }
 
+type InitTaskFactory func(layout.ConfigWriter) *task.Task[layout.InitParams]
+
 type InitExecutor struct {
 	BaseExecutor
 	*InitOptions
+
+	initTaskFactory InitTaskFactory
 }
 
 func (ie *InitExecutor) Display() {
@@ -188,6 +194,7 @@ func (ie *InitExecutor) Display() {
 		&ie.optionArches.Option,
 		&ie.optionConfigType.Option,
 		&ie.optionFqdn.Option,
+		&ie.optionHandle.Option,
 		&ie.optionName.Option,
 		&ie.optionType.Option,
 		&ie.optionMountInput.Option,
@@ -202,28 +209,15 @@ func (ie *InitExecutor) Pretend() {
 	var builder = ie.makeInitBuilder()
 
 	ie.Repo.DisplayChangeDir()
-	layout.NewInitTask(builder).Pretend(params, ie.Repo.Logger)
+	ie.initTaskFactory(builder).Pretend(params, ie.Repo.Logger)
 }
 
 func (ie *InitExecutor) Proceed() {
 	var builder = ie.makeInitBuilder()
 	var params = ie.makeInitParams()
-	var plan = &task.Plan{
-		Logger: ie.Repo.Logger,
-		OnFailure: func(msg interface{}) {
-			ie.Repo.Logger.Errorf("Could not run init error: %s", msg)
-			cobra.CheckErr(msg)
-		},
-		OnSuccess: func(msg interface{}) {
-			var out = cast.ToString(msg)
+	var plan = task.NewPlan("Init", ie.Repo.Logger)
 
-			if out != "" {
-				fmt.Printf("%s\n", out)
-			}
-		},
-	}
-
-	task.Single(plan, params, layout.NewInitTask(builder))
+	task.Single(plan, params, ie.initTaskFactory(builder))
 }
 
 func (ie *InitExecutor) makeInitBuilder() *InitWriter {
@@ -246,14 +240,14 @@ func (io *InitOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		io.optionArches,
 		io.optionConfigType,
-		io.optionHandle,
 		io.optionFqdn,
-		io.optionName,
-		io.optionType,
+		io.optionHandle,
 		io.optionInteractive,
 		io.optionMountInput,
 		io.optionMountOutput,
+		io.optionName,
 		io.optionOem,
+		io.optionType,
 		io.optionVersion,
 	}
 }
@@ -282,6 +276,8 @@ func NewInitExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *
 			Cli:     cli,
 		},
 		InitOptions: options,
+
+		initTaskFactory: layout.NewInitTask,
 	}
 }
 
@@ -299,7 +295,7 @@ func NewInitOptions() *InitOptions {
 
 func makeInitBuilder(cli *Cli) *InitWriter {
 	return &InitWriter{
-		PublishOptions: NewPublishOptions(),
+		PublishOptions: newPublishOptions("Publish"),
 		RunOptions:     NewRunOptions(cli),
 		baseTag:        newOptionDockerTag(),
 		baseVersion:    newOptionDockerVersion(),
@@ -315,11 +311,11 @@ func makeInitParams(repo *config.Repo, initOptions *InitOptions) *layout.InitPar
 	var err error
 
 	functionType, err = layout.FunctionTypes.FromString(functionTypeString)
-	cobra.CheckErr(err)
+	lang.HandleExit(err)
 
 	if len(archTypeStrings) > 0 {
 		archTypes, err = layout.ArchTypes.AllFromStrings(&archTypeStrings)
-		cobra.CheckErr(err)
+		lang.HandleExit(err)
 	}
 
 	return &layout.InitParams{

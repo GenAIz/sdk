@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz sf init --dry" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$/out/samples/myBashExample" />
+    <parameters value="sf init --arch=x86_64 --fqdn=dev.genaiz.com --oem=com.genaiz --handle=my-bash-example --name=&quot;My Bash Example&quot; --configType=yaml --in=../input --out=../output --dry" />
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>

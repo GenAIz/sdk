@@ -129,7 +129,7 @@ func execRunParamsTask(be BaseExecutor, ro *RunOptions, params *docker.Container
 	}
 
 	if ro.rebuildImage {
-		workers = append(workers, task.NewWorker(makeBuildParams(be), docker.NewBuildTask()))
+		workers = append(workers, task.NewWorker(makeBuildParams(&be), docker.NewBuildTask()))
 	}
 
 	workers = append(workers, task.NewWorker(params, runTask))
@@ -178,7 +178,11 @@ func newOptionCmdImage(cmd string) *config.StringOption {
 			Param: "image",
 			Usage: "reference to an image with or without the version",
 			DefaultGetter: func(repo *config.Repo) any {
-				return repo.GetValue("SF.Run.Image")
+				if cmd != "Run" {
+					return repo.GetValue("SF.Run.Image")
+				}
+
+				return ""
 			},
 		},
 	}

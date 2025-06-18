@@ -25,6 +25,17 @@ type Option struct {
 	Validator     Validates            // Validator should be called manually and liberally, not validated does not imply failed command
 }
 
+// Equals test whether the option matches the scalar data of the provided other Option
+func (o *Option) Equals(other *Option) bool {
+	return o.Key == other.Key &&
+		o.Param == other.Param &&
+		o.Short == other.Short &&
+		o.Env == other.Env &&
+		o.Alias == other.Alias &&
+		o.Usage == other.Usage &&
+		o.DefaultValue == other.DefaultValue
+}
+
 // bindDefValue binds a DefValue on a pflag.Flag if the DefaultValue of the Option and the flag are defined
 func (o *Option) bindDefValue(flag *pflag.Flag) {
 	panicz.RequiresNotNil("flag", flag)

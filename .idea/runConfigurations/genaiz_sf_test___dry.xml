@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz sf debug --dry" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="genaiz sf test --dry" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
-    <working_directory value="$PROJECT_DIR$/out/myBashExample" />
-    <parameters value="sf debug --dry --logLevel=debug" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="sf test --context=out/samples/myBashExample --in=input --out=output --logLevel=debug --dry" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

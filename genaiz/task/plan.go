@@ -1,7 +1,10 @@
 package task
 
 import (
+	"fmt"
+
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 
 	"genaiz.com/genaiz/lang"
 )
@@ -13,14 +16,15 @@ type Worker func(*State) *State
 type Planner interface {
 	Sequence(...Worker)
 
-	Single(Worker)
+	Single(Worker, func(interface{}))
 }
 
 // Plan is a group of success, failure and logging facilities to apply in particular manner
 type Plan struct {
-	Logger    *logrus.Logger    // Logger to use for all task.Task managed by this Plan
-	OnSuccess func(interface{}) // OnSuccess is a function called with the content of State.Output
-	OnFailure func(interface{}) // OnFailure is a function called with the content of State.Error
+	Logger            *logrus.Logger    // Logger to use for all task.Task managed by this Plan
+	OnSuccess         func(interface{}) // OnSuccess is a function called with the content of State.Output
+	OnFailure         func(interface{}) // OnFailure is a function called with the content of State.Error
+	ContinueOnFailure bool              // ContinueOnFailure will keep calling sequence workers even when a failure is reported
 }
 
 // Sequence will execute all workers provided up until a worker's returned State signals an error or until the sequence is over. The state returned by each Worker is always passed to the following Worker in the list.
@@ -32,7 +36,7 @@ func (p Plan) Sequence(workers ...Worker) {
 	var result = &State{Completed: false, Logger: p.Logger}
 
 	for _, work := range workers {
-		if result = work(result); result.Error != nil {
+		if result = work(result); result.Error != nil && !p.ContinueOnFailure {
 			break
 		}
 	}
@@ -52,9 +56,9 @@ func (p Plan) Sequence(workers ...Worker) {
 
 // Single will execute a single Worker provided.
 //
-//   - If the Worker returns an error and OnFailure is set, it will be called with the error and Single will exit the program.
+//   - If the Worker returns an error and OnFailure is set, it will be called with the error and Single will call the exitHandler
 //   - If the Worker is completed and OnSuccess is set, it will be called with the output
-func (p Plan) Single(worker Worker) {
+func (p Plan) Single(worker Worker, exitHandler func(interface{})) {
 	var result = &State{Completed: false, Logger: p.Logger}
 
 	if result = worker(result); result.Error != nil {
@@ -62,7 +66,7 @@ func (p Plan) Single(worker Worker) {
 			p.OnFailure(result.Error)
 		}
 
-		lang.HandleExit(result.Error)
+		exitHandler(result.Error)
 	}
 
 	if p.OnSuccess != nil {
@@ -70,11 +74,33 @@ func (p Plan) Single(worker Worker) {
 	}
 }
 
-// NewWorker encapsulates the type of params handled by the task to make it easier to sequence tasks requiring different parameter types
+// NewPlan returns a standard simple plan with name, using the provided logger with a failure logger
+func NewPlan(planName string, logger *logrus.Logger) *Plan {
+	return newPlan(logger,
+		func(msg interface{}) {
+			logger.Errorf("%s failed with error: %s", planName, msg)
+		}, successWriter)
+}
+
+// NewPretender encapsulates the type of params handled by the task to make it easier to sequence task pretends requiring different parameter types
+func NewPretender[P any](params *P, task *Task[P]) Worker {
+	return func(state *State) *State {
+		state.Completed = false
+		return task.pretend(params, state)
+	}
+}
+
+// NewWorker encapsulates the type of params handled by the task to make it easier to sequence tasks executions requiring different parameter types
 func NewWorker[P any](params *P, task *Task[P]) Worker {
 	return func(state *State) *State {
-		return task.Execute(params, state.Logger)
+		state.Completed = false
+		return task.execute(params, state)
 	}
+}
+
+// Attempt will execute a single Worker provided but will simply return without handling program exit
+func Attempt[P any](plan Planner, params *P, task *Task[P]) {
+	plan.Single(NewWorker(params, task), func(msg interface{}) {})
 }
 
 // Conditional is a shorthand way to express the execution of 2 task.Task(s) with the same params P depending on the veracity of the provided condition
@@ -87,10 +113,26 @@ func Conditional[P any](plan Planner, condition bool, params *P, ifTask, elseTas
 		worker = NewWorker(params, elseTask())
 	}
 
-	plan.Single(worker)
+	plan.Single(worker, lang.HandleExit)
 }
 
 // Single is a shorthand way to express the execution of a task.Task with the provided par
 func Single[P any](plan Planner, params *P, task *Task[P]) {
-	plan.Single(NewWorker(params, task))
+	plan.Single(NewWorker(params, task), lang.HandleExit)
+}
+
+func newPlan(logger *logrus.Logger, onFailure, onSuccess func(interface{})) *Plan {
+	return &Plan{
+		Logger:    logger,
+		OnFailure: onFailure,
+		OnSuccess: onSuccess,
+	}
+}
+
+func successWriter(msg interface{}) {
+	var out = cast.ToString(msg)
+
+	if out != "" {
+		_, _ = fmt.Printf("%s\n", out)
+	}
 }

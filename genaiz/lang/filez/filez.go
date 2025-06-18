@@ -2,16 +2,31 @@
 package filez
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"genaiz.com/genaiz/lang/panicz"
 )
 
 // CloseSilently ignores any error on calling Close on an os.File
-func CloseSilently(file *os.File) {
-	if file != nil {
-		_ = file.Close()
+func CloseSilently(toClose io.ReadCloser) {
+	if toClose != nil {
+		_ = toClose.Close()
 	}
+}
+
+// CreateRecursive creates a file under the specified dir, creating the path first if necessary
+func CreateRecursive(dir string, name string) (*os.File, error) {
+	panicz.PanicIfError(os.MkdirAll(dir, 0750))
+	return os.Create(filepath.Join(dir, name))
+}
+
+// CreateRecursiveTemp creates a temporary file under the specified dir, creating the path if necessary
+func CreateRecursiveTemp(dir string, pattern string) (*os.File, error) {
+	panicz.PanicIfError(os.MkdirAll(dir, 0750))
+	return os.CreateTemp(dir, pattern)
 }
 
 // DoIfPathExist will invoke the provided call if the path provided exist
@@ -59,4 +74,21 @@ func FromWorkDir(path string) string {
 	}
 
 	return path
+}
+
+// GetFileType returns the non-opinionated extension of the provided filename, that's excluding the leading dot character, taking everything afterward.
+func GetFileType(path string) string {
+	var filename = filepath.Base(path)
+	var dotIndex = strings.Index(filename, ".")
+
+	if dotIndex > 0 {
+		return filename[dotIndex+1:]
+	}
+
+	return ""
+}
+
+// RemoveSilently performs a rm -rf of the provided dir
+func RemoveSilently(dir string) {
+	_ = os.RemoveAll(dir)
 }

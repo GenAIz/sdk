@@ -1,0 +1,39 @@
+services:
+  htpasswd:
+    container_name: genaiz_htpasswd
+    image: httpd:2
+    user: ${DOCKER_UID:-1000}:${DOCKER_GID:-1000}
+    command: bash -c 'htpasswd -Bbn ${GENAIZ_USER:-u} ${GENAIZ_PASS:-p} > htpasswd'
+    working_dir: /mnt
+    volumes:
+      - ${REGISTRY_AUTH_MOUNT:-.}:/mnt
+    profiles:
+      - mock-registry
+      - mock-services
+
+  registry:
+    container_name: genaiz_registry
+    depends_on:
+      htpasswd:
+        condition: service_completed_successfully
+    image: registry:latest
+    user: ${DOCKER_UID:-1000}:${DOCKER_GID:-1000}
+    environment:
+      - "REGISTRY_AUTH=htpasswd"
+      - "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm"
+      - "REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd"
+      - "OTEL_TRACES_EXPORTER=none"
+    ports:
+      - "5000:5000"
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://0.0.0.0:5000/"]
+      start_period: 5s
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ${REGISTRY_AUTH_MOUNT:-.}:/auth
+    profiles:
+      - mock-registry
+      - mock-services

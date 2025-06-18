@@ -1,0 +1,31 @@
+services:
+  genaiz-mock-build-simple-create:
+    container_name: genaiz_mock_build_simple_create
+    image: genaiz.com/sdk/genaiz:latest
+    command: >
+      sf create --recipe=bash-example 
+        --configType=yaml 
+        --fqdn=dev.genaiz.com 
+        --handle=mock-build-simple 
+        --oem=com.genaiz
+        --logLevel=debug
+      mock-build-simple
+    volumes:
+      - ${TESTS_MOUNT:-.}:/home/genaiz/
+    profiles:
+      - mock-build-simple
+
+  genaiz-mock-build-simple:
+    depends_on:
+      genaiz-mock-build-simple-create:
+        condition: service_completed_successfully
+    container_name: genaiz_mock_build_simple
+    image: genaiz.com/sdk/genaiz:latest
+    user: ${DOCKER_UID:-1000}:${DOCKER_GID:-1000}
+    command: sf build
+    working_dir: /home/genaiz/mock-build-simple
+    volumes:
+      - ${TESTS_MOUNT:-.}:/home/genaiz/
+      - /var/run/docker.sock:/var/run/docker.sock
+    profiles:
+      - mock-build-simple

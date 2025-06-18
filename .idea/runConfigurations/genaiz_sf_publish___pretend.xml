@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz sf create --pretend testing" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="genaiz sf publish --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
-    <parameters value="sf create --pretend --name testname --configType yaml --arch x86 --arch arm out/myIdeaTest" />
+    <parameters value="sf publish --context=out/samples/myBashExample --version=0.1 --pretend localhost:8080" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

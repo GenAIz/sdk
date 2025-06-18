@@ -1,0 +1,15 @@
+services:
+  genaiz-mock-create-simple:
+    container_name: genaiz_mock_create_simple
+    image: genaiz.com/sdk/genaiz:latest
+    command: >
+      sf create --recipe=bash-example 
+        --configType=yaml 
+        --fqdn=dev.genaiz.com 
+        --handle=mock-create-simple 
+        --oem=com.genaiz 
+      mock-create-simple
+    volumes:
+      - ${TESTS_MOUNT:-.}:/home/genaiz/
+    profiles:
+      - mock-create-simple

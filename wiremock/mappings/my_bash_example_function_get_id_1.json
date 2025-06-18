@@ -1,0 +1,41 @@
+{
+  "name": "my_bash_example_function_get_id_1",
+  "scenarioName": "my-bash-example",
+  "request": {
+    "urlPath": "/v1/sf/get",
+    "method": "GET",
+    "queryParameters": {
+      "id": {
+        "equalTo": "1"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "code": 200,
+      "status": "OK",
+      "data": {
+        "sf": {
+          "id": 1,
+          "nco": 1,
+          "nms": 1,
+          "flags": 1,
+          "seq": 1,
+          "name": "My Bash Example",
+          "description": "My Bash Example",
+          "oem": "com.genaiz",
+          "handle": "my-bash-example",
+          "fqdn": "com.genaiz",
+          "img": "registry/my-bash-example",
+          "digest": "",
+          "version": "0.1-dev",
+          "type": "FUNCTION"
+        }
+      }
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

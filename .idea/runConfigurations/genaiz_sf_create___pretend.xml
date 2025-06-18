@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz sf create --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="sf create --arch=x86 --arch=arm --fqdn=dev.genaiz.com --oem=com.genaiz --handle=my-idea-pretend --name=&quot;My Idea Pretend&quot; --configType=yaml --in=../input --out=../output --pretend out/samples/myIdeaPretend" />
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>

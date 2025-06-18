@@ -1,9 +1,11 @@
 package mock
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/spf13/cast"
 	"github.com/undefinedlabs/go-mpatch"
 )
 
@@ -21,10 +23,36 @@ type Patches struct {
 	T *testing.T
 }
 
-func (p Patches) OsExit(impl func(int)) *Patched {
-	patchedExit := &Patched{Called: false}
+func (p Patches) FmtPrintf(impl func(format string, a ...any)) *Patched {
+	var patchedPrintf = &Patched{Called: false}
+	var patchFunc, err = mpatch.PatchMethod(fmt.Printf, func(format string, a ...any) (int, error) {
+		var calledWith = []string{format}
+		var result = 0
 
-	patchFunc, err := mpatch.PatchMethod(os.Exit, func(code int) {
+		calledWith = append(calledWith, cast.ToStringSlice(a)...)
+
+		for _, token := range calledWith {
+			result += len(token)
+		}
+
+		patchedPrintf.Called = true
+		patchedPrintf.CalledWith = calledWith
+		impl(format, a...)
+		return result, nil
+	})
+
+	if err != nil {
+		p.T.Errorf("Failed to patch fmt.Printf due to an error: %v", err)
+		return nil
+	}
+
+	patchedPrintf.PatchFunc = patchFunc
+	return patchedPrintf
+}
+
+func (p Patches) OsExit(impl func(int)) *Patched {
+	var patchedExit = &Patched{Called: false}
+	var patchFunc, err = mpatch.PatchMethod(os.Exit, func(code int) {
 		patchedExit.Called = true
 		patchedExit.CalledWith = code
 		impl(code)

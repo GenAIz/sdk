@@ -22,6 +22,24 @@ func TestCloseSilently(t *testing.T) {
 	assert.NotPanics(t, func() { CloseSilently(nil) })
 }
 
+func TestCreateRecursive(t *testing.T) {
+	var expectedDir = "/tmp/.genaiz"
+	var dirHandle, err = CreateRecursive(expectedDir, "FilezTest.txt")
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, dirHandle.Name())
+	RemoveSilently(expectedDir)
+}
+
+func TestCreateRecursiveTemp(t *testing.T) {
+	var expectedDir = "/tmp/.genaiz"
+	var dirHandle, err = CreateRecursiveTemp(expectedDir, "FilezTest")
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, dirHandle.Name())
+	RemoveSilently(expectedDir)
+}
+
 func TestDoIfPathExist(t *testing.T) {
 	var cwd, _ = os.Getwd()
 	var expectedError = errors.New("expected")
@@ -81,4 +99,12 @@ func TestFromWorkDir(t *testing.T) {
 
 func TestFromWorkDir_NotParent(t *testing.T) {
 	assert.EqualValues(t, "/tmp", FromWorkDir("/tmp"))
+}
+
+func TestGetFileType(t *testing.T) {
+	var expectedType = "txt"
+
+	assert.Empty(t, GetFileType("without_any_extension"))
+	assert.EqualValues(t, expectedType, GetFileType("test.txt"))
+	assert.EqualValues(t, expectedType, GetFileType("folder/.hiddenFolder/test.txt"))
 }
