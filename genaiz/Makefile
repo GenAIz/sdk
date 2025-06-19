@@ -5,30 +5,37 @@ all: install
 
 .PHONY: build
 build: clean
+	@echo "Building..."
 	go build
 
 .PHONY: clean
 clean:
+	@echo "Cleaning up..."
 	go clean -testcache
 	rm -f cover.out
 	rm -f genaiz
-	rm -rf ../out
 
 .PHONY: docker
 docker: build
+	@echo "Building docker image..."
 	./buildDocker.sh $(REGISTRY)
 
 .PHONY: test
-test: build
-	go test ./...
+test:
+	@echo "Testing..."
+	# gcflags=-1 disables inlining to allow Monkey Patching
+	go test -gcflags=-l ./...
 
 .PHONY: coverage
-coverage:
-	go test --coverprofile=cover.out ./...
+coverage: clean
+	@echo "Running coverage..."
+	# gcflags=-1 disables inlining to allow Monkey Patching
+	go test -gcflags=-l --coverprofile=cover.out ./...
 	go tool cover -html=cover.out
 
 .PHONY: install
-install: test
+install: clean
+	@echo "Installing..."
 	go install
 
 .PHONY: recipes

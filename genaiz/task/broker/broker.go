@@ -1,12 +1,49 @@
 package broker
 
-import "time"
+import (
+	"strconv"
 
-type Session struct {
-	Expiry int64
-	Token  string
+	"genaiz.com/genaiz/task/shared"
+)
+
+type Broker struct {
+	AuthFile string
+	HostAddr string
 }
 
-func (s *Session) IsExpired() bool {
-	return s.Expiry != -1 && s.Expiry <= time.Now().UTC().UnixMilli()
+type Function struct {
+	Id          int // Id is assigned by a publishing Broker and refers to the Smart Function release cycle
+	Arches      []string
+	Description string
+	Fqdn        string
+	Handle      string
+	Img         string
+	Digest      string
+	Name        string
+	Oem         string
+	Type        string
+	Version     string
+}
+
+func (f Function) asIdentity() *shared.Identity {
+	return &shared.Identity{
+		Id:      strconv.Itoa(f.Id),
+		Hash:    f.Digest,
+		Path:    f.Img,
+		Version: f.Version,
+	}
+}
+
+type Provision struct {
+	Auth string
+	Sf   Function
+}
+
+type Session struct {
+	Id     int
+	Nco    int64
+	Nms    int64
+	Flags  int
+	UserId int
+	Expiry int64
 }

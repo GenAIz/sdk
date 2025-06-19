@@ -129,22 +129,3 @@ The login command obtains an identity token from the specified Orchestrating Bro
 ```shell
 genaiz ac login www.genaiz.com
 ```
-
-## Integration Testing
-
-### Locally Authenticated Docker Registry
-
-If the need for testing docker login commands with the sdk arises, we can deploy a local registry featuring a basic username/password login preamble:
-
-```shell
-mkdir -p .registry && cd .registry
-mkdir -p auth
-docker run --entrypoint htpasswd httpd:2 -Bbn genaiz_user genaiz_pass > auth/htpasswd
-docker run -d -p 5000:5000 --restart=always --name registry_genaiz  \
-  -v `pwd`/auth:/auth  \
-  -e "REGISTRY_AUTH=htpasswd"  \
-  -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm"  \
-  -e "REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd" registry:latest
-docker login -u genaiz_user -p genaiz_pass
-cd -
-```

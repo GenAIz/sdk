@@ -5,6 +5,7 @@ import (
 	"os"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -36,6 +37,8 @@ func TestForwardTerminateDone(t *testing.T) {
 	defer StopCatch(testChannel)
 
 	cancel()
+	// An attempt to correct coverage flakiness as sometimes the testChannel is stopped before it can return on the cancel
+	time.Sleep(100 * time.Millisecond)
 }
 
 func TestForwardTerminateNotOk(t *testing.T) {

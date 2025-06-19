@@ -1,0 +1,312 @@
+package sf
+
+import (
+	"bytes"
+	"io"
+	"regexp"
+	"strings"
+	"testing"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
+
+	"genaiz.com/genaiz-it/mock"
+	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/layout"
+)
+
+func TestCreatorExecutor_Display(t *testing.T) {
+	var testOutput = new(bytes.Buffer)
+	var testViper = viper.New()
+	var testRepo = config.NewBuilder().
+		WithViper(testViper).
+		WithOutput(io.Writer(testOutput)).
+		Build()
+	var testOptions = NewCreateOptions()
+	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
+	var expectedHandle = "handle"
+	var expectedFqdn = "fqdn.genaiz.com"
+	var expectedName = "name-create"
+	var expectedOem = "oem"
+	var expectedRecipe = "recipe"
+	var expectedVersion = "version"
+	var testExecutor = &CreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Repo: testRepo,
+		},
+		CreateOptions: testOptions,
+	}
+
+	testRepo.Register(&cobra.Command{}, testOptions.allDefiners()...)
+	testViper.Set(testOptions.optionArches.Key, expectedArches)
+	testViper.Set(testOptions.optionConfigType.Key, layout.ConfigTypeJson)
+	testViper.Set(testOptions.optionFqdn.Key, expectedFqdn)
+	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
+	testViper.Set(testOptions.optionName.Key, expectedName)
+	testViper.Set(testOptions.optionOem.Key, expectedOem)
+	testViper.Set(testOptions.optionRecipe.Key, expectedRecipe)
+	testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testOptions.optionVersion.Key, expectedVersion)
+	testExecutor.Display()
+	actual := testOutput.String()
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionArches.Param+`:[\s\t]*\[`+strings.Join(expectedArches, " ")+`\]`), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionFqdn.Param+`:[\s\t]*`+expectedFqdn), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+layout.ConfigTypeJson), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionHandle.Param+`:[\s\t]*`+expectedHandle), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionRecipe.Param+`:[\s\t]*`+expectedRecipe), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionType.Param+`:[\s\t]*`+layout.FunctionTypeFunction), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionVersion.Param+`:[\s\t]*`+expectedVersion), actual)
+}
+
+func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
+	var calledCreate, calledInit, calledRecipe bool
+	var testViper = viper.New()
+	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &CreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Repo: testRepo,
+			Cli:  NewSfCli(nil, nil, nil),
+		},
+		CreateOptions: NewCreateOptions(),
+
+		initTaskFactory:   newInitTaskPretendStub(&calledInit),
+		createTaskFactory: newCreateTaskPretendStub(&calledCreate),
+		recipeTaskFactory: newRecipeTaskPretendStub(&calledRecipe),
+	}
+
+	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
+	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
+	testExecutor.Pretend()
+	assert.True(t, calledCreate)
+	assert.False(t, calledRecipe)
+	assert.True(t, calledInit)
+}
+
+func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
+	var calledCreate, calledInit, calledRecipe bool
+	var testViper = viper.New()
+	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &CreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Repo: testRepo,
+			Cli:  NewSfCli(nil, nil, nil),
+		},
+		CreateOptions: NewCreateOptions(),
+
+		initTaskFactory:   newInitTaskPretendStub(&calledInit),
+		createTaskFactory: newCreateTaskPretendStub(&calledCreate),
+		recipeTaskFactory: newRecipeTaskPretendStub(&calledRecipe),
+	}
+
+	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
+	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
+	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")
+	testExecutor.Pretend()
+	assert.True(t, calledCreate)
+	assert.True(t, calledRecipe)
+	assert.True(t, calledInit)
+}
+
+func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
+	var calledCreate, calledInit, calledRecipe bool
+	var testViper = viper.New()
+	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &CreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Repo: testRepo,
+			Cli:  NewSfCli(nil, nil, nil),
+		},
+		CreateOptions: NewCreateOptions(),
+
+		initTaskFactory:   newInitTaskCompleteStub(&calledInit),
+		createTaskFactory: newCreateTaskCompleteStub(&calledCreate),
+		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
+	}
+
+	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
+	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
+	testRepo.Logger = &logrus.Logger{}
+	testExecutor.Proceed()
+	assert.True(t, calledCreate)
+	assert.False(t, calledRecipe)
+	assert.True(t, calledInit)
+}
+
+func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
+	var calledCreate, calledInit, calledRecipe bool
+	var testViper = viper.New()
+	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &CreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Repo: testRepo,
+			Cli:  NewSfCli(nil, nil, nil),
+		},
+		CreateOptions: NewCreateOptions(),
+
+		initTaskFactory:   newInitTaskCompleteStub(&calledInit),
+		createTaskFactory: newCreateTaskCompleteStub(&calledCreate),
+		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
+	}
+
+	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
+	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
+	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")
+	testRepo.Logger = &logrus.Logger{}
+	testExecutor.Proceed()
+	assert.True(t, calledCreate)
+	assert.True(t, calledRecipe)
+	assert.True(t, calledInit)
+}
+
+func TestNewCreate(t *testing.T) {
+	var createCompleted = false
+	var testOutput = new(bytes.Buffer)
+	var testViper = viper.New()
+	var testRepo = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
+	var testCli = &Cli{
+		Dry: func(repo *config.Repo) bool {
+			return true
+		},
+		optionDockerContext: newOptionDockerContext(),
+		optionDockerFile:    newOptionDockerFile(),
+		optionDockerTag:     newOptionDockerTag(),
+		optionDockerVersion: newOptionDockerVersion(),
+	}
+	var testCreate = NewCreate(testRepo, testCli)
+	var expectedFolder = "test-folder"
+
+	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
+		createCompleted = true
+	}
+	testCreate.SetArgs([]string{expectedFolder})
+	assert.NoError(t, testCreate.Execute())
+	assert.True(t, createCompleted)
+
+	if actual := testOutput.String(); actual != "" {
+		assert.Contains(t, actual, expectedFolder)
+	} else {
+		assert.Fail(t, "no --dry content")
+	}
+}
+
+func TestNewCreate_InvalidFolder(t *testing.T) {
+	var createCompleted = false
+	var testOutput = new(bytes.Buffer)
+	var testViper = viper.New()
+	var testRepo = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
+	var testCli = &Cli{
+		Dry: func(repo *config.Repo) bool {
+			return true
+		},
+		optionDockerContext: newOptionDockerContext(),
+		optionDockerFile:    newOptionDockerFile(),
+		optionDockerTag:     newOptionDockerTag(),
+		optionDockerVersion: newOptionDockerVersion(),
+	}
+	var testCreate = NewCreate(testRepo, testCli)
+	var expectedFolder = "#invalidtest-folder"
+
+	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
+		createCompleted = true
+	}
+	testCreate.SetArgs([]string{expectedFolder})
+	assert.Error(t, testCreate.Execute())
+	assert.False(t, createCompleted)
+}
+
+func Test_toConfigType(t *testing.T) {
+	var expectedKey = "key"
+	var testViper = viper.New()
+	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testOption = config.StringOption{
+		Option: config.Option{
+			Key: expectedKey,
+		},
+	}
+
+	testViper.Set(expectedKey, layout.ConfigTypeToml)
+	assert.EqualValues(t, layout.ConfigTypeToml, *toConfigType(testRepo, &testOption))
+}
+
+func Test_toConfigType_Invalid(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var expectedKey = "key"
+	var testViper = viper.New()
+	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testOption = config.StringOption{
+		Option: config.Option{
+			Key: expectedKey,
+		},
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(expectedKey, "invalid")
+	toConfigType(testRepo, &testOption)
+	assert.True(t, patch.Called)
+	assert.EqualValues(t, 1, patch.CalledWith)
+}
+
+func newCreateTaskCompleteStub(flag *bool) CreateTaskFactory {
+	return func() *task.Task[layout.CreateParams] {
+		return &task.Task[layout.CreateParams]{
+			OnPrepare: func(params *layout.CreateParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *layout.CreateParams, state *task.State) error {
+				*flag = true
+				return nil
+			},
+		}
+	}
+}
+
+func newRecipeTaskCompleteStub(flag *bool) RecipeTaskFactory {
+	return func(paths ...string) *task.Task[layout.RecipeParams] {
+		return &task.Task[layout.RecipeParams]{
+			OnPrepare: func(params *layout.RecipeParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *layout.RecipeParams, state *task.State) error {
+				*flag = true
+				return nil
+			},
+		}
+	}
+}
+
+func newCreateTaskPretendStub(flag *bool) CreateTaskFactory {
+	return func() *task.Task[layout.CreateParams] {
+		return &task.Task[layout.CreateParams]{
+			OnPrepare: func(params *layout.CreateParams, state *task.State) error {
+				return nil
+			},
+			OnPretend: func(params *layout.CreateParams, state *task.State) error {
+				*flag = true
+				return nil
+			},
+		}
+	}
+}
+
+func newRecipeTaskPretendStub(flag *bool) RecipeTaskFactory {
+	return func(paths ...string) *task.Task[layout.RecipeParams] {
+		return &task.Task[layout.RecipeParams]{
+			OnPrepare: func(params *layout.RecipeParams, state *task.State) error {
+				return nil
+			},
+			OnPretend: func(params *layout.RecipeParams, state *task.State) error {
+				*flag = true
+				return nil
+			},
+		}
+	}
+}

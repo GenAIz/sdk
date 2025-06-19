@@ -2,6 +2,15 @@ package mapz
 
 import "sort"
 
+// GetOrDefault returns the corresponding key provided by from or else the supplied defaultValue
+func GetOrDefault[k int | string, T any](from map[k]T, key k, defaultSupplier func() T) T {
+	if value, ok := from[key]; ok {
+		return value
+	}
+
+	return defaultSupplier()
+}
+
 // Mapped returns a map of the slice hashed by the provided keySupplier function
 func Mapped[T any](slice []T, keySupplier func(T) string) map[string]T {
 	var result = map[string]T{}

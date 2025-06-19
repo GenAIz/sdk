@@ -123,6 +123,35 @@ func TestOption_bindKeyEnv(t *testing.T) {
 	assert.EqualValues(t, expectedValue, testViper.GetString(testOption.Key))
 }
 
+func TestOption_equals(t *testing.T) {
+	var testOption = &Option{}
+	var expectedOption = &Option{
+		Key:          "key",
+		Param:        "param",
+		Short:        "shot",
+		Alias:        "alias",
+		Usage:        "usage",
+		Env:          "env",
+		DefaultValue: "default",
+	}
+
+	assert.False(t, expectedOption.Equals(testOption))
+	testOption.Key = expectedOption.Key
+	assert.False(t, expectedOption.Equals(testOption))
+	testOption.Param = expectedOption.Param
+	assert.False(t, expectedOption.Equals(testOption))
+	testOption.Short = expectedOption.Short
+	assert.False(t, expectedOption.Equals(testOption))
+	testOption.Alias = expectedOption.Alias
+	assert.False(t, expectedOption.Equals(testOption))
+	testOption.Usage = expectedOption.Usage
+	assert.False(t, expectedOption.Equals(testOption))
+	testOption.Env = expectedOption.Env
+	assert.False(t, expectedOption.Equals(testOption))
+	testOption.DefaultValue = expectedOption.DefaultValue
+	assert.True(t, expectedOption.Equals(testOption))
+}
+
 func TestOption_GetEnvKeyWithEnv(t *testing.T) {
 	var testOption = &Option{Env: "env"}
 

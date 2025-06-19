@@ -40,6 +40,8 @@ func handleLayoutCreate(params *CreateParams, state *task.State) error {
 	if path, err = handleLayoutCreatePath(params, state); err == nil {
 		if params.NeedsConfigFile() || state.Output != "" {
 			state.Output, err = handleLayoutCreateFile(path, params, state)
+		} else {
+			err = os.Chdir(path)
 		}
 	}
 
@@ -107,7 +109,7 @@ func handleLayoutCreateContext(params *CreateParams, state *task.State) error {
 }
 
 func handleLayoutCreatePretend(params *CreateParams, state *task.State) error {
-	fmt.Printf("mkdir %s && cd %s\n", params.FolderPath, params.FolderPath)
+	fmt.Printf("mkdir -p %s && cd %s\n", params.FolderPath, params.FolderPath)
 
 	if state.Output != "" {
 		fmt.Printf("touch %s\n", state.Output)

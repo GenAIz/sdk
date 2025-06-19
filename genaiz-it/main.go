@@ -1,6 +1,15 @@
 package main
 
+import (
+	"github.com/spf13/cobra"
+
+	"genaiz.com/genaiz-it/cmd"
+)
+
 func main() {
-	// Will eventually contain integration test checks performed on the Filesystem and on ContainerD
-	// These will be called from the wiremock docker compose service profiles
+	var root = cmd.New()
+
+	if err := root.Execute(); err != nil {
+		cobra.CheckErr(err)
+	}
 }

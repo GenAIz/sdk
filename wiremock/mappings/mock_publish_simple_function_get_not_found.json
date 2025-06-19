@@ -1,0 +1,26 @@
+{
+  "name": "mock_publish_simple_function_get_not_found",
+  "scenarioName": "mock-publish-simple",
+  "request": {
+    "urlPath": "/v1/sf/get",
+    "method": "GET",
+    "queryParameters": {
+      "handle": {
+        "equalTo": "mock-publish-simple"
+      },
+      "oem": {
+        "equalTo": "com.genaiz"
+      }
+    }
+  },
+  "response": {
+    "status": 404,
+    "jsonBody": {
+      "code": 404,
+      "status": "NOT_FOUND"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

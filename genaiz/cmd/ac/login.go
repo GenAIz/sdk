@@ -1,8 +1,10 @@
 package ac
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -10,41 +12,74 @@ import (
 	"genaiz.com/genaiz/task/broker"
 )
 
+type LoginTaskFactory func() *task.Task[broker.LoginParams]
+
+type SessionTaskFactory func() *task.Task[broker.Broker]
+
 type LoginExecutor struct {
-	repo *config.Repo
+	Repo *config.Repo
 
 	optionPassword *config.StringOption
+	optionRefresh  *config.BoolOption
 	optionUsername *config.StringOption
+
+	loginTaskFactory   LoginTaskFactory
+	sessionTaskFactory SessionTaskFactory
 }
 
 func (le *LoginExecutor) Login(brokerAddr string) {
-	var params = le.makeLoginParams(le.repo, brokerAddr)
-	var plan = &task.Plan{
-		Logger: le.repo.Logger,
-		OnFailure: func(msg interface{}) {
-			le.repo.Logger.Errorf("Could not authenticate with broker: %s", msg)
-		},
+	var currentSession string
+	var refresh = le.Repo.GetBool(le.optionRefresh)
+	var brokerParam = le.makeBrokerParams(brokerAddr)
+
+	if !refresh {
+		var sessionPlan = &task.Plan{
+			Logger: le.Repo.Logger,
+			OnFailure: func(msg interface{}) {
+				refresh = true
+			},
+			OnSuccess: func(msg interface{}) {
+				currentSession = cast.ToString(msg)
+			},
+		}
+
+		task.Attempt(sessionPlan, brokerParam, le.sessionTaskFactory())
+
+		if currentSession != "" {
+			fmt.Printf("%s\n", currentSession)
+		}
 	}
 
-	task.Single(plan, params, broker.NewLoginTask())
+	if refresh {
+		var params = le.makeLoginParams(brokerParam)
+		var loginPlan = task.NewPlan("Login", le.Repo.Logger)
+
+		task.Single(loginPlan, params, le.loginTaskFactory())
+	}
+
 }
 
-func (le *LoginExecutor) makeLoginParams(repo *config.Repo, brokerAddr string) *broker.LoginParams {
-	return &broker.LoginParams{
-		AuthFile: repo.AuthFile,
+func (le *LoginExecutor) makeBrokerParams(brokerAddr string) *broker.Broker {
+	return &broker.Broker{
+		AuthFile: le.Repo.AuthFile,
 		HostAddr: brokerAddr,
+	}
+}
+
+func (le *LoginExecutor) makeLoginParams(brokerParam *broker.Broker) *broker.LoginParams {
+	return &broker.LoginParams{
+		Broker:   brokerParam,
 		Username: le.queryUsername(),
 		Password: le.queryPassword(),
-		Refresh:  true,
 	}
 }
 
 func (le *LoginExecutor) queryPassword() *[]byte {
-	var password = le.repo.GetString(le.optionPassword)
+	var password = le.Repo.GetString(le.optionPassword)
 	var result *[]byte
 
 	if password == "" {
-		result = le.repo.QuerySecret("password: ")
+		result = le.Repo.QuerySecret("password: ")
 	} else {
 		var bytes = []byte(password)
 
@@ -55,10 +90,10 @@ func (le *LoginExecutor) queryPassword() *[]byte {
 }
 
 func (le *LoginExecutor) queryUsername() string {
-	var username = le.repo.GetString(le.optionUsername)
+	var username = le.Repo.GetString(le.optionUsername)
 
 	if username == "" {
-		username = le.repo.QueryMandatory("username: ")
+		username = le.Repo.QueryMandatory("username: ")
 	}
 
 	return strings.TrimSpace(username)
@@ -67,7 +102,7 @@ func (le *LoginExecutor) queryUsername() string {
 func NewLogin(repo *config.Repo) *cobra.Command {
 	var exec = NewLoginExecutor(repo)
 	var login = &cobra.Command{
-		Use:     "login host",
+		Use:     "login HOST",
 		Short:   "Authenticates an account with a Genaiz broker",
 		Long:    "Authenticates a username and password with a Genaiz broker provided a url as argument",
 		Example: "genaiz ac login www.genaiz.com",
@@ -77,32 +112,50 @@ func NewLogin(repo *config.Repo) *cobra.Command {
 		},
 	}
 
-	repo.Register(login, exec.optionUsername, exec.optionPassword)
+	repo.Register(login, exec.optionUsername, exec.optionPassword, exec.optionRefresh)
 	return login
 }
 
 func NewLoginExecutor(repo *config.Repo) *LoginExecutor {
 	return &LoginExecutor{
-		optionPassword: NewOptionPassword(),
-		optionUsername: NewOptionUsername(),
-		repo:           repo,
+		Repo: repo,
+
+		optionPassword: newOptionPassword(),
+		optionRefresh:  newOptionRefresh(),
+		optionUsername: newOptionUsername(),
+
+		loginTaskFactory:   broker.NewLoginTask,
+		sessionTaskFactory: broker.NewSessionTask,
 	}
 }
 
-func NewOptionPassword() *config.StringOption {
+func newOptionPassword() *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key: "password",
+			Env: "GENAIZ_PASSWORD",
 		},
 	}
 }
 
-func NewOptionUsername() *config.StringOption {
+func newOptionRefresh() *config.BoolOption {
+	return &config.BoolOption{
+		Option: config.Option{
+			Key:          "AC.Refresh",
+			Param:        "refresh",
+			Short:        "r",
+			DefaultValue: "false",
+		},
+	}
+}
+
+func newOptionUsername() *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key:   "AC.Username",
 			Param: "username",
 			Short: "u",
+			Env:   "GENAIZ_USERNAME",
 		},
 	}
 }

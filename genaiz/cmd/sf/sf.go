@@ -125,6 +125,7 @@ func NewSf(repo *config.Repo, confirm Interactive, dry, pretend Decisive) *cobra
 		NewTest(repo, cli),
 		NewStop(repo, cli),
 		NewStart(repo, cli),
+		NewPublish(repo, cli),
 	)
 	// The sf command captures context modifications and those are needed before the repo sets defaults
 	cobra.OnInitialize(func() { repo.ChangeWorkDir(cli.optionDockerContext) })

@@ -2,12 +2,10 @@ package sf
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -15,8 +13,12 @@ import (
 	"genaiz.com/genaiz/task/docker"
 )
 
+type BuildTaskFactory func() *task.Task[docker.BuildParams]
+
 type BuildExecutor struct {
 	BaseExecutor
+
+	buildTaskFactory BuildTaskFactory
 }
 
 func (be *BuildExecutor) Display() {
@@ -27,31 +29,19 @@ func (be *BuildExecutor) Pretend() {
 	var params = be.makeBuildParams()
 
 	be.Repo.DisplayChangeDir()
-	docker.NewBuildTask().Pretend(params, be.Repo.Logger)
+	be.buildTaskFactory().Pretend(params, be.Repo.Logger)
 }
 
 func (be *BuildExecutor) Proceed() {
 	var params = be.makeBuildParams()
-	var plan = &task.Plan{
-		Logger: be.Repo.Logger,
-		OnFailure: func(msg interface{}) {
-			be.Repo.Logger.Errorf("Build incomplete with error: %s", msg)
-		},
-		OnSuccess: func(msg interface{}) {
-			var out = cast.ToString(msg)
+	var plan = task.NewPlan("Build", be.Repo.Logger)
 
-			if out != "" {
-				fmt.Printf("%s\n", out)
-			}
-		},
-	}
-
-	task.Single(plan, params, docker.NewBuildTask())
+	task.Single(plan, params, be.buildTaskFactory())
 }
 
 // makeBuildParams creates a docker.BuildParams from resolving parameters, configuration files and environment variables
 func (be *BuildExecutor) makeBuildParams() *docker.BuildParams {
-	return makeBuildParams(be.BaseExecutor)
+	return makeBuildParams(&be.BaseExecutor)
 }
 
 func NewBuild(repo *config.Repo, cli *Cli) *cobra.Command {
@@ -70,15 +60,16 @@ func NewBuild(repo *config.Repo, cli *Cli) *cobra.Command {
 
 func NewBuildExecutor(ctx context.Context, repo *config.Repo, cli *Cli) *BuildExecutor {
 	return &BuildExecutor{
-		BaseExecutor{
+		BaseExecutor: BaseExecutor{
 			Context: ctx,
 			Cli:     cli,
 			Repo:    repo,
 		},
+		buildTaskFactory: docker.NewBuildTask,
 	}
 }
 
-func makeBuildParams(base BaseExecutor) *docker.BuildParams {
+func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
 	var cwd, _ = os.Getwd()
 	var dockerContext = base.Repo.GetString(base.Cli.optionDockerContext)
 	var dockerFile = base.Repo.GetString(base.Cli.optionDockerFile)
@@ -92,10 +83,10 @@ func makeBuildParams(base BaseExecutor) *docker.BuildParams {
 	} else if dir == cwd {
 		var baseFile = filepath.Base(dockerFile)
 
-		if baseFile != "Dockerfile" {
-			dockerFile = filepath.Base(dockerFile)
-		} else {
+		if baseFile == "Dockerfile" {
 			dockerFile = ""
+		} else {
+			dockerFile = filepath.Base(dockerFile)
 		}
 	}
 

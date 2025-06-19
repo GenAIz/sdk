@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="clean out/myBashExample" type="ShConfigurationType">
-    <option name="SCRIPT_TEXT" value="rm -rf out/myBashExample &amp;&amp; mkdir -p out" />
+  <configuration default="false" name="clean out/samples" type="ShConfigurationType">
+    <option name="SCRIPT_TEXT" value="rm -rf out/samples &amp;&amp; mkdir -p out/samples" />
     <option name="INDEPENDENT_SCRIPT_PATH" value="true" />
     <option name="SCRIPT_PATH" value="$PROJECT_DIR$" />
     <option name="SCRIPT_OPTIONS" value="" />

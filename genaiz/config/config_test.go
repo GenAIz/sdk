@@ -47,7 +47,7 @@ func TestRepo_backupConfigs(t *testing.T) {
 	_ = testRepo.makeConfigs(&testStruct)
 	assert.NoError(t, testRepo.backupConfigs())
 	assert.NoError(t, testRepo.backupConfigs())
-	assert.NoError(t, os.Remove("/tmp/genaiz.yaml.back"))
+	assert.NoError(t, os.Remove("/tmp/"+defaultConfigName+".yaml.back"))
 }
 
 func TestRepo_makeConfigsNoOverwriting(t *testing.T) {
@@ -57,7 +57,7 @@ func TestRepo_makeConfigsNoOverwriting(t *testing.T) {
 	testRepo.UserPath = "/tmp"
 	_ = testRepo.makeConfigs(&testStruct)
 	assert.Error(t, testRepo.makeConfigs(&testStruct))
-	assert.NoError(t, os.Remove("/tmp/genaiz.yaml"))
+	assert.NoError(t, os.Remove("/tmp/"+defaultConfigName+".yaml"))
 }
 
 func TestRepo_rollbackConfigsInvalidUserPath(t *testing.T) {
@@ -75,7 +75,7 @@ func TestRepo_rollbackConfigs(t *testing.T) {
 	_ = testRepo.makeConfigs(&testStruct)
 	assert.NoError(t, testRepo.backupConfigs())
 	assert.NoError(t, testRepo.rollbackConfigs())
-	assert.NoError(t, os.Remove("/tmp/genaiz.yaml"))
+	assert.NoError(t, os.Remove("/tmp/"+defaultConfigName+".yaml"))
 }
 
 func TestRepo_AddConfigOption(t *testing.T) {
@@ -96,9 +96,26 @@ func TestRepo_AddConfigOption(t *testing.T) {
 	testRepo.Init()
 	testRepo.AddConfigOption(testOption)
 	testRepo.InitDefaults()
-	assert.NoError(t, testRepo.viper.ReadInConfig())
 	assert.EqualValues(t, expectedFile, testRepo.viper.ConfigFileUsed())
 	assert.NoError(t, os.Remove(expectedFile))
+}
+
+func TestRepo_AddConfigOptionInvalidFile(t *testing.T) {
+	var _, testRepo = newTestConfigs()
+	var testPath = "/tmp"
+	var testOption = &StringOption{
+		Option{
+			Key: "key",
+			DefaultGetter: func(repo *Repo) any {
+				return testPath
+			},
+		},
+	}
+
+	testRepo.Init()
+	testRepo.AddConfigOption(testOption)
+	testRepo.InitDefaults()
+	assert.Empty(t, testRepo.viper.ConfigFileUsed())
 }
 
 func TestRepo_ChangeWorkDirEmptyDir(t *testing.T) {
@@ -515,6 +532,7 @@ func TestRepo_Init(t *testing.T) {
 	}
 	testRepo.InitLogging()
 	assert.Contains(t, buff.String(), "Using")
+	assert.NoError(t, os.Remove("/tmp/"+testRepo.ConfigName+".yaml"))
 }
 
 func TestRepo_InitLogging(t *testing.T) {

@@ -123,22 +123,6 @@ func TestTask_PretendOnPretend(t *testing.T) {
 	assert.False(t, patch.Called)
 }
 
-func TestTask_PretendOnPrepareFailure(t *testing.T) {
-	var patch = mock.Patches{T: t}.OsExit(func(int) {})
-	var expectedError = errors.New("expected")
-	var testParam = "test"
-	var testTask = &Task[string]{
-		OnPrepare: func(params *string, state *State) error {
-			return expectedError
-		},
-	}
-
-	defer patch.Unpatch()
-	testTask.Pretend(&testParam, testLogger)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
-}
-
 func TestTask_PretendOnPretendFailure(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var expectedError = errors.New("expected")

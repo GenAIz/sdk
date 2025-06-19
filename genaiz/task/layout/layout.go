@@ -2,12 +2,12 @@ package layout
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cast"
 
 	"genaiz.com/genaiz/lang/enumz"
+	"genaiz.com/genaiz/lang/filez"
 	"genaiz.com/genaiz/lang/panicz"
 )
 
@@ -59,7 +59,8 @@ func (kp keyValueFilePretender) PretendValue(key string, value string) {
 }
 
 func newConfigPretender(path string) ConfigPretender {
-	var ct, err = ConfigTypes.FromString(filepath.Ext(path)[1:])
+	var fileType = filez.GetFileType(path)
+	var ct, err = ConfigTypes.FromString(fileType)
 
 	panicz.PanicIfError(err)
 	switch *ct {

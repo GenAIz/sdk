@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	defaultConfigName = "genaiz"
+	defaultConfigName = "Genaiz"
 )
 
 // Definer provides methods for defining a pflag.Flag in a pflag.FlagSet, and its associated default value in a config.Repo
@@ -143,6 +143,10 @@ func (r *Repo) AddConfigOption(option *StringOption) {
 	r.configurers = append(r.configurers, func(repo *Repo) {
 		if path := repo.GetString(option); path != "" {
 			r.viper.AddConfigPath(path)
+
+			if err := r.viper.MergeInConfig(); err != nil {
+				r.LogDebug("could not merge config [%s]", path)
+			}
 		}
 	})
 }
