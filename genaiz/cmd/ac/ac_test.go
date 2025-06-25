@@ -11,8 +11,8 @@ import (
 
 func TestNewAc(t *testing.T) {
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
-	var testAc = NewAc(testRepo)
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testAc = NewAc(testLedger)
 
 	assert.NoError(t, testAc.Execute())
 }

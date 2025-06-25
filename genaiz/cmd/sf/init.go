@@ -190,7 +190,7 @@ type InitExecutor struct {
 }
 
 func (ie *InitExecutor) Display() {
-	ie.Repo.DisplayOptions(
+	ie.Ledger.DisplayOptions(
 		&ie.optionArches.Option,
 		&ie.optionConfigType.Option,
 		&ie.optionFqdn.Option,
@@ -208,14 +208,14 @@ func (ie *InitExecutor) Pretend() {
 	var params = ie.makeInitParams()
 	var builder = ie.makeInitBuilder()
 
-	ie.Repo.DisplayChangeDir()
-	ie.initTaskFactory(builder).Pretend(params, ie.Repo.Logger)
+	ie.Ledger.DisplayChangeDir()
+	ie.initTaskFactory(builder).Pretend(params, ie.Ledger.Logger)
 }
 
 func (ie *InitExecutor) Proceed() {
 	var builder = ie.makeInitBuilder()
 	var params = ie.makeInitParams()
-	var plan = task.NewPlan("Init", ie.Repo.Logger)
+	var plan = task.NewPlan("Init", ie.Ledger.Logger)
 
 	task.Single(plan, params, ie.initTaskFactory(builder))
 }
@@ -225,7 +225,7 @@ func (ie *InitExecutor) makeInitBuilder() *InitWriter {
 }
 
 func (ie *InitExecutor) makeInitParams() *layout.InitParams {
-	return makeInitParams(ie.Repo, ie.InitOptions)
+	return makeInitParams(ie.Ledger, ie.InitOptions)
 }
 
 type InitOptions struct {
@@ -252,7 +252,7 @@ func (io *InitOptions) allDefiners() []config.Definer {
 	}
 }
 
-func NewInit(repo *config.Repo, cli *Cli) *cobra.Command {
+func NewInit(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var options = NewInitOptions()
 	var init = &cobra.Command{
 		Use:     "init",
@@ -260,19 +260,19 @@ func NewInit(repo *config.Repo, cli *Cli) *cobra.Command {
 		Long:    "Initiates an existing Smart Function configuration values, interactively by default",
 		Example: "genaiz sf init --oem com.genaiz",
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Exec(repo, NewInitExecutor(cmd.Context(), repo, cli, options))
+			cli.Exec(ledger, NewInitExecutor(cmd.Context(), ledger, cli, options))
 		},
 	}
 
-	repo.Register(init, options.allDefiners()...)
+	ledger.Register(init, options.allDefiners()...)
 	return init
 }
 
-func NewInitExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *InitOptions) *InitExecutor {
+func NewInitExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *InitOptions) *InitExecutor {
 	return &InitExecutor{
 		BaseExecutor: BaseExecutor{
 			Context: ctx,
-			Repo:    repo,
+			Ledger:  ledger,
 			Cli:     cli,
 		},
 		InitOptions: options,
@@ -303,9 +303,9 @@ func makeInitBuilder(cli *Cli) *InitWriter {
 	}
 }
 
-func makeInitParams(repo *config.Repo, initOptions *InitOptions) *layout.InitParams {
-	var archTypeStrings = repo.GetList(initOptions.optionArches)
-	var functionTypeString = repo.GetString(initOptions.optionType)
+func makeInitParams(ledger *config.Ledger, initOptions *InitOptions) *layout.InitParams {
+	var archTypeStrings = ledger.GetList(initOptions.optionArches)
+	var functionTypeString = ledger.GetString(initOptions.optionType)
 	var archTypes []layout.ArchType
 	var functionType *layout.FunctionType
 	var err error
@@ -320,18 +320,18 @@ func makeInitParams(repo *config.Repo, initOptions *InitOptions) *layout.InitPar
 
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
-			ConfigType: toConfigType(repo, initOptions.optionConfigType),
-			ConfigName: repo.ConfigName,
+			ConfigType: toConfigType(ledger, initOptions.optionConfigType),
+			ConfigName: ledger.ConfigName,
 		},
 		Arches:      archTypes,
-		FQDN:        repo.GetString(initOptions.optionFqdn),
+		FQDN:        ledger.GetString(initOptions.optionFqdn),
 		Type:        *functionType,
-		Handle:      repo.GetString(initOptions.optionHandle),
-		Name:        repo.GetString(initOptions.optionName),
-		MountInput:  repo.GetString(initOptions.optionMountInput),
-		MountOutput: repo.GetString(initOptions.optionMountOutput),
-		OEM:         repo.GetString(initOptions.optionOem),
-		Version:     repo.GetString(initOptions.optionVersion),
+		Handle:      ledger.GetString(initOptions.optionHandle),
+		Name:        ledger.GetString(initOptions.optionName),
+		MountInput:  ledger.GetString(initOptions.optionMountInput),
+		MountOutput: ledger.GetString(initOptions.optionMountOutput),
+		OEM:         ledger.GetString(initOptions.optionOem),
+		Version:     ledger.GetString(initOptions.optionVersion),
 	}
 }
 

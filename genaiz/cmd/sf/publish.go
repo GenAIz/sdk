@@ -36,7 +36,7 @@ type PublishExecutor struct {
 }
 
 func (pe *PublishExecutor) Display() {
-	pe.Repo.DisplayOptionsWithMap(&map[string]string{
+	pe.Ledger.DisplayOptionsWithMap(&map[string]string{
 		"broker": pe.brokerAddr,
 	},
 		&pe.optionArches.Option,
@@ -55,9 +55,9 @@ func (pe *PublishExecutor) Pretend() {
 	var buildParams = makeBuildParams(&pe.BaseExecutor)
 	var provisionParams = pe.makeProvisionParams()
 	var pushParams = pe.makePushParams()
-	var rebuild = pe.Repo.GetBool(pe.optionRebuild)
-	var noUpdate = pe.Repo.GetBool(pe.optionNoUpdate)
-	var plan = task.NewPlan("Publish", pe.Repo.Logger)
+	var rebuild = pe.Ledger.GetBool(pe.optionRebuild)
+	var noUpdate = pe.Ledger.GetBool(pe.optionNoUpdate)
+	var plan = task.NewPlan("Publish", pe.Ledger.Logger)
 	var workers []task.Worker
 
 	if rebuild {
@@ -71,7 +71,7 @@ func (pe *PublishExecutor) Pretend() {
 
 	if !noUpdate {
 		var builder = makeInitBuilder(pe.Cli)
-		var initParams = makePublishInitParams(pe.Repo, pe.PublishOptions)
+		var initParams = makePublishInitParams(pe.Ledger, pe.PublishOptions)
 
 		workers = append(workers, task.NewPretender(initParams, pe.initTaskFactory(builder)))
 	}
@@ -81,13 +81,13 @@ func (pe *PublishExecutor) Pretend() {
 }
 
 func (pe *PublishExecutor) Proceed() {
-	var rebuild = pe.Repo.GetBool(pe.optionRebuild)
-	var noUpdate = pe.Repo.GetBool(pe.optionNoUpdate)
+	var rebuild = pe.Ledger.GetBool(pe.optionRebuild)
+	var noUpdate = pe.Ledger.GetBool(pe.optionNoUpdate)
 	var buildParams = makeBuildParams(&pe.BaseExecutor)
 	var provisionParams = pe.makeProvisionParams()
 	var pushParams = pe.makePushParams()
 	var workers []task.Worker
-	var plan = task.NewPlan("Publish", pe.Repo.Logger)
+	var plan = task.NewPlan("Publish", pe.Ledger.Logger)
 
 	if rebuild {
 		workers = append(workers, task.NewWorker(buildParams, pe.buildTaskFactory()))
@@ -102,7 +102,7 @@ func (pe *PublishExecutor) Proceed() {
 
 	if !noUpdate {
 		var builder = makeInitBuilder(pe.Cli)
-		var initParams = makePublishInitParams(pe.Repo, pe.PublishOptions)
+		var initParams = makePublishInitParams(pe.Ledger, pe.PublishOptions)
 
 		workers = append(workers, task.NewWorker(initParams, pe.initTaskFactory(builder)))
 	}
@@ -111,21 +111,21 @@ func (pe *PublishExecutor) Proceed() {
 }
 
 func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
-	var nameDesc = pe.Repo.GetString(pe.optionName)
+	var nameDesc = pe.Ledger.GetString(pe.optionName)
 
 	return &broker.ProvisionParams{
 		Broker: broker.Broker{
-			AuthFile: pe.Repo.AuthFile,
+			AuthFile: pe.Ledger.AuthFile,
 			HostAddr: pe.brokerAddr,
 		},
-		Arches:      pe.Repo.GetList(pe.optionArches),
+		Arches:      pe.Ledger.GetList(pe.optionArches),
 		Description: nameDesc,
-		Fqdn:        pe.Repo.GetString(pe.optionFqdn),
-		Handle:      pe.Repo.GetString(pe.optionHandle),
+		Fqdn:        pe.Ledger.GetString(pe.optionFqdn),
+		Handle:      pe.Ledger.GetString(pe.optionHandle),
 		Name:        nameDesc,
-		Oem:         pe.Repo.GetString(pe.optionOem),
-		Type:        pe.Repo.GetString(pe.optionType),
-		Version:     pe.Repo.GetString(pe.optionVersion),
+		Oem:         pe.Ledger.GetString(pe.optionOem),
+		Type:        pe.Ledger.GetString(pe.optionType),
+		Version:     pe.Ledger.GetString(pe.optionVersion),
 	}
 }
 
@@ -163,7 +163,7 @@ func (po *PublishOptions) allDefiners() []config.Definer {
 	}
 }
 
-func NewPublish(repo *config.Repo, cli *Cli) *cobra.Command {
+func NewPublish(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var options = NewPublishOptions()
 	var publish = &cobra.Command{
 		Use:     "publish HOST",
@@ -172,20 +172,20 @@ func NewPublish(repo *config.Repo, cli *Cli) *cobra.Command {
 		Example: "genaiz sf publish --handle=my-function --oem=com.genaiz --version=0.1-dev www.genaiz.com",
 		Args:    cobra.MatchAll(cobra.ExactArgs(1)),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Exec(repo, NewPublishExecutor(cmd.Context(), repo, cli, options, args[0]))
+			cli.Exec(ledger, NewPublishExecutor(cmd.Context(), ledger, cli, options, args[0]))
 		},
 	}
 
-	repo.Register(publish, options.allDefiners()...)
+	ledger.Register(publish, options.allDefiners()...)
 	return publish
 }
 
-func NewPublishExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *PublishOptions, brokerAddr string) *PublishExecutor {
+func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *PublishOptions, brokerAddr string) *PublishExecutor {
 	return &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:     cli,
 			Context: ctx,
-			Repo:    repo,
+			Ledger:  ledger,
 		},
 		PublishOptions: options,
 
@@ -207,9 +207,9 @@ func NewPublishOptions() *PublishOptions {
 	return options
 }
 
-func makePublishInitParams(repo *config.Repo, options *PublishOptions) *layout.InitParams {
-	var archTypeStrings = repo.GetList(options.optionArches)
-	var functionTypeString = repo.GetString(options.optionType)
+func makePublishInitParams(ledger *config.Ledger, options *PublishOptions) *layout.InitParams {
+	var archTypeStrings = ledger.GetList(options.optionArches)
+	var functionTypeString = ledger.GetString(options.optionType)
 	var archTypes []layout.ArchType
 	var functionType *layout.FunctionType
 	var err error
@@ -224,15 +224,15 @@ func makePublishInitParams(repo *config.Repo, options *PublishOptions) *layout.I
 
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
-			ConfigName: repo.ConfigName,
+			ConfigName: ledger.ConfigName,
 		},
 		Arches:  archTypes,
-		FQDN:    repo.GetString(options.optionFqdn),
+		FQDN:    ledger.GetString(options.optionFqdn),
 		Type:    *functionType,
-		Handle:  repo.GetString(options.optionHandle),
-		Name:    repo.GetString(options.optionName),
-		OEM:     repo.GetString(options.optionOem),
-		Version: repo.GetString(options.optionVersion),
+		Handle:  ledger.GetString(options.optionHandle),
+		Name:    ledger.GetString(options.optionName),
+		OEM:     ledger.GetString(options.optionOem),
+		Version: ledger.GetString(options.optionVersion),
 	}
 }
 
@@ -264,7 +264,7 @@ func newOptionHandle(cmd string) *config.StringOption {
 			Key:   "SF." + cmd + ".Handle",
 			Param: "handle",
 			Usage: "a unique string identifying the function across its oem, valid characters can only be alphanumerics, the dot, dash and underscore",
-			DefaultSetter: func(repo *config.Repo) any {
+			DefaultSetter: func(ledger *config.Ledger) any {
 				var wd, _ = os.Getwd()
 
 				return filepath.Base(wd)
@@ -282,8 +282,8 @@ func newOptionName(defaultOption *config.StringOption, cmd string) *config.Strin
 			Param: "name",
 			Short: "n",
 			Usage: "display name of the function to create, defaults to the handle value if not provided",
-			DefaultGetter: func(repo *config.Repo) any {
-				return repo.GetString(defaultOption)
+			DefaultGetter: func(ledger *config.Ledger) any {
+				return ledger.GetString(defaultOption)
 			},
 		},
 		// TODO: Validator, this needs to be non-empty with certain max length

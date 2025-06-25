@@ -6,7 +6,7 @@ import (
 	"genaiz.com/genaiz/config"
 )
 
-func NewPolicy(repo *config.Repo) *cobra.Command {
+func NewPolicy(ledger *config.Ledger) *cobra.Command {
 	return &cobra.Command{
 		Use:     "policy",
 		Short:   "Displays the list of configuration policies",

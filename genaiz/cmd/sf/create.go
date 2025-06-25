@@ -29,7 +29,7 @@ type CreateExecutor struct {
 }
 
 func (ce *CreateExecutor) Display() {
-	ce.Repo.DisplayOptionsWithMap(&map[string]string{
+	ce.Ledger.DisplayOptionsWithMap(&map[string]string{
 		"folder": ce.FolderPath,
 	},
 		&ce.optionArches.Option,
@@ -46,19 +46,19 @@ func (ce *CreateExecutor) Display() {
 
 func (ce *CreateExecutor) Pretend() {
 	var createParams = ce.makeCreateParams()
-	var initParams = makeInitParams(ce.Repo, ce.InitOptions)
-	var recipeName = ce.Repo.GetString(ce.optionRecipe)
-	var plan = task.NewPlan("Create", ce.Repo.Logger)
+	var initParams = makeInitParams(ce.Ledger, ce.InitOptions)
+	var recipeName = ce.Ledger.GetString(ce.optionRecipe)
+	var plan = task.NewPlan("Create", ce.Ledger.Logger)
 	var builder = makeInitBuilder(ce.Cli)
 	var workers []task.Worker
 
-	ce.Repo.DisplayChangeDir()
+	ce.Ledger.DisplayChangeDir()
 	workers = append(workers, task.NewPretender(createParams, ce.createTaskFactory()))
 
 	if recipeName != "" {
 		var recipeParams = ce.makeRecipeParams(recipeName, ce.FolderPath)
 
-		workers = append(workers, task.NewPretender(recipeParams, ce.recipeTaskFactory(ce.Repo.TemplatePaths...)))
+		workers = append(workers, task.NewPretender(recipeParams, ce.recipeTaskFactory(ce.Ledger.TemplatePaths...)))
 	}
 
 	workers = append(workers, task.NewPretender(initParams, ce.initTaskFactory(builder)))
@@ -68,9 +68,9 @@ func (ce *CreateExecutor) Pretend() {
 func (ce *CreateExecutor) Proceed() {
 	var builder = makeInitBuilder(ce.Cli)
 	var createParams = ce.makeCreateParams()
-	var initParams = makeInitParams(ce.Repo, ce.InitOptions)
-	var recipeName = ce.Repo.GetString(ce.optionRecipe)
-	var plan = task.NewPlan("Create", ce.Repo.Logger)
+	var initParams = makeInitParams(ce.Ledger, ce.InitOptions)
+	var recipeName = ce.Ledger.GetString(ce.optionRecipe)
+	var plan = task.NewPlan("Create", ce.Ledger.Logger)
 
 	var workers = []task.Worker{
 		task.NewWorker(createParams, ce.createTaskFactory()),
@@ -80,7 +80,7 @@ func (ce *CreateExecutor) Proceed() {
 	if recipeName != "" {
 		var recipeParams = ce.makeRecipeParams(recipeName, ce.FolderPath)
 
-		workers = append(workers, task.NewWorker(recipeParams, ce.recipeTaskFactory(ce.Repo.TemplatePaths...)))
+		workers = append(workers, task.NewWorker(recipeParams, ce.recipeTaskFactory(ce.Ledger.TemplatePaths...)))
 	}
 
 	plan.Sequence(workers...)
@@ -88,14 +88,14 @@ func (ce *CreateExecutor) Proceed() {
 
 func (ce *CreateExecutor) makeCreateParams() *layout.CreateParams {
 	return &layout.CreateParams{
-		ConfigName: ce.Repo.ConfigName,
-		ConfigType: toConfigType(ce.Repo, ce.optionConfigType),
+		ConfigName: ce.Ledger.ConfigName,
+		ConfigType: toConfigType(ce.Ledger, ce.optionConfigType),
 		FolderPath: ce.FolderPath,
 	}
 }
 
 func (ce *CreateExecutor) makeRecipeParams(recipeName string, folderPath string) *layout.RecipeParams {
-	var handleName = ce.Repo.GetString(ce.optionHandle)
+	var handleName = ce.Ledger.GetString(ce.optionHandle)
 	var recipeOptions = []*config.Option{
 		&ce.optionArches.Option,
 		&ce.optionFqdn.Option,
@@ -113,8 +113,8 @@ func (ce *CreateExecutor) makeRecipeParams(recipeName string, folderPath string)
 		InstanceName: handleName,
 		Type:         recipe.TypeFunction,
 		Destination:  folderPath,
-		Options:      config.MapOptionsByEnvKey(ce.Repo, recipeOptions...),
-		Parameters:   config.MapOptionsByParam(ce.Repo, recipeOptions...),
+		Options:      config.MapOptionsByEnvKey(ce.Ledger, recipeOptions...),
+		Parameters:   config.MapOptionsByParam(ce.Ledger, recipeOptions...),
 	}
 }
 
@@ -141,7 +141,7 @@ func (co *CreateOptions) allDefiners() []config.Definer {
 	}
 }
 
-func NewCreate(repo *config.Repo, cli *Cli) *cobra.Command {
+func NewCreate(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var options = NewCreateOptions()
 	var create = &cobra.Command{
 		Use:     "create FOLDER_NAME",
@@ -156,21 +156,21 @@ func NewCreate(repo *config.Repo, cli *Cli) *cobra.Command {
 			return nil
 		}),
 		Run: func(cmd *cobra.Command, args []string) {
-			repo.InitValue(options.optionHandle, filepath.Base(args[0]))
-			cli.Exec(repo, NewCreateExecutor(cmd.Context(), repo, cli, options, args[0]))
+			ledger.InitValue(options.optionHandle, filepath.Base(args[0]))
+			cli.Exec(ledger, NewCreateExecutor(cmd.Context(), ledger, cli, options, args[0]))
 		},
 	}
 
-	repo.Register(create, options.allDefiners()...)
+	ledger.Register(create, options.allDefiners()...)
 	return create
 }
 
-func NewCreateExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *CreateOptions, folderPath string) *CreateExecutor {
+func NewCreateExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *CreateOptions, folderPath string) *CreateExecutor {
 	return &CreateExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:     cli,
 			Context: ctx,
-			Repo:    repo,
+			Ledger:  ledger,
 		},
 		CreateOptions: options,
 		FolderPath:    folderPath,
@@ -211,8 +211,8 @@ func newOptionRecipe() *config.StringOption {
 	}
 }
 
-func toConfigType(repo *config.Repo, option *config.StringOption) *layout.ConfigType {
-	var configTypeString = repo.GetString(option)
+func toConfigType(ledger *config.Ledger, option *config.StringOption) *layout.ConfigType {
+	var configTypeString = ledger.GetString(option)
 	var result *layout.ConfigType
 	var err error
 

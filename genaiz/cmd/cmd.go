@@ -22,11 +22,11 @@ import (
 )
 
 type Runner interface {
-	Confirm(*config.Repo, ...func()) bool
+	Confirm(*config.Ledger, ...func()) bool
 
-	Dry(repo *config.Repo) bool
+	Dry(*config.Ledger) bool
 
-	Pretend(repo *config.Repo) bool
+	Pretend(*config.Ledger) bool
 }
 
 type RunnerOptions struct {
@@ -39,8 +39,8 @@ type RunnerOptions struct {
 	solutionPath   *config.StringOption
 }
 
-func (ro *RunnerOptions) Confirm(repo *config.Repo, display ...func()) bool {
-	if repo.GetBool(ro.runConfirm) {
+func (ro *RunnerOptions) Confirm(ledger *config.Ledger, display ...func()) bool {
+	if ledger.GetBool(ro.runConfirm) {
 		var r = bufio.NewReader(os.Stdin)
 		var message = "Proceed?"
 
@@ -77,12 +77,12 @@ func (ro *RunnerOptions) Confirm(repo *config.Repo, display ...func()) bool {
 	return true
 }
 
-func (ro *RunnerOptions) Dry(repo *config.Repo) bool {
-	return repo.GetBool(ro.runDry)
+func (ro *RunnerOptions) Dry(ledger *config.Ledger) bool {
+	return ledger.GetBool(ro.runDry)
 }
 
-func (ro *RunnerOptions) Pretend(repo *config.Repo) bool {
-	return repo.GetBool(ro.runPretend)
+func (ro *RunnerOptions) Pretend(ledger *config.Ledger) bool {
+	return ledger.GetBool(ro.runPretend)
 }
 
 func (ro *RunnerOptions) allDefiners() []config.Definer {
@@ -97,7 +97,7 @@ func (ro *RunnerOptions) allDefiners() []config.Definer {
 	}
 }
 
-func New(repo *config.Repo) *cobra.Command {
+func New(ledger *config.Ledger) *cobra.Command {
 	var options = NewRunnerOptions()
 	var root = &cobra.Command{
 		Use:     "genaiz",
@@ -105,24 +105,24 @@ func New(repo *config.Repo) *cobra.Command {
 		Version: version.Version,
 	}
 
-	repo.LoggerFactory = func(repo *config.Repo) *logrus.Logger {
-		var level, err = getLevel(repo.GetString(options.logLevel))
+	ledger.LoggerFactory = func(ledger *config.Ledger) *logrus.Logger {
+		var level, err = getLevel(ledger.GetString(options.logLevel))
 
 		if err != nil {
-			repo.LogError("Could not set log level with error %s", err)
+			ledger.LogError("Could not set log level with error %s", err)
 		}
 
 		return &logrus.Logger{
 			Out:       os.Stdout,
 			Level:     level,
-			Formatter: getFormatter(repo.GetString(options.logFormat)),
+			Formatter: getFormatter(ledger.GetString(options.logFormat)),
 		}
 	}
 
-	repo.Register(root, options.allDefiners()...)
-	repo.AddConfigOption(options.overrideConfig)
-	root.AddCommand(sf.NewSf(repo, options.Confirm, options.Dry, options.Pretend))
-	root.AddCommand(ac.NewAc(repo))
+	ledger.Register(root, options.allDefiners()...)
+	ledger.AddConfigOption(options.overrideConfig)
+	root.AddCommand(sf.NewSf(ledger, options.Confirm, options.Dry, options.Pretend))
+	root.AddCommand(ac.NewAc(ledger))
 	return root
 }
 
@@ -237,8 +237,8 @@ func newOptionOverrideConfig() *config.StringOption {
 			Key:   "SF.Config",
 			Param: "config",
 			Usage: "configuration file path of the smart function or a solution",
-			DefaultGetter: func(repo *config.Repo) any {
-				return repo.WorkDir
+			DefaultGetter: func(ledger *config.Ledger) any {
+				return ledger.WorkDir
 			},
 		},
 	}

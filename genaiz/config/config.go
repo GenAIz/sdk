@@ -29,16 +29,16 @@ const (
 	defaultConfigName = "Genaiz"
 )
 
-// Definer provides methods for defining a pflag.Flag in a pflag.FlagSet, and its associated default value in a config.Repo
+// Definer provides methods for defining a pflag.Flag in a pflag.FlagSet, and its associated default value in a config.Ledger
 type Definer interface {
-	// Default provides a Repo with the default value of a Definer
-	Default(repo *Repo)
+	// Default provides a Ledger with the default value of a Definer
+	Default(*Ledger)
 
 	// Defined provides a strategy for determining the value of a Definer with respect to the pflag.FlagSet providing its value
-	Defined(repo *Repo, set *pflag.FlagSet)
+	Defined(*Ledger, *pflag.FlagSet)
 }
 
-// Registrar defines an abstraction of a config.Repo for registering and initializing Option(s) and initializing and subcomponents needed to handle the Option(s)
+// Registrar defines an abstraction of a config.Ledger for registering and initializing Option(s) and initializing and subcomponents needed to handle the Option(s)
 type Registrar interface {
 	// InitDefaults should trigger all DefaultSetters of all Option(s) held by the Registrar
 	InitDefaults()
@@ -50,42 +50,42 @@ type Registrar interface {
 	InitLogging()
 
 	// Register registers cobra.Command(s) with a variable amount of Definer(s)
-	Register(cmd *cobra.Command, definers ...Definer)
+	Register(*cobra.Command, ...Definer)
 }
 
-// Repo defines a Mediator which pilots a series of cobra.Command(s), mediating configuration retrieval, work directory and logging services
-type Repo struct {
-	AuthFile      string                     // AuthFile, set to the current authentification file to query broker accounts
-	ConfigName    string                     // ConfigName is used to read the config files related to the repo
-	EnvPrefix     string                     // EnvPrefix is applied to environment variables read for this repo
-	Logger        *logrus.Logger             // Logger, set to the current logger configurations
-	LoggerFactory func(*Repo) *logrus.Logger // LoggerFactory is called OnLogging when the Logger is initialized
-	UserPath      string                     // UserPath is where to find the user's general configuration for genaiz toolkits
-	TemplatePaths []string                   // TemplatePaths is a list of local filesystem paths to inspect to find recipes
-	WorkDir       string                     // WorkDir is by default the context dir, unless a change was recorded
+// Ledger defines a Mediator which pilots a series of cobra.Command(s), mediating configuration retrieval, work directory and logging services
+type Ledger struct {
+	AuthFile      string                       // AuthFile, set to the current authentification file to query broker accounts
+	ConfigName    string                       // ConfigName is used to read the config files related to the Ledger
+	EnvPrefix     string                       // EnvPrefix is applied to environment variables read for this Ledger
+	Logger        *logrus.Logger               // Logger, set to the current logger configurations
+	LoggerFactory func(*Ledger) *logrus.Logger // LoggerFactory is called OnLogging when the Logger is initialized
+	UserPath      string                       // UserPath is where to find the user's general configuration for genaiz toolkits
+	TemplatePaths []string                     // TemplatePaths is a list of local filesystem paths to inspect to find recipes
+	WorkDir       string                       // WorkDir is by default the context dir, unless a change was recorded
 
-	configurers       []func(*Repo)                 // configurers are a set of functions which modify the configuration paths to read before setting default values
-	defaulters        []func(*Repo)                 // defaulters containers all default resolution functions registered
-	input             io.Reader                     // os.Stdin by default, swapped to other writers when testing
-	loggers           []func(logger *logrus.Logger) // loggers is a list of delayed logging instructions for the repo to call OnLogging
-	output            io.Writer                     // os.Stdout by default, swapped to other writers when testing
-	originalDir       string                        // originalDir is set to the dir the genaiz command was launched from
-	validationHandler func(interface{})             // validationHandler is invoked when an option is not valid
-	viper             *viper.Viper                  // viper internal reference
-	workspace         *StringOption                 // workspace refers to an owning classification which may enter naming conventions by default
+	configurers       []func(*Ledger)        // configurers are a set of functions which modify the configuration paths to read before setting default values
+	defaulters        []func(*Ledger)        // defaulters containers all default resolution functions registered
+	input             io.Reader              // os.Stdin by default, swapped to other writers when testing
+	loggers           []func(*logrus.Logger) // loggers is a list of delayed logging instructions for the Ledger to call OnLogging
+	output            io.Writer              // os.Stdout by default, swapped to other writers when testing
+	originalDir       string                 // originalDir is set to the dir the genaiz command was launched from
+	validationHandler func(interface{})      // validationHandler is invoked when an option is not valid
+	viper             *viper.Viper           // viper internal reference
+	workspace         *StringOption          // workspace refers to an owning classification which may enter naming conventions by default
 }
 
-// backupConfigs moves any configuration files from the Repo.UserPath to a .back name to avoid losing configurations on write operations
-func (r *Repo) backupConfigs() error {
-	var files, err = os.ReadDir(r.UserPath)
+// backupConfigs moves any configuration files from the Ledger.UserPath to a .back name to avoid losing configurations on write operations
+func (lr *Ledger) backupConfigs() error {
+	var files, err = os.ReadDir(lr.UserPath)
 
 	if err == nil {
 		for _, f := range files {
-			if strings.Contains(f.Name(), r.ConfigName) &&
+			if strings.Contains(f.Name(), lr.ConfigName) &&
 				!strings.Contains(f.Name(), ".back") {
 				panicz.PanicIfError(os.Rename(
-					filepath.Join(r.UserPath, f.Name()),
-					filepath.Join(r.UserPath, f.Name()+".back")))
+					filepath.Join(lr.UserPath, f.Name()),
+					filepath.Join(lr.UserPath, f.Name()+".back")))
 			}
 		}
 	}
@@ -93,12 +93,12 @@ func (r *Repo) backupConfigs() error {
 	return err
 }
 
-// makeConfigs will write a new file under Repo.UserPath with the Repo.ConfigName in yaml format and write the provided config interface to the file
-func (r *Repo) makeConfigs(configs interface{}) error {
+// makeConfigs will write a new file under Ledger.UserPath with the Ledger.ConfigName in yaml format and write the provided config interface to the file
+func (lr *Ledger) makeConfigs(configs interface{}) error {
 	var file string
 
 	panicz.RequiresNotNil("configs", configs)
-	file = filepath.Join(r.UserPath, r.ConfigName+".yaml")
+	file = filepath.Join(lr.UserPath, lr.ConfigName+".yaml")
 
 	if stat, _ := os.Stat(file); stat == nil {
 		var data []byte
@@ -114,19 +114,19 @@ func (r *Repo) makeConfigs(configs interface{}) error {
 	return errors.New("file exists")
 }
 
-// rollbackConfigs rolls back saved configuration files fom the Repo.UserPath, removing the .back suffix
-func (r *Repo) rollbackConfigs() error {
-	var files, err = os.ReadDir(r.UserPath)
+// rollbackConfigs rolls back saved configuration files fom the Ledger.UserPath, removing the .back suffix
+func (lr *Ledger) rollbackConfigs() error {
+	var files, err = os.ReadDir(lr.UserPath)
 
 	if err == nil {
 		for _, f := range files {
-			if strings.Contains(f.Name(), r.ConfigName) &&
+			if strings.Contains(f.Name(), lr.ConfigName) &&
 				strings.HasSuffix(f.Name(), ".back") {
 				var i = strings.LastIndex(f.Name(), ".back")
 
 				panicz.PanicIfError(os.Rename(
-					filepath.Join(r.UserPath, f.Name()),
-					filepath.Join(r.UserPath, f.Name()[:i])))
+					filepath.Join(lr.UserPath, f.Name()),
+					filepath.Join(lr.UserPath, f.Name()[:i])))
 			}
 		}
 	}
@@ -139,52 +139,52 @@ func (r *Repo) rollbackConfigs() error {
 // This is done before defaulters are executed, any Option.DefaultSetter or Option.DefaultValue on the option will be ignored in the order of execution.
 //
 // The Option.DefaultGetter will be invoked if there are no values queried from the previous configuration files in the chain and any bound parameter from cobra.
-func (r *Repo) AddConfigOption(option *StringOption) {
-	r.configurers = append(r.configurers, func(repo *Repo) {
-		if path := repo.GetString(option); path != "" {
-			r.viper.AddConfigPath(path)
+func (lr *Ledger) AddConfigOption(option *StringOption) {
+	lr.configurers = append(lr.configurers, func(ledger *Ledger) {
+		if path := ledger.GetString(option); path != "" {
+			lr.viper.AddConfigPath(path)
 
-			if err := r.viper.MergeInConfig(); err != nil {
-				r.LogDebug("could not merge config [%s]", path)
+			if err := lr.viper.MergeInConfig(); err != nil {
+				lr.LogDebug("could not merge config [%s]", path)
 			}
 		}
 	})
 }
 
 // ChangeWorkDir changes the work directory under the program's execution, tracking the change for all Option(s) value resolution
-func (r *Repo) ChangeWorkDir(option *StringOption) string {
+func (lr *Ledger) ChangeWorkDir(option *StringOption) string {
 	panicz.RequiresNotNil("option", option)
 
-	if path := r.GetString(option); path != "" {
+	if path := lr.GetString(option); path != "" {
 		var cleanPath = filepath.Clean(path)
 		var absPath, _ = filepath.Abs(cleanPath)
 
-		if r.WorkDir != absPath {
-			r.LogDebug("Changing working dir %s", absPath)
+		if lr.WorkDir != absPath {
+			lr.LogDebug("Changing working dir %s", absPath)
 			panicz.PanicIfError(os.Chdir(absPath))
-			r.WorkDir = absPath
+			lr.WorkDir = absPath
 		}
 	}
 
-	return r.WorkDir
+	return lr.WorkDir
 }
 
 // DisplayChangeDir displays the command that would be executed if the program's execution work directory was changed
-func (r *Repo) DisplayChangeDir() {
-	if r.originalDir != r.WorkDir {
-		_, _ = fmt.Fprintf(r.output, "cd %s\n", r.WorkDir)
+func (lr *Ledger) DisplayChangeDir() {
+	if lr.originalDir != lr.WorkDir {
+		_, _ = fmt.Fprintf(lr.output, "cd %s\n", lr.WorkDir)
 	}
 }
 
-// DisplayOptions displays the provided Option(s) param string and their associated values in the Repo
-func (r *Repo) DisplayOptions(options ...*Option) {
-	r.DisplayOptionsWithMap(nil, options...)
+// DisplayOptions displays the provided Option(s) param string and their associated values in the Ledger
+func (lr *Ledger) DisplayOptions(options ...*Option) {
+	lr.DisplayOptionsWithMap(nil, options...)
 }
 
 // DisplayOptionsWithMap will display the provided Option(s) with the provided kay value map
-func (r *Repo) DisplayOptionsWithMap(keyValues *map[string]string, options ...*Option) {
-	var writer = tabwriter.NewWriter(r.output, 1, 1, 1, ' ', 0)
-	var mapped = MapOptionsByParam(r, options...)
+func (lr *Ledger) DisplayOptionsWithMap(keyValues *map[string]string, options ...*Option) {
+	var writer = tabwriter.NewWriter(lr.output, 1, 1, 1, ' ', 0)
+	var mapped = MapOptionsByParam(lr, options...)
 
 	if keyValues != nil {
 		maps.Copy(mapped, *keyValues)
@@ -198,13 +198,13 @@ func (r *Repo) DisplayOptionsWithMap(keyValues *map[string]string, options ...*O
 	panicz.PanicIfError(writer.Flush())
 }
 
-// FromWorkDir updates a pflag.Flag of pflag.FlagSet corresponding to a StringOption with a relative path to a value using the current Repo.WorkDir
-func (r *Repo) FromWorkDir(option *StringOption, flags *pflag.FlagSet) {
+// FromWorkDir updates a pflag.Flag of pflag.FlagSet corresponding to a StringOption with a relative path to a value using the current Ledger.WorkDir
+func (lr *Ledger) FromWorkDir(option *StringOption, flags *pflag.FlagSet) {
 	if flag := flags.Lookup(option.Param); flag != nil {
 		var flagValue = flag.Value.String()
 
 		if filepath.IsLocal(flagValue) {
-			panicz.PanicIfError(flag.Value.Set(filepath.Join(r.WorkDir, flagValue)))
+			panicz.PanicIfError(flag.Value.Set(filepath.Join(lr.WorkDir, flagValue)))
 		} else if strings.HasPrefix(flagValue, ".") {
 			var value, _ = filepath.Abs(flagValue)
 
@@ -214,17 +214,17 @@ func (r *Repo) FromWorkDir(option *StringOption, flags *pflag.FlagSet) {
 }
 
 // Get returns the value of the provided Option if any value can be resolved through cobra, viper and the Option.DefaultGetter
-func (r *Repo) Get(option *Option) any {
+func (lr *Ledger) Get(option *Option) any {
 	var result any
 
 	if option.Key != "" {
-		result = r.viper.Get(option.Key)
+		result = lr.viper.Get(option.Key)
 	} else if option.Param != "" {
-		result = r.viper.Get(option.Param)
+		result = lr.viper.Get(option.Param)
 	}
 
 	if (result == nil || result == "" || result == option.DefaultValue) && option.DefaultGetter != nil {
-		result = option.DefaultGetter(r)
+		result = option.DefaultGetter(lr)
 	}
 
 	if i := strings.Index(cast.ToString(result), "$"); i == 0 {
@@ -235,8 +235,8 @@ func (r *Repo) Get(option *Option) any {
 }
 
 // GetBool returns the value of a BoolOption from Get as a bool
-func (r *Repo) GetBool(option *BoolOption) bool {
-	var result = r.Get(&option.Option)
+func (lr *Ledger) GetBool(option *BoolOption) bool {
+	var result = lr.Get(&option.Option)
 
 	if result == nil {
 		return false
@@ -246,8 +246,8 @@ func (r *Repo) GetBool(option *BoolOption) bool {
 }
 
 // GetList returns the list value of a ListOption from Get as a slice of strings
-func (r *Repo) GetList(option *ListOption) []string {
-	var value = r.Get(&option.Option)
+func (lr *Ledger) GetList(option *ListOption) []string {
+	var value = lr.Get(&option.Option)
 	var result []string
 	var err error
 
@@ -261,121 +261,121 @@ func (r *Repo) GetList(option *ListOption) []string {
 }
 
 // GetString returns the value of a StringOption from Get as a string
-func (r *Repo) GetString(option *StringOption) string {
-	var result = cast.ToString(r.Get(&option.Option))
+func (lr *Ledger) GetString(option *StringOption) string {
+	var result = cast.ToString(lr.Get(&option.Option))
 
 	if option.Validator != nil && !option.Validator(result) {
-		r.validationHandler(fmt.Errorf("option %s is invalid", option.Key))
+		lr.validationHandler(fmt.Errorf("option %s is invalid", option.Key))
 	}
 
 	return result
 }
 
 // GetValue returns the value resolved by viper as bound with the provided key
-func (r *Repo) GetValue(key string) string {
-	return r.viper.GetString(key)
+func (lr *Ledger) GetValue(key string) string {
+	return lr.viper.GetString(key)
 }
 
-// GetWorkspace returns the workspace path which should own the definition of the Repo
-func (r *Repo) GetWorkspace() string {
-	if r.workspace != nil {
-		return r.viper.GetString(r.workspace.Param)
+// GetWorkspace returns the workspace path which should own the definition of the Ledger
+func (lr *Ledger) GetWorkspace() string {
+	if lr.workspace != nil {
+		return lr.viper.GetString(lr.workspace.Param)
 	}
 
 	return ""
 }
 
-// Init initializes the repository primary service facades
-func (r *Repo) Init() {
-	r.viper.AddConfigPath(r.UserPath)
-	r.viper.SetConfigName(r.ConfigName)
-	r.viper.AutomaticEnv()
+// Init initializes the Ledger primary service facades
+func (lr *Ledger) Init() {
+	lr.viper.AddConfigPath(lr.UserPath)
+	lr.viper.SetConfigName(lr.ConfigName)
+	lr.viper.AutomaticEnv()
 
-	if err := r.viper.ReadInConfig(); err == nil {
-		r.LogDebug("Using config file [%s]", r.viper.ConfigFileUsed())
+	if err := lr.viper.ReadInConfig(); err == nil {
+		lr.LogDebug("Using config file [%s]", lr.viper.ConfigFileUsed())
 	} else {
-		r.LogDebug("Could not read user configurations under [%s]", r.UserPath)
+		lr.LogDebug("Could not read user configurations under [%s]", lr.UserPath)
 	}
 }
 
-// InitDefaults initializes default values of all repository options following each Option(s) defaults definition
-func (r *Repo) InitDefaults() {
-	for _, configurer := range r.configurers {
-		configurer(r)
+// InitDefaults initializes default values of all Ledger options following each Option(s) defaults definition
+func (lr *Ledger) InitDefaults() {
+	for _, configurer := range lr.configurers {
+		configurer(lr)
 	}
 
-	for _, defaulter := range r.defaulters {
-		defaulter(r)
+	for _, defaulter := range lr.defaulters {
+		defaulter(lr)
 	}
 }
 
-// InitLogging initializes the logging subcomponent of the repository with the LoggerFactory of the Repo, if any. Without a LoggerFactory, this method will instantiate a logrus.Logger without default values
-func (r *Repo) InitLogging() {
-	if r.LoggerFactory == nil {
-		r.Logger = logrus.New()
+// InitLogging initializes the logging subcomponent of the Ledger with the LoggerFactory of the Ledger, if any. Without a LoggerFactory, this method will instantiate a logrus.Logger without default values
+func (lr *Ledger) InitLogging() {
+	if lr.LoggerFactory == nil {
+		lr.Logger = logrus.New()
 	} else {
-		r.Logger = r.LoggerFactory(r)
+		lr.Logger = lr.LoggerFactory(lr)
 	}
 
-	for _, logFn := range r.loggers {
-		logFn(r.Logger)
+	for _, logFn := range lr.loggers {
+		logFn(lr.Logger)
 	}
 
-	r.loggers = nil
+	lr.loggers = nil
 }
 
-// InitValue initializes the string value of a configuration on the Repo, if the option does not resolve to a value already.
-func (r *Repo) InitValue(option *StringOption, value string) {
-	if r.viper.GetString(option.Key) == "" {
-		r.viper.Set(option.Key, value)
+// InitValue initializes the string value of a configuration on the Ledger, if the option does not resolve to a value already.
+func (lr *Ledger) InitValue(option *StringOption, value string) {
+	if lr.viper.GetString(option.Key) == "" {
+		lr.viper.Set(option.Key, value)
 	}
 }
 
 // InitWorkspace initializes workspace resolution from the provided StringOption
-func (r *Repo) InitWorkspace(option *StringOption) {
-	r.workspace = option
+func (lr *Ledger) InitWorkspace(option *StringOption) {
+	lr.workspace = option
 }
 
 // LogDebug will log a Debug message with the logger if it has been initialized, otherwise will defer it to logging initialization
-func (r *Repo) LogDebug(message string, args ...interface{}) {
-	if r.Logger == nil {
-		r.loggers = append(r.loggers, func(l *logrus.Logger) {
+func (lr *Ledger) LogDebug(message string, args ...interface{}) {
+	if lr.Logger == nil {
+		lr.loggers = append(lr.loggers, func(l *logrus.Logger) {
 			l.Debugf(message, args...)
 		})
 	} else {
-		r.Logger.Debugf(message, args...)
+		lr.Logger.Debugf(message, args...)
 	}
 }
 
 // LogError will log an Error message with the logger if it has been initialized, otherwise will defer it to logging initialization
-func (r *Repo) LogError(message string, args ...interface{}) {
-	if r.Logger == nil {
-		r.loggers = append(r.loggers, func(l *logrus.Logger) {
+func (lr *Ledger) LogError(message string, args ...interface{}) {
+	if lr.Logger == nil {
+		lr.loggers = append(lr.loggers, func(l *logrus.Logger) {
 			l.Errorf(message, args...)
 		})
 	} else {
-		r.Logger.Errorf(message, args...)
+		lr.Logger.Errorf(message, args...)
 	}
 }
 
 // LogInfo will log an Info message with the logger if it has been initialized, otherwise will defer it to logging initialization
-func (r *Repo) LogInfo(message string, args ...interface{}) {
-	if r.Logger == nil {
-		r.loggers = append(r.loggers, func(l *logrus.Logger) {
+func (lr *Ledger) LogInfo(message string, args ...interface{}) {
+	if lr.Logger == nil {
+		lr.loggers = append(lr.loggers, func(l *logrus.Logger) {
 			l.Infof(message, args...)
 		})
 	} else {
-		r.Logger.Infof(message, args...)
+		lr.Logger.Infof(message, args...)
 	}
 }
 
 // QueryMandatory queries the user for input using the provided message and will keep on asking until the input is not the empty string
-func (r *Repo) QueryMandatory(message string) string {
-	var buff = bufio.NewReader(r.input)
+func (lr *Ledger) QueryMandatory(message string) string {
+	var buff = bufio.NewReader(lr.input)
 	var result string
 
 	for {
-		if _, err := fmt.Fprint(r.output, message); err == nil {
+		if _, err := fmt.Fprint(lr.output, message); err == nil {
 			result, _ = buff.ReadString('\n')
 		}
 
@@ -386,38 +386,38 @@ func (r *Repo) QueryMandatory(message string) string {
 }
 
 // QuerySecret queries the user for a secret input and will take whatever is passed, returning it as a byte array
-func (r *Repo) QuerySecret(message string) *[]byte {
+func (lr *Ledger) QuerySecret(message string) *[]byte {
 	var result []byte
 
-	if _, err := fmt.Fprint(r.output, message); err == nil {
+	if _, err := fmt.Fprint(lr.output, message); err == nil {
 		result, _ = term.ReadPassword(syscall.Stdin)
 	}
 
-	_, _ = fmt.Fprintln(r.output)
+	_, _ = fmt.Fprintln(lr.output)
 	return &result
 }
 
 // Register configures Option Definer(s) with the provided cobra.Command and add their Definer.Default method as deferred initialization to be called on InitDefaults
-func (r *Repo) Register(cmd *cobra.Command, definers ...Definer) {
+func (lr *Ledger) Register(cmd *cobra.Command, definers ...Definer) {
 	var flagSet = cmd.PersistentFlags()
 
 	for _, def := range definers {
-		def.Defined(r, flagSet)
-		r.defaulters = append(r.defaulters, def.Default)
+		def.Defined(lr, flagSet)
+		lr.defaulters = append(lr.defaulters, def.Default)
 	}
 }
 
-// ToWorkDir sets the value of the provided StringOption's pflag.Flag from a pflag.FlagSet to the current Repo.WorkDir
-func (r *Repo) ToWorkDir(option *StringOption, flags *pflag.FlagSet) {
+// ToWorkDir sets the value of the provided StringOption's pflag.Flag from a pflag.FlagSet to the current Ledger.WorkDir
+func (lr *Ledger) ToWorkDir(option *StringOption, flags *pflag.FlagSet) {
 	if flag := flags.Lookup(option.Param); flag != nil {
-		panicz.PanicIfError(flag.Value.Set(r.WorkDir))
+		panicz.PanicIfError(flag.Value.Set(lr.WorkDir))
 	}
 }
 
 // Validate returns the validity of an Option according its associated viper value. It does not query command flags
-func (r *Repo) Validate(option *Option) bool {
+func (lr *Ledger) Validate(option *Option) bool {
 	if option.Validator != nil {
-		var value = r.viper.Get(option.Key)
+		var value = lr.viper.Get(option.Key)
 
 		return option.Validator(value)
 	}
@@ -425,12 +425,12 @@ func (r *Repo) Validate(option *Option) bool {
 	return true
 }
 
-// NewRepo returns a pointer to a new Repo instance, initialized with Repo.UserPath, Repo.WorkDir and an instance of viper.Viper
-func NewRepo() *Repo {
+// NewLedger returns a pointer to a new Ledger instance, initialized with Ledger.UserPath, Ledger.WorkDir and an instance of viper.Viper
+func NewLedger() *Ledger {
 	return NewBuilder().Build()
 }
 
-// Builder is an instance of the builder pattern for deferring construction of Repo to runtime
+// Builder is an instance of the builder pattern for deferring construction of Ledger to runtime
 type Builder struct {
 	Viper         func() *viper.Viper
 	Input         func() io.Reader
@@ -438,8 +438,8 @@ type Builder struct {
 	TemplatePaths []string
 }
 
-// Build builds a Repo with the recorded Viper, Input and Output factory methods
-func (b *Builder) Build() *Repo {
+// Build builds a Ledger with the recorded Viper, Input and Output factory methods
+func (b *Builder) Build() *Ledger {
 	var templatePaths = b.TemplatePaths
 
 	home, err := os.UserHomeDir()
@@ -448,7 +448,7 @@ func (b *Builder) Build() *Repo {
 	cobra.CheckErr(err)
 	templatePaths = append(templatePaths, filepath.Join(home, "/.local/genaiz/recipes"))
 
-	return &Repo{
+	return &Ledger{
 		AuthFile:      filepath.Join(home, "/.cache/genaiz/.auth"),
 		ConfigName:    defaultConfigName,
 		UserPath:      filepath.Join(home, "/.config/genaiz"),
@@ -463,7 +463,7 @@ func (b *Builder) Build() *Repo {
 	}
 }
 
-// WithInput replaces the factory method providing input to the Repo to build
+// WithInput replaces the factory method providing input to the Ledger to build
 func (b *Builder) WithInput(i io.Reader) *Builder {
 	b.Input = func() io.Reader {
 		return i
@@ -471,7 +471,7 @@ func (b *Builder) WithInput(i io.Reader) *Builder {
 	return b
 }
 
-// WithOutput replaces the factory method providing output to the Repo to build
+// WithOutput replaces the factory method providing output to the Ledger to build
 func (b *Builder) WithOutput(o io.Writer) *Builder {
 	b.Output = func() io.Writer {
 		return o
@@ -479,13 +479,13 @@ func (b *Builder) WithOutput(o io.Writer) *Builder {
 	return b
 }
 
-// WithTemplates will build the repository adding the specified paths to Repo.TemplatePaths
+// WithTemplates will build the Ledger adding the specified paths to Ledger.TemplatePaths
 func (b *Builder) WithTemplates(paths ...string) *Builder {
 	b.TemplatePaths = paths
 	return b
 }
 
-// WithViper replaces the way Viper is constructed when building a new Repo
+// WithViper replaces the way Viper is constructed when building a new Ledger
 func (b *Builder) WithViper(v *viper.Viper) *Builder {
 	b.Viper = func() *viper.Viper {
 		return v

@@ -25,7 +25,7 @@ import (
 func TestPublishExecutor_Display(t *testing.T) {
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().
+	var testLedger = config.NewBuilder().
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
@@ -40,14 +40,14 @@ func TestPublishExecutor_Display(t *testing.T) {
 	var expectedVersion = "version"
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
+			Ledger: testLedger,
 		},
 		PublishOptions: testOptions,
 
 		brokerAddr: expectedBroker,
 	}
 
-	testRepo.Register(&cobra.Command{}, testOptions.allDefiners()...)
+	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
 	testViper.Set(testOptions.optionFqdn.Key, expectedFqdn)
 	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
@@ -74,12 +74,12 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptions = NewPublishOptions()
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		PublishOptions: testOptions,
 
@@ -118,12 +118,12 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptions = NewPublishOptions()
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		PublishOptions: testOptions,
 
@@ -161,12 +161,12 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptions = NewPublishOptions()
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		PublishOptions: testOptions,
 
@@ -205,12 +205,12 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptions = NewPublishOptions()
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		PublishOptions: testOptions,
 
@@ -250,12 +250,12 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptions = NewPublishOptions()
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		PublishOptions: testOptions,
 
@@ -277,7 +277,7 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
-		testRepo.Logger = &logrus.Logger{}
+		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
 		assert.False(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -295,12 +295,12 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptions = NewPublishOptions()
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		PublishOptions: testOptions,
 
@@ -321,7 +321,7 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
-		testRepo.Logger = &logrus.Logger{}
+		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
 		assert.False(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -339,12 +339,12 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptions = NewPublishOptions()
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		PublishOptions: testOptions,
 
@@ -366,7 +366,7 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
-		testRepo.Logger = &logrus.Logger{}
+		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -384,12 +384,12 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptions = NewPublishOptions()
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		PublishOptions: testOptions,
 
@@ -412,7 +412,7 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
-		testRepo.Logger = &logrus.Logger{}
+		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -429,9 +429,9 @@ func TestNewPublish(t *testing.T) {
 	var publishCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(repo *config.Repo) bool {
+		Dry: func(ledger *config.Ledger) bool {
 			return true
 		},
 		optionDockerContext: newOptionDockerContext(),
@@ -439,7 +439,7 @@ func TestNewPublish(t *testing.T) {
 		optionDockerTag:     newOptionDockerTag(),
 		optionDockerVersion: newOptionDockerVersion(),
 	}
-	var testPublish = NewPublish(testRepo, testCli)
+	var testPublish = NewPublish(testLedger, testCli)
 	var expectedVersion = "version"
 	var expectedHandle = "handle"
 	var expectedHost = "host"
@@ -489,11 +489,11 @@ func TestNewPublishOptions_GetDefaultName(t *testing.T) {
 	var expectedCmd = "_test"
 	var testHandleOption = newOptionHandle(expectedCmd)
 	var testNameOption = newOptionName(testHandleOption, expectedCmd)
-	var testRepo = config.NewBuilder().WithViper(viper.New()).Build()
+	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
 
-	testRepo.Register(&cobra.Command{}, testHandleOption)
-	testRepo.InitDefaults()
-	assert.EqualValues(t, expectedName, testNameOption.DefaultGetter(testRepo))
+	testLedger.Register(&cobra.Command{}, testHandleOption)
+	testLedger.InitDefaults()
+	assert.EqualValues(t, expectedName, testNameOption.DefaultGetter(testLedger))
 }
 
 func TestNewPublishOptions_ValidateArches(t *testing.T) {
@@ -549,7 +549,7 @@ func TestNewPublishOptions_ValidateType(t *testing.T) {
 func Test_makePublishInitParams_WithArches(t *testing.T) {
 	var testOptions = newPublishOptions("Publish")
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
 	var actualParams *layout.InitParams
 
@@ -557,7 +557,7 @@ func Test_makePublishInitParams_WithArches(t *testing.T) {
 	testViper.Set(testOptions.optionHandle.Key, "handle")
 	testViper.Set(testOptions.optionType.Key, layout.FunctionTypeTrigger)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
-	actualParams = makePublishInitParams(testRepo, testOptions)
+	actualParams = makePublishInitParams(testLedger, testOptions)
 	assert.EqualValues(t, expectedArches, actualParams.Arches)
 }
 

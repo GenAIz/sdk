@@ -15,9 +15,9 @@ import (
 	"genaiz.com/genaiz/config"
 )
 
-type Decisive func(*config.Repo) bool
+type Decisive func(*config.Ledger) bool
 
-type Interactive func(*config.Repo, ...func()) bool
+type Interactive func(*config.Ledger, ...func()) bool
 
 type Executor interface {
 	Display()
@@ -30,7 +30,7 @@ type Executor interface {
 type BaseExecutor struct {
 	Cli     *Cli
 	Context context.Context
-	Repo    *config.Repo
+	Ledger  *config.Ledger
 }
 
 type Cli struct {
@@ -44,12 +44,12 @@ type Cli struct {
 	optionDockerVersion *config.StringOption
 }
 
-func (c *Cli) Exec(repo *config.Repo, executor Executor) {
-	if !c.isDry(repo, executor.Display) {
-		if c.isPretend(repo) {
+func (c *Cli) Exec(ledger *config.Ledger, executor Executor) {
+	if !c.isDry(ledger, executor.Display) {
+		if c.isPretend(ledger) {
 			executor.Pretend()
 		} else {
-			c.execConfirm(repo, executor.Proceed, executor.Display)
+			c.execConfirm(ledger, executor.Proceed, executor.Display)
 		}
 	}
 }
@@ -72,8 +72,8 @@ func (c *Cli) allDefiners() []config.Definer {
 	}
 }
 
-func (c *Cli) execConfirm(repo *config.Repo, exec func(), display ...func()) {
-	if c.Confirm != nil && c.Confirm(repo, display...) {
+func (c *Cli) execConfirm(ledger *config.Ledger, exec func(), display ...func()) {
+	if c.Confirm != nil && c.Confirm(ledger, display...) {
 		exec()
 	} else {
 		fmt.Println("Cancelled, exiting")
@@ -81,8 +81,8 @@ func (c *Cli) execConfirm(repo *config.Repo, exec func(), display ...func()) {
 	}
 }
 
-func (c *Cli) isDecisive(repo *config.Repo, decisive Decisive, display ...func()) bool {
-	if decisive != nil && decisive(repo) {
+func (c *Cli) isDecisive(ledger *config.Ledger, decisive Decisive, display ...func()) bool {
+	if decisive != nil && decisive(ledger) {
 		for _, d := range display {
 			d()
 		}
@@ -93,15 +93,15 @@ func (c *Cli) isDecisive(repo *config.Repo, decisive Decisive, display ...func()
 	return false
 }
 
-func (c *Cli) isDry(repo *config.Repo, display ...func()) bool {
-	return c.isDecisive(repo, c.Dry, display...)
+func (c *Cli) isDry(ledger *config.Ledger, display ...func()) bool {
+	return c.isDecisive(ledger, c.Dry, display...)
 }
 
-func (c *Cli) isPretend(repo *config.Repo) bool {
-	return c.isDecisive(repo, c.Pretend)
+func (c *Cli) isPretend(ledger *config.Ledger) bool {
+	return c.isDecisive(ledger, c.Pretend)
 }
 
-func NewSf(repo *config.Repo, confirm Interactive, dry, pretend Decisive) *cobra.Command {
+func NewSf(ledger *config.Ledger, confirm Interactive, dry, pretend Decisive) *cobra.Command {
 	var cli = NewSfCli(confirm, dry, pretend)
 	var sf = &cobra.Command{
 		Use:     "function",
@@ -110,33 +110,34 @@ func NewSf(repo *config.Repo, confirm Interactive, dry, pretend Decisive) *cobra
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			var flags = cmd.Flags()
 
-			repo.ToWorkDir(cli.optionDockerContext, flags)
-			repo.FromWorkDir(cli.optionDockerFile, flags)
+			ledger.ToWorkDir(cli.optionDockerContext, flags)
+			ledger.FromWorkDir(cli.optionDockerFile, flags)
 		},
 	}
 
-	repo.Register(sf, cli.allDefiners()...)
+	ledger.Register(sf, cli.allDefiners()...)
 	sf.AddCommand(
-		NewBuild(repo, cli),
-		NewCreate(repo, cli),
-		NewInit(repo, cli),
-		NewRun(repo, cli),
-		NewDebug(repo, cli),
-		NewTest(repo, cli),
-		NewStop(repo, cli),
-		NewStart(repo, cli),
-		NewPublish(repo, cli),
+		NewBuild(ledger, cli),
+		NewCreate(ledger, cli),
+		NewInit(ledger, cli),
+		NewRun(ledger, cli),
+		NewDebug(ledger, cli),
+		NewTest(ledger, cli),
+		NewStop(ledger, cli),
+		NewStart(ledger, cli),
+		NewPublish(ledger, cli),
 	)
-	// The sf command captures context modifications and those are needed before the repo sets defaults
-	cobra.OnInitialize(func() { repo.ChangeWorkDir(cli.optionDockerContext) })
+	// The sf command captures context modifications and those are needed before the ledger sets defaults
+	cobra.OnInitialize(func() { ledger.ChangeWorkDir(cli.optionDockerContext) })
 	return sf
 }
 
 func NewSfCli(confirm Interactive, dry, pretend Decisive) *Cli {
 	return &Cli{
-		Confirm:             confirm,
-		Dry:                 dry,
-		Pretend:             pretend,
+		Confirm: confirm,
+		Dry:     dry,
+		Pretend: pretend,
+
 		optionDockerContext: newOptionDockerContext(),
 		optionDockerFile:    newOptionDockerFile(),
 		optionDockerTag:     newOptionDockerTag(),
@@ -152,8 +153,8 @@ func newOptionDockerContext() *config.StringOption {
 			Short:        "c",
 			Usage:        "Docker build context path",
 			DefaultValue: "$PWD",
-			DefaultGetter: func(repo *config.Repo) any {
-				return repo.WorkDir
+			DefaultGetter: func(ledger *config.Ledger) any {
+				return ledger.WorkDir
 			},
 			Validator: config.Validation.DirExists,
 		},
@@ -168,8 +169,8 @@ func newOptionDockerFile() *config.StringOption {
 			Short:        "f",
 			Usage:        "Dockerfile path",
 			DefaultValue: "$PWD/Dockerfile",
-			DefaultGetter: func(repo *config.Repo) any {
-				return filepath.Join(repo.WorkDir, "Dockerfile")
+			DefaultGetter: func(ledger *config.Ledger) any {
+				return filepath.Join(ledger.WorkDir, "Dockerfile")
 			},
 			Validator: config.Validation.FileExists,
 		},
@@ -182,8 +183,8 @@ func newOptionDockerTag() *config.StringOption {
 			Key:   "SF.Build.Tag",
 			Param: "tag",
 			Usage: "tag the smart function image, defaults to the context dir name",
-			DefaultSetter: func(repo *config.Repo) any {
-				return filepath.Base(repo.WorkDir)
+			DefaultSetter: func(ledger *config.Ledger) any {
+				return filepath.Base(ledger.WorkDir)
 			},
 		},
 	}

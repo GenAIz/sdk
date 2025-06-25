@@ -253,7 +253,7 @@ func TestInitWriter_WriteInvalidFile(t *testing.T) {
 func TestInitExecutor_Display(t *testing.T) {
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().
+	var testLedger = config.NewBuilder().
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
@@ -266,12 +266,12 @@ func TestInitExecutor_Display(t *testing.T) {
 	var expectedVersion = "version"
 	var testExecutor = &InitExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
+			Ledger: testLedger,
 		},
 		InitOptions: testOptions,
 	}
 
-	testRepo.Register(&cobra.Command{}, testOptions.allDefiners()...)
+	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
 	testViper.Set(testOptions.optionFqdn.Key, expectedFqdn)
 	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
@@ -292,12 +292,12 @@ func TestInitExecutor_Display(t *testing.T) {
 
 func TestInitExecutor_Pretend(t *testing.T) {
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var calledInit = false
 	var testExecutor = &InitExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 
 		InitOptions:     NewInitOptions(),
@@ -314,19 +314,19 @@ func TestInitExecutor_Pretend(t *testing.T) {
 
 func TestInitExecutor_Proceed(t *testing.T) {
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var calledInit = false
 	var testExecutor = &InitExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		InitOptions: NewInitOptions(),
 
 		initTaskFactory: newInitTaskCompleteStub(&calledInit),
 	}
 
-	testRepo.Logger = logrus.New()
+	testLedger.Logger = logrus.New()
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
@@ -338,9 +338,9 @@ func TestNewInit(t *testing.T) {
 	var buildCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(repo *config.Repo) bool {
+		Dry: func(ledger *config.Ledger) bool {
 			return true
 		},
 		optionDockerContext: newOptionDockerContext(),
@@ -348,7 +348,7 @@ func TestNewInit(t *testing.T) {
 		optionDockerTag:     newOptionDockerTag(),
 		optionDockerVersion: newOptionDockerVersion(),
 	}
-	var testInit = NewInit(testRepo, testCli)
+	var testInit = NewInit(testLedger, testCli)
 	var expectedFqdn = "init.genaiz.com"
 	var expectedHandle = "init-handle"
 

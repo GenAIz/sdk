@@ -57,7 +57,7 @@ func (pe *ProvisionExecutor) getUsername() string {
 }
 
 func (pe *ProvisionExecutor) getRepositoryAndVersion() (string, string) {
-	var image = pe.Cli.repo.GetString(pe.Options.optionDockerImage)
+	var image = pe.Cli.ledger.GetString(pe.Options.optionDockerImage)
 
 	if image != "" {
 		var parts = strings.Split(image, ":")
@@ -165,7 +165,7 @@ func NewProvision(cli *BaseCli) *cobra.Command {
 		},
 	}
 
-	cli.repo.Register(provision, options.optionDockerImage)
+	cli.ledger.Register(provision, options.optionDockerImage)
 	return provision
 }
 

@@ -21,7 +21,7 @@ import (
 
 func TestBuildExecutor_Display(t *testing.T) {
 	var testOutput = new(bytes.Buffer)
-	var testRepo = config.NewBuilder().
+	var testLedger = config.NewBuilder().
 		WithViper(viper.New()).
 		WithOutput(io.Writer(testOutput)).
 		Build()
@@ -35,7 +35,7 @@ func TestBuildExecutor_Display(t *testing.T) {
 	var testDockerVersion = newOptionDockerVersion()
 	var testExecutor = &BuildExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
+			Ledger: testLedger,
 			Cli: &Cli{
 				optionDockerContext: testDockerContext,
 				optionDockerFile:    testDockerFile,
@@ -45,11 +45,11 @@ func TestBuildExecutor_Display(t *testing.T) {
 		},
 	}
 
-	testRepo.Register(&cobra.Command{}, testDockerContext, testDockerFile, testDockerTag, testDockerVersion)
-	testRepo.InitValue(testDockerContext, expectedDockerContext)
-	testRepo.InitValue(testDockerFile, expectedDockerFile)
-	testRepo.InitValue(testDockerTag, expectedDockerTag)
-	testRepo.InitValue(testDockerVersion, expectedDockerVersion)
+	testLedger.Register(&cobra.Command{}, testDockerContext, testDockerFile, testDockerTag, testDockerVersion)
+	testLedger.InitValue(testDockerContext, expectedDockerContext)
+	testLedger.InitValue(testDockerFile, expectedDockerFile)
+	testLedger.InitValue(testDockerTag, expectedDockerTag)
+	testLedger.InitValue(testDockerVersion, expectedDockerVersion)
 	testExecutor.Display()
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testDockerContext.Param+`:[\s\t]*`+expectedDockerContext), actual)
@@ -60,12 +60,12 @@ func TestBuildExecutor_Display(t *testing.T) {
 
 func TestBuildExecutor_Pretend(t *testing.T) {
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var calledBuild = false
 	var testExecutor = &BuildExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 
 		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
@@ -86,12 +86,12 @@ func TestBuildExecutor_Pretend(t *testing.T) {
 
 func TestBuildExecutor_Proceed(t *testing.T) {
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var calledBuild = false
 	var testExecutor = &BuildExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
@@ -103,7 +103,7 @@ func TestBuildExecutor_Proceed(t *testing.T) {
 		defer filez.RemoveSilently("/tmp/.genaiz")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testRepo.Logger = logrus.New()
+		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
 	} else {
@@ -115,9 +115,9 @@ func TestNewBuild(t *testing.T) {
 	var buildCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(repo *config.Repo) bool {
+		Dry: func(ledger *config.Ledger) bool {
 			return true
 		},
 		optionDockerContext: newOptionDockerContext(),
@@ -125,7 +125,7 @@ func TestNewBuild(t *testing.T) {
 		optionDockerTag:     newOptionDockerTag(),
 		optionDockerVersion: newOptionDockerVersion(),
 	}
-	var testBuild = NewBuild(testRepo, testCli)
+	var testBuild = NewBuild(testLedger, testCli)
 
 	testBuild.PostRun = func(cmd *cobra.Command, args []string) {
 		buildCompleted = true
@@ -139,7 +139,7 @@ func Test_makeBuildParamsCwdContext(t *testing.T) {
 	var expectedFolder = "/tmp/.genaiz"
 	var cwd, _ = os.Getwd()
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &BaseExecutor{
 		Cli: &Cli{
 			optionDockerContext: newOptionDockerContext(),
@@ -147,7 +147,7 @@ func Test_makeBuildParamsCwdContext(t *testing.T) {
 			optionDockerTag:     newOptionDockerTag(),
 			optionDockerVersion: newOptionDockerVersion(),
 		},
-		Repo: testRepo,
+		Ledger: testLedger,
 	}
 
 	if fd, err := filez.CreateRecursive(expectedFolder, "Dockerfile"); err == nil {
@@ -171,7 +171,7 @@ func Test_makeBuildParamsCwdModule(t *testing.T) {
 	var expectedModule = "ModuleA"
 	var expectedFile = "Dockerfile2"
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &BaseExecutor{
 		Cli: &Cli{
 			optionDockerContext: newOptionDockerContext(),
@@ -179,7 +179,7 @@ func Test_makeBuildParamsCwdModule(t *testing.T) {
 			optionDockerTag:     newOptionDockerTag(),
 			optionDockerVersion: newOptionDockerVersion(),
 		},
-		Repo: testRepo,
+		Ledger: testLedger,
 	}
 
 	if fd, err := filez.CreateRecursive(filepath.Join(expectedContext, expectedModule), expectedFile); err == nil {
@@ -202,7 +202,7 @@ func Test_makeBuildParamsCwdNotStandard(t *testing.T) {
 	var expectedFile = "Dockerfile3"
 	var cwd, _ = os.Getwd()
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &BaseExecutor{
 		Cli: &Cli{
 			optionDockerContext: newOptionDockerContext(),
@@ -210,7 +210,7 @@ func Test_makeBuildParamsCwdNotStandard(t *testing.T) {
 			optionDockerTag:     newOptionDockerTag(),
 			optionDockerVersion: newOptionDockerVersion(),
 		},
-		Repo: testRepo,
+		Ledger: testLedger,
 	}
 
 	if fd, err := filez.CreateRecursive(expectedFolder, expectedFile); err == nil {
@@ -231,7 +231,7 @@ func Test_makeBuildParamsCwdNotStandard(t *testing.T) {
 func Test_makeBuildParamsExternalContext(t *testing.T) {
 	var expectedContext = "/tmp/.genaiz"
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &BaseExecutor{
 		Cli: &Cli{
 			optionDockerContext: newOptionDockerContext(),
@@ -239,7 +239,7 @@ func Test_makeBuildParamsExternalContext(t *testing.T) {
 			optionDockerTag:     newOptionDockerTag(),
 			optionDockerVersion: newOptionDockerVersion(),
 		},
-		Repo: testRepo,
+		Ledger: testLedger,
 	}
 
 	if fd, err := filez.CreateRecursive(expectedContext, "Dockerfile2"); err == nil {

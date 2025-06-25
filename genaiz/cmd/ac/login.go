@@ -17,7 +17,7 @@ type LoginTaskFactory func() *task.Task[broker.LoginParams]
 type SessionTaskFactory func() *task.Task[broker.Broker]
 
 type LoginExecutor struct {
-	Repo *config.Repo
+	Ledger *config.Ledger
 
 	optionPassword *config.StringOption
 	optionRefresh  *config.BoolOption
@@ -29,12 +29,12 @@ type LoginExecutor struct {
 
 func (le *LoginExecutor) Login(brokerAddr string) {
 	var currentSession string
-	var refresh = le.Repo.GetBool(le.optionRefresh)
+	var refresh = le.Ledger.GetBool(le.optionRefresh)
 	var brokerParam = le.makeBrokerParams(brokerAddr)
 
 	if !refresh {
 		var sessionPlan = &task.Plan{
-			Logger: le.Repo.Logger,
+			Logger: le.Ledger.Logger,
 			OnFailure: func(msg interface{}) {
 				refresh = true
 			},
@@ -52,7 +52,7 @@ func (le *LoginExecutor) Login(brokerAddr string) {
 
 	if refresh {
 		var params = le.makeLoginParams(brokerParam)
-		var loginPlan = task.NewPlan("Login", le.Repo.Logger)
+		var loginPlan = task.NewPlan("Login", le.Ledger.Logger)
 
 		task.Single(loginPlan, params, le.loginTaskFactory())
 	}
@@ -60,7 +60,7 @@ func (le *LoginExecutor) Login(brokerAddr string) {
 
 func (le *LoginExecutor) makeBrokerParams(brokerAddr string) *broker.Broker {
 	return &broker.Broker{
-		AuthFile: le.Repo.AuthFile,
+		AuthFile: le.Ledger.AuthFile,
 		HostAddr: brokerAddr,
 	}
 }
@@ -74,11 +74,11 @@ func (le *LoginExecutor) makeLoginParams(brokerParam *broker.Broker) *broker.Log
 }
 
 func (le *LoginExecutor) queryPassword() *[]byte {
-	var password = le.Repo.GetString(le.optionPassword)
+	var password = le.Ledger.GetString(le.optionPassword)
 	var result *[]byte
 
 	if password == "" {
-		result = le.Repo.QuerySecret("password: ")
+		result = le.Ledger.QuerySecret("password: ")
 	} else {
 		var bytes = []byte(password)
 
@@ -89,17 +89,17 @@ func (le *LoginExecutor) queryPassword() *[]byte {
 }
 
 func (le *LoginExecutor) queryUsername() string {
-	var username = le.Repo.GetString(le.optionUsername)
+	var username = le.Ledger.GetString(le.optionUsername)
 
 	if username == "" {
-		username = le.Repo.QueryMandatory("username: ")
+		username = le.Ledger.QueryMandatory("username: ")
 	}
 
 	return strings.TrimSpace(username)
 }
 
-func NewLogin(repo *config.Repo) *cobra.Command {
-	var exec = NewLoginExecutor(repo)
+func NewLogin(ledger *config.Ledger) *cobra.Command {
+	var exec = NewLoginExecutor(ledger)
 	var login = &cobra.Command{
 		Use:     "login HOST",
 		Short:   "Authenticates an account with a Genaiz broker",
@@ -111,13 +111,13 @@ func NewLogin(repo *config.Repo) *cobra.Command {
 		},
 	}
 
-	repo.Register(login, exec.optionUsername, exec.optionPassword, exec.optionRefresh)
+	ledger.Register(login, exec.optionUsername, exec.optionPassword, exec.optionRefresh)
 	return login
 }
 
-func NewLoginExecutor(repo *config.Repo) *LoginExecutor {
+func NewLoginExecutor(ledger *config.Ledger) *LoginExecutor {
 	return &LoginExecutor{
-		Repo: repo,
+		Ledger: ledger,
 
 		optionPassword: newOptionPassword(),
 		optionRefresh:  newOptionRefresh(),

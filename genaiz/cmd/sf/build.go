@@ -22,19 +22,19 @@ type BuildExecutor struct {
 }
 
 func (be *BuildExecutor) Display() {
-	be.Repo.DisplayOptions(be.Cli.SfOptions()...)
+	be.Ledger.DisplayOptions(be.Cli.SfOptions()...)
 }
 
 func (be *BuildExecutor) Pretend() {
 	var params = be.makeBuildParams()
 
-	be.Repo.DisplayChangeDir()
-	be.buildTaskFactory().Pretend(params, be.Repo.Logger)
+	be.Ledger.DisplayChangeDir()
+	be.buildTaskFactory().Pretend(params, be.Ledger.Logger)
 }
 
 func (be *BuildExecutor) Proceed() {
 	var params = be.makeBuildParams()
-	var plan = task.NewPlan("Build", be.Repo.Logger)
+	var plan = task.NewPlan("Build", be.Ledger.Logger)
 
 	task.Single(plan, params, be.buildTaskFactory())
 }
@@ -44,26 +44,26 @@ func (be *BuildExecutor) makeBuildParams() *docker.BuildParams {
 	return makeBuildParams(&be.BaseExecutor)
 }
 
-func NewBuild(repo *config.Repo, cli *Cli) *cobra.Command {
+func NewBuild(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var build = &cobra.Command{
 		Use:     "build",
 		Short:   "Builds a Smart Function",
 		Long:    "Builds a Smart Function image tagging it with tag and version values",
 		Example: "genaiz sf build --file Dockerfile2 --context ../smartfunc --tag genaiz.com/sf/smartfunc --version v1.0",
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Exec(repo, NewBuildExecutor(cmd.Context(), repo, cli))
+			cli.Exec(ledger, NewBuildExecutor(cmd.Context(), ledger, cli))
 		},
 	}
 
 	return build
 }
 
-func NewBuildExecutor(ctx context.Context, repo *config.Repo, cli *Cli) *BuildExecutor {
+func NewBuildExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli) *BuildExecutor {
 	return &BuildExecutor{
 		BaseExecutor: BaseExecutor{
 			Context: ctx,
 			Cli:     cli,
-			Repo:    repo,
+			Ledger:  ledger,
 		},
 		buildTaskFactory: docker.NewBuildTask,
 	}
@@ -71,8 +71,8 @@ func NewBuildExecutor(ctx context.Context, repo *config.Repo, cli *Cli) *BuildEx
 
 func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
 	var cwd, _ = os.Getwd()
-	var dockerContext = base.Repo.GetString(base.Cli.optionDockerContext)
-	var dockerFile = base.Repo.GetString(base.Cli.optionDockerFile)
+	var dockerContext = base.Ledger.GetString(base.Cli.optionDockerContext)
+	var dockerFile = base.Ledger.GetString(base.Cli.optionDockerFile)
 
 	if cwd == dockerContext {
 		dockerContext = "."
@@ -94,8 +94,8 @@ func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
 		Env:           task.Env{Context: base.Context},
 		Dockerfile:    dockerFile,
 		DockerContext: dockerContext,
-		DockerTag:     base.Repo.GetString(base.Cli.optionDockerTag),
-		DockerVersion: base.Repo.GetString(base.Cli.optionDockerVersion),
+		DockerTag:     base.Ledger.GetString(base.Cli.optionDockerTag),
+		DockerVersion: base.Ledger.GetString(base.Cli.optionDockerVersion),
 		Prune:         true,
 	}
 }
