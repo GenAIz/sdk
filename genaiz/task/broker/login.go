@@ -17,7 +17,9 @@ import (
 )
 
 var (
-	ErrorNoAuth = errors.New("auth not established")
+	ErrorNoAuth    = errors.New("auth not established")
+	ErrorNoLogin   = errors.New("not logged in")
+	ErrorNoSession = errors.New("could not elect a session")
 )
 
 type AuthAccount struct {
@@ -42,14 +44,50 @@ func (ad *AuthData) Find(hostAddr string) (*AuthAccount, error) {
 	return nil, errors.New("no broker session found")
 }
 
+func (ad *AuthData) ForHostUser(host string, username string) (*AuthAccount, error) {
+	var accounts []*AuthAccount
+
+	if host == "" {
+		accounts = ad.Accounts
+	} else {
+		for _, account := range ad.Accounts {
+			if strings.EqualFold(account.HostAddr, host) {
+				accounts = append(accounts, account)
+			}
+		}
+	}
+
+	if username != "" {
+		for _, account := range accounts {
+			if strings.EqualFold(account.Username, username) {
+				return account, nil
+			}
+		}
+	}
+
+	return nil, ErrorNoSession
+}
+
+func (ad *AuthData) ForToken(token string) (*AuthAccount, error) {
+	for _, account := range ad.Accounts {
+		if account.Token == token {
+			return account, nil
+		}
+	}
+
+	return nil, ErrorNoSession
+}
+
 func (ad *AuthData) Push(hostAddr string, session *AuthSession) *AuthData {
 	var key = sanitizeHostUrl(hostAddr)
 	var accounts = []*AuthAccount{
 		{
 			AuthSession: &AuthSession{
-				Expiry: session.Expiry,
-				Token:  session.Token,
-				UserId: session.UserId,
+				Expiry:    session.Expiry,
+				SessionId: session.SessionId,
+				Token:     session.Token,
+				UserId:    session.UserId,
+				Username:  session.Username,
 			},
 			HostAddr: key,
 		},
@@ -91,9 +129,11 @@ func (ad *AuthData) Write(outFile string) error {
 }
 
 type AuthSession struct {
-	Expiry int64
-	Token  string
-	UserId int
+	Expiry    int64
+	SessionId int64
+	Token     string
+	UserId    int
+	Username  string
 }
 
 func (s *AuthSession) IsExpired() bool {
@@ -123,11 +163,13 @@ func NewAuthData(authFile ...string) *AuthData {
 	return &AuthData{}
 }
 
-func NewAuthSession(session *Session, token string) *AuthSession {
+func NewAuthSession(session *Session, username string, token string) *AuthSession {
 	return &AuthSession{
-		Expiry: session.Expiry,
-		Token:  token,
-		UserId: session.UserId,
+		Expiry:    session.Expiry,
+		Token:     token,
+		SessionId: session.Id,
+		UserId:    session.UserId,
+		Username:  username,
 	}
 }
 
@@ -137,6 +179,15 @@ func NewLoginTask() *task.Task[LoginParams] {
 		OnPrepare:  handleLoginContext,
 		OnComplete: handleLoginCreate,
 		OnPretend:  handleLoginPretend,
+	}
+}
+
+func NewLogoutTask() *task.Task[LoginParams] {
+	return &task.Task[LoginParams]{
+		Name:       "broker-logout",
+		OnPrepare:  handleLogoutContext,
+		OnComplete: handleLoginDelete,
+		OnPretend:  handleLogoutPretend,
 	}
 }
 
@@ -187,21 +238,112 @@ func handleLoginCreate(params *LoginParams, state *task.State) error {
 	return err
 }
 
+func handleLoginDelete(params *LoginParams, state *task.State) error {
+	if state.Output != "" {
+		var client *Client
+		var err error
+
+		state.Logger.Debugf("Logging out session id [%s]", state.Output)
+
+		if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
+			if err = client.Logout(state.Output); err == nil {
+				var auth = NewAuthData(params.AuthFile)
+				var accounts []*AuthAccount
+
+				state.Logger.Debugf("Pruning session id [%s]", state.Output)
+
+				for _, a := range auth.Accounts {
+					if state.Output != fmt.Sprintf("%d", a.SessionId) {
+						accounts = append(accounts, a)
+					}
+				}
+
+				auth.Accounts = accounts
+				state.Output = params.Username
+				return auth.Write(params.AuthFile)
+			}
+		}
+
+		return err
+	}
+
+	return ErrorNoSession
+}
+
 func handleLoginPretend(params *LoginParams, state *task.State) error {
 	if errors.Is(state.Error, ErrorNoAuth) {
 		var client = NewClient(params.HostAddr)
 
 		state.Logger.Debugf("Pretending to login to [%s] with username [%s]", params.HostAddr, params.Username)
 		fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
-		fmt.Printf("-F username=%s\\\n", params.Username)
-		fmt.Printf("-F password=**********\\\n")
-		fmt.Printf("-F expiry=%d\\\n", client.Expiry)
+		fmt.Printf("-d username=%s\\\n", params.Username)
+		fmt.Printf("-d password=**********\\\n")
+		fmt.Printf("-d expiry=%d\\\n", client.Expiry)
 		fmt.Printf("%s\n", client.loginUrl())
 		return nil
 	}
 
 	state.Logger.Debugf("Would not pretend login, since auth to [%s] is already established", params.HostAddr)
 	return nil
+}
+
+func handleLogoutContext(params *LoginParams, state *task.State) error {
+	var auth = NewAuthData(params.AuthFile)
+	var size = len(auth.Accounts)
+
+	state.Logger.Debugf("Looking for sessions under [%s]", params.AuthFile)
+
+	if size != 0 {
+		var account *AuthAccount
+		var err error
+
+		if params.HostAddr != "" || params.Username != "" {
+			account, err = auth.ForHostUser(params.HostAddr, params.Username)
+		} else if size == 1 {
+			account = auth.Accounts[0]
+		}
+
+		if err == nil {
+			if account != nil {
+				params.Username = account.Username
+				params.HostAddr = account.HostAddr
+				state.Output = fmt.Sprintf("%d", account.SessionId)
+				return nil
+			}
+
+			return ErrorNoSession
+		}
+	}
+
+	return ErrorNoLogin
+}
+
+func handleLogoutPretend(params *LoginParams, state *task.State) error {
+	if state.Output != "" {
+		var client *Client
+		var err error
+
+		if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
+			state.Logger.Debugf("Pretending to logout from session id [%s]", state.Output)
+
+			if params.HostAddr != "" {
+				state.Logger.Debugf("For host [%s]", params.HostAddr)
+			}
+
+			if params.Username != "" {
+				state.Logger.Debugf("And username [%s]", params.Username)
+			}
+
+			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
+			fmt.Printf("-d id=%s\\\n", state.Output)
+			fmt.Printf("%s\n", client.logoutUrl())
+			return nil
+		}
+
+		return err
+	}
+
+	return state.Error
 }
 
 func handleSessionContext(params *Broker, state *task.State) error {
