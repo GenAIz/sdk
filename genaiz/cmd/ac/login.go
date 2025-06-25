@@ -56,7 +56,6 @@ func (le *LoginExecutor) Login(brokerAddr string) {
 
 		task.Single(loginPlan, params, le.loginTaskFactory())
 	}
-
 }
 
 func (le *LoginExecutor) makeBrokerParams(brokerAddr string) *broker.Broker {
@@ -106,7 +105,7 @@ func NewLogin(repo *config.Repo) *cobra.Command {
 		Short:   "Authenticates an account with a Genaiz broker",
 		Long:    "Authenticates a username and password with a Genaiz broker provided a url as argument",
 		Example: "genaiz ac login www.genaiz.com",
-		Args:    cobra.MatchAll(cobra.ExactArgs(1)),
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			exec.Login(args[0])
 		},
@@ -122,7 +121,7 @@ func NewLoginExecutor(repo *config.Repo) *LoginExecutor {
 
 		optionPassword: newOptionPassword(),
 		optionRefresh:  newOptionRefresh(),
-		optionUsername: newOptionUsername(),
+		optionUsername: newOptionUsername("Login"),
 
 		loginTaskFactory:   broker.NewLoginTask,
 		sessionTaskFactory: broker.NewSessionTask,
@@ -149,10 +148,10 @@ func newOptionRefresh() *config.BoolOption {
 	}
 }
 
-func newOptionUsername() *config.StringOption {
+func newOptionUsername(cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:   "AC.Username",
+			Key:   "AC." + cmd + ".Username",
 			Param: "username",
 			Short: "u",
 			Env:   "GENAIZ_USERNAME",

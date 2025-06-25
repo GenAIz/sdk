@@ -40,7 +40,7 @@ type Provision struct {
 }
 
 type Session struct {
-	Id     int
+	Id     int64
 	Nco    int64
 	Nms    int64
 	Flags  int

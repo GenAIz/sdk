@@ -2,6 +2,7 @@ package broker
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -60,6 +61,19 @@ type clientPayload[P any] struct {
 	Status string
 }
 
+func (c *Client) GetFunction(oem string, handle string) (*Function, error) {
+	return c.getFunctionByParams(map[string]string{
+		"oem":    oem,
+		"handle": handle,
+	})
+}
+
+func (c *Client) GetFunctionById(id string) (*Function, error) {
+	return c.getFunctionByParams(map[string]string{
+		"id": id,
+	})
+}
+
 func (c *Client) Login(username string, password *[]byte) (*AuthSession, error) {
 	var url string
 	var err error
@@ -90,10 +104,12 @@ func (c *Client) Login(username string, password *[]byte) (*AuthSession, error) 
 					var payload = resp.Result().(*clientPayload[Session])
 
 					c.AuthToken = cookieValue
-					result = NewAuthSession(&payload.Data, cookieValue)
+					result = NewAuthSession(&payload.Data, username, cookieValue)
 				}
-			} else {
+			} else if resp.Status() != "" {
 				err = errors.New(resp.Status())
+			} else {
+				err = fmt.Errorf("could not reach %s", c.HostAddr)
 			}
 		}
 
@@ -103,17 +119,36 @@ func (c *Client) Login(username string, password *[]byte) (*AuthSession, error) 
 	return nil, err
 }
 
-func (c *Client) GetFunction(oem string, handle string) (*Function, error) {
-	return c.getFunctionByParams(map[string]string{
-		"oem":    oem,
-		"handle": handle,
-	})
-}
+func (c *Client) Logout(sessionId string) error {
+	var url string
+	var err error
 
-func (c *Client) GetFunctionById(id string) (*Function, error) {
-	return c.getFunctionByParams(map[string]string{
-		"id": id,
-	})
+	if url, err = c.makeUrl(apiVersion1, pathSession, "delete"); err == nil {
+		var client = c.factory()
+		var resp *resty.Response
+
+		defer c.closeSilently(client)
+		resp, err = client.R().
+			SetExpectResponseContentType("application/json").
+			SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+			SetResult(&clientPayload[Session]{}).
+			SetFormData(map[string]string{
+				"id": sessionId,
+			}).
+			Post(url)
+
+		if resp != nil && !resp.IsSuccess() {
+			if resp.Status() != "" {
+				err = errors.New(resp.Status())
+			} else {
+				err = fmt.Errorf("could not reach %s", c.HostAddr)
+			}
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func (c *Client) ProvisionFunction(function *Function) (*shared.Identity, error) {
@@ -128,6 +163,7 @@ func (c *Client) ProvisionFunction(function *Function) (*shared.Identity, error)
 			defer c.closeSilently(client)
 			resp, err = client.R().
 				SetExpectResponseContentType("application/json").
+				SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
 				SetResult(&clientPayload[Provision]{}).
 				SetFormData(map[string]string{
 					"name":        function.Name,
@@ -165,6 +201,7 @@ func (c *Client) PublishFunction(identity *shared.Identity) (*Function, error) {
 		defer c.closeSilently(client)
 		resp, err = client.R().
 			SetExpectResponseContentType("application/json").
+			SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
 			SetResult(&clientPayload[Function]{}).
 			SetFormData(map[string]string{
 				"id": identity.Id,
@@ -218,6 +255,7 @@ func (c *Client) getFunctionByParams(params map[string]string) (*Function, error
 			defer c.closeSilently(client)
 			resp, err = client.R().
 				SetExpectResponseContentType("application/json").
+				SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
 				SetResult(&clientPayload[Provision]{}).
 				SetQueryParams(params).
 				Get(url)
@@ -233,16 +271,20 @@ func (c *Client) getFunctionByParams(params map[string]string) (*Function, error
 	return nil, errorNoAuth
 }
 
+func (c *Client) loginUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "create")
+}
+
+func (c *Client) logoutUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "delete")
+}
+
 func (c *Client) makeUrl(version version, path path, rpc ...string) (string, error) {
 	if c.HostAddr == "" {
 		return "", errors.New("invalid host address")
 	}
 
 	return makeHostUrl(c.HostAddr, version, path, rpc...), nil
-}
-
-func (c *Client) loginUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "create")
 }
 
 func (c *Client) provisionUrl() string {

@@ -105,14 +105,14 @@ func handleProvisionPretend(params *ProvisionParams, state *task.State) error {
 			state.Logger.Debugf("Pretending to provision to [%s]", params.HostAddr)
 			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 			fmt.Printf("  --cookie=\"s=%s\"\\\n", client.AuthToken)
-			fmt.Printf("  -F arches=%s\\\n", params.Arches)
-			fmt.Printf("  -F name=%s\\\n", params.Name)
-			fmt.Printf("  -F description=%s\\\n", params.Description)
-			fmt.Printf("  -F fqdn=%s\\\n", params.Fqdn)
-			fmt.Printf("  -F oem=%s\\\n", params.Oem)
-			fmt.Printf("  -F handle=%s\\\n", params.Handle)
-			fmt.Printf("  -F version=%s\\\n", params.Version)
-			fmt.Printf("  -F type=%s\\\n", params.Type)
+			fmt.Printf("  -d arches=%s\\\n", params.Arches)
+			fmt.Printf("  -d name=%s\\\n", params.Name)
+			fmt.Printf("  -d description=%s\\\n", params.Description)
+			fmt.Printf("  -d fqdn=%s\\\n", params.Fqdn)
+			fmt.Printf("  -d oem=%s\\\n", params.Oem)
+			fmt.Printf("  -d handle=%s\\\n", params.Handle)
+			fmt.Printf("  -d version=%s\\\n", params.Version)
+			fmt.Printf("  -d type=%s\\\n", params.Type)
 			fmt.Printf("%s\n", client.provisionUrl())
 			remote.Id = "$ID"
 			remote.Path = params.HostAddr + "/" + params.Handle
@@ -187,7 +187,7 @@ func handlePublishPretend(params *ProvisionParams, state *task.State) error {
 				state.Logger.Debugf("Pretending to provision to [%s]", params.HostAddr)
 				fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 				fmt.Printf("  --cookie=\"s=%s\"\\\n", client.AuthToken)
-				fmt.Printf("  -F id=%s\\\n", current.Id)
+				fmt.Printf("  -d id=%s\\\n", current.Id)
 				fmt.Printf("%s\n", client.publishUrl())
 				return nil
 			}
