@@ -21,7 +21,7 @@ import (
 func TestCreatorExecutor_Display(t *testing.T) {
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().
+	var testLedger = config.NewBuilder().
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
@@ -35,12 +35,12 @@ func TestCreatorExecutor_Display(t *testing.T) {
 	var expectedVersion = "version"
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
+			Ledger: testLedger,
 		},
 		CreateOptions: testOptions,
 	}
 
-	testRepo.Register(&cobra.Command{}, testOptions.allDefiners()...)
+	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
 	testViper.Set(testOptions.optionConfigType.Key, layout.ConfigTypeJson)
 	testViper.Set(testOptions.optionFqdn.Key, expectedFqdn)
@@ -66,11 +66,11 @@ func TestCreatorExecutor_Display(t *testing.T) {
 func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 	var calledCreate, calledInit, calledRecipe bool
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		CreateOptions: NewCreateOptions(),
 
@@ -91,11 +91,11 @@ func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 	var calledCreate, calledInit, calledRecipe bool
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		CreateOptions: NewCreateOptions(),
 
@@ -117,11 +117,11 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 	var calledCreate, calledInit, calledRecipe bool
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		CreateOptions: NewCreateOptions(),
 
@@ -133,7 +133,7 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
-	testRepo.Logger = &logrus.Logger{}
+	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Proceed()
 	assert.True(t, calledCreate)
 	assert.False(t, calledRecipe)
@@ -143,11 +143,11 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 	var calledCreate, calledInit, calledRecipe bool
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
-			Repo: testRepo,
-			Cli:  NewSfCli(nil, nil, nil),
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
 		},
 		CreateOptions: NewCreateOptions(),
 
@@ -160,7 +160,7 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
 	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")
-	testRepo.Logger = &logrus.Logger{}
+	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Proceed()
 	assert.True(t, calledCreate)
 	assert.True(t, calledRecipe)
@@ -171,9 +171,9 @@ func TestNewCreate(t *testing.T) {
 	var createCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(repo *config.Repo) bool {
+		Dry: func(ledger *config.Ledger) bool {
 			return true
 		},
 		optionDockerContext: newOptionDockerContext(),
@@ -181,7 +181,7 @@ func TestNewCreate(t *testing.T) {
 		optionDockerTag:     newOptionDockerTag(),
 		optionDockerVersion: newOptionDockerVersion(),
 	}
-	var testCreate = NewCreate(testRepo, testCli)
+	var testCreate = NewCreate(testLedger, testCli)
 	var expectedFolder = "test-folder"
 
 	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
@@ -202,9 +202,9 @@ func TestNewCreate_InvalidFolder(t *testing.T) {
 	var createCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(repo *config.Repo) bool {
+		Dry: func(ledger *config.Ledger) bool {
 			return true
 		},
 		optionDockerContext: newOptionDockerContext(),
@@ -212,7 +212,7 @@ func TestNewCreate_InvalidFolder(t *testing.T) {
 		optionDockerTag:     newOptionDockerTag(),
 		optionDockerVersion: newOptionDockerVersion(),
 	}
-	var testCreate = NewCreate(testRepo, testCli)
+	var testCreate = NewCreate(testLedger, testCli)
 	var expectedFolder = "#invalidtest-folder"
 
 	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
@@ -226,7 +226,7 @@ func TestNewCreate_InvalidFolder(t *testing.T) {
 func Test_toConfigType(t *testing.T) {
 	var expectedKey = "key"
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOption = config.StringOption{
 		Option: config.Option{
 			Key: expectedKey,
@@ -234,14 +234,14 @@ func Test_toConfigType(t *testing.T) {
 	}
 
 	testViper.Set(expectedKey, layout.ConfigTypeToml)
-	assert.EqualValues(t, layout.ConfigTypeToml, *toConfigType(testRepo, &testOption))
+	assert.EqualValues(t, layout.ConfigTypeToml, *toConfigType(testLedger, &testOption))
 }
 
 func Test_toConfigType_Invalid(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var expectedKey = "key"
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOption = config.StringOption{
 		Option: config.Option{
 			Key: expectedKey,
@@ -250,7 +250,7 @@ func Test_toConfigType_Invalid(t *testing.T) {
 
 	defer patch.Unpatch()
 	testViper.Set(expectedKey, "invalid")
-	toConfigType(testRepo, &testOption)
+	toConfigType(testLedger, &testOption)
 	assert.True(t, patch.Called)
 	assert.EqualValues(t, 1, patch.CalledWith)
 }

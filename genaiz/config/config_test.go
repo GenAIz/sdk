@@ -27,117 +27,117 @@ type configStruct struct {
 
 func TestBuilder_WithTemplates(t *testing.T) {
 	var expectedPath = "/tmp"
-	var testRepo = NewBuilder().WithTemplates(expectedPath).Build()
+	var testLedger = NewBuilder().WithTemplates(expectedPath).Build()
 
-	assert.Contains(t, testRepo.TemplatePaths, expectedPath)
+	assert.Contains(t, testLedger.TemplatePaths, expectedPath)
 }
 
-func TestRepo_backupConfigsInvalidUserPath(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_backupConfigsInvalidUserPath(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 
-	testRepo.UserPath = "/notValid"
-	assert.ErrorIs(t, testRepo.backupConfigs(), os.ErrNotExist)
+	testLedger.UserPath = "/notValid"
+	assert.ErrorIs(t, testLedger.backupConfigs(), os.ErrNotExist)
 }
 
-func TestRepo_backupConfigs(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_backupConfigs(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testStruct = configStruct{Key: "key", Value: "value"}
 
-	testRepo.UserPath = "/tmp"
-	_ = testRepo.makeConfigs(&testStruct)
-	assert.NoError(t, testRepo.backupConfigs())
-	assert.NoError(t, testRepo.backupConfigs())
+	testLedger.UserPath = "/tmp"
+	_ = testLedger.makeConfigs(&testStruct)
+	assert.NoError(t, testLedger.backupConfigs())
+	assert.NoError(t, testLedger.backupConfigs())
 	assert.NoError(t, os.Remove("/tmp/"+defaultConfigName+".yaml.back"))
 }
 
-func TestRepo_makeConfigsNoOverwriting(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_makeConfigsNoOverwriting(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testStruct = configStruct{Key: "key", Value: "value"}
 
-	testRepo.UserPath = "/tmp"
-	_ = testRepo.makeConfigs(&testStruct)
-	assert.Error(t, testRepo.makeConfigs(&testStruct))
+	testLedger.UserPath = "/tmp"
+	_ = testLedger.makeConfigs(&testStruct)
+	assert.Error(t, testLedger.makeConfigs(&testStruct))
 	assert.NoError(t, os.Remove("/tmp/"+defaultConfigName+".yaml"))
 }
 
-func TestRepo_rollbackConfigsInvalidUserPath(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_rollbackConfigsInvalidUserPath(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 
-	testRepo.UserPath = "/notValid"
-	assert.ErrorIs(t, testRepo.rollbackConfigs(), os.ErrNotExist)
+	testLedger.UserPath = "/notValid"
+	assert.ErrorIs(t, testLedger.rollbackConfigs(), os.ErrNotExist)
 }
 
-func TestRepo_rollbackConfigs(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_rollbackConfigs(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testStruct = configStruct{Key: "key", Value: "value"}
 
-	testRepo.UserPath = "/tmp"
-	_ = testRepo.makeConfigs(&testStruct)
-	assert.NoError(t, testRepo.backupConfigs())
-	assert.NoError(t, testRepo.rollbackConfigs())
+	testLedger.UserPath = "/tmp"
+	_ = testLedger.makeConfigs(&testStruct)
+	assert.NoError(t, testLedger.backupConfigs())
+	assert.NoError(t, testLedger.rollbackConfigs())
 	assert.NoError(t, os.Remove("/tmp/"+defaultConfigName+".yaml"))
 }
 
-func TestRepo_AddConfigOption(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_AddConfigOption(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testPath = "/tmp"
-	var expectedFile = filepath.Join(testPath, testRepo.ConfigName+".yaml")
+	var expectedFile = filepath.Join(testPath, testLedger.ConfigName+".yaml")
 	var _, err = os.Create(expectedFile)
 	var testOption = &StringOption{
 		Option{
 			Key: "key",
-			DefaultGetter: func(repo *Repo) any {
+			DefaultGetter: func(ledger *Ledger) any {
 				return testPath
 			},
 		},
 	}
 
 	assert.NoError(t, err)
-	testRepo.Init()
-	testRepo.AddConfigOption(testOption)
-	testRepo.InitDefaults()
-	assert.EqualValues(t, expectedFile, testRepo.viper.ConfigFileUsed())
+	testLedger.Init()
+	testLedger.AddConfigOption(testOption)
+	testLedger.InitDefaults()
+	assert.EqualValues(t, expectedFile, testLedger.viper.ConfigFileUsed())
 	assert.NoError(t, os.Remove(expectedFile))
 }
 
-func TestRepo_AddConfigOptionInvalidFile(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_AddConfigOptionInvalidFile(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testPath = "/tmp"
 	var testOption = &StringOption{
 		Option{
 			Key: "key",
-			DefaultGetter: func(repo *Repo) any {
+			DefaultGetter: func(ledger *Ledger) any {
 				return testPath
 			},
 		},
 	}
 
-	testRepo.Init()
-	testRepo.AddConfigOption(testOption)
-	testRepo.InitDefaults()
-	assert.Empty(t, testRepo.viper.ConfigFileUsed())
+	testLedger.Init()
+	testLedger.AddConfigOption(testOption)
+	testLedger.InitDefaults()
+	assert.Empty(t, testLedger.viper.ConfigFileUsed())
 }
 
-func TestRepo_ChangeWorkDirEmptyDir(t *testing.T) {
-	var _, testRepo = newTestConfigs()
-	var expectedWorkDir = testRepo.WorkDir
+func TestLedger_ChangeWorkDirEmptyDir(t *testing.T) {
+	var _, testLedger = newTestConfigs()
+	var expectedWorkDir = testLedger.WorkDir
 	var testOption = &StringOption{}
 
-	testRepo.ChangeWorkDir(testOption)
-	assert.EqualValues(t, expectedWorkDir, testRepo.WorkDir)
+	testLedger.ChangeWorkDir(testOption)
+	assert.EqualValues(t, expectedWorkDir, testLedger.WorkDir)
 }
 
-func TestRepo_ChangeWorkDirOptionNil(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_ChangeWorkDirOptionNil(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 
 	assert.Panics(t, func() {
-		testRepo.ChangeWorkDir(nil)
+		testLedger.ChangeWorkDir(nil)
 	})
 }
 
-func TestRepo_ChangeWorkDir(t *testing.T) {
-	var _, testRepo = newTestConfigs()
-	var currentWorkDir = testRepo.WorkDir
+func TestLedger_ChangeWorkDir(t *testing.T) {
+	var _, testLedger = newTestConfigs()
+	var currentWorkDir = testLedger.WorkDir
 	var expectedWorkDir = "/tmp"
 	var testOption = &StringOption{
 		Option: Option{
@@ -146,17 +146,17 @@ func TestRepo_ChangeWorkDir(t *testing.T) {
 		},
 	}
 
-	testRepo.Register(&cobra.Command{}, testOption)
-	testRepo.InitDefaults()
-	testRepo.ChangeWorkDir(testOption)
-	assert.EqualValues(t, expectedWorkDir, testRepo.WorkDir)
+	testLedger.Register(&cobra.Command{}, testOption)
+	testLedger.InitDefaults()
+	testLedger.ChangeWorkDir(testOption)
+	assert.EqualValues(t, expectedWorkDir, testLedger.WorkDir)
 
 	// reset the work dir
 	panicz.PanicIfError(os.Chdir(currentWorkDir))
 }
 
-func TestRepo_DisplayChangeDir(t *testing.T) {
-	var buff, _, testRepo = newTestConfigsWithBuffer()
+func TestLedger_DisplayChangeDir(t *testing.T) {
+	var buff, _, testLedger = newTestConfigsWithBuffer()
 	var expectedWorkDir = "/tmp"
 	var testOption = &StringOption{
 		Option{
@@ -165,15 +165,15 @@ func TestRepo_DisplayChangeDir(t *testing.T) {
 		},
 	}
 
-	testRepo.Register(&cobra.Command{}, testOption)
-	testRepo.InitDefaults()
-	testRepo.ChangeWorkDir(testOption)
-	testRepo.DisplayChangeDir()
+	testLedger.Register(&cobra.Command{}, testOption)
+	testLedger.InitDefaults()
+	testLedger.ChangeWorkDir(testOption)
+	testLedger.DisplayChangeDir()
 	assert.Contains(t, buff.String(), expectedWorkDir)
 }
 
-func TestRepo_DisplayOptions(t *testing.T) {
-	var buff, _, testRepo = newTestConfigsWithBuffer()
+func TestLedger_DisplayOptions(t *testing.T) {
+	var buff, _, testLedger = newTestConfigsWithBuffer()
 	var expectedOne = "one"
 	var expectedTwo = "two"
 	var testOption1 = &StringOption{
@@ -189,9 +189,9 @@ func TestRepo_DisplayOptions(t *testing.T) {
 		},
 	}
 
-	testRepo.Register(&cobra.Command{}, testOption1, testOption2)
-	testRepo.InitDefaults()
-	testRepo.DisplayOptions(&testOption2.Option, &testOption1.Option)
+	testLedger.Register(&cobra.Command{}, testOption1, testOption2)
+	testLedger.InitDefaults()
+	testLedger.DisplayOptions(&testOption2.Option, &testOption1.Option)
 
 	if s := buff.String(); s != "" {
 		assert.Contains(t, s, expectedOne)
@@ -203,13 +203,13 @@ func TestRepo_DisplayOptions(t *testing.T) {
 	}
 }
 
-func TestRepo_DisplayOptionsWithMap(t *testing.T) {
-	var buff, _, testRepo = newTestConfigsWithBuffer()
+func TestLedger_DisplayOptionsWithMap(t *testing.T) {
+	var buff, _, testLedger = newTestConfigsWithBuffer()
 	var expectedKey = "key"
 	var expectedValue = "value"
 	var testMap = map[string]string{expectedKey: expectedValue}
 
-	testRepo.DisplayOptionsWithMap(&testMap)
+	testLedger.DisplayOptionsWithMap(&testMap)
 
 	if s := buff.String(); s != "" {
 		assert.Contains(t, s, expectedKey)
@@ -221,10 +221,10 @@ func TestRepo_DisplayOptionsWithMap(t *testing.T) {
 	}
 }
 
-func TestRepo_FromWorkDirAbs(t *testing.T) {
+func TestLedger_FromWorkDirAbs(t *testing.T) {
 	var expectedParam = "param"
 	var expectedValue = "/path"
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var testFlags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var testOption = &StringOption{
 		Option{
@@ -234,13 +234,13 @@ func TestRepo_FromWorkDirAbs(t *testing.T) {
 	var testValue string
 
 	testFlags.StringVar(&testValue, expectedParam, expectedValue, "")
-	testRepo.FromWorkDir(testOption, testFlags)
+	testLedger.FromWorkDir(testOption, testFlags)
 	assert.EqualValues(t, expectedValue, testValue)
 }
 
-func TestRepo_FromWorkDirFailLookup(t *testing.T) {
+func TestLedger_FromWorkDirFailLookup(t *testing.T) {
 	var expectedParam = "param"
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var testFlags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var testOption = &StringOption{
 		Option{
@@ -248,14 +248,14 @@ func TestRepo_FromWorkDirFailLookup(t *testing.T) {
 		},
 	}
 
-	testRepo.FromWorkDir(testOption, testFlags)
+	testLedger.FromWorkDir(testOption, testFlags)
 	assert.False(t, testFlags.HasFlags())
 }
 
-func TestRepo_FromWorkDirLocalValue(t *testing.T) {
+func TestLedger_FromWorkDirLocalValue(t *testing.T) {
 	var expectedParam = "param"
-	var _, testRepo = newTestConfigs()
-	var expectedValue = testRepo.WorkDir + "/path"
+	var _, testLedger = newTestConfigs()
+	var expectedValue = testLedger.WorkDir + "/path"
 	var testFlags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var testOption = &StringOption{
 		Option{
@@ -265,14 +265,14 @@ func TestRepo_FromWorkDirLocalValue(t *testing.T) {
 	var testValue string
 
 	testFlags.StringVar(&testValue, expectedParam, "path", "")
-	testRepo.FromWorkDir(testOption, testFlags)
+	testLedger.FromWorkDir(testOption, testFlags)
 	assert.EqualValues(t, expectedValue, testValue)
 }
 
-func TestRepo_FromWorkDirRelativeValue(t *testing.T) {
+func TestLedger_FromWorkDirRelativeValue(t *testing.T) {
 	var expectedParam = "param"
-	var _, testRepo = newTestConfigs()
-	var expectedValue, _ = filepath.Abs(testRepo.WorkDir + "/../path")
+	var _, testLedger = newTestConfigs()
+	var expectedValue, _ = filepath.Abs(testLedger.WorkDir + "/../path")
 	var testFlags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var testOption = &StringOption{
 		Option{
@@ -282,46 +282,46 @@ func TestRepo_FromWorkDirRelativeValue(t *testing.T) {
 	var testValue string
 
 	testFlags.StringVar(&testValue, expectedParam, "../path", "")
-	testRepo.FromWorkDir(testOption, testFlags)
+	testLedger.FromWorkDir(testOption, testFlags)
 	assert.EqualValues(t, expectedValue, testValue)
 }
 
-func TestRepo_GetKey(t *testing.T) {
+func TestLedger_GetKey(t *testing.T) {
 	var expectedValue = "value"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &Option{Key: "key"}
 
 	testViper.SetDefault(testOption.Key, expectedValue)
-	assert.EqualValues(t, expectedValue, testRepo.Get(testOption))
+	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
 }
 
-func TestRepo_GetParam(t *testing.T) {
+func TestLedger_GetParam(t *testing.T) {
 	var expectedValue = "value"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &Option{Param: "param"}
 
 	testViper.SetDefault(testOption.Param, expectedValue)
-	assert.EqualValues(t, expectedValue, testRepo.Get(testOption))
+	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
 }
 
-func TestRepo_GetDefaultValue(t *testing.T) {
+func TestLedger_GetDefaultValue(t *testing.T) {
 	var expectedValue = "expected"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &Option{
 		Param:        "param",
 		DefaultValue: "value",
-		DefaultGetter: func(repo *Repo) any {
+		DefaultGetter: func(ledger *Ledger) any {
 			return expectedValue
 		},
 	}
 
 	testViper.SetDefault(testOption.Param, "value")
-	assert.EqualValues(t, expectedValue, testRepo.Get(testOption))
+	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
 }
 
-func TestRepo_GetEnvPlaceholder(t *testing.T) {
+func TestLedger_GetEnvPlaceholder(t *testing.T) {
 	var expectedValue = "expected"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &Option{
 		Param:        "param",
 		DefaultValue: "$value",
@@ -329,18 +329,18 @@ func TestRepo_GetEnvPlaceholder(t *testing.T) {
 
 	_ = os.Setenv("value", expectedValue)
 	testViper.SetDefault(testOption.Param, "$value")
-	assert.EqualValues(t, expectedValue, testRepo.Get(testOption))
+	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
 }
 
-func TestRepo_GetBoolNoResult(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_GetBoolNoResult(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testOption = &BoolOption{}
 
-	assert.False(t, testRepo.GetBool(testOption))
+	assert.False(t, testLedger.GetBool(testOption))
 }
 
-func TestRepo_GetBool(t *testing.T) {
-	var testViper, testRepo = newTestConfigs()
+func TestLedger_GetBool(t *testing.T) {
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &BoolOption{
 		Option: Option{
 			Key: "key",
@@ -348,12 +348,12 @@ func TestRepo_GetBool(t *testing.T) {
 	}
 
 	testViper.Set(testOption.Key, "true")
-	assert.True(t, testRepo.GetBool(testOption))
+	assert.True(t, testLedger.GetBool(testOption))
 }
 
-func TestRepo_GetList(t *testing.T) {
+func TestLedger_GetList(t *testing.T) {
 	var expectedValue = "value"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &ListOption{
 		Option: Option{
 			Key: "key",
@@ -361,12 +361,12 @@ func TestRepo_GetList(t *testing.T) {
 	}
 
 	testViper.Set(testOption.Key, []string{expectedValue, "two"})
-	assert.Contains(t, testRepo.GetList(testOption), expectedValue)
+	assert.Contains(t, testLedger.GetList(testOption), expectedValue)
 }
 
-func TestRepo_GetListAsString(t *testing.T) {
+func TestLedger_GetListAsString(t *testing.T) {
 	var expectedValue = "value"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &ListOption{
 		Option: Option{
 			Key: "key",
@@ -374,11 +374,11 @@ func TestRepo_GetListAsString(t *testing.T) {
 	}
 
 	testViper.Set(testOption.Key, expectedValue+" two")
-	assert.Contains(t, testRepo.GetList(testOption), expectedValue)
+	assert.Contains(t, testLedger.GetList(testOption), expectedValue)
 }
 
-func TestRepo_GetListEmptyString(t *testing.T) {
-	var testViper, testRepo = newTestConfigs()
+func TestLedger_GetListEmptyString(t *testing.T) {
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &ListOption{
 		Option: Option{
 			Key: "key",
@@ -386,23 +386,23 @@ func TestRepo_GetListEmptyString(t *testing.T) {
 	}
 
 	testViper.Set(testOption.Key, "")
-	assert.Empty(t, testRepo.GetList(testOption))
+	assert.Empty(t, testLedger.GetList(testOption))
 }
 
-func TestRepo_GetListNil(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_GetListNil(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testOption = &ListOption{
 		Option: Option{
 			Key: "key",
 		},
 	}
 
-	assert.Empty(t, testRepo.GetList(testOption))
+	assert.Empty(t, testLedger.GetList(testOption))
 }
 
-func TestRepo_GetListSingle(t *testing.T) {
+func TestLedger_GetListSingle(t *testing.T) {
 	var expectedValue = "value"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &ListOption{
 		Option: Option{
 			Key: "key",
@@ -410,12 +410,12 @@ func TestRepo_GetListSingle(t *testing.T) {
 	}
 
 	testViper.Set(testOption.Key, expectedValue)
-	assert.Contains(t, testRepo.GetList(testOption), expectedValue)
+	assert.Contains(t, testLedger.GetList(testOption), expectedValue)
 }
 
-func TestRepo_GetString(t *testing.T) {
+func TestLedger_GetString(t *testing.T) {
 	var expectedValue = "value"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &StringOption{
 		Option: Option{
 			Key: "key",
@@ -423,11 +423,11 @@ func TestRepo_GetString(t *testing.T) {
 	}
 
 	testViper.Set(testOption.Key, expectedValue)
-	assert.EqualValues(t, expectedValue, testRepo.GetString(testOption))
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
 }
 
-func TestRepo_GetStringInvalid(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_GetStringInvalid(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testOption = &StringOption{
 		Option: Option{
 			Key: "key",
@@ -437,15 +437,15 @@ func TestRepo_GetStringInvalid(t *testing.T) {
 		},
 	}
 
-	testRepo.validationHandler = func(e interface{}) {
+	testLedger.validationHandler = func(e interface{}) {
 		assert.NotEmpty(t, e)
 	}
-	testRepo.GetString(testOption)
+	testLedger.GetString(testOption)
 }
 
-func TestRepo_GetStringValid(t *testing.T) {
+func TestLedger_GetStringValid(t *testing.T) {
 	var expectedValue = "value"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &StringOption{
 		Option: Option{
 			Key: "key",
@@ -455,31 +455,31 @@ func TestRepo_GetStringValid(t *testing.T) {
 		},
 	}
 
-	testRepo.validationHandler = func(e interface{}) {
+	testLedger.validationHandler = func(e interface{}) {
 		assert.Fail(t, "not expecting error")
 	}
 	testViper.Set(testOption.Key, expectedValue)
-	assert.EqualValues(t, expectedValue, testRepo.GetString(testOption))
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
 }
 
-func TestRepo_GetValue(t *testing.T) {
+func TestLedger_GetValue(t *testing.T) {
 	var testKey = "key"
 	var expectedValue = "value"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 
 	testViper.Set(testKey, expectedValue)
-	assert.EqualValues(t, expectedValue, testRepo.GetValue(testKey))
+	assert.EqualValues(t, expectedValue, testLedger.GetValue(testKey))
 }
 
-func TestRepo_GetWorkspaceEmpty(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_GetWorkspaceEmpty(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 
-	assert.Empty(t, testRepo.GetWorkspace())
+	assert.Empty(t, testLedger.GetWorkspace())
 }
 
-func TestRepo_GetWorkspace(t *testing.T) {
+func TestLedger_GetWorkspace(t *testing.T) {
 	var expectedValue = "value"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &StringOption{
 		Option{
 			Param: "param",
@@ -487,17 +487,17 @@ func TestRepo_GetWorkspace(t *testing.T) {
 	}
 
 	testViper.Set(testOption.Param, expectedValue)
-	testRepo.InitWorkspace(testOption)
-	assert.EqualValues(t, expectedValue, testRepo.GetWorkspace())
+	testLedger.InitWorkspace(testOption)
+	assert.EqualValues(t, expectedValue, testLedger.GetWorkspace())
 }
 
-func TestRepo_InitNoConfig(t *testing.T) {
+func TestLedger_InitNoConfig(t *testing.T) {
 	var buff bytes.Buffer
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 
-	testRepo.UserPath = "/tmp"
-	testRepo.Init()
-	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
+	testLedger.UserPath = "/tmp"
+	testLedger.Init()
+	testLedger.LoggerFactory = func(ledger *Ledger) *logrus.Logger {
 		return &logrus.Logger{
 			Out:   io.Writer(&buff),
 			Level: logrus.DebugLevel,
@@ -507,20 +507,20 @@ func TestRepo_InitNoConfig(t *testing.T) {
 			},
 		}
 	}
-	testRepo.InitLogging()
+	testLedger.InitLogging()
 	assert.Contains(t, buff.String(), "Could not")
 }
 
-func TestRepo_Init(t *testing.T) {
+func TestLedger_Init(t *testing.T) {
 	var buff bytes.Buffer
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var testStruct = configStruct{Key: "key", Value: "value"}
 
-	testRepo.UserPath = "/tmp"
-	assert.NoError(t, testRepo.makeConfigs(&testStruct))
+	testLedger.UserPath = "/tmp"
+	assert.NoError(t, testLedger.makeConfigs(&testStruct))
 
-	testRepo.Init()
-	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
+	testLedger.Init()
+	testLedger.LoggerFactory = func(ledger *Ledger) *logrus.Logger {
 		return &logrus.Logger{
 			Out:   io.Writer(&buff),
 			Level: logrus.DebugLevel,
@@ -530,37 +530,37 @@ func TestRepo_Init(t *testing.T) {
 			},
 		}
 	}
-	testRepo.InitLogging()
+	testLedger.InitLogging()
 	assert.Contains(t, buff.String(), "Using")
-	assert.NoError(t, os.Remove("/tmp/"+testRepo.ConfigName+".yaml"))
+	assert.NoError(t, os.Remove("/tmp/"+testLedger.ConfigName+".yaml"))
 }
 
-func TestRepo_InitLogging(t *testing.T) {
-	var testRepo = NewRepo()
+func TestLedger_InitLogging(t *testing.T) {
+	var testLedger = NewLedger()
 
-	testRepo.LogDebug("TestRepo_InitLogging")
-	testRepo.InitLogging()
-	assert.Empty(t, testRepo.loggers)
+	testLedger.LogDebug("TestLedger_InitLogging")
+	testLedger.InitLogging()
+	assert.Empty(t, testLedger.loggers)
 }
 
-func TestRepo_InitValue(t *testing.T) {
+func TestLedger_InitValue(t *testing.T) {
 	var expectedKey = "key"
 	var expectedValue = "value"
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var testOption = &StringOption{
 		Option{
 			Key: expectedKey,
 		},
 	}
 
-	testRepo.InitValue(testOption, expectedValue)
-	assert.EqualValues(t, expectedValue, testRepo.GetString(testOption))
+	testLedger.InitValue(testOption, expectedValue)
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
 }
 
-func TestRepo_InitValueAlreadySet(t *testing.T) {
+func TestLedger_InitValueAlreadySet(t *testing.T) {
 	var expectedKey = "key"
 	var expectedValue = "other"
-	var testViper, testRepo = newTestConfigs()
+	var testViper, testLedger = newTestConfigs()
 	var testOption = &StringOption{
 		Option{
 			Key: expectedKey,
@@ -568,16 +568,16 @@ func TestRepo_InitValueAlreadySet(t *testing.T) {
 	}
 
 	testViper.Set(expectedKey, expectedValue)
-	testRepo.InitValue(testOption, "value")
-	assert.EqualValues(t, expectedValue, testRepo.GetString(testOption))
+	testLedger.InitValue(testOption, "value")
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
 }
 
-func TestRepo_LogDebug(t *testing.T) {
+func TestLedger_LogDebug(t *testing.T) {
 	var buff bytes.Buffer
 	var expectedString = "arg"
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 
-	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
+	testLedger.LoggerFactory = func(ledger *Ledger) *logrus.Logger {
 		return &logrus.Logger{
 			Out:   io.Writer(&buff),
 			Level: logrus.DebugLevel,
@@ -587,19 +587,19 @@ func TestRepo_LogDebug(t *testing.T) {
 			},
 		}
 	}
-	testRepo.InitLogging()
-	testRepo.LogDebug("%s", expectedString)
+	testLedger.InitLogging()
+	testLedger.LogDebug("%s", expectedString)
 	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
 }
 
-func TestRepo_LogDebugNoLogger(t *testing.T) {
+func TestLedger_LogDebugNoLogger(t *testing.T) {
 	var buff bytes.Buffer
 	var expectedString = "arg"
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 
-	testRepo.LogDebug("%s", expectedString)
-	assert.NotEmpty(t, testRepo.loggers)
-	testRepo.loggers[0](&logrus.Logger{
+	testLedger.LogDebug("%s", expectedString)
+	assert.NotEmpty(t, testLedger.loggers)
+	testLedger.loggers[0](&logrus.Logger{
 		Out:   io.Writer(&buff),
 		Level: logrus.DebugLevel,
 		Formatter: &easy.Formatter{
@@ -610,12 +610,12 @@ func TestRepo_LogDebugNoLogger(t *testing.T) {
 	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
 }
 
-func TestRepo_LogInfo(t *testing.T) {
+func TestLedger_LogInfo(t *testing.T) {
 	var buff bytes.Buffer
 	var expectedString = "arg"
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 
-	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
+	testLedger.LoggerFactory = func(ledger *Ledger) *logrus.Logger {
 		return &logrus.Logger{
 			Out:   io.Writer(&buff),
 			Level: logrus.InfoLevel,
@@ -625,19 +625,19 @@ func TestRepo_LogInfo(t *testing.T) {
 			},
 		}
 	}
-	testRepo.InitLogging()
-	testRepo.LogInfo("%s", expectedString)
+	testLedger.InitLogging()
+	testLedger.LogInfo("%s", expectedString)
 	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
 }
 
-func TestRepo_LogInfoNoLogger(t *testing.T) {
+func TestLedger_LogInfoNoLogger(t *testing.T) {
 	var buff bytes.Buffer
 	var expectedString = "arg"
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 
-	testRepo.LogInfo("%s", expectedString)
-	assert.NotEmpty(t, testRepo.loggers)
-	testRepo.loggers[0](&logrus.Logger{
+	testLedger.LogInfo("%s", expectedString)
+	assert.NotEmpty(t, testLedger.loggers)
+	testLedger.loggers[0](&logrus.Logger{
 		Out:   io.Writer(&buff),
 		Level: logrus.InfoLevel,
 		Formatter: &easy.Formatter{
@@ -648,12 +648,12 @@ func TestRepo_LogInfoNoLogger(t *testing.T) {
 	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
 }
 
-func TestRepo_LogError(t *testing.T) {
+func TestLedger_LogError(t *testing.T) {
 	var buff bytes.Buffer
 	var expectedString = "arg"
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 
-	testRepo.LoggerFactory = func(repo *Repo) *logrus.Logger {
+	testLedger.LoggerFactory = func(ledger *Ledger) *logrus.Logger {
 		return &logrus.Logger{
 			Out:   io.Writer(&buff),
 			Level: logrus.ErrorLevel,
@@ -663,19 +663,19 @@ func TestRepo_LogError(t *testing.T) {
 			},
 		}
 	}
-	testRepo.InitLogging()
-	testRepo.LogError("%s", expectedString)
+	testLedger.InitLogging()
+	testLedger.LogError("%s", expectedString)
 	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
 }
 
-func TestRepo_LogErrorNoLogger(t *testing.T) {
+func TestLedger_LogErrorNoLogger(t *testing.T) {
 	var buff bytes.Buffer
 	var expectedString = "arg"
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 
-	testRepo.LogError("%s", expectedString)
-	assert.NotEmpty(t, testRepo.loggers)
-	testRepo.loggers[0](&logrus.Logger{
+	testLedger.LogError("%s", expectedString)
+	assert.NotEmpty(t, testLedger.loggers)
+	testLedger.loggers[0](&logrus.Logger{
 		Out:   io.Writer(&buff),
 		Level: logrus.ErrorLevel,
 		Formatter: &easy.Formatter{
@@ -686,43 +686,43 @@ func TestRepo_LogErrorNoLogger(t *testing.T) {
 	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
 }
 
-func TestRepo_QueryMandatory(t *testing.T) {
-	var buff, _, testRepo = newTestConfigsWithInput(strings.NewReader("input"))
+func TestLedger_QueryMandatory(t *testing.T) {
+	var buff, _, testLedger = newTestConfigsWithInput(strings.NewReader("input"))
 	var expectedInput = "input"
 	var expectedOutput = "test"
 
-	assert.EqualValues(t, expectedInput, testRepo.QueryMandatory("test"))
+	assert.EqualValues(t, expectedInput, testLedger.QueryMandatory("test"))
 	assert.EqualValues(t, expectedOutput, buff.String())
 }
 
-func TestRepo_QuerySecret(t *testing.T) {
-	var buff, _, testRepo = newTestConfigsWithInput(os.Stdin)
+func TestLedger_QuerySecret(t *testing.T) {
+	var buff, _, testLedger = newTestConfigsWithInput(os.Stdin)
 
-	assert.Empty(t, testRepo.QuerySecret("secret"))
+	assert.Empty(t, testLedger.QuerySecret("secret"))
 	assert.EqualValues(t, "secret\n", buff.String())
 }
 
-func TestRepo_ToWorkDir(t *testing.T) {
+func TestLedger_ToWorkDir(t *testing.T) {
 	var expectedFlag = "flag"
 	var expectedPath = "path"
 	var testOption = &StringOption{Option{Param: expectedFlag}}
 	var testFlagSet = pflag.NewFlagSet("test", pflag.ContinueOnError)
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var testValue = testFlagSet.String(expectedFlag, expectedPath, "usage")
 
-	testRepo.ToWorkDir(testOption, testFlagSet)
-	assert.EqualValues(t, testRepo.WorkDir, *testValue)
+	testLedger.ToWorkDir(testOption, testFlagSet)
+	assert.EqualValues(t, testLedger.WorkDir, *testValue)
 }
 
-func TestRepo_ValidateValidatorNil(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_ValidateValidatorNil(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testOption = &Option{Key: "key"}
 
-	assert.True(t, testRepo.Validate(testOption))
+	assert.True(t, testLedger.Validate(testOption))
 }
 
-func TestRepo_Validate(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+func TestLedger_Validate(t *testing.T) {
+	var _, testLedger = newTestConfigs()
 	var testOption = &Option{
 		Key: "key",
 		Validator: func(value any) bool {
@@ -730,10 +730,10 @@ func TestRepo_Validate(t *testing.T) {
 		},
 	}
 
-	assert.False(t, testRepo.Validate(testOption))
+	assert.False(t, testLedger.Validate(testOption))
 }
 
-func newTestConfigs() (*viper.Viper, *Repo) {
+func newTestConfigs() (*viper.Viper, *Ledger) {
 	var v = viper.New()
 
 	return v, NewBuilder().
@@ -741,7 +741,7 @@ func newTestConfigs() (*viper.Viper, *Repo) {
 		Build()
 }
 
-func newTestConfigsWithBuffer() (*bytes.Buffer, *viper.Viper, *Repo) {
+func newTestConfigsWithBuffer() (*bytes.Buffer, *viper.Viper, *Ledger) {
 	var v = viper.New()
 	var buff bytes.Buffer
 
@@ -752,7 +752,7 @@ func newTestConfigsWithBuffer() (*bytes.Buffer, *viper.Viper, *Repo) {
 		Build()
 }
 
-func newTestConfigsWithInput(input io.Reader) (*bytes.Buffer, *viper.Viper, *Repo) {
+func newTestConfigsWithInput(input io.Reader) (*bytes.Buffer, *viper.Viper, *Ledger) {
 	var v = viper.New()
 	var buff bytes.Buffer
 

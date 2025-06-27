@@ -28,31 +28,31 @@ func (se *StartExecutor) Display() {
 	}
 
 	options = append(options, se.Cli.SfOptions()...)
-	se.Repo.DisplayOptions(options...)
+	se.Ledger.DisplayOptions(options...)
 }
 
 func (se *StartExecutor) Pretend() {
-	var force = se.Repo.GetBool(se.optionContainerReplace)
+	var force = se.Ledger.GetBool(se.optionContainerReplace)
 	var params = se.makeStartParams(force)
 
-	docker.NewStartTask().Pretend(params, se.Repo.Logger)
+	docker.NewStartTask().Pretend(params, se.Ledger.Logger)
 }
 
 func (se *StartExecutor) Proceed() {
-	var replace = se.Repo.GetBool(se.optionContainerReplace)
-	var preserve = se.Repo.GetBool(se.optionContainerPreserve)
+	var replace = se.Ledger.GetBool(se.optionContainerReplace)
+	var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
 	var buildParams = makeBuildParams(&se.BaseExecutor)
 	var params = se.makeStartParams(replace)
 	var plan = task.Plan{
-		Logger: se.Repo.Logger,
+		Logger: se.Ledger.Logger,
 		OnFailure: func(msg interface{}) {
-			se.Repo.Logger.Errorf("Could not start container %s, error: %s", params.Name, msg)
+			se.Ledger.Logger.Errorf("Could not start container %s, error: %s", params.Name, msg)
 		},
 		OnSuccess: func(msg interface{}) {
 			var out = cast.ToString(msg)
 
 			if out != "" {
-				se.Repo.Logger.Infof("Started container [%s]", out)
+				se.Ledger.Logger.Infof("Started container [%s]", out)
 				fmt.Printf("%s\n", out)
 			}
 		},
@@ -81,8 +81,8 @@ func (se *StartExecutor) Proceed() {
 func (se *StartExecutor) makeStartParams(force bool) *docker.ContainerParams {
 	var result = makeContainerParams(se.BaseExecutor, se.StartOptions.StopOptions, se.StartOptions.RunOptions)
 
-	result.MountOutput = se.Repo.GetString(se.optionMountOutput)
-	result.MountInput = se.Repo.GetString(se.optionMountInput)
+	result.MountOutput = se.Ledger.GetString(se.optionMountOutput)
+	result.MountInput = se.Ledger.GetString(se.optionMountInput)
 	result.Force = force
 	return result
 }
@@ -106,7 +106,7 @@ func (so *StartOptions) allDefiners() []config.Definer {
 	}
 }
 
-func NewStart(repo *config.Repo, cli *Cli) *cobra.Command {
+func NewStart(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var options = NewStartOptions(cli)
 	var start = &cobra.Command{
 		Use:     "start",
@@ -114,26 +114,26 @@ func NewStart(repo *config.Repo, cli *Cli) *cobra.Command {
 		Long:    "Starts the Smart Function, building it first if necessary, and creating a container matching the name and version of its context if it doesn't exist",
 		Example: "genaiz sf start --image myproject/myfunc:latest --name mycontainer-myfunc --replace",
 		PreRun: func(cmd *cobra.Command, args []string) {
-			repo.FromWorkDir(options.optionMountInput, cmd.Flags())
-			repo.FromWorkDir(options.optionMountLog, cmd.Flags())
-			repo.FromWorkDir(options.optionMountOutput, cmd.Flags())
-			repo.FromWorkDir(options.optionMountVar, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountInput, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountLog, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountOutput, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountVar, cmd.Flags())
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			options.rebuildImage = needsRebuildingImage(cmd, options.RunOptions.optionRunImage)
-			cli.Exec(repo, NewStartExecutor(cmd.Context(), repo, cli, options))
+			cli.Exec(ledger, NewStartExecutor(cmd.Context(), ledger, cli, options))
 		},
 	}
 
-	repo.Register(start, options.allDefiners()...)
+	ledger.Register(start, options.allDefiners()...)
 	return start
 }
 
-func NewStartExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *StartOptions) *StartExecutor {
+func NewStartExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *StartOptions) *StartExecutor {
 	return &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Context: ctx,
-			Repo:    repo,
+			Ledger:  ledger,
 			Cli:     cli,
 		},
 		StartOptions: options,

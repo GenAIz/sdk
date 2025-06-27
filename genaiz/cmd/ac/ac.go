@@ -10,7 +10,7 @@ import (
 	"genaiz.com/genaiz/config"
 )
 
-func NewAc(repo *config.Repo) *cobra.Command {
+func NewAc(ledger *config.Ledger) *cobra.Command {
 	var ac = &cobra.Command{
 		Use:     "account",
 		Aliases: []string{"ac"},
@@ -18,8 +18,8 @@ func NewAc(repo *config.Repo) *cobra.Command {
 	}
 
 	ac.AddCommand(
-		NewLogin(repo),
-		NewLogout(repo),
-		NewPolicy(repo))
+		NewLogin(ledger),
+		NewLogout(ledger),
+		NewPolicy(ledger))
 	return ac
 }

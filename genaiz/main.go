@@ -8,12 +8,12 @@ import (
 )
 
 func main() {
-	var repo = config.NewRepo()
+	var ledger = config.NewLedger()
 
-	cobra.OnInitialize(repo.Init)
-	root := cmd.New(repo)
-	cobra.OnInitialize(repo.InitDefaults)
-	cobra.OnInitialize(repo.InitLogging)
+	cobra.OnInitialize(ledger.Init)
+	root := cmd.New(ledger)
+	cobra.OnInitialize(ledger.InitDefaults)
+	cobra.OnInitialize(ledger.InitLogging)
 
 	if err := root.Execute(); err != nil {
 		cobra.CheckErr(err)

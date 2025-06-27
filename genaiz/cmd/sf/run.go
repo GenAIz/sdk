@@ -24,8 +24,8 @@ func (re *RunExecutor) Display() {
 func (re *RunExecutor) Pretend() {
 	var params = re.makeRunParams()
 
-	re.Repo.DisplayChangeDir()
-	docker.NewRunTask().Pretend(params, re.Repo.Logger)
+	re.Ledger.DisplayChangeDir()
+	docker.NewRunTask().Pretend(params, re.Ledger.Logger)
 }
 
 func (re *RunExecutor) Proceed() {
@@ -59,7 +59,7 @@ func (ro *RunOptions) allDefiners() []config.Definer {
 	}
 }
 
-func NewRun(repo *config.Repo, cli *Cli) *cobra.Command {
+func NewRun(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var options = NewRunOptions(cli)
 	var run = &cobra.Command{
 		Use:     "run",
@@ -67,27 +67,27 @@ func NewRun(repo *config.Repo, cli *Cli) *cobra.Command {
 		Long:    "Runs a Smart Function image detached, building it first if necessary, assigning it a disposable container",
 		Example: "genaiz sf run --image genaiz.com/sf/smartfunc:latest",
 		PreRun: func(cmd *cobra.Command, args []string) {
-			repo.FromWorkDir(options.optionMountInput, cmd.Flags())
-			repo.FromWorkDir(options.optionMountLog, cmd.Flags())
-			repo.FromWorkDir(options.optionMountOutput, cmd.Flags())
-			repo.FromWorkDir(options.optionMountVar, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountInput, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountLog, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountOutput, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountVar, cmd.Flags())
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			options.rebuildImage = needsRebuildingImage(cmd, options.optionRunImage)
-			cli.Exec(repo, NewRunExecutor(cmd.Context(), repo, cli, options))
+			cli.Exec(ledger, NewRunExecutor(cmd.Context(), ledger, cli, options))
 		},
 	}
 
-	repo.Register(run, options.allDefiners()...)
+	ledger.Register(run, options.allDefiners()...)
 	return run
 }
 
-func NewRunExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *RunOptions) *RunExecutor {
+func NewRunExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *RunOptions) *RunExecutor {
 	return &RunExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:     cli,
 			Context: ctx,
-			Repo:    repo,
+			Ledger:  ledger,
 		},
 		RunOptions: options,
 	}
@@ -108,15 +108,15 @@ func displayRunOptions(be BaseExecutor, ro *RunOptions) {
 	}
 
 	options = append(options, be.Cli.SfOptions()...)
-	be.Repo.DisplayOptions(options...)
+	be.Ledger.DisplayOptions(options...)
 }
 
 func execRunParamsTask(be BaseExecutor, ro *RunOptions, params *docker.ContainerParams, runTask *task.Task[docker.ContainerParams]) {
 	var workers []task.Worker
 	var plan = &task.Plan{
-		Logger: be.Repo.Logger,
+		Logger: be.Ledger.Logger,
 		OnFailure: func(msg interface{}) {
-			be.Repo.Logger.Errorf("Could not %s on image %s, error: %s", runTask.Name, params.DockerImage, msg)
+			be.Ledger.Logger.Errorf("Could not %s on image %s, error: %s", runTask.Name, params.DockerImage, msg)
 			cobra.CheckErr(msg)
 		},
 		OnSuccess: func(msg interface{}) {
@@ -143,12 +143,12 @@ func makeRunParams(be BaseExecutor, ro *RunOptions) *docker.ContainerParams {
 			Attached: false,
 			Dispose:  true,
 		},
-		DockerImage: be.Repo.GetString(ro.optionRunImage),
-		MountInput:  be.Repo.GetString(ro.optionMountInput),
-		MountLog:    be.Repo.GetString(ro.optionMountLog),
-		MountOutput: be.Repo.GetString(ro.optionMountOutput),
-		MountVar:    be.Repo.GetString(ro.optionMountVar),
-		Prefix:      be.Repo.GetString(be.Cli.optionDockerTag),
+		DockerImage: be.Ledger.GetString(ro.optionRunImage),
+		MountInput:  be.Ledger.GetString(ro.optionMountInput),
+		MountLog:    be.Ledger.GetString(ro.optionMountLog),
+		MountOutput: be.Ledger.GetString(ro.optionMountOutput),
+		MountVar:    be.Ledger.GetString(ro.optionMountVar),
+		Prefix:      be.Ledger.GetString(be.Cli.optionDockerTag),
 	}
 }
 
@@ -177,9 +177,9 @@ func newOptionCmdImage(cmd string) *config.StringOption {
 			Key:   "SF." + cmd + ".Image",
 			Param: "image",
 			Usage: "reference to an image with or without the version",
-			DefaultGetter: func(repo *config.Repo) any {
+			DefaultGetter: func(ledger *config.Ledger) any {
 				if cmd != "Run" {
-					return repo.GetValue("SF.Run.Image")
+					return ledger.GetValue("SF.Run.Image")
 				}
 
 				return ""
@@ -211,8 +211,8 @@ func newOptionMountLog(cmd string, defaultOption *config.StringOption) *config.S
 			Key:   "SF." + cmd + ".Log",
 			Param: "log",
 			Usage: "path of the log files folder, if any. " + cmd + " will attempt creating the path if does not exist",
-			DefaultGetter: func(repo *config.Repo) any {
-				return repo.Get(&defaultOption.Option)
+			DefaultGetter: func(ledger *config.Ledger) any {
+				return ledger.Get(&defaultOption.Option)
 			},
 			Validator: config.Optionally(config.Validation.DirCreated),
 		},
@@ -242,8 +242,8 @@ func newOptionMountVar(cmd string, defaultOption *config.StringOption) *config.S
 			Key:   "SF." + cmd + ".Var",
 			Param: "var",
 			Usage: "path of a solution state files folder, if any. " + cmd + " will attempt creating the path if does not exist",
-			DefaultGetter: func(repo *config.Repo) any {
-				return repo.Get(&defaultOption.Option)
+			DefaultGetter: func(ledger *config.Ledger) any {
+				return ledger.Get(&defaultOption.Option)
 			},
 			Validator: config.Optionally(config.Validation.DirCreated),
 		},

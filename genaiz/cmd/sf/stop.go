@@ -27,28 +27,28 @@ func (se *StopExecutor) Display() {
 	}
 
 	options = append(options, se.Cli.SfOptions()...)
-	se.Repo.DisplayOptions(options...)
+	se.Ledger.DisplayOptions(options...)
 }
 
 func (se *StopExecutor) Pretend() {
 	var params = se.makeContainerParams()
 
-	docker.NewStopTask().Pretend(params, se.Repo.Logger)
+	docker.NewStopTask().Pretend(params, se.Ledger.Logger)
 }
 
 func (se *StopExecutor) Proceed() {
-	var preserve = se.Repo.GetBool(se.optionContainerPreserve)
+	var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
 	var params = se.makeContainerParams()
 	var plan = &task.Plan{
-		Logger: se.Repo.Logger,
+		Logger: se.Ledger.Logger,
 		OnFailure: func(msg interface{}) {
-			se.Repo.Logger.Errorf("Could not stop container %s, error: %s", params.Name, msg)
+			se.Ledger.Logger.Errorf("Could not stop container %s, error: %s", params.Name, msg)
 		},
 		OnSuccess: func(msg interface{}) {
 			var out = cast.ToString(msg)
 
 			if out != "" {
-				se.Repo.Logger.Infof("Stopped container [%s]", out)
+				se.Ledger.Logger.Infof("Stopped container [%s]", out)
 				fmt.Printf("%s\n", out)
 			}
 		},
@@ -79,7 +79,7 @@ func (so *StopOptions) allDefiners() []config.Definer {
 	}
 }
 
-func NewStop(repo *config.Repo, cli *Cli) *cobra.Command {
+func NewStop(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var options = NewStopOptions(cli)
 	var stop = &cobra.Command{
 		Use:     "stop",
@@ -87,20 +87,20 @@ func NewStop(repo *config.Repo, cli *Cli) *cobra.Command {
 		Long:    "Stops a Smart Function, removing its container by default",
 		Example: "genaiz sf stop --name mycontainer-myfunc1 --preserve",
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Exec(repo, NewStopExecutor(cmd.Context(), repo, cli, options))
+			cli.Exec(ledger, NewStopExecutor(cmd.Context(), ledger, cli, options))
 		},
 	}
 
-	repo.Register(stop, options.allDefiners()...)
+	ledger.Register(stop, options.allDefiners()...)
 	return stop
 }
 
-func NewStopExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *StopOptions) *StopExecutor {
+func NewStopExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *StopOptions) *StopExecutor {
 	return &StopExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:     cli,
 			Context: ctx,
-			Repo:    repo,
+			Ledger:  ledger,
 		},
 		StopOptions: options,
 	}
@@ -122,9 +122,9 @@ func makeContainerParams(be BaseExecutor, so *StopOptions, ro *RunOptions) *dock
 				Context: be.Context,
 			},
 		},
-		DockerImage: be.Repo.GetString(ro.optionRunImage),
-		Name:        be.Repo.GetString(so.optionContainerName),
-		Prefix:      be.Repo.GetString(so.optionContainerPrefix),
+		DockerImage: be.Ledger.GetString(ro.optionRunImage),
+		Name:        be.Ledger.GetString(so.optionContainerName),
+		Prefix:      be.Ledger.GetString(so.optionContainerPrefix),
 	}
 }
 
@@ -155,9 +155,9 @@ func newOptionContainerPrefix(cmd string, cli *Cli) *config.StringOption {
 			Param: "prefix",
 			Short: "p",
 			Usage: "prefix to use for creating new containers",
-			DefaultGetter: func(repo *config.Repo) any {
-				var tag = strings.ReplaceAll(repo.GetString(cli.optionDockerTag), "/", "-")
-				var workspace = repo.GetWorkspace()
+			DefaultGetter: func(ledger *config.Ledger) any {
+				var tag = strings.ReplaceAll(ledger.GetString(cli.optionDockerTag), "/", "-")
+				var workspace = ledger.GetWorkspace()
 
 				if workspace != "" {
 					return workspace + "-" + tag

@@ -13,15 +13,15 @@ type BaseOptions struct {
 
 type BaseCli struct {
 	options *BaseOptions
-	repo    *config.Repo
+	ledger  *config.Ledger
 }
 
 func (bc BaseCli) GetRegistryUrl() string {
-	return bc.repo.GetString(bc.options.optionRegistry)
+	return bc.ledger.GetString(bc.options.optionRegistry)
 }
 
 func (bc BaseCli) GetWiremockUrl() string {
-	return bc.repo.GetString(bc.options.optionWiremock)
+	return bc.ledger.GetString(bc.options.optionWiremock)
 }
 
 func NewFunction() *cobra.Command {
@@ -39,17 +39,17 @@ func NewFunction() *cobra.Command {
 }
 
 func NewFunctionCli(cmd *cobra.Command) *BaseCli {
-	var repo = config.NewRepo()
+	var ledger = config.NewLedger()
 	var options = &BaseOptions{
 		optionRegistry: newOptionRegistry(),
 		optionWiremock: newOptionWiremock(),
 	}
 
-	repo.Register(cmd, options.optionRegistry, options.optionWiremock)
-	repo.InitDefaults()
+	ledger.Register(cmd, options.optionRegistry, options.optionWiremock)
+	ledger.InitDefaults()
 	return &BaseCli{
 		options: options,
-		repo:    repo,
+		ledger:  ledger,
 	}
 }
 

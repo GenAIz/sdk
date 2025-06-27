@@ -24,10 +24,10 @@ func TestLoginExecutor_LoginExistingSession(t *testing.T) {
 	var expectedHost = "expectedAddr"
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testRefreshOption = newOptionRefresh()
 	var testExecutor = &LoginExecutor{
-		Repo: testRepo,
+		Ledger: testLedger,
 
 		optionRefresh: testRefreshOption,
 		sessionTaskFactory: func() *task.Task[broker.Broker] {
@@ -45,7 +45,7 @@ func TestLoginExecutor_LoginExistingSession(t *testing.T) {
 	}
 
 	defer patch.Unpatch()
-	testRepo.Logger = &logrus.Logger{}
+	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Login(expectedHost)
 	assert.NotEmpty(t, patch.CalledWith)
 	assert.Contains(t, patch.CalledWith, expectedSession)
@@ -56,12 +56,12 @@ func TestLoginExecutor_LoginExpiredSession(t *testing.T) {
 	var expectedHost = "expectedAddr"
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testPasswordOption = newOptionPassword()
 	var testRefreshOption = newOptionRefresh()
 	var testUsernameOption = newOptionUsername("test")
 	var testExecutor = &LoginExecutor{
-		Repo: testRepo,
+		Ledger: testLedger,
 
 		optionPassword: testPasswordOption,
 		optionRefresh:  testRefreshOption,
@@ -92,7 +92,7 @@ func TestLoginExecutor_LoginExpiredSession(t *testing.T) {
 	defer patch.Unpatch()
 	testViper.Set(testPasswordOption.Key, "password")
 	testViper.Set(testUsernameOption.Key, "username")
-	testRepo.Logger = &logrus.Logger{}
+	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Login(expectedHost)
 	assert.NotEmpty(t, patch.CalledWith)
 	assert.Contains(t, patch.CalledWith, expectedSession)
@@ -103,12 +103,12 @@ func TestLoginExecutor_LoginRefresh(t *testing.T) {
 	var expectedHost = "expectedAddr"
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testPasswordOption = newOptionPassword()
 	var testRefreshOption = newOptionRefresh()
 	var testUsernameOption = newOptionUsername("test")
 	var testExecutor = &LoginExecutor{
-		Repo: testRepo,
+		Ledger: testLedger,
 
 		optionPassword: testPasswordOption,
 		optionRefresh:  testRefreshOption,
@@ -132,7 +132,7 @@ func TestLoginExecutor_LoginRefresh(t *testing.T) {
 	testViper.Set(testRefreshOption.Key, true)
 	testViper.Set(testPasswordOption.Key, "password")
 	testViper.Set(testUsernameOption.Key, "username")
-	testRepo.Logger = &logrus.Logger{}
+	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Login(expectedHost)
 	assert.NotEmpty(t, patch.CalledWith)
 	assert.Contains(t, patch.CalledWith, expectedSession)
@@ -142,13 +142,13 @@ func TestLoginExecutor_queryPassword(t *testing.T) {
 	var buff bytes.Buffer
 	var testPasswordOption = newOptionPassword()
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().
+	var testLedger = config.NewBuilder().
 		WithInput(os.Stdin).
 		WithOutput(io.Writer(&buff)).
 		WithViper(testViper).
 		Build()
 	var testExecutor = &LoginExecutor{
-		Repo: testRepo,
+		Ledger: testLedger,
 
 		optionPassword: testPasswordOption,
 	}
@@ -161,13 +161,13 @@ func TestLoginExecutor_queryUsername(t *testing.T) {
 	var expectedUsername = "username"
 	var testUsernameOption = newOptionUsername("test")
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().
+	var testLedger = config.NewBuilder().
 		WithInput(strings.NewReader(expectedUsername)).
 		WithOutput(io.Writer(&buff)).
 		WithViper(testViper).
 		Build()
 	var testExecutor = &LoginExecutor{
-		Repo: testRepo,
+		Ledger: testLedger,
 
 		optionUsername: testUsernameOption,
 	}
@@ -177,10 +177,10 @@ func TestLoginExecutor_queryUsername(t *testing.T) {
 
 func TestNewLogin_InvalidArgs(t *testing.T) {
 	var loginCompleted = false
-	var testRepo = config.NewBuilder().Build()
-	var testLogin = NewLogin(testRepo)
+	var testLedger = config.NewBuilder().Build()
+	var testLogin = NewLogin(testLedger)
 
-	testRepo.Logger = &logrus.Logger{}
+	testLedger.Logger = &logrus.Logger{}
 	testLogin.PostRun = func(cmd *cobra.Command, args []string) {
 		loginCompleted = true
 	}
@@ -192,8 +192,8 @@ func TestNewLogin_InvalidBrokerAddr(t *testing.T) {
 	var loginCompleted = false
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
-	var testLogin = NewLogin(testRepo)
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLogin = NewLogin(testLedger)
 	var testPasswordOption = newOptionPassword()
 	var testRefreshOption = newOptionRefresh()
 	var testUsernameOption = newOptionUsername("Login")
@@ -202,7 +202,7 @@ func TestNewLogin_InvalidBrokerAddr(t *testing.T) {
 	testViper.Set(testRefreshOption.Key, true)
 	testViper.Set(testPasswordOption.Key, "password")
 	testViper.Set(testUsernameOption.Key, "username")
-	testRepo.Logger = &logrus.Logger{}
+	testLedger.Logger = &logrus.Logger{}
 	testLogin.SetArgs([]string{"localhost:1"})
 	testLogin.PostRun = func(cmd *cobra.Command, args []string) {
 		loginCompleted = true

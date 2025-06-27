@@ -18,9 +18,9 @@ func TestLogoutExecutor_Logout(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &LogoutExecutor{
-		Repo: testRepo,
+		Ledger: testLedger,
 
 		optionHost:     newOptionHost(),
 		optionUsername: newOptionUsername("Test"),
@@ -40,7 +40,7 @@ func TestLogoutExecutor_Logout(t *testing.T) {
 	}
 
 	defer patch.Unpatch()
-	testRepo.Logger = &logrus.Logger{}
+	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Logout()
 	assert.NotEmpty(t, patch.CalledWith)
 	assert.Contains(t, patch.CalledWith, expectedSession)
@@ -48,16 +48,16 @@ func TestLogoutExecutor_Logout(t *testing.T) {
 
 func TestNewLogout(t *testing.T) {
 	var testViper = viper.New()
-	var testRepo = config.NewBuilder().WithViper(testViper).Build()
-	var testLogout = NewLogout(testRepo)
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLogout = NewLogout(testLedger)
 	var tmpFile, err = os.CreateTemp("/tmp", "genaiz.auth")
 
 	if err == nil {
 		var patch = mock.Patches{T: t}.OsExit(func(i int) {})
 
 		defer patch.Unpatch()
-		testRepo.Logger = &logrus.Logger{}
-		testRepo.AuthFile = tmpFile.Name()
+		testLedger.Logger = &logrus.Logger{}
+		testLedger.AuthFile = tmpFile.Name()
 		assert.NoError(t, testLogout.Execute())
 		assert.NotEmpty(t, patch.CalledWith)
 		assert.EqualValues(t, 1, patch.CalledWith)

@@ -11,18 +11,18 @@ import (
 	"genaiz.com/genaiz/lang/stringz"
 )
 
-// Option is a struct describing all the data and facilities needed to manage a configuration value in a config.Repo
+// Option is a struct describing all the data and facilities needed to manage a configuration value in a config.Ledger
 type Option struct {
-	Key           string               // Key is used in configuration files
-	Alias         string               // Alias is also used in configuration files
-	Param         string               // Param is used from the shell
-	Short         string               // Short is the shortened one letter alias for param
-	Env           string               // Env is the environment string used to retrieve the config
-	Usage         string               // Usage is the help string display for the parameter on the shell
-	DefaultGetter func(repo *Repo) any // DefaultGetter should be called when GetString, GetInt and GetBool are called, it has priority over DefaultValue
-	DefaultSetter func(repo *Repo) any // DefaultSetter should be called on cobra.OnInitialize with a reference to the repo
-	DefaultValue  any                  // DefaultValue is configured on viper.SetDefault when Registrar.Register is called
-	Validator     Validates            // Validator should be called manually and liberally, not validated does not imply failed command
+	Key           string            // Key is used in configuration files
+	Alias         string            // Alias is also used in configuration files
+	Param         string            // Param is used from the shell
+	Short         string            // Short is the shortened one letter alias for param
+	Env           string            // Env is the environment string used to retrieve the config
+	Usage         string            // Usage is the help string display for the parameter on the shell
+	DefaultGetter func(*Ledger) any // DefaultGetter should be called when GetString, GetInt and GetBool are called, it has priority over DefaultValue
+	DefaultSetter func(*Ledger) any // DefaultSetter should be called on cobra.OnInitialize with a reference to the Ledger
+	DefaultValue  any               // DefaultValue is configured on viper.SetDefault when Registrar.Register is called
+	Validator     Validates         // Validator should be called manually and liberally, not validated does not imply failed command
 }
 
 // Equals test whether the option matches the scalar data of the provided other Option
@@ -81,37 +81,37 @@ func (o *Option) GetEnvKey() string {
 	return ""
 }
 
-// Default provides the default value of the Option when a Repo.Get is processed or when Repo.InitDefaults is invoked
-func (o *Option) Default(repo *Repo) {
+// Default provides the default value of the Option when a Ledger.Get is processed or when Ledger.InitDefaults is invoked
+func (o *Option) Default(ledger *Ledger) {
 	var value any
 
-	panicz.RequiresNotNil("repo", repo)
+	panicz.RequiresNotNil("ledger", ledger)
 
 	if o.DefaultSetter == nil {
 		value = o.DefaultValue
 	} else {
-		value = o.DefaultSetter(repo)
+		value = o.DefaultSetter(ledger)
 	}
 
 	if value != nil {
 		if o.Key != "" {
-			repo.viper.SetDefault(o.Key, value)
+			ledger.viper.SetDefault(o.Key, value)
 		} else if o.Param != "" {
-			repo.viper.SetDefault(o.Param, value)
+			ledger.viper.SetDefault(o.Param, value)
 		}
 	}
 }
 
 // Defined provides a strategy for defining how to retrieve the Option from a pflag.FlagSet, viper, its DefaultSetter, DefaultGetter and DefaultValue
-func (o *Option) Defined(repo *Repo, set *pflag.FlagSet) {
-	panicz.RequiresNotNil("repo", repo)
+func (o *Option) Defined(ledger *Ledger, set *pflag.FlagSet) {
+	panicz.RequiresNotNil("ledger", ledger)
 
 	if flag := set.Lookup(o.Param); flag != nil {
-		o.bindKeyFlag(repo.viper, flag)
+		o.bindKeyFlag(ledger.viper, flag)
 		o.bindDefValue(flag)
 	}
 
-	o.bindKeyEnv(repo.viper)
+	o.bindKeyEnv(ledger.viper)
 }
 
 // BoolOption treats the value of an option as a boolean when defining its pflag.Flag and processing its Option.DefaultValue
@@ -120,15 +120,15 @@ type BoolOption struct {
 }
 
 // Defined of a BoolOption defined its pflag.Flag under a pflag.FlagSet as a Bool or BoolP with the Option.Param and Option.Key
-func (bo *BoolOption) Defined(repo *Repo, flags *pflag.FlagSet) {
-	panicz.RequiresNotNil("repo", repo)
+func (bo *BoolOption) Defined(ledger *Ledger, flags *pflag.FlagSet) {
+	panicz.RequiresNotNil("ledger", ledger)
 	panicz.RequiresNotNil("flags", flags)
 
 	if bo.Param != "" {
 		flags.BoolP(bo.Param, bo.Short, false, bo.Usage)
 	}
 
-	bo.Option.Defined(repo, flags)
+	bo.Option.Defined(ledger, flags)
 }
 
 // ListOption treats the value of an option as a list of strings when defining its pflag.Flag and processing its Option.DefaultValue
@@ -137,15 +137,15 @@ type ListOption struct {
 }
 
 // Defined of a ListOption defined its pflag.Flag under pflag.FlagSet as a ListValue with the Option.Param and Option.Key
-func (lo *ListOption) Defined(repo *Repo, flags *pflag.FlagSet) {
-	panicz.RequiresNotNil("repo", repo)
+func (lo *ListOption) Defined(ledger *Ledger, flags *pflag.FlagSet) {
+	panicz.RequiresNotNil("ledger", ledger)
 	panicz.RequiresNotNil("flags", flags)
 
 	if lo.Param != "" {
 		flags.VarP(newListValue(), lo.Param, lo.Short, "")
 	}
 
-	lo.Option.Defined(repo, flags)
+	lo.Option.Defined(ledger, flags)
 }
 
 // ListValue is a value adapter for converting multiple pflag.Flag instances on a command line into a list of configurations
@@ -187,40 +187,40 @@ type StringOption struct {
 }
 
 // Defined of a StringOption defines its pflag.Flag under a pflag.FlagSet as a String or StringP with the Option.Param and Option.Key
-func (so *StringOption) Defined(repo *Repo, flags *pflag.FlagSet) {
-	panicz.RequiresNotNil("repo", repo)
+func (so *StringOption) Defined(ledger *Ledger, flags *pflag.FlagSet) {
+	panicz.RequiresNotNil("ledger", ledger)
 	panicz.RequiresNotNil("flags", flags)
 
 	if so.Param != "" {
 		flags.StringP(so.Param, so.Short, "", so.Usage)
 	}
 
-	so.Option.Defined(repo, flags)
+	so.Option.Defined(ledger, flags)
 }
 
-// MapOptionsByEnvKey returns a map of Option.Env keys to their resolved Repo value
-func MapOptionsByEnvKey(repo *Repo, options ...*Option) map[string]string {
-	return mapOptionsByKeyFunc(repo, func(opt *Option) string {
+// MapOptionsByEnvKey returns a map of Option.Env keys to their resolved Ledger value
+func MapOptionsByEnvKey(ledger *Ledger, options ...*Option) map[string]string {
+	return mapOptionsByKeyFunc(ledger, func(opt *Option) string {
 		return opt.GetEnvKey()
 	}, options...)
 }
 
-// MapOptionsByParam returns a map of Option.Param keys to their resolved Repo value
-func MapOptionsByParam(repo *Repo, options ...*Option) map[string]string {
-	return mapOptionsByKeyFunc(repo, func(opt *Option) string {
+// MapOptionsByParam returns a map of Option.Param keys to their resolved Ledger value
+func MapOptionsByParam(ledger *Ledger, options ...*Option) map[string]string {
+	return mapOptionsByKeyFunc(ledger, func(opt *Option) string {
 		return opt.Param
 	}, options...)
 }
 
-// mapOptionsByKeyFunc returns a map of Option keys, according to the provided toKey function, to their resolved Repo value
-func mapOptionsByKeyFunc(repo *Repo, toKey func(*Option) string, options ...*Option) map[string]string {
+// mapOptionsByKeyFunc returns a map of Option keys, according to the provided toKey function, to their resolved Ledger value
+func mapOptionsByKeyFunc(ledger *Ledger, toKey func(*Option) string, options ...*Option) map[string]string {
 	var result = make(map[string]string, len(options))
 
 	for _, opt := range options {
 		var key = toKey(opt)
 
 		if key != "" {
-			var value = repo.Get(opt)
+			var value = ledger.Get(opt)
 
 			if value == nil {
 				result[key] = ""

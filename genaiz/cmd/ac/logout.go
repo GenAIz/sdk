@@ -13,7 +13,7 @@ import (
 type LogoutTaskFactory func() *task.Task[broker.LoginParams]
 
 type LogoutExecutor struct {
-	Repo *config.Repo
+	Ledger *config.Ledger
 
 	optionHost     *config.StringOption
 	optionUsername *config.StringOption
@@ -23,7 +23,7 @@ type LogoutExecutor struct {
 
 func (le *LogoutExecutor) Logout() {
 	var logoutParams = le.makeLogoutParams()
-	var logoutPlan = task.NewPlan("Logout", le.Repo.Logger)
+	var logoutPlan = task.NewPlan("Logout", le.Ledger.Logger)
 
 	logoutPlan.OnSuccess = func(i interface{}) {
 		fmt.Printf("%s logged out\n", i)
@@ -34,15 +34,15 @@ func (le *LogoutExecutor) Logout() {
 func (le *LogoutExecutor) makeLogoutParams() *broker.LoginParams {
 	return &broker.LoginParams{
 		Broker: &broker.Broker{
-			AuthFile: le.Repo.AuthFile,
-			HostAddr: le.Repo.GetString(le.optionHost),
+			AuthFile: le.Ledger.AuthFile,
+			HostAddr: le.Ledger.GetString(le.optionHost),
 		},
-		Username: le.Repo.GetString(le.optionUsername),
+		Username: le.Ledger.GetString(le.optionUsername),
 	}
 }
 
-func NewLogout(repo *config.Repo) *cobra.Command {
-	var exec = NewLogoutExecutor(repo)
+func NewLogout(ledger *config.Ledger) *cobra.Command {
+	var exec = NewLogoutExecutor(ledger)
 	var logout = &cobra.Command{
 		Use:     "logout",
 		Short:   "Removes any previously acquired session",
@@ -53,13 +53,13 @@ func NewLogout(repo *config.Repo) *cobra.Command {
 		},
 	}
 
-	repo.Register(logout, exec.optionHost, exec.optionUsername)
+	ledger.Register(logout, exec.optionHost, exec.optionUsername)
 	return logout
 }
 
-func NewLogoutExecutor(repo *config.Repo) *LogoutExecutor {
+func NewLogoutExecutor(ledger *config.Ledger) *LogoutExecutor {
 	return &LogoutExecutor{
-		Repo: repo,
+		Ledger: ledger,
 
 		optionHost:     newOptionHost(),
 		optionUsername: newOptionUsername("Logout"),

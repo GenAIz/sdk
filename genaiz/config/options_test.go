@@ -171,7 +171,7 @@ func TestOption_GetEnvKeyWithNothing(t *testing.T) {
 	assert.Empty(t, testOption.GetEnvKey())
 }
 
-func TestOption_DefaultRepoNil(t *testing.T) {
+func TestOption_DefaultLedgerNil(t *testing.T) {
 	var testOption = &Option{}
 
 	assert.Panics(t, func() {
@@ -180,7 +180,7 @@ func TestOption_DefaultRepoNil(t *testing.T) {
 }
 
 func TestOption_DefaultDefaultParamValue(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var expectedDefault = "defaultValue"
 	var testOption = &StringOption{
 		Option: Option{
@@ -189,27 +189,27 @@ func TestOption_DefaultDefaultParamValue(t *testing.T) {
 		},
 	}
 
-	testOption.Default(testRepo)
-	assert.EqualValues(t, expectedDefault, testRepo.GetString(testOption))
+	testOption.Default(testLedger)
+	assert.EqualValues(t, expectedDefault, testLedger.GetString(testOption))
 }
 
 func TestOption_DefaultDefaultSetterKeyValue(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var expectedDefault = "defaultValue"
 	var testOption = &StringOption{
 		Option: Option{
 			Key: "key",
-			DefaultSetter: func(repo *Repo) any {
+			DefaultSetter: func(ledger *Ledger) any {
 				return expectedDefault
 			},
 		},
 	}
 
-	testOption.Default(testRepo)
-	assert.EqualValues(t, expectedDefault, testRepo.GetString(testOption))
+	testOption.Default(testLedger)
+	assert.EqualValues(t, expectedDefault, testLedger.GetString(testOption))
 }
 
-func TestOption_DefinedRepoNil(t *testing.T) {
+func TestOption_DefinedLedgerNil(t *testing.T) {
 	var testOption = &Option{}
 
 	assert.Panics(t, func() {
@@ -218,7 +218,7 @@ func TestOption_DefinedRepoNil(t *testing.T) {
 }
 
 func TestOption_DefinedNoFlag(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var flagSet = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var expectedValue = "envValue"
 	var testOption = &StringOption{
@@ -228,17 +228,17 @@ func TestOption_DefinedNoFlag(t *testing.T) {
 		},
 	}
 
-	testOption.Defined(testRepo, flagSet)
+	testOption.Defined(testLedger, flagSet)
 
 	if err := os.Setenv(testOption.Env, expectedValue); err != nil {
 		t.Errorf("could not set environment variable %s", testOption.Env)
 	}
 
-	assert.EqualValues(t, expectedValue, testRepo.GetString(testOption))
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
 }
 
 func TestOption_DefinedWithFlag(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var flagSet = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var expectedValue = "flagValue"
 	var testOption = &StringOption{
@@ -248,25 +248,25 @@ func TestOption_DefinedWithFlag(t *testing.T) {
 		},
 	}
 
-	testOption.Defined(testRepo, flagSet)
+	testOption.Defined(testLedger, flagSet)
 
 	if err := flagSet.Lookup(testOption.Param).Value.Set(expectedValue); err != nil {
 		t.Errorf("could not set value [%s]", err)
 	}
 
-	assert.EqualValues(t, expectedValue, testRepo.GetString(testOption))
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
 }
 
 func TestBoolOption_DefinedFlagsNil(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var testOption = &BoolOption{}
 
 	assert.Panics(t, func() {
-		testOption.Defined(testRepo, nil)
+		testOption.Defined(testLedger, nil)
 	})
 }
 
-func TestBoolOption_DefinedRepoNil(t *testing.T) {
+func TestBoolOption_DefinedLedgerNil(t *testing.T) {
 	var testOption = &BoolOption{}
 
 	assert.Panics(t, func() {
@@ -275,7 +275,7 @@ func TestBoolOption_DefinedRepoNil(t *testing.T) {
 }
 
 func TestBoolOption_Defined(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var flags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var expectedParam = "param"
 	var expectedShort = "p"
@@ -288,7 +288,7 @@ func TestBoolOption_Defined(t *testing.T) {
 		},
 	}
 
-	testOption.Defined(testRepo, flags)
+	testOption.Defined(testLedger, flags)
 
 	if flag := flags.Lookup(expectedParam); flag == nil {
 		t.Errorf("could not find defined flag [%s]", expectedParam)
@@ -300,15 +300,15 @@ func TestBoolOption_Defined(t *testing.T) {
 }
 
 func TestListOption_DefinedFlagsNil(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var testOption = &ListOption{}
 
 	assert.Panics(t, func() {
-		testOption.Defined(testRepo, nil)
+		testOption.Defined(testLedger, nil)
 	})
 }
 
-func TestListOption_DefinedRepoNil(t *testing.T) {
+func TestListOption_DefinedLedgerNil(t *testing.T) {
 	var testOption = &ListOption{}
 
 	assert.Panics(t, func() {
@@ -317,7 +317,7 @@ func TestListOption_DefinedRepoNil(t *testing.T) {
 }
 
 func TestListOption_Defined(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var flags = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var expectedParam = "param"
 	var expectedShort = "p"
@@ -330,7 +330,7 @@ func TestListOption_Defined(t *testing.T) {
 		},
 	}
 
-	testOption.Defined(testRepo, flags)
+	testOption.Defined(testLedger, flags)
 
 	if flag := flags.Lookup(expectedParam); flag == nil {
 		t.Errorf("could not find defined flag [%s]", expectedParam)
@@ -376,7 +376,7 @@ func TestListValue_Type(t *testing.T) {
 }
 
 func TestMapOptionsByParam(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var expectedKey = "param"
 	var expectedValue = "value"
 	var testNoParamOption = &Option{Key: "key"}
@@ -386,15 +386,15 @@ func TestMapOptionsByParam(t *testing.T) {
 		DefaultValue: expectedValue,
 	}
 
-	testRepo.Register(&cobra.Command{}, testValueOption)
-	testRepo.InitDefaults()
-	testOptions := MapOptionsByParam(testRepo, testNoParamOption, testNilValueOption, testValueOption)
+	testLedger.Register(&cobra.Command{}, testValueOption)
+	testLedger.InitDefaults()
+	testOptions := MapOptionsByParam(testLedger, testNoParamOption, testNilValueOption, testValueOption)
 	assert.NotEmpty(t, testOptions)
 	assert.EqualValues(t, expectedValue, testOptions[expectedKey])
 }
 
 func TestMapOptionsByEnvKey(t *testing.T) {
-	var _, testRepo = newTestConfigs()
+	var _, testLedger = newTestConfigs()
 	var expectedKey = "KEY"
 	var expectedValue = "value"
 	var testNoKeyOption = &Option{Param: "param"}
@@ -404,9 +404,9 @@ func TestMapOptionsByEnvKey(t *testing.T) {
 		DefaultValue: expectedValue,
 	}
 
-	testRepo.Register(&cobra.Command{}, testValueOption)
-	testRepo.InitDefaults()
-	testOptions := MapOptionsByEnvKey(testRepo, testNoKeyOption, testNilValueOption, testValueOption)
+	testLedger.Register(&cobra.Command{}, testValueOption)
+	testLedger.InitDefaults()
+	testOptions := MapOptionsByEnvKey(testLedger, testNoKeyOption, testNilValueOption, testValueOption)
 	assert.NotEmpty(t, testOptions)
 	assert.EqualValues(t, expectedValue, testOptions[expectedKey])
 }

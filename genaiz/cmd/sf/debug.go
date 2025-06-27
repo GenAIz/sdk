@@ -21,8 +21,8 @@ func (de *DebugExecutor) Display() {
 func (de *DebugExecutor) Pretend() {
 	var params = de.makeDebugParams()
 
-	de.Repo.DisplayChangeDir()
-	docker.NewDebugTask().Pretend(params, de.Repo.Logger)
+	de.Ledger.DisplayChangeDir()
+	docker.NewDebugTask().Pretend(params, de.Ledger.Logger)
 }
 
 func (de *DebugExecutor) Proceed() {
@@ -35,7 +35,7 @@ func (de *DebugExecutor) makeDebugParams() *docker.ContainerParams {
 	return makeRunParams(de.BaseExecutor, de.RunOptions)
 }
 
-func NewDebug(repo *config.Repo, cli *Cli) *cobra.Command {
+func NewDebug(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var options = NewDebugOptions(cli)
 	var debug = &cobra.Command{
 		Use:     "debug",
@@ -43,27 +43,27 @@ func NewDebug(repo *config.Repo, cli *Cli) *cobra.Command {
 		Long:    "Debugs a Smart Function image, building it first if necessary",
 		Example: "genaiz sf debug --image genaiz.com/sf/smartfunc:latest",
 		PreRun: func(cmd *cobra.Command, args []string) {
-			repo.FromWorkDir(options.optionMountInput, cmd.Flags())
-			repo.FromWorkDir(options.optionMountLog, cmd.Flags())
-			repo.FromWorkDir(options.optionMountOutput, cmd.Flags())
-			repo.FromWorkDir(options.optionMountVar, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountInput, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountLog, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountOutput, cmd.Flags())
+			ledger.FromWorkDir(options.optionMountVar, cmd.Flags())
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			options.rebuildImage = needsRebuildingImage(cmd, options.optionRunImage)
-			cli.Exec(repo, NewDebugExecutor(cmd.Context(), repo, cli, options))
+			cli.Exec(ledger, NewDebugExecutor(cmd.Context(), ledger, cli, options))
 		},
 	}
 
-	repo.Register(debug, options.allDefiners()...)
+	ledger.Register(debug, options.allDefiners()...)
 	return debug
 }
 
-func NewDebugExecutor(ctx context.Context, repo *config.Repo, cli *Cli, options *RunOptions) *DebugExecutor {
+func NewDebugExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *RunOptions) *DebugExecutor {
 	return &DebugExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:     cli,
 			Context: ctx,
-			Repo:    repo,
+			Ledger:  ledger,
 		},
 		RunOptions: options,
 	}
