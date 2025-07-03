@@ -120,6 +120,7 @@ func NewSf(ledger *config.Ledger, confirm Interactive, dry, pretend Decisive) *c
 		NewBuild(ledger, cli),
 		NewCreate(ledger, cli),
 		NewInit(ledger, cli),
+		NewList(ledger, cli),
 		NewRun(ledger, cli),
 		NewDebug(ledger, cli),
 		NewTest(ledger, cli),

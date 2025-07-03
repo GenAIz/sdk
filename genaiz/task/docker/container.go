@@ -104,16 +104,16 @@ type ContainerParams struct {
 }
 
 func (c *ContainerParams) GetName(summaries *[]container.Summary) string {
-	var i int
-
-	if summaries != nil {
-		i = len(*summaries)
-	}
-
 	if c.Name != "" {
 		return c.Name
 	} else if c.Prefix != "" {
-		return c.Prefix + "-" + string(rune(i))
+		var i int
+
+		if summaries != nil {
+			i = len(*summaries)
+		}
+
+		return fmt.Sprintf("%s-%d", c.Prefix, i)
 	}
 
 	panic("could not provide container name")
@@ -155,7 +155,7 @@ func NewStopTask() *task.Task[ContainerParams] {
 	}
 }
 
-func fmtMountParams(params *ContainerParams) string {
+func fmtParams(params *ContainerParams) string {
 	var stringParams = []string{
 		fmtMountBindParam(&InputMount, params.MountInput),
 		fmtMountBindParam(&OutputMount, params.MountOutput),
@@ -191,6 +191,14 @@ func fmtMountEnvParam(mount *ContainerMountPoint, path string) string {
 	}
 
 	return ""
+}
+
+func getContainerDisplayString(summary *container.Summary) string {
+	if len(summary.Names) > 0 {
+		return summary.Names[0][1:]
+	} else {
+		return summary.ID[0:11]
+	}
 }
 
 func handleContainerAttach(params *ContainerParams, state *task.State) error {
@@ -283,7 +291,6 @@ func handleContainerContext(params *ContainerParams, state *task.State) error {
 				return errors.New("container not found")
 			} else {
 				state.Containers = &containers
-				return nil
 			}
 		} else {
 			return err
@@ -295,6 +302,7 @@ func handleContainerContext(params *ContainerParams, state *task.State) error {
 
 func handleContainerCreate(params *ContainerParams, state *task.State) error {
 	var containerName = params.GetName(state.Containers)
+	var dockerImage = stringz.FirstNonEmpty(params.DockerImage, state.Output)
 	var createConfig = &container.Config{
 		Env: []string{
 			InputMount.GetEnvKeyValuePair(),
@@ -302,7 +310,7 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 			OutputMount.GetEnvKeyValuePair(),
 			VarMount.GetEnvKeyValuePair(),
 		},
-		Image: params.DockerImage,
+		Image: dockerImage,
 		Tty:   params.Interactive,
 	}
 	var hostConfig = &container.HostConfig{
@@ -310,7 +318,7 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 	}
 	var containerBinds = makeContainerMountBinds(params)
 
-	state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
+	state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, dockerImage)
 
 	for _, bind := range containerBinds {
 		state.Logger.Debugf("Binding %s to %s", bind.HostPath, bind.MountPath)
@@ -328,7 +336,7 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 			state.Logger.Warningf("%s", w)
 		}
 
-		state.Output = resp.ID[:12]
+		state.Output = resp.ID[0:11]
 	} else {
 		return err
 	}
@@ -365,26 +373,23 @@ func handleContainerCreatePretend(params *ContainerParams, state *task.State) er
 
 func handleContainerDisposal(params *ContainerParams, state *task.State) error {
 	var count = state.GetContainersSize()
-	var result error
+	var err error
 
 	if count > 0 {
 		// Removed volumes and links as we'll just re-create them if needed on Create
 		var removeOptions = container.RemoveOptions{
 			RemoveVolumes: true,
-			RemoveLinks:   true,
 			Force:         params.Force,
 		}
 
-		if count > 1 {
-			state.Logger.Debugf("%d containers selected for disposal", count)
-		}
-
 		for _, ct := range *state.Containers {
-			state.Logger.Debugf("Removing container [%s]", ct.ID)
+			var name = getContainerDisplayString(&ct)
 
-			if err := dockerClient.ContainerRemove(params.Context, ct.ID, removeOptions); err != nil {
-				state.Logger.Debugf("Could not remove container [%s] with error [%s]", ct.ID, err)
-				result = err
+			state.Logger.Debugf("Removing container [%s]", name)
+
+			if err = dockerClient.ContainerRemove(params.Context, ct.ID, removeOptions); err != nil {
+				state.Logger.Debugf("Could not remove container [%s] with error [%s]", name, err)
+				break
 			}
 		}
 
@@ -393,7 +398,7 @@ func handleContainerDisposal(params *ContainerParams, state *task.State) error {
 		state.Logger.Debugf("No containers selected for disposal")
 	}
 
-	return result
+	return err
 }
 
 func handleContainerDisposalPretend(params *ContainerParams, state *task.State) error {
@@ -420,7 +425,9 @@ func handleContainerStart(params *ContainerParams, state *task.State) error {
 	var summary = selectContainerLatest(state.Containers)
 
 	if summary != nil {
-		state.Logger.Debugf("Starting docker container [%s]", summary.ID)
+		var name = getContainerDisplayString(summary)
+
+		state.Logger.Debugf("Starting docker container [%s]", name)
 
 		if err := dockerClient.ContainerStart(params.Context, summary.ID, container.StartOptions{}); err != nil {
 			return err
@@ -467,7 +474,9 @@ func handleContainerStop(params *ContainerParams, state *task.State) error {
 		}
 
 		if !params.Force {
-			*stopOptions.Timeout = -1
+			var timeout = -1
+
+			stopOptions.Timeout = &timeout
 		}
 
 		for _, ct := range *state.Containers {

@@ -12,6 +12,9 @@ import (
 type DebugExecutor struct {
 	BaseExecutor
 	*RunOptions
+
+	buildTaskFactory BuildTaskFactory
+	debugTaskFactory RunTaskFactory
 }
 
 func (de *DebugExecutor) Display() {
@@ -19,16 +22,16 @@ func (de *DebugExecutor) Display() {
 }
 
 func (de *DebugExecutor) Pretend() {
-	var params = de.makeDebugParams()
+	var debugParams = de.makeDebugParams()
 
 	de.Ledger.DisplayChangeDir()
-	docker.NewDebugTask().Pretend(params, de.Ledger.Logger)
+	pretendRunParamsTask(de.BaseExecutor, de.RunOptions, debugParams, de.buildTaskFactory, de.debugTaskFactory)
 }
 
 func (de *DebugExecutor) Proceed() {
 	var debugParams = de.makeDebugParams()
 
-	execRunParamsTask(de.BaseExecutor, de.RunOptions, debugParams, docker.NewDebugTask())
+	execRunParamsTask(de.BaseExecutor, de.RunOptions, debugParams, de.buildTaskFactory, de.debugTaskFactory)
 }
 
 func (de *DebugExecutor) makeDebugParams() *docker.ContainerParams {
@@ -66,6 +69,9 @@ func NewDebugExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 			Ledger:  ledger,
 		},
 		RunOptions: options,
+
+		buildTaskFactory: docker.NewBuildTask,
+		debugTaskFactory: docker.NewDebugTask,
 	}
 }
 

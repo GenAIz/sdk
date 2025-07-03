@@ -12,6 +12,9 @@ import (
 type TestExecutor struct {
 	BaseExecutor
 	*RunOptions
+
+	buildTaskFactory BuildTaskFactory
+	testTaskFactory  RunTaskFactory
 }
 
 func (te *TestExecutor) Display() {
@@ -19,16 +22,16 @@ func (te *TestExecutor) Display() {
 }
 
 func (te *TestExecutor) Pretend() {
-	var params = te.makeTestParams()
+	var testParams = te.makeTestParams()
 
 	te.Ledger.DisplayChangeDir()
-	docker.NewTestTask().Pretend(params, te.Ledger.Logger)
+	pretendRunParamsTask(te.BaseExecutor, te.RunOptions, testParams, te.buildTaskFactory, te.testTaskFactory)
 }
 
 func (te *TestExecutor) Proceed() {
 	var testParams = te.makeTestParams()
 
-	execRunParamsTask(te.BaseExecutor, te.RunOptions, testParams, docker.NewTestTask())
+	execRunParamsTask(te.BaseExecutor, te.RunOptions, testParams, te.buildTaskFactory, te.testTaskFactory)
 }
 
 func (te *TestExecutor) makeTestParams() *docker.ContainerParams {
@@ -66,6 +69,9 @@ func NewTestExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, optio
 			Ledger:  ledger,
 		},
 		RunOptions: options,
+
+		buildTaskFactory: docker.NewBuildTask,
+		testTaskFactory:  docker.NewTestTask,
 	}
 }
 

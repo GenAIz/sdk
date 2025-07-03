@@ -335,7 +335,7 @@ func TestInitExecutor_Proceed(t *testing.T) {
 }
 
 func TestNewInit(t *testing.T) {
-	var buildCompleted = false
+	var initCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
@@ -356,11 +356,11 @@ func TestNewInit(t *testing.T) {
 	testViper.Set(newOptionHandle("Init").Key, expectedHandle)
 	testViper.Set(newOptionType("Init").Key, layout.FunctionTypeFunction)
 	testInit.PostRun = func(cmd *cobra.Command, args []string) {
-		buildCompleted = true
+		initCompleted = true
 	}
 
 	assert.NoError(t, testInit.Execute())
-	assert.True(t, buildCompleted)
+	assert.True(t, initCompleted)
 
 	if actual := testOutput.String(); actual != "" {
 		assert.Contains(t, actual, expectedFqdn)
