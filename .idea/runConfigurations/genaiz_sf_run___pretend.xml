@@ -2,7 +2,7 @@
   <configuration default="false" name="genaiz sf run --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
-    <parameters value="sf run --context=out/samples/myBashExample --logLevel=debug --in=test/input --out=../out --log=../../out --pretend" />
+    <parameters value="sf run --context=out/samples/myBashExample --in=input --out=output --pretend" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

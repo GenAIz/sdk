@@ -2,9 +2,7 @@ package sf
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -12,9 +10,14 @@ import (
 	"genaiz.com/genaiz/task/docker"
 )
 
+type RunTaskFactory func() *task.Task[docker.ContainerParams]
+
 type RunExecutor struct {
 	BaseExecutor
 	*RunOptions
+
+	buildTaskFactory BuildTaskFactory
+	runTaskFactory   RunTaskFactory
 }
 
 func (re *RunExecutor) Display() {
@@ -22,16 +25,16 @@ func (re *RunExecutor) Display() {
 }
 
 func (re *RunExecutor) Pretend() {
-	var params = re.makeRunParams()
+	var runParams = re.makeRunParams()
 
 	re.Ledger.DisplayChangeDir()
-	docker.NewRunTask().Pretend(params, re.Ledger.Logger)
+	pretendRunParamsTask(re.BaseExecutor, re.RunOptions, runParams, re.buildTaskFactory, re.runTaskFactory)
 }
 
 func (re *RunExecutor) Proceed() {
 	var runParams = re.makeRunParams()
 
-	execRunParamsTask(re.BaseExecutor, re.RunOptions, runParams, docker.NewRunTask())
+	execRunParamsTask(re.BaseExecutor, re.RunOptions, runParams, re.buildTaskFactory, re.runTaskFactory)
 }
 
 func (re *RunExecutor) makeRunParams() *docker.ContainerParams {
@@ -90,6 +93,9 @@ func NewRunExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, option
 			Ledger:  ledger,
 		},
 		RunOptions: options,
+
+		buildTaskFactory: docker.NewBuildTask,
+		runTaskFactory:   docker.NewRunTask,
 	}
 }
 
@@ -111,28 +117,16 @@ func displayRunOptions(be BaseExecutor, ro *RunOptions) {
 	be.Ledger.DisplayOptions(options...)
 }
 
-func execRunParamsTask(be BaseExecutor, ro *RunOptions, params *docker.ContainerParams, runTask *task.Task[docker.ContainerParams]) {
+func execRunParamsTask(be BaseExecutor, ro *RunOptions, params *docker.ContainerParams,
+	buildTaskFactory BuildTaskFactory, runTaskFactory RunTaskFactory) {
+	var plan = task.NewPlan("Run", be.Ledger.Logger)
 	var workers []task.Worker
-	var plan = &task.Plan{
-		Logger: be.Ledger.Logger,
-		OnFailure: func(msg interface{}) {
-			be.Ledger.Logger.Errorf("Could not %s on image %s, error: %s", runTask.Name, params.DockerImage, msg)
-			cobra.CheckErr(msg)
-		},
-		OnSuccess: func(msg interface{}) {
-			var out = cast.ToString(msg)
-
-			if out != "" {
-				fmt.Printf("%s\n", out)
-			}
-		},
-	}
 
 	if ro.rebuildImage {
-		workers = append(workers, task.NewWorker(makeBuildParams(&be), docker.NewBuildTask()))
+		workers = append(workers, task.NewWorker(makeBuildParams(&be), buildTaskFactory()))
 	}
 
-	workers = append(workers, task.NewWorker(params, runTask))
+	workers = append(workers, task.NewWorker(params, runTaskFactory()))
 	plan.Sequence(workers...)
 }
 
@@ -248,4 +242,17 @@ func newOptionMountVar(cmd string, defaultOption *config.StringOption) *config.S
 			Validator: config.Optionally(config.Validation.DirCreated),
 		},
 	}
+}
+
+func pretendRunParamsTask(be BaseExecutor, ro *RunOptions, params *docker.ContainerParams,
+	buildTaskFactory BuildTaskFactory, runTaskFactory RunTaskFactory) {
+	var plan = task.NewPlan("Run", be.Ledger.Logger)
+	var workers []task.Worker
+
+	if ro.rebuildImage {
+		workers = append(workers, task.NewPretender(makeBuildParams(&be), buildTaskFactory()))
+	}
+
+	workers = append(workers, task.NewPretender(params, runTaskFactory()))
+	plan.Sequence(workers...)
 }

@@ -62,7 +62,7 @@ func handleDebugCompletion(params *ContainerParams, state *task.State) error {
 }
 
 func handleDebugPretend(params *ContainerParams, state *task.State) error {
-	var optionParams = fmtMountParams(params)
+	var optionParams = fmtParams(params)
 	var dispose string
 
 	state.Logger.Debugf("Pretending debugging docker image [%s]", params.DockerImage)
@@ -120,10 +120,10 @@ func handleRunContext(params *ContainerParams, state *task.State) error {
 }
 
 func handleRunPretend(params *ContainerParams, state *task.State) error {
-	var optionParams = fmtMountParams(params)
+	var optionParams = fmtParams(params)
 	var detach, dispose string
 
-	state.Logger.Debugf("Pretending running docker image [%s]", params.DockerImage)
+	state.Logger.Debugf("Pretending running docker image [%s]", state.Output)
 
 	if params.Dispose {
 		dispose = "--rm "
@@ -133,8 +133,9 @@ func handleRunPretend(params *ContainerParams, state *task.State) error {
 		detach = "-d "
 	}
 
-	fmt.Printf("docker run %s%s%s%s\n", dispose, detach, optionParams, params.DockerImage)
+	fmt.Printf("docker run %s%s%s%s\n", dispose, detach, optionParams, state.Output)
 	state.Completed = true
+	state.Output = ""
 	return nil
 }
 
@@ -160,7 +161,7 @@ func handleTestCompletion(params *ContainerParams, state *task.State) error {
 }
 
 func handleTestPretend(params *ContainerParams, state *task.State) error {
-	var optionParams = fmtMountParams(params)
+	var optionParams = fmtParams(params)
 	var dispose string
 
 	state.Logger.Debugf("Pretending testing docker image [%s]", params.DockerImage)

@@ -17,9 +17,13 @@ cd genaiz && make docker
 To execute tests alone or to get coverage metrics
 
 ```shell
-cd genaiz
-make test
-make coverage
+cd genaiz && make coverage
+```
+
+For more information about all provided targets
+
+```shell
+cd genaiz && make help
 ```
 
 ## Minimal Build
@@ -75,6 +79,14 @@ The command initiates a new Smart Function under an existing folder. By default,
 genaiz sf init --help
 ```
 
+#### list
+
+The command lists all images with their versions belonging to Smart Function folder. In addition, it will list any local containers configured with any of the listed images.
+
+```shell
+genaiz sf list --help
+```
+
 #### publish
 
 The command initiates a session with the Genaiz broker retrieving authorization tokens to publish a Smart Function image onto the Genaiz marketplace. This would require the user to be logged in using a **genaiz ac login** preamble to retrieve licensing agreements.
@@ -82,9 +94,6 @@ The command initiates a session with the Genaiz broker retrieving authorization 
 ```shell
 genaiz sf publish --help
 ```
-
-> [!CAUTION]
-> The Publish command is planned, not yet implemented
 
 #### run
 
@@ -128,4 +137,12 @@ The login command obtains an identity token from the specified Orchestrating Bro
 
 ```shell
 genaiz ac login www.genaiz.com
+```
+
+#### logout
+
+The logout command is invoked to explicitly remove a known session id from the local sdk configuration. The file is found under $HOME/.cache/genaiz/.auth. The command will log out the active session by default is no --host parameter is specified.
+
+```shell
+genaiz ac logout
 ```

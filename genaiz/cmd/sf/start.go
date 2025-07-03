@@ -2,9 +2,7 @@ package sf
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -12,9 +10,19 @@ import (
 	"genaiz.com/genaiz/task/docker"
 )
 
+type ContainerTaskFactory func() *task.Task[docker.ContainerParams]
+
+type StartTaskFactory func() *task.Task[docker.ContainerParams]
+
 type StartExecutor struct {
 	BaseExecutor
 	*StartOptions
+
+	buildTaskFactory     BuildTaskFactory
+	containerTaskFactory ContainerTaskFactory
+	disposeTaskFactory   DisposeTaskFactory
+	startTaskFactory     StartTaskFactory
+	stopTaskFactory      StopTaskFactory
 }
 
 func (se *StartExecutor) Display() {
@@ -25,6 +33,8 @@ func (se *StartExecutor) Display() {
 		&se.optionContainerReplace.Option,
 		&se.optionMountInput.Option,
 		&se.optionMountOutput.Option,
+		&se.optionMountVar.Option,
+		&se.optionMountLog.Option,
 	}
 
 	options = append(options, se.Cli.SfOptions()...)
@@ -32,10 +42,31 @@ func (se *StartExecutor) Display() {
 }
 
 func (se *StartExecutor) Pretend() {
-	var force = se.Ledger.GetBool(se.optionContainerReplace)
-	var params = se.makeStartParams(force)
+	var replace = se.Ledger.GetBool(se.optionContainerReplace)
+	var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
+	var buildParams = makeBuildParams(&se.BaseExecutor)
+	var params = se.makeStartParams(replace)
+	var plan = task.NewPlan("Start", se.Ledger.Logger)
+	var workers = []task.Worker{
+		task.NewPretender(buildParams, se.buildTaskFactory()),
+	}
 
-	docker.NewStartTask().Pretend(params, se.Ledger.Logger)
+	if replace {
+		workers = append(workers, task.NewPretender(params, se.disposeTaskFactory()))
+	}
+
+	workers = append(workers,
+		task.NewPretender(params, se.containerTaskFactory()),
+		task.NewPretender(params, se.startTaskFactory()))
+
+	if !preserve {
+		var disposeParams = se.makeStartParams(false)
+
+		workers = append(workers, task.NewPretender(disposeParams, se.stopTaskFactory()))
+		workers = append(workers, task.NewPretender(disposeParams, se.disposeTaskFactory()))
+	}
+
+	plan.Sequence(workers...)
 }
 
 func (se *StartExecutor) Proceed() {
@@ -43,36 +74,24 @@ func (se *StartExecutor) Proceed() {
 	var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
 	var buildParams = makeBuildParams(&se.BaseExecutor)
 	var params = se.makeStartParams(replace)
-	var plan = task.Plan{
-		Logger: se.Ledger.Logger,
-		OnFailure: func(msg interface{}) {
-			se.Ledger.Logger.Errorf("Could not start container %s, error: %s", params.Name, msg)
-		},
-		OnSuccess: func(msg interface{}) {
-			var out = cast.ToString(msg)
-
-			if out != "" {
-				se.Ledger.Logger.Infof("Started container [%s]", out)
-				fmt.Printf("%s\n", out)
-			}
-		},
-	}
+	var plan = task.NewPlan("Start", se.Ledger.Logger)
 	var workers = []task.Worker{
-		task.NewWorker(buildParams, docker.NewBuildTask()),
+		task.NewWorker(buildParams, se.buildTaskFactory()),
 	}
 
 	if replace {
-		workers = append(workers, task.NewWorker(params, docker.NewDisposeTask()))
+		workers = append(workers, task.NewWorker(params, se.disposeTaskFactory()))
 	}
 
 	workers = append(workers,
-		task.NewWorker(params, docker.NewCreateTask()),
-		task.NewWorker(params, docker.NewStartTask()))
+		task.NewWorker(params, se.containerTaskFactory()),
+		task.NewWorker(params, se.startTaskFactory()))
 
 	if !preserve {
 		var disposeParams = se.makeStartParams(false)
 
-		workers = append(workers, task.NewWorker(disposeParams, docker.NewDisposeTask()))
+		workers = append(workers, task.NewWorker(disposeParams, se.stopTaskFactory()))
+		workers = append(workers, task.NewWorker(disposeParams, se.disposeTaskFactory()))
 	}
 
 	plan.Sequence(workers...)
@@ -90,6 +109,7 @@ func (se *StartExecutor) makeStartParams(force bool) *docker.ContainerParams {
 type StartOptions struct {
 	*RunOptions
 	*StopOptions
+
 	optionContainerReplace *config.BoolOption
 }
 
@@ -98,6 +118,7 @@ func (so *StartOptions) allDefiners() []config.Definer {
 		so.optionContainerPrefix,
 		so.optionContainerName,
 		so.optionContainerReplace,
+		so.optionContainerPreserve,
 		so.optionMountInput,
 		so.optionMountLog,
 		so.optionMountOutput,
@@ -137,17 +158,24 @@ func NewStartExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 			Cli:     cli,
 		},
 		StartOptions: options,
+
+		buildTaskFactory:     docker.NewBuildTask,
+		containerTaskFactory: docker.NewCreateTask,
+		disposeTaskFactory:   docker.NewDisposeTask,
+		startTaskFactory:     docker.NewStartTask,
+		stopTaskFactory:      docker.NewStopTask,
 	}
 }
 
 func NewStartOptions(cli *Cli) *StartOptions {
 	var startCmd = "Start"
 	var runOptions = newRunOptions(cli, startCmd)
-	var stopOptions = newStopOptions(cli, runOptions, startCmd)
+	var stopOptions = newStopOptions(cli, runOptions, startCmd, true)
 
 	return &StartOptions{
-		RunOptions:             runOptions,
-		StopOptions:            stopOptions,
+		RunOptions:  runOptions,
+		StopOptions: stopOptions,
+
 		optionContainerReplace: newOptionContainerReplace(),
 	}
 }

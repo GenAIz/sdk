@@ -4,7 +4,7 @@
 
 ### [Genaiz SmartFunction Kit](genaiz/README.md)
 
-Handles building, debugging, running, testing and publishing Smart Functions to Genaiz' platform
+Handles building, debugging, running, testing and publishing Smart Functions to a Genaiz Broker Platform.
 
 ### [Genaiz SmartFunction Integration Tool](genaiz-it/README.md)
 
@@ -26,6 +26,12 @@ A series of utility compose targets which can be used to test the various comman
 ## Development Guide
 
 ### Building All Modules
+
+Individual modules with make files will answer their own targets, but most will have *clean, build* and *test* at a minimum.
+
+#### [Genaiz Makefile](genaiz/README.md#makefile)
+
+#### [Genaiz-IT Makefile](genaiz-it/README.md#makefile)
 
 ### Testing Genaiz
 

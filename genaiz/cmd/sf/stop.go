@@ -2,10 +2,8 @@ package sf
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
@@ -13,9 +11,16 @@ import (
 	"genaiz.com/genaiz/task/docker"
 )
 
+type DisposeTaskFactory func() *task.Task[docker.ContainerParams]
+
+type StopTaskFactory func() *task.Task[docker.ContainerParams]
+
 type StopExecutor struct {
 	BaseExecutor
 	*StopOptions
+
+	disposeTaskFactory DisposeTaskFactory
+	stopTaskFactory    StopTaskFactory
 }
 
 func (se *StopExecutor) Display() {
@@ -31,32 +36,25 @@ func (se *StopExecutor) Display() {
 }
 
 func (se *StopExecutor) Pretend() {
+	var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
 	var params = se.makeContainerParams()
 
-	docker.NewStopTask().Pretend(params, se.Ledger.Logger)
+	params.Force = !preserve
+
+	if preserve {
+		se.stopTaskFactory().Pretend(params, se.Ledger.Logger)
+	} else {
+		se.disposeTaskFactory().Pretend(params, se.Ledger.Logger)
+	}
 }
 
 func (se *StopExecutor) Proceed() {
 	var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
 	var params = se.makeContainerParams()
-	var plan = &task.Plan{
-		Logger: se.Ledger.Logger,
-		OnFailure: func(msg interface{}) {
-			se.Ledger.Logger.Errorf("Could not stop container %s, error: %s", params.Name, msg)
-		},
-		OnSuccess: func(msg interface{}) {
-			var out = cast.ToString(msg)
+	var plan = task.NewPlan("Stop", se.Ledger.Logger)
 
-			if out != "" {
-				se.Ledger.Logger.Infof("Stopped container [%s]", out)
-				fmt.Printf("%s\n", out)
-			}
-		},
-	}
-
-	task.Conditional(plan, preserve, params,
-		docker.NewStopTask,
-		docker.NewDisposeTask)
+	params.Force = !preserve
+	task.Conditional(plan, preserve, params, se.stopTaskFactory, se.disposeTaskFactory)
 }
 
 func (se *StopExecutor) makeContainerParams() *docker.ContainerParams {
@@ -103,6 +101,9 @@ func NewStopExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, optio
 			Ledger:  ledger,
 		},
 		StopOptions: options,
+
+		disposeTaskFactory: docker.NewDisposeTask,
+		stopTaskFactory:    docker.NewStopTask,
 	}
 }
 
@@ -112,7 +113,7 @@ func NewStopOptions(cli *Cli) *StopOptions {
 		optionRunImage: newOptionCmdImage(stopCmd),
 	}
 
-	return newStopOptions(cli, runOptions, stopCmd)
+	return newStopOptions(cli, runOptions, stopCmd, false)
 }
 
 func makeContainerParams(be BaseExecutor, so *StopOptions, ro *RunOptions) *docker.ContainerParams {
@@ -128,12 +129,13 @@ func makeContainerParams(be BaseExecutor, so *StopOptions, ro *RunOptions) *dock
 	}
 }
 
-func newStopOptions(cli *Cli, runOptions *RunOptions, cmd string) *StopOptions {
+func newStopOptions(cli *Cli, runOptions *RunOptions, cmd string, preserve bool) *StopOptions {
 	return &StopOptions{
-		RunOptions:              runOptions,
+		RunOptions: runOptions,
+
 		optionContainerName:     newOptionContainerName(cmd),
 		optionContainerPrefix:   newOptionContainerPrefix(cmd, cli),
-		optionContainerPreserve: newOptionContainerPreserve(),
+		optionContainerPreserve: newOptionContainerPreserve(preserve),
 	}
 }
 
@@ -169,13 +171,13 @@ func newOptionContainerPrefix(cmd string, cli *Cli) *config.StringOption {
 	}
 }
 
-func newOptionContainerPreserve() *config.BoolOption {
+func newOptionContainerPreserve(defaultValue bool) *config.BoolOption {
 	return &config.BoolOption{
 		Option: config.Option{
 			Key:          "SF.Container.Preserve",
 			Param:        "preserve",
 			Usage:        "preserves the container after it exits",
-			DefaultValue: "false",
+			DefaultValue: defaultValue,
 		},
 	}
 }
