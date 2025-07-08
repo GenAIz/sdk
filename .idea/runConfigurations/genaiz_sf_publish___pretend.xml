@@ -2,7 +2,7 @@
   <configuration default="false" name="genaiz sf publish --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
-    <parameters value="sf publish --context=out/samples/myBashExample --version=0.1 --pretend localhost:8080" />
+    <parameters value="sf publish --context=out/samples/myBashExample --pretend localhost:8080" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

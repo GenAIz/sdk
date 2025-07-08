@@ -178,11 +178,12 @@ func TestInitWriter_BuildType(t *testing.T) {
 }
 
 func TestInitWriter_BuildVersion(t *testing.T) {
-	var expectedVersion = "version"
+	var expectedVersion = "0.0.0"
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionVersion: newOptionVersion("_test"),
+			optionVersion: newOptionVersion("_test", testCli),
 		},
 		vp:          testViper,
 		baseVersion: newOptionDockerVersion(),
@@ -202,13 +203,14 @@ func TestInitWriter_Write(t *testing.T) {
 	var expectedFile = "/tmp/.genaiz/init_write_test.yaml"
 	var expectedFqdn = "genaiz.com"
 	var expectedHandle = "test-handle"
-	var expectedVersion = "version"
+	var expectedVersion = "0.0.0"
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionFqdn:    newOptionVersion("_test"),
+			optionFqdn:    newOptionVersion("_test", testCli),
 			optionHandle:  newOptionHandle("_test"),
-			optionVersion: newOptionVersion("_test"),
+			optionVersion: newOptionVersion("_test", testCli),
 		},
 		vp:          testViper,
 		baseTag:     newOptionDockerTag(),
@@ -236,11 +238,12 @@ func TestInitWriter_Write(t *testing.T) {
 
 func TestInitWriter_WriteInvalidFile(t *testing.T) {
 	var invalidFile = "/tmp/.genaiz/init_write_invalid.yaml"
+	var testCli = NewSfCli(nil, nil, nil)
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionFqdn:    newOptionVersion("_test"),
+			optionFqdn:    newOptionVersion("_test", testCli),
 			optionHandle:  newOptionHandle("_test"),
-			optionVersion: newOptionVersion("_test"),
+			optionVersion: newOptionVersion("_test", testCli),
 		},
 		vp:          viper.New(),
 		baseTag:     newOptionDockerTag(),
@@ -257,13 +260,13 @@ func TestInitExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewInitOptions()
+	var testOptions = NewInitOptions(NewSfCli(nil, nil, nil))
 	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
 	var expectedHandle = "handle"
 	var expectedFqdn = "fqdn.genaiz.com"
 	var expectedName = "name-init"
 	var expectedOem = "oem"
-	var expectedVersion = "version"
+	var expectedVersion = "0.0.0"
 	var testExecutor = &InitExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -294,19 +297,21 @@ func TestInitExecutor_Pretend(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var calledInit = false
+	var testCli = NewSfCli(nil, nil, nil)
 	var testExecutor = &InitExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
 
-		InitOptions:     NewInitOptions(),
+		InitOptions:     NewInitOptions(testCli),
 		initTaskFactory: newInitTaskPretendStub(&calledInit),
 	}
 
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
+	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testViper.Set(newOptionArches("Init").Key, layout.ArchTypeArm64)
 	testExecutor.Pretend()
 	assert.True(t, calledInit)
@@ -316,12 +321,13 @@ func TestInitExecutor_Proceed(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var calledInit = false
+	var testCli = NewSfCli(nil, nil, nil)
 	var testExecutor = &InitExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
-		InitOptions: NewInitOptions(),
+		InitOptions: NewInitOptions(testCli),
 
 		initTaskFactory: newInitTaskCompleteStub(&calledInit),
 	}
@@ -330,6 +336,7 @@ func TestInitExecutor_Proceed(t *testing.T) {
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
+	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testExecutor.Proceed()
 	assert.True(t, calledInit)
 }

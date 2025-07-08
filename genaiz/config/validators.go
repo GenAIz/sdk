@@ -3,11 +3,11 @@ package config
 import (
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/spf13/cast"
 
 	"genaiz.com/genaiz/lang/enumz"
-	"genaiz.com/genaiz/lang/panicz"
 )
 
 // Validates is a type def for a function taking a value returning valid or not valid
@@ -15,20 +15,26 @@ type Validates func(value any) bool
 
 // validators provides Validates for various validation needs
 type validators struct {
-	DirCreated Validates
-	DirExists  Validates
-	DomainName Validates
-	FileExists Validates
-	FolderName Validates
+	DirCreated    Validates
+	DirExists     Validates
+	DomainName    Validates
+	FileExists    Validates
+	FolderName    Validates
+	Version       Validates
+	VersionNumber Validates
 }
 
 var (
+	versionNumber = stringMatches(`^(?:[1-9][0-9]*|0)$`)
+
 	Validation = &validators{
-		DirCreated: validateDirCreated,
-		DirExists:  validateDirExists,
-		DomainName: stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),
-		FileExists: validateFileExists,
-		FolderName: stringMatches(`^[a-zA-Z0-9\-._\/]+$`),
+		DirCreated:    validateDirCreated,
+		DirExists:     validateDirExists,
+		DomainName:    stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),
+		FileExists:    validateFileExists,
+		FolderName:    stringMatches(`^[a-zA-Z0-9\-._\/]+$`),
+		Version:       validateVersion,
+		VersionNumber: versionNumber,
 	}
 )
 
@@ -66,11 +72,10 @@ func Optionally(validates Validates) Validates {
 }
 
 func stringMatches(pattern string) Validates {
-	return func(value any) bool {
-		var matched, err = regexp.Match(pattern, []byte(cast.ToString(value)))
+	var regex = regexp.MustCompile(pattern)
 
-		panicz.PanicIfError(err)
-		return matched
+	return func(value any) bool {
+		return regex.Match([]byte(cast.ToString(value)))
 	}
 }
 
@@ -99,4 +104,19 @@ func validateFileExists(path any) bool {
 	var s, _ = os.Stat(path.(string))
 
 	return s != nil && !s.IsDir()
+}
+
+func validateVersion(version any) bool {
+	var stringVersion = version.(string)
+
+	if stringVersion != "" {
+		var parts = strings.SplitN(stringVersion, ".", 3)
+
+		return len(parts) == 3 &&
+			versionNumber(parts[0]) &&
+			versionNumber(parts[1]) &&
+			versionNumber(parts[2])
+	}
+
+	return false
 }

@@ -265,7 +265,7 @@ func (lr *Ledger) GetString(option *StringOption) string {
 	var result = cast.ToString(lr.Get(&option.Option))
 
 	if option.Validator != nil && !option.Validator(result) {
-		lr.validationHandler(fmt.Errorf("option %s is invalid", option.Key))
+		lr.validationHandler(fmt.Errorf("value [%s] for option [%s] is invalid", result, option.Key))
 	}
 
 	return result

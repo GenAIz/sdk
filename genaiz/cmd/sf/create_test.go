@@ -25,14 +25,14 @@ func TestCreatorExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewCreateOptions()
+	var testOptions = NewCreateOptions(NewSfCli(nil, nil, nil))
 	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
 	var expectedHandle = "handle"
 	var expectedFqdn = "fqdn.genaiz.com"
 	var expectedName = "name-create"
 	var expectedOem = "oem"
 	var expectedRecipe = "recipe"
-	var expectedVersion = "version"
+	var expectedVersion = "0.0.0"
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -65,14 +65,15 @@ func TestCreatorExecutor_Display(t *testing.T) {
 
 func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 	var calledCreate, calledInit, calledRecipe bool
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
-		CreateOptions: NewCreateOptions(),
+		CreateOptions: NewCreateOptions(testCli),
 
 		initTaskFactory:   newInitTaskPretendStub(&calledInit),
 		createTaskFactory: newCreateTaskPretendStub(&calledCreate),
@@ -82,6 +83,7 @@ func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
+	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testExecutor.Pretend()
 	assert.True(t, calledCreate)
 	assert.False(t, calledRecipe)
@@ -90,14 +92,15 @@ func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 
 func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 	var calledCreate, calledInit, calledRecipe bool
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
-		CreateOptions: NewCreateOptions(),
+		CreateOptions: NewCreateOptions(testCli),
 
 		initTaskFactory:   newInitTaskPretendStub(&calledInit),
 		createTaskFactory: newCreateTaskPretendStub(&calledCreate),
@@ -108,6 +111,7 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
 	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")
+	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testExecutor.Pretend()
 	assert.True(t, calledCreate)
 	assert.True(t, calledRecipe)
@@ -116,14 +120,15 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 
 func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 	var calledCreate, calledInit, calledRecipe bool
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
-		CreateOptions: NewCreateOptions(),
+		CreateOptions: NewCreateOptions(testCli),
 
 		initTaskFactory:   newInitTaskCompleteStub(&calledInit),
 		createTaskFactory: newCreateTaskCompleteStub(&calledCreate),
@@ -133,6 +138,7 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
+	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Proceed()
 	assert.True(t, calledCreate)
@@ -142,14 +148,15 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 
 func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 	var calledCreate, calledInit, calledRecipe bool
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
-		CreateOptions: NewCreateOptions(),
+		CreateOptions: NewCreateOptions(testCli),
 
 		initTaskFactory:   newInitTaskCompleteStub(&calledInit),
 		createTaskFactory: newCreateTaskCompleteStub(&calledCreate),
@@ -160,6 +167,7 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
 	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")
+	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Proceed()
 	assert.True(t, calledCreate)

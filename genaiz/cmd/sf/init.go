@@ -253,7 +253,7 @@ func (io *InitOptions) allDefiners() []config.Definer {
 }
 
 func NewInit(ledger *config.Ledger, cli *Cli) *cobra.Command {
-	var options = NewInitOptions()
+	var options = NewInitOptions(cli)
 	var init = &cobra.Command{
 		Use:     "init",
 		Short:   "Initiates an existing Smart Function configuration values",
@@ -281,11 +281,11 @@ func NewInitExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, optio
 	}
 }
 
-func NewInitOptions() *InitOptions {
+func NewInitOptions(cli *Cli) *InitOptions {
 	var initCmd = "Init"
 
 	return &InitOptions{
-		PublishOptions:    newPublishOptions(initCmd),
+		PublishOptions:    newPublishOptions(initCmd, cli),
 		optionConfigType:  newOptionConfigType(initCmd),
 		optionInteractive: newOptionInteractive(),
 		optionMountInput:  newOptionMountInput(initCmd, false),
@@ -295,7 +295,7 @@ func NewInitOptions() *InitOptions {
 
 func makeInitBuilder(cli *Cli) *InitWriter {
 	return &InitWriter{
-		PublishOptions: newPublishOptions("Publish"),
+		PublishOptions: newPublishOptions("Publish", cli),
 		RunOptions:     NewRunOptions(cli),
 		baseTag:        newOptionDockerTag(),
 		baseVersion:    newOptionDockerVersion(),

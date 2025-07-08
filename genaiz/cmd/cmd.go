@@ -6,6 +6,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -37,11 +38,13 @@ type RunnerOptions struct {
 	runDry         *config.BoolOption
 	runPretend     *config.BoolOption
 	solutionPath   *config.StringOption
+	stdIn          io.Reader
+	stdOut         io.Writer
 }
 
 func (ro *RunnerOptions) Confirm(ledger *config.Ledger, display ...func()) bool {
 	if ledger.GetBool(ro.runConfirm) {
-		var r = bufio.NewReader(os.Stdin)
+		var r = bufio.NewReader(ro.stdIn)
 		var message = "Proceed?"
 
 		if len(display) > 0 {
@@ -53,7 +56,7 @@ func (ro *RunnerOptions) Confirm(ledger *config.Ledger, display ...func()) bool 
 		}
 
 		for {
-			if _, err := fmt.Fprintf(os.Stdout, "%s (%s) ", message, "[y/n]"); err == nil {
+			if _, err := fmt.Fprintf(ro.stdOut, "%s (%s) ", message, "[y/n]"); err == nil {
 				var s, _ = r.ReadString('\n')
 
 				s = strings.TrimSpace(s)
@@ -135,6 +138,8 @@ func NewRunnerOptions() *RunnerOptions {
 		runDry:         newOptionRunDry(),
 		runPretend:     newOptionRunPretend(),
 		solutionPath:   newOptionSolutionPath(),
+		stdIn:          os.Stdin,
+		stdOut:         os.Stdout,
 	}
 }
 
