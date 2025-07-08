@@ -164,7 +164,7 @@ func (po *PublishOptions) allDefiners() []config.Definer {
 }
 
 func NewPublish(ledger *config.Ledger, cli *Cli) *cobra.Command {
-	var options = NewPublishOptions()
+	var options = NewPublishOptions(cli)
 	var publish = &cobra.Command{
 		Use:     "publish HOST",
 		Short:   "Publishes a Smart Function metadata and image to a Broker",
@@ -199,8 +199,8 @@ func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, op
 	}
 }
 
-func NewPublishOptions() *PublishOptions {
-	var options = newPublishOptions("Publish")
+func NewPublishOptions(cli *Cli) *PublishOptions {
+	var options = newPublishOptions("Publish", cli)
 
 	options.optionRebuild = newOptionRebuild()
 	options.optionNoUpdate = newOptionNoUpdate()
@@ -336,19 +336,22 @@ func newOptionType(cmd string) *config.StringOption {
 	}
 }
 
-func newOptionVersion(cmd string) *config.StringOption {
+func newOptionVersion(cmd string, cli *Cli) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key:   "SF." + cmd + ".Version",
 			Param: "version",
 			Short: "v",
 			Usage: "initial version to use for the smart function",
-			// TODO: Get the version from build, validate that it's not just latest
+			DefaultGetter: func(ledger *config.Ledger) any {
+				return ledger.GetString(cli.optionDockerVersion)
+			},
+			Validator: config.Validation.Version,
 		},
 	}
 }
 
-func newPublishOptions(cmd string, flagOptions ...*config.BoolOption) *PublishOptions {
+func newPublishOptions(cmd string, cli *Cli, flagOptions ...*config.BoolOption) *PublishOptions {
 	var optionHandle = newOptionHandle(cmd)
 	var optionRebuild *config.BoolOption
 	var optionNoUpdate *config.BoolOption
@@ -371,6 +374,6 @@ func newPublishOptions(cmd string, flagOptions ...*config.BoolOption) *PublishOp
 		optionRebuild:  optionRebuild,
 		optionType:     newOptionType(cmd),
 		optionOem:      newOptionOem(cmd),
-		optionVersion:  newOptionVersion(cmd),
+		optionVersion:  newOptionVersion(cmd, cli),
 	}
 }

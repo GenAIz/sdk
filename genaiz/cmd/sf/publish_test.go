@@ -29,7 +29,7 @@ func TestPublishExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewPublishOptions()
+	var testOptions = NewPublishOptions(NewSfCli(nil, nil, nil))
 	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
 	var expectedBroker = "broker"
 	var expectedHandle = "handle"
@@ -37,7 +37,7 @@ func TestPublishExecutor_Display(t *testing.T) {
 	var expectedName = "name-publish"
 	var expectedOem = "oem"
 	var expectedType = layout.FunctionTypeFunction
-	var expectedVersion = "version"
+	var expectedVersion = "0.0.0"
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -73,13 +73,14 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions()
+	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
 		PublishOptions: testOptions,
 
@@ -101,6 +102,7 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
 		assert.False(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -117,13 +119,14 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions()
+	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
 		PublishOptions: testOptions,
 
@@ -144,6 +147,7 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
 		assert.False(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -160,13 +164,14 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions()
+	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
 		PublishOptions: testOptions,
 
@@ -188,6 +193,7 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
 		assert.True(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -204,13 +210,14 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions()
+	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
 		PublishOptions: testOptions,
 
@@ -233,6 +240,7 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
 		assert.True(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -249,13 +257,14 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions()
+	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
 		PublishOptions: testOptions,
 
@@ -277,6 +286,7 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
 		assert.False(t, calledBuild)
@@ -294,13 +304,14 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions()
+	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
 		PublishOptions: testOptions,
 
@@ -321,6 +332,7 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
 		assert.False(t, calledBuild)
@@ -338,13 +350,14 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions()
+	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
 		PublishOptions: testOptions,
 
@@ -366,6 +379,7 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
@@ -383,13 +397,14 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions()
+	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
-			Cli:    NewSfCli(nil, nil, nil),
+			Cli:    testCli,
 		},
 		PublishOptions: testOptions,
 
@@ -412,6 +427,7 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
@@ -440,12 +456,12 @@ func TestNewPublish(t *testing.T) {
 		optionDockerVersion: newOptionDockerVersion(),
 	}
 	var testPublish = NewPublish(testLedger, testCli)
-	var expectedVersion = "version"
+	var expectedVersion = "0.0.0"
 	var expectedHandle = "handle"
 	var expectedHost = "host"
 
 	testViper.Set(newOptionHandle("Publish").Key, expectedHandle)
-	testViper.Set(newOptionVersion("Publish").Key, expectedVersion)
+	testViper.Set(newOptionVersion("Publish", testCli).Key, expectedVersion)
 	testPublish.SetArgs([]string{expectedHost})
 	testPublish.PostRun = func(cmd *cobra.Command, args []string) {
 		publishCompleted = true
@@ -465,14 +481,15 @@ func TestNewPublish(t *testing.T) {
 
 func TestNewPublishOptions(t *testing.T) {
 	var expectedCmd = "Publish"
+	var testCli = NewSfCli(nil, nil, nil)
 	var expectedArches = newOptionArches(expectedCmd)
 	var expectedFqdn = newOptionFqdn(expectedCmd)
 	var expectedHandle = newOptionHandle(expectedCmd)
 	var expectedName = newOptionName(expectedHandle, expectedCmd)
 	var expectedOem = newOptionOem(expectedCmd)
 	var expectedType = newOptionType(expectedCmd)
-	var expectedVersion = newOptionVersion(expectedCmd)
-	var testOptions = NewPublishOptions()
+	var expectedVersion = newOptionVersion(expectedCmd, testCli)
+	var testOptions = NewPublishOptions(testCli)
 
 	assert.True(t, expectedArches.Equals(&testOptions.optionArches.Option))
 	assert.True(t, expectedFqdn.Equals(&testOptions.optionFqdn.Option))
@@ -547,7 +564,8 @@ func TestNewPublishOptions_ValidateType(t *testing.T) {
 }
 
 func Test_makePublishInitParams_WithArches(t *testing.T) {
-	var testOptions = newPublishOptions("Publish")
+	var testCli = NewSfCli(nil, nil, nil)
+	var testOptions = newPublishOptions("Publish", testCli)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
@@ -557,13 +575,15 @@ func Test_makePublishInitParams_WithArches(t *testing.T) {
 	testViper.Set(testOptions.optionHandle.Key, "handle")
 	testViper.Set(testOptions.optionType.Key, layout.FunctionTypeTrigger)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
+	testViper.Set(testOptions.optionVersion.Key, "0.0.0")
 	actualParams = makePublishInitParams(testLedger, testOptions)
 	assert.EqualValues(t, expectedArches, actualParams.Arches)
 }
 
 func Test_newPublishOptions_Rebuild(t *testing.T) {
 	var expectedRebuildOption = config.BoolOption{}
-	var testOptions = newPublishOptions("Publish", &expectedRebuildOption)
+	var testCli = NewSfCli(nil, nil, nil)
+	var testOptions = newPublishOptions("Publish", testCli, &expectedRebuildOption)
 
 	assert.Same(t, &expectedRebuildOption, testOptions.optionRebuild)
 }
@@ -571,7 +591,8 @@ func Test_newPublishOptions_Rebuild(t *testing.T) {
 func Test_newPublishOptions_RebuildAndNoUpdate(t *testing.T) {
 	var expectedNoUpdateOption = config.BoolOption{}
 	var expectedRebuildOption = config.BoolOption{}
-	var testOptions = newPublishOptions("Publish", &expectedRebuildOption, &expectedNoUpdateOption)
+	var testCli = NewSfCli(nil, nil, nil)
+	var testOptions = newPublishOptions("Publish", testCli, &expectedRebuildOption, &expectedNoUpdateOption)
 
 	assert.Same(t, &expectedNoUpdateOption, testOptions.optionNoUpdate)
 	assert.Same(t, &expectedRebuildOption, testOptions.optionRebuild)

@@ -142,7 +142,7 @@ func (co *CreateOptions) allDefiners() []config.Definer {
 }
 
 func NewCreate(ledger *config.Ledger, cli *Cli) *cobra.Command {
-	var options = NewCreateOptions()
+	var options = NewCreateOptions(cli)
 	var create = &cobra.Command{
 		Use:     "create FOLDER_NAME",
 		Short:   "Creates a Smart Function from scratch",
@@ -181,9 +181,9 @@ func NewCreateExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opt
 	}
 }
 
-func NewCreateOptions() *CreateOptions {
+func NewCreateOptions(cli *Cli) *CreateOptions {
 	var createCmd = "Create"
-	var publishOptions = newPublishOptions(createCmd)
+	var publishOptions = newPublishOptions(createCmd, cli)
 
 	// Disable defaultSetter for create, since it doesn't exist yet
 	publishOptions.optionHandle.DefaultSetter = nil
