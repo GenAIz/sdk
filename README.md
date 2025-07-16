@@ -1,18 +1,18 @@
-# Genaiz SDK Toolkits
+# GenAIz SDK Toolkits
 
 ## Modules
 
-### [Genaiz SmartFunction Kit](genaiz/README.md)
+### [GenAIz SmartFunction Kit](genaiz/README.md)
 
-Handles building, debugging, running, testing and publishing Smart Functions to a Genaiz Broker Platform.
+Handles building, debugging, running, testing and publishing Smart Functions to a GenAIz Broker Platform.
 
-### [Genaiz SmartFunction Integration Tool](genaiz-it/README.md)
+### [GenAIz SmartFunction Integration Tool](genaiz-it/README.md)
 
-Handles testing of service deployments with the Genaiz SmartFunction Kit.
+Handles testing of service deployments with the GenAIz SmartFunction Kit.
 
 ### [Compose Services](compose/README.md)
 
-The root [compose.yaml](compose.yaml) includes a list of profiles from the compose module, which can be used to test Genaiz Kits with the various services they require. This typically mean a Broker, a Container Server (containerd), and a Docker Registry.
+The root [compose.yaml](compose.yaml) includes a list of profiles from the compose module, which can be used to test GenAIz Kits with the various services they require. This typically mean a Broker, a Container Server (containerd), and a Docker Registry.
 
 All of these need to be accessible for the various kit functionality to run.
 
@@ -21,7 +21,7 @@ All of these need to be accessible for the various kit functionality to run.
 
 ### [Wiremock Mappings](wiremock/README.md)
 
-A series of utility compose targets which can be used to test the various commands of the Genaiz SmartFunction Kit.
+A series of utility compose targets which can be used to test the various commands of the GenAIz SmartFunction Kit.
 
 ## Development Guide
 
@@ -29,11 +29,22 @@ A series of utility compose targets which can be used to test the various comman
 
 Individual modules with make files will answer their own targets, but most will have *clean, build* and *test* at a minimum.
 
-#### [Genaiz Makefile](genaiz/README.md#makefile)
+#### [GenAIz Makefile](genaiz/README.md#makefile)
 
-#### [Genaiz-IT Makefile](genaiz-it/README.md#makefile)
+#### [GenAIz OAuth](genaiz-oauth/README.md)
 
-### Testing Genaiz
+The oauth utility kit provides functionality to:
+
+- Generate Certificate Authority ECDSA key pair files
+- Generate Signed Certificate ECDSA key pair files
+- Manage JWKS public key stores
+- Create and Decode JWT Signed tokens
+
+These facilities should be used to integrate token authentication on  [CNCF Distribution Registry](https://distribution.github.io/distribution/spec/auth/jwt/). With source code available on [GitHub](https://github.com/distribution/distribution)
+
+#### [GenAIz-IT Makefile](genaiz-it/README.md#makefile)
+
+### Testing GenAIz
 
 ## Hacking Guide
 

@@ -1,4 +1,4 @@
-# Genaiz SmartFunction Kit
+# GenAIz SmartFunction Kit
 
 ## Makefile
 
@@ -89,7 +89,7 @@ genaiz sf list --help
 
 #### publish
 
-The command initiates a session with the Genaiz broker retrieving authorization tokens to publish a Smart Function image onto the Genaiz marketplace. This would require the user to be logged in using a **genaiz ac login** preamble to retrieve licensing agreements.
+The command initiates a session with the GenAIz broker retrieving authorization tokens to publish a Smart Function image onto the GenAIz marketplace. This would require the user to be logged in using a **genaiz ac login** preamble to retrieve licensing agreements.
 
 ```shell
 genaiz sf publish --help
