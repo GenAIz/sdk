@@ -1,0 +1,23 @@
+services:
+  registry:
+    container_name: genaiz_registry
+    image: registry:latest
+    environment:
+      - "REGISTRY_AUTH=token"
+      - "REGISTRY_AUTH_TOKEN_REALM=https://oauth/token"
+      - "REGISTRY_AUTH_TOKEN_SERVICE=broker"
+      - "REGISTRY_AUTH_TOKEN_AUTOREDIRECT=false"
+      - "REGISTRY_AUTH_TOKEN_ISSUER=dev.genaiz.com"
+      - "REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE=${AUTH_PATH}/bundle.crt"
+      - "OTEL_TRACES_EXPORTER=none"
+    ports:
+      - "5000:5000"
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://0.0.0.0:5000/"]
+      start_period: 5s
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    profiles:
+      - services-registry

@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"genaiz.com/genaiz-oauth/lang"
+	"genaiz.com/genaiz-lib/lang/dirz"
 )
 
 const (
@@ -34,11 +34,18 @@ type tokenOptions struct {
 	output          string
 }
 
+func (co *tokenOptions) anchorFilePaths() {
+	co.fileSigningCert = dirz.AnchorWorkingFile(co.fileSigningCert)
+	co.fileSigningKey = dirz.AnchorWorkingFile(co.fileSigningKey)
+}
+
 func (to *tokenOptions) getOutput() (*os.File, error) {
 	if to.output == "" {
 		return os.Stdout, nil
 	} else {
-		return os.OpenFile(lang.LocalDir(to.output), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		var path = dirz.AnchorWorkingFile(to.output)
+
+		return os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	}
 }
 

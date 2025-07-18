@@ -1,5 +1,6 @@
-/genaiz/coverage.out
-/genaiz/cover.out
+**/cover.out
+**/coverage.out
+
 /genaiz/genaiz
 /genaiz-it/genaiz-it
 /genaiz-oauth/genaiz-oauth
@@ -16,4 +17,3 @@
 /example/smart-function-1/logs
 /example/smart-function-1/out
 /example/smart-function-1/var
-

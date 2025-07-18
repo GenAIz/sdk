@@ -5,8 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-oauth/cert"
-	"genaiz.com/genaiz-oauth/lang"
 )
 
 const (
@@ -94,12 +95,9 @@ func newGenerate(handler Handler) *cobra.Command {
 			var reset func()
 			var err error
 
-			if reset, err = lang.Chdir(args...); err == nil {
-				defer reset()
+			if reset, err = dirz.CreateWorkingDir(args...); err == nil {
+				defer errorz.DeferOnExit(&err, reset)()
 				var arbiter = cert.NewArbiter().
-					WithAuthority(lang.LocalDir(options.fileCaCert), lang.LocalDir(options.fileCaKey)).
-					WithBundle(lang.LocalDir(options.fileBundle)).
-					WithServer(lang.LocalDir(options.fileServerCert), lang.LocalDir(options.fileServerKey)).
 					WithOrganization(options.organization).
 					WithCountry(options.country).
 					WithProvince(options.province).
@@ -109,10 +107,15 @@ func newGenerate(handler Handler) *cobra.Command {
 					WithCommonName(options.commonName).
 					WithLifetime(options.lifetime)
 
+				options.anchorFilePaths()
+				arbiter.WithBundle(options.fileBundle).
+					WithAuthority(options.fileCaCert, options.fileCaKey).
+					WithServer(options.fileServerCert, options.fileServerKey)
+
 				if options.genCert {
 					if !options.genCA {
 						if err = arbiter.ValidateAuthority(); err != nil {
-							cobra.CheckErr(err)
+							return
 						}
 					}
 
@@ -130,9 +133,7 @@ func newGenerate(handler Handler) *cobra.Command {
 				}
 			}
 
-			if result == nil {
-				cobra.CheckErr(err)
-			} else {
+			if result != nil {
 				handler(result)
 			}
 		},

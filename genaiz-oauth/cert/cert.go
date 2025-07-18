@@ -22,8 +22,6 @@ type Arbiter interface {
 
 	BuildRootBundle() error
 
-	BuildSigningKey() (string, string, []byte)
-
 	GetRawCert() ([]byte, error)
 
 	GetRawKey() ([]byte, error)
@@ -302,10 +300,6 @@ func (a *arbiter) BuildRootBundle() error {
 	}
 
 	return err
-}
-
-func (a *arbiter) BuildSigningKey() (string, string, []byte) {
-	return "", "HS256", []byte{}
 }
 
 func (a *arbiter) GetCert() (*x509.Certificate, error) {

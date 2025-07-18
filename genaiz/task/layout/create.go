@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"genaiz.com/genaiz/lang/filez"
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task"
 )
 

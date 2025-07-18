@@ -9,8 +9,8 @@ import (
 
 	"resty.dev/v3"
 
-	"genaiz.com/genaiz/lang/mapz"
-	"genaiz.com/genaiz/lang/panicz"
+	"genaiz.com/genaiz-lib/lang/mapz"
+	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/task/shared"
 )
 

@@ -6,8 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-oauth/cert"
-	"genaiz.com/genaiz-oauth/lang"
 )
 
 const (
@@ -51,11 +52,13 @@ func newParse(handler Handler) *cobra.Command {
 			var reset func()
 			var err error
 
-			if reset, err = lang.Chdir(args...); err == nil {
-				defer reset()
-				var arbiter = cert.NewArbiter().
+			if reset, err = dirz.CreateWorkingDir(args...); err == nil {
+				defer errorz.DeferOnExit(&err, reset)()
+				var arbiter = cert.NewArbiter()
+
+				options.anchorFilePaths()
+				arbiter.WithBundle(options.fileBundle).
 					WithAuthority(options.fileCaCert, options.fileCaKey).
-					WithBundle(options.fileBundle).
 					WithServer(options.fileServerCert, options.fileServerKey)
 
 				if options.parseCa {
@@ -80,8 +83,6 @@ func newParse(handler Handler) *cobra.Command {
 					}
 				}
 			}
-
-			cobra.CheckErr(err)
 		},
 	}
 

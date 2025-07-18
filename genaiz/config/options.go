@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"genaiz.com/genaiz/lang/panicz"
-	"genaiz.com/genaiz/lang/stringz"
+	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz-lib/lang/stringz"
 )
 
 // Option is a struct describing all the data and facilities needed to manage a configuration value in a config.Ledger

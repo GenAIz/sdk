@@ -17,9 +17,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"genaiz.com/genaiz-lib/lang/mapz"
+	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/lang/enumz"
-	"genaiz.com/genaiz/lang/mapz"
-	"genaiz.com/genaiz/lang/panicz"
 )
 
 type parseFunction func(path string, t *template.Template) (*template.Template, error)

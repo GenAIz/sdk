@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cast"
 
+	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/lang/enumz"
-	"genaiz.com/genaiz/lang/filez"
-	"genaiz.com/genaiz/lang/panicz"
 )
 
 type ArchType = string

@@ -11,7 +11,7 @@ import (
 func New() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:     "genaiz-oauth",
-		Short:   "GenAIz OAuth Utility Kit",
+		Short:   "GenAIz OAuth Utility Toolkit",
 		Version: "0.0.1",
 	}
 

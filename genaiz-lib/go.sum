@@ -1,0 +1,6 @@
+github.com/docker/cli v28.3.2+incompatible h1:mOt9fcLE7zaACbxW1GeS65RI67wIJrTnqS3hP2huFsY=
+github.com/docker/cli v28.3.2+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
+github.com/docker/compose v1.25.2 h1:gNo+0WFziw+rvQS4W2xIXgTgILn/F6RtuD+I2ouUGyk=
+github.com/docker/compose v1.25.2/go.mod h1:mky9oieOOkVcuwsJ0S39s/xs3dPeFD20Y/nBHQ3jlI8=
+github.com/docker/compose/v2 v2.38.2 h1:yY3jocdj1JkHbSgAyGaDLAh8fKOykZ8LVPitNOyo9/0=
+github.com/docker/compose/v2 v2.38.2/go.mod h1:zigTfE9jJq/wFZPUCbNJtOC2YpSXBn0d3Xm/8EOs3Rk=

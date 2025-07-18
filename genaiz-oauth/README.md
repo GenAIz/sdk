@@ -1,4 +1,6 @@
-# GenAIz OAuth Utility Kit
+# GenAIz OAuth Utility Toolkit
+
+## Makefile
 
 ## Examples
 

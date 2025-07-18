@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"genaiz.com/genaiz-lib/lang/dirz"
 )
 
 var (
@@ -35,6 +37,14 @@ type certsOptions struct {
 	fileServerKey  string
 }
 
+func (co *certsOptions) anchorFilePaths() {
+	co.fileBundle = dirz.AnchorWorkingFile(co.fileBundle)
+	co.fileCaCert = dirz.AnchorWorkingFile(co.fileCaCert)
+	co.fileCaKey = dirz.AnchorWorkingFile(co.fileCaKey)
+	co.fileServerCert = dirz.AnchorWorkingFile(co.fileServerCert)
+	co.fileServerKey = dirz.AnchorWorkingFile(co.fileServerKey)
+}
+
 type Handler func(certificate *x509.Certificate)
 
 func NewCert() *cobra.Command {
@@ -44,7 +54,9 @@ func NewCert() *cobra.Command {
 		Long:  "Reads and writes PEM-based certificates to use for oauth provisioning",
 	}
 
-	cert.AddCommand(NewGenerate(), NewParse())
+	cert.AddCommand(
+		NewGenerate(),
+		NewParse())
 	return cert
 }
 
