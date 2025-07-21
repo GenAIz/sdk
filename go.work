@@ -3,11 +3,13 @@ go 1.24.2
 use (
 	genaiz
 	genaiz-it
+	genaiz-lib
 	genaiz-oauth
 )
 
 replace (
-	"genaiz.com/genaiz-it@latest" => ./genaiz-it
 	"genaiz.com/genaiz@latest" => ./genaiz
+	"genaiz.com/genaiz-it@latest" => ./genaiz-it
+	"genaiz.com/genaiz-lib@latest" => ./genaiz-lib
 	"genaiz.com/genaiz-oauth@latest" => ./genaiz-oauth
 )

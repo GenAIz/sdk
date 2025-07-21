@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz-it/mock"
+	"genaiz.com/genaiz-lib/mock"
 )
 
 func TestAssists(t *testing.T) {

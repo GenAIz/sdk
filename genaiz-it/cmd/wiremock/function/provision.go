@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-it/wiremock"
+	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/config"
-	"genaiz.com/genaiz/lang/panicz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )

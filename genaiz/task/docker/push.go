@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/image"
 
-	"genaiz.com/genaiz/lang/filez"
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )

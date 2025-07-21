@@ -13,10 +13,11 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 
-	"genaiz.com/genaiz/lang/filez"
+	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/lang/ioz"
 	"genaiz.com/genaiz/lang/signalz"
-	"genaiz.com/genaiz/lang/stringz"
 	"genaiz.com/genaiz/task"
 )
 
@@ -539,7 +540,7 @@ func makeContainerMounts(definitions []*ContainerMountBind) (*[]mount.Mount, err
 	var err error
 
 	for _, def := range definitions {
-		if err = filez.DoIfPathExist(def.HostPath, func() error {
+		if err = dirz.DoIfPathExist(def.HostPath, func() error {
 			if bind, errB := def.MakeBindMount(def.HostPath); bind != nil && errB == nil {
 				result = append(result, *bind)
 			} else if errB != nil {

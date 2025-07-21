@@ -1,4 +1,4 @@
-# GenAIz SmartFunction Kit
+# Genaiz SmartFunction Toolkit
 
 ## Makefile
 

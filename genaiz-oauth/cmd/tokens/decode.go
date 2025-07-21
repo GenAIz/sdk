@@ -7,8 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz-lib/lang/errorz"
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-oauth/jwt"
-	"genaiz.com/genaiz-oauth/lang"
 )
 
 const (
@@ -29,7 +31,7 @@ type decodeOptions struct {
 
 func (do *decodeOptions) getInput() ([]byte, error) {
 	if do.token == "" {
-		return os.ReadFile(lang.LocalDir(do.input))
+		return os.ReadFile(dirz.AnchorWorkingFile(do.input))
 	} else {
 		return []byte(do.token), nil
 	}
@@ -46,7 +48,7 @@ func (do *decodeOptions) init(cmd *cobra.Command) {
 }
 
 func (do *decodeOptions) validate() error {
-	return lang.IsReadable(do.fileSigningCert)
+	return filez.IsReadable(do.fileSigningCert)
 }
 
 func newDecode(handler func(any, io.Writer) error) *cobra.Command {
@@ -59,13 +61,14 @@ func newDecode(handler func(any, io.Writer) error) *cobra.Command {
 			var reset func()
 			var err error
 
-			if reset, err = lang.Chdir(args...); err == nil {
-				defer reset()
+			if reset, err = dirz.CreateWorkingDir(args...); err == nil {
+				defer errorz.DeferOnExit(&err, reset)
+				options.anchorFilePaths()
 
 				if err = options.validate(); err == nil {
 					var tokenBytes []byte
 					var builder = jwt.NewBuilder().
-						WithSigner(lang.LocalDir(options.fileSigningCert), lang.LocalDir(options.fileSigningKey))
+						WithSigner(options.fileSigningCert, options.fileSigningKey)
 
 					if tokenBytes, err = options.getInput(); err == nil {
 						var token any
@@ -80,8 +83,6 @@ func newDecode(handler func(any, io.Writer) error) *cobra.Command {
 					}
 				}
 			}
-
-			cobra.CheckErr(err)
 		},
 	}
 

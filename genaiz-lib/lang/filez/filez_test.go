@@ -1,14 +1,13 @@
 package filez
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz/lang/panicz"
+	"genaiz.com/genaiz-lib/lang/panicz"
 )
 
 func TestCloseSilently(t *testing.T) {
@@ -38,24 +37,6 @@ func TestCreateRecursiveTemp(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, dirHandle.Name())
 	RemoveSilently(expectedDir)
-}
-
-func TestDoIfPathExist(t *testing.T) {
-	var cwd, _ = os.Getwd()
-	var expectedError = errors.New("expected")
-	var testCall = func() error {
-		return expectedError
-	}
-
-	assert.EqualValues(t, expectedError, DoIfPathExist(cwd, testCall))
-}
-
-func TestDoIfPathExist_NotExist(t *testing.T) {
-	var testCall = func() error {
-		return errors.New("expected")
-	}
-
-	assert.NoError(t, DoIfPathExist("/_not_exist", testCall))
 }
 
 func TestFirstNamedFile(t *testing.T) {

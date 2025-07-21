@@ -5,7 +5,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,6 +30,12 @@ type Builder interface {
 	WithSigner(string, string) Builder
 }
 
+type access struct {
+	Type    string   `json:"type"`
+	Name    string   `json:"name"`
+	Actions []string `json:"actions"`
+}
+
 type builder struct {
 	audience   string
 	expiry     time.Duration
@@ -41,20 +46,20 @@ type builder struct {
 	signingKeyFile  string
 }
 
-func (b *builder) getAccessClaim() (string, error) {
+func (b *builder) getAccessClaim() (*access, error) {
 	if b.repository != "" {
-		var parts = []string{"repository", b.repository}
-
 		if len(b.operations) > 0 {
-			parts = append(parts, strings.Join(b.operations, ","))
-		} else {
-			parts = append(parts, "push,pull")
+			b.operations = []string{"push", "pull"}
 		}
 
-		return strings.Join(parts, ":"), nil
+		return &access{
+			Type:    "repository",
+			Name:    b.repository,
+			Actions: b.operations,
+		}, nil
 	}
 
-	return "", errors.New("access claim must have a repository value")
+	return nil, errors.New("access claim must have a repository value")
 }
 
 func (b *builder) getSigningCert() (*x509.Certificate, error) {
@@ -98,7 +103,7 @@ func (b *builder) Build() ([]byte, error) {
 	if cert, err = b.getSigningCert(); err == nil {
 		var now = time.Now()
 		var token jwt3.Token
-		var accessClaim string
+		var accessClaim *access
 
 		if accessClaim, err = b.getAccessClaim(); err == nil {
 			var jwtBuilder = jwt3.NewBuilder().

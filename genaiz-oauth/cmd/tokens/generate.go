@@ -7,8 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz-lib/lang/errorz"
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-oauth/jwt"
-	"genaiz.com/genaiz-oauth/lang"
 )
 
 const (
@@ -50,8 +52,8 @@ func (co *generateOptions) validate() error {
 	var err error
 
 	if co.repository != "" {
-		if err = lang.IsReadable(co.fileSigningCert); err == nil {
-			err = lang.IsReadable(co.fileSigningKey)
+		if err = filez.IsReadable(co.fileSigningCert); err == nil {
+			err = filez.IsReadable(co.fileSigningKey)
 		}
 	} else {
 		err = errors.New("required repository is missing")
@@ -70,8 +72,8 @@ func newGenerate(handler func([]byte, io.Writer) error) *cobra.Command {
 			var reset func()
 			var err error
 
-			if reset, err = lang.Chdir(args...); err == nil {
-				defer reset()
+			if reset, err = dirz.CreateWorkingDir(args...); err == nil {
+				defer errorz.DeferOnExit(&err, reset)()
 
 				if err = options.validate(); err == nil {
 					var tokenBytes []byte
@@ -79,8 +81,10 @@ func newGenerate(handler func([]byte, io.Writer) error) *cobra.Command {
 						WithAudience(options.audience).
 						WithExpiry(options.expiry).
 						WithOperations(options.operations).
-						WithRepository(options.repository).
-						WithSigner(lang.LocalDir(options.fileSigningCert), lang.LocalDir(options.fileSigningKey))
+						WithRepository(options.repository)
+
+					options.anchorFilePaths()
+					builder.WithSigner(options.fileSigningCert, options.fileSigningKey)
 
 					if tokenBytes, err = builder.Build(); err == nil {
 						var out io.Writer
@@ -91,8 +95,6 @@ func newGenerate(handler func([]byte, io.Writer) error) *cobra.Command {
 					}
 				}
 			}
-
-			cobra.CheckErr(err)
 		},
 	}
 

@@ -12,7 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"genaiz.com/genaiz/lang/filez"
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task"
 )
 

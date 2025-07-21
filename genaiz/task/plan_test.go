@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz-it/mock"
+	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/lang"
 )
 

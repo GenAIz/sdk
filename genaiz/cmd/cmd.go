@@ -104,7 +104,7 @@ func New(ledger *config.Ledger) *cobra.Command {
 	var options = NewRunnerOptions()
 	var root = &cobra.Command{
 		Use:     "genaiz",
-		Short:   "Genaiz SDK Toolkits",
+		Short:   "Genaiz SmartFunction Toolkit",
 		Version: version.Version,
 	}
 

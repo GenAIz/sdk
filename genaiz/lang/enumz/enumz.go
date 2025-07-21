@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"genaiz.com/genaiz/lang/panicz"
+	"genaiz.com/genaiz-lib/lang/panicz"
 )
 
 type EnumFactory[T string] interface {

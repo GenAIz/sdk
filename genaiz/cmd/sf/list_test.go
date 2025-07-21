@@ -8,9 +8,9 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz-it/mock"
+	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/config"
-	"genaiz.com/genaiz/lang/filez"
 )
 
 func TestNewList(t *testing.T) {

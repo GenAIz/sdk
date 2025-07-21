@@ -10,15 +10,15 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/moby/go-archive"
 
-	"genaiz.com/genaiz/lang/mapz"
-	"genaiz.com/genaiz/lang/panicz"
-	"genaiz.com/genaiz/lang/stringz"
+	"genaiz.com/genaiz-lib/lang/mapz"
+	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -159,7 +159,7 @@ func handleBuildContext(params *BuildParams, state *task.State) error {
 func handleBuildCreate(params *BuildParams, state *task.State) error {
 	var reference = params.GetReference()
 	var buildCtx, _ = archive.TarWithOptions(params.DockerContext, &archive.TarOptions{})
-	var options = types.ImageBuildOptions{
+	var options = build.ImageBuildOptions{
 		Dockerfile: params.Dockerfile,
 		Tags:       []string{reference},
 		Labels:     map[string]string{"sf": params.DockerTag},

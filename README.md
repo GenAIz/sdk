@@ -1,14 +1,25 @@
-# GenAIz SDK Toolkits
+# GenAIz SDK
 
 ## Modules
 
-### [GenAIz SmartFunction Kit](genaiz/README.md)
+### [Genaiz SmartFunction Toolkit](genaiz/README.md)
 
 Handles building, debugging, running, testing and publishing Smart Functions to a GenAIz Broker Platform.
 
-### [GenAIz SmartFunction Integration Tool](genaiz-it/README.md)
+### [GenAIz Integration Test Toolkit](genaiz-it/README.md)
 
 Handles testing of service deployments with the GenAIz SmartFunction Kit.
+
+### [GenAIz OAuth Utility Toolkit](genaiz-oauth/README.md)
+
+The oauth utility kit provides functionality to:
+
+- Generate Certificate Authority ECDSA key pair files
+- Generate Signed Certificate ECDSA key pair files
+- Manage JWKS public key stores
+- Create and Decode JWT Signed tokens
+
+These facilities should be used to integrate token authentication on  [CNCF Distribution Registry](https://distribution.github.io/distribution/spec/auth/jwt/). With source code available on [GitHub](https://github.com/distribution/distribution)
 
 ### [Compose Services](compose/README.md)
 
@@ -31,18 +42,9 @@ Individual modules with make files will answer their own targets, but most will 
 
 #### [GenAIz Makefile](genaiz/README.md#makefile)
 
-#### [GenAIz OAuth](genaiz-oauth/README.md)
-
-The oauth utility kit provides functionality to:
-
-- Generate Certificate Authority ECDSA key pair files
-- Generate Signed Certificate ECDSA key pair files
-- Manage JWKS public key stores
-- Create and Decode JWT Signed tokens
-
-These facilities should be used to integrate token authentication on  [CNCF Distribution Registry](https://distribution.github.io/distribution/spec/auth/jwt/). With source code available on [GitHub](https://github.com/distribution/distribution)
-
 #### [GenAIz-IT Makefile](genaiz-it/README.md#makefile)
+
+#### [GenAIz-OAuth Makefile](genaiz-oauth/README.md#makefile)
 
 ### Testing GenAIz
 
