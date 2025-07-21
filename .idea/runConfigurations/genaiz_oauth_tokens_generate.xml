@@ -2,7 +2,7 @@
   <configuration default="false" name="genaiz-oauth tokens generate" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
-    <parameters value="tokens generate --signCert=out/oauth/server.cert --signKey=out/oauth/server.key --aud=test.genaiz.com --op=pull --op=push --repo=com.genaiz/myapp --exp=60 --out=out/oauth/token.txt out/oauth" />
+    <parameters value="tokens generate --signCert=out/oauth/server.cert --signKey=out/oauth/server.key --aud=test.genaiz.com --op=pull --op=push --repo=com.genaiz/myapp:0.1.0 --exp=60 --out=out/oauth/token.txt out/oauth" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz-oauth" />
     <directory value="$PROJECT_DIR$" />

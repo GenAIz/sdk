@@ -18,11 +18,6 @@ func PanicIfError(err error) {
 	}
 }
 
-func PanicIfNoReturn[P any](result P, err error) P {
-	PanicIfError(err)
-	return result
-}
-
 // RequiresNotNil will panic if an object, typically a pointer evaluates to nil. This is for catching bugs before they happen, narrowing the stack trace to as soon as we are aware nil is not valid
 func RequiresNotNil(vName string, obj any) {
 	if obj == nil || reflect.ValueOf(obj).IsNil() {
