@@ -1,20 +1,22 @@
 FROM golang:1.24.2-alpine3.21 AS build
 
-WORKDIR /var/tmp/build
+ADD genaiz/go.mod genaiz/go.sum /var/tmp/build/genaiz/
+ADD genaiz-it/go.mod genaiz-it/go.sum /var/tmp/build/genaiz-it/
+ADD genaiz-lib/go.mod genaiz-lib/go.sum /var/tmp/build/genaiz-lib/
+ADD genaiz-oauth/go.mod genaiz-oauth/go.sum /var/tmp/build/genaiz-oauth/
 ADD go.work go.work.sum /var/tmp/build/
 
-WORKDIR /var/tmp/build/genaiz
-ADD genaiz/go.mod genaiz/go.sum /var/tmp/build/genaiz/
-
-COPY genaiz/ .
-
-WORKDIR /var/tmp/build/genaiz-it
-ADD genaiz-it/go.mod genaiz-it/go.sum /var/tmp/build/genaiz-it/
-
+WORKDIR /var/tmp/build
 RUN go mod download
 
-COPY genaiz-it/ .
+WORKDIR /var/tmp/build/genaiz-lib
+COPY genaiz-lib/ .
 
+WORKDIR /var/tmp/build/genaiz-oauth
+COPY genaiz-oauth/ .
+
+WORKDIR /var/tmp/build/genaiz-it
+COPY genaiz-it/ .
 RUN go build
 
 FROM alpine:3.21 AS runtime

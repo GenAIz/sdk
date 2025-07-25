@@ -31,7 +31,25 @@ func AnchorWorkingFile(path string) string {
 	return path
 }
 
-// CreateWorkingDir creates a working directory, if ir doesn't exist, changes the context working dir and returns a reset function to reposition the context to its original path
+// ChangeWorkingDir changes a working directory if it exists, returning a reset function to reposition the context to its original path
+func ChangeWorkingDir(args ...string) (func(), error) {
+	var reset func()
+	var err error
+
+	if len(args) > 0 && args[0] != "." {
+		var cwd, _ = os.Getwd()
+
+		if err = os.Chdir(args[0]); err == nil {
+			reset = func() {
+				_ = os.Chdir(cwd)
+			}
+		}
+	}
+
+	return reset, err
+}
+
+// CreateWorkingDir creates a working directory, if it doesn't exist, changes the context working dir and returns a reset function to reposition the context to its original path
 func CreateWorkingDir(args ...string) (func(), error) {
 	var reset func()
 	var err error

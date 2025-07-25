@@ -1,161 +1,111 @@
 package wiremock
 
 import (
-	"errors"
-	"fmt"
+	"embed"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
-
-	"github.com/google/uuid"
-	"resty.dev/v3"
 )
 
-type Client struct {
-	HostAddr string
+var (
+	//go:embed all:wiremock_res
+	embeddedRes  embed.FS
+	embeddedPath = "wiremock_res"
+)
+
+type ProvisionStubbing interface {
+	Build()
 }
 
-type AdminMap struct {
-	Mappings []AdminMapping `json:"mappings"`
-	Meta     *AdminMeta     `json:"meta"`
+type provisionStubbing struct {
+	wiremockHost string
+	token        string
+	realm        string
 }
 
-type AdminMapping struct {
-	Id           uuid.UUID        `json:"id"`
-	Name         string           `json:"name"`
-	Request      *MappingRequest  `json:"request"`
-	Response     *MappingResponse `json:"response"`
-	ScenarioName string           `json:"scenarioName"`
+func CopyFiles(outputPath string) error {
+	var filesPath = filepath.Join(embeddedPath, "__files")
+
+	return copyDir(outputPath, filesPath)
 }
 
-type AdminMeta struct {
-	Total int `json:"total"`
-}
-
-type MappingRequest struct {
-	UrlPath         string                           `json:"urlPath"`
-	Method          string                           `json:"method"`
-	QueryParameters map[string]*QueryParameterFilter `json:"queryParameters"`
-}
-
-type MappingResponse struct {
-	Status   int                     `json:"status"`
-	JsonBody *map[string]interface{} `json:"jsonBody"`
-	Headers  *map[string]string      `json:"headers"`
-}
-
-type QueryParameterFilter struct {
-	EqualTo string `json:"equalTo"`
-}
-
-func (c *Client) GetStub(name string) (*AdminMapping, error) {
-	var restyClient = resty.New()
-	var resp *resty.Response
+func CopyMappings(outputPath string, filters []string) error {
+	var mappingsPath = filepath.Join(embeddedPath, "mappings")
+	var faviconPath = filepath.Join(outputPath, "favicon_ico.json")
 	var err error
 
-	defer func() { _ = restyClient.Close() }()
-	resp, err = restyClient.R().
-		SetExpectResponseContentType("application/json").
-		SetResult(&AdminMap{}).
-		Get(c.HostAddr + "/__admin/mappings")
+	// Required for the healthcheck and avoiding silly errors in the wiremock logs caused by browsers attempting to retrieve it.
+	if err = copyFile(faviconPath, filepath.Join(mappingsPath, "favicon_ico.json")); err == nil {
+		var filteredJson []fs.DirEntry
 
-	if err == nil {
-		if resp.IsSuccess() {
-			var adminMap = resp.Result().(*AdminMap)
+		if filteredJson, err = filterMappings(mappingsPath, filters...); err == nil {
+			for _, filtered := range filteredJson {
+				var path = filepath.Join(mappingsPath, filtered.Name())
+				var output = filepath.Join(outputPath, filtered.Name())
 
-			for _, mapping := range adminMap.Mappings {
-				if mapping.Name == name {
-					return &mapping, nil
+				if err = copyFile(output, path); err != nil {
+					break
 				}
 			}
 		}
-
-		err = errors.New("could not find mapping")
 	}
 
-	return nil, err
+	return err
 }
 
-func (c *Client) GetStubsByPath(urlPath string) ([]*AdminMapping, error) {
-	var result []*AdminMapping
-	var restyClient = resty.New()
-	var resp *resty.Response
+func copyDir(outputPath string, dirPath string) error {
+	var entries []fs.DirEntry
 	var err error
 
-	defer func() { _ = restyClient.Close() }()
-	resp, err = restyClient.R().
-		SetExpectResponseContentType("application/json").
-		SetResult(&AdminMap{}).
-		Get(c.HostAddr + "/__admin/mappings")
+	if entries, err = embeddedRes.ReadDir(dirPath); entries != nil {
+		for _, entry := range entries {
+			var path = filepath.Join(dirPath, entry.Name())
+			var output = filepath.Join(outputPath, entry.Name())
 
-	if err == nil {
-		if resp.IsSuccess() {
-			var adminMap = resp.Result().(*AdminMap)
+			if entry.IsDir() {
+				if err = os.MkdirAll(output, 0750); err == nil {
+					if err = copyDir(outputPath, path); err != nil {
+						break
+					}
+				}
+			} else if err = copyFile(output, path); err != nil {
+				break
+			}
+		}
+	}
 
-			for _, mapping := range adminMap.Mappings {
-				var mappingRequest = mapping.Request
+	return err
+}
 
-				if mappingRequest != nil &&
-					strings.HasPrefix(mappingRequest.UrlPath, urlPath) {
-					result = append(result, &mapping)
+func copyFile(outputFile string, embeddedFile string) error {
+	var bytes []byte
+	var err error
+
+	if bytes, err = embeddedRes.ReadFile(embeddedFile); err == nil {
+		err = os.WriteFile(outputFile, bytes, 0600)
+	}
+
+	return err
+}
+
+func filterMappings(mappingsPath string, filters ...string) ([]fs.DirEntry, error) {
+	var entries []fs.DirEntry
+	var result []fs.DirEntry
+	var err error
+
+	if entries, err = embeddedRes.ReadDir(mappingsPath); entries != nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				if slices.ContainsFunc(filters, func(s string) bool {
+					return strings.HasPrefix(entry.Name(), s)
+				}) {
+					result = append(result, entry)
 				}
 			}
-		} else {
-			return nil, errors.New("could not find mapping")
 		}
 	}
 
-	return result, nil
-}
-
-func (c *Client) Reset() error {
-	var restyClient = resty.New()
-	var resp *resty.Response
-	var err error
-
-	defer func() { _ = restyClient.Close() }()
-	resp, err = restyClient.R().
-		SetExpectResponseContentType("application/json").
-		Post(c.HostAddr + "/__admin/mappings/reset")
-
-	if err == nil {
-		if !resp.IsSuccess() {
-			return fmt.Errorf("could not reset mappings [%s]", resp.RawResponse.Status)
-		}
-	}
-
-	return nil
-}
-
-func (c *Client) UpdateStub(id string, mapping *AdminMapping) error {
-	var restyClient = resty.New()
-	var resp *resty.Response
-	var err error
-
-	defer func() { _ = restyClient.Close() }()
-	resp, err = restyClient.R().
-		SetAuthScheme("").
-		SetExpectResponseContentType("application/json").
-		SetContentType("application/json").
-		SetBody(mapping).
-		Put(c.HostAddr + "/__admin/mappings/" + id)
-
-	if err == nil {
-		if !resp.IsSuccess() {
-			return fmt.Errorf("could not update mapping [%s]", resp.RawResponse.Status)
-		}
-	}
-
-	return nil
-}
-
-func NewWiremockClient(hostAddr string) *Client {
-	var result []string
-
-	if !strings.HasPrefix(hostAddr, "http") {
-		result = append(result, "http:/")
-	}
-
-	result = append(result, hostAddr)
-	return &Client{
-		HostAddr: strings.Join(result, "/"),
-	}
+	return result, err
 }

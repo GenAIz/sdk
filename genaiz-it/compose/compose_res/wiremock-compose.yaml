@@ -4,8 +4,6 @@ services:
     image: wiremock/wiremock:latest
     ports:
       - "8080:8080"
-    volumes:
-      - ${ROOT_MOUNT:-.}/wiremock:/home/wiremock
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://0.0.0.0:8080/favicon.ico" ]
       start_period: 3s
@@ -13,5 +11,4 @@ services:
       timeout: 3s
       retries: 3
     profiles:
-      - mock-broker
-      - mock-services
+      - services-wiremock
