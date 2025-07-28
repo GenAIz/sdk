@@ -1,70 +1,68 @@
 SHELL=bash
 
-BROKER_VERSION ?= "latest"
-DOCKER_UID ?= $(shell id -u)
-DOCKER_GID ?= $(shell stat -c "%g" /var/run/docker.sock)
-REGISTRY ?= "localhost:5000"
+.PHONY: help
+## help - Show this help.
+help:
+	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
 
-.PHONY: compose
-compose:
-	ls -l /var/run/docker.sock >/dev/null 2>&1 || (>&2 echo "docker is not running" && exit 1)
-	cd genaiz && $(MAKE) docker
-	cd genaiz-it && $(MAKE) docker
-	docker container prune --force
-	docker image prune --force
+.PHONY: all
+## all - Invokes all on genaiz, genaiz-it, genaiz-oauth and genaiz-lib
+all: genaiz-lib/all genaiz-oauth/all genaiz/all genaiz-it/all
 
-.PHONY: mock_login_test
-mock_login_test:
-	@echo "Running mock account login profile test..."
-	source .env && \
-		rm -rf "$TESTS_MOUNT/mock-account-login" && \
-		mkdir -p "$$TESTS_MOUNT/mock-account-login"
-	DOCKER_UID=$(DOCKER_UID) DOCKER_GID=$(DOCKER_GID) docker compose --profile mock-account-login --profile mock-broker --profile report up
+.PHONY: docker
+## docker - Invokes docker builds on genaiz, genaiz-it and genaiz-oauth
+docker: genaiz/docker genaiz-it/docker genaiz-oauth/docker
 
-.PHONY: mock_build_simple_test
-mock_build_simple_test:
-	@echo "Running mock build simple profile test..."
-	@echo "Using docker user and group: $(DOCKER_UID):$(DOCKER_GID)"
-	source .env && \
-		rm -rf "$$TESTS_MOUNT/mock-build-simple" && \
-		mkdir -p "$$TESTS_MOUNT/mock-build-simple"
-	DOCKER_UID=$(DOCKER_UID) DOCKER_GID=$(DOCKER_GID) docker compose --profile mock-build-simple --profile report up
+.PHONY: install
+## install - Invokes install on genaiz, genaiz-it and genaiz-oauth
+install: genaiz/install genaiz-it/install genaiz-oauth/install
 
-.PHONY: mock_create_simple_test
-mock_create_simple_test:
-	@echo "Running mock create simple profile test..."
-	source .env && \
-		rm -rf "$$TESTS_MOUNT/mock-create-simple" && \
-		mkdir -p "$$TESTS_MOUNT/mock-create-simple"
-	docker compose --profile mock-create-simple --profile report up
+.PHONY: genaiz/all
+## genaiz/all - Invokes all on genaiz
+genaiz/all:
+	cd genaiz && make all
 
-.PHONY: mock_publish_simple_test
-mock_publish_simple_test:
-	@echo "Running mock publish simple profile test..."
-	@echo "Using docker user and group: $(DOCKER_UID):$(DOCKER_GID)"
-	source .env && \
-		rm -rf "$$REGISTRY_MOUNT" && \
-		mkdir -p "$$REGISTRY_MOUNT/auth" && \
-		rm -rf "$$TESTS_MOUNT/mock-publish-simple" && \
-		rm -rf "$$TESTS_MOUNT/.cache/genaiz" && \
-		mkdir -p "$$TESTS_MOUNT/mock-publish-simple/" && \
-		mkdir -p "$$TESTS_MOUNT/.cache/genaiz"
-	DOCKER_UID=$(DOCKER_UID) DOCKER_GID=$(DOCKER_GID) docker compose --profile mock-publish-simple --profile mock-services --profile report up
+.PHONY: genaiz/docker
+## genaiz/docker - Invokes docker build on genaiz
+genaiz/docker:
+	cd genaiz && make docker
 
-.PHONY: mock_tests
-mock_tests:
-	@echo "Running isolated tests..."
-	@echo "Using mocked services"
-	source .env && mkdir -p "$$TESTS_MOUNT"
+.PHONY: genaiz/install
+## genaiz/install - Invokes install on genaiz
+genaiz/install:
+	cd genaiz && make install
 
-.PHONY: broker_tests
-broker_tests:
-	@echo "Running broker tests..."
-	@echo "Using broker version XXX"
-	@echo "Using mocked Docker registry"
+.PHONY: genaiz-it/all
+## genaiz-it/all - Invokes all on genaiz-it
+genaiz-it/all:
+	cd genaiz-it && make all
 
-.PHONY: registry_tests
-registry_tests:
-	@echo "Running registry tests..."
-	@echo "Using broker version XXX"
-	@echo "Using registry url XXX"
+.PHONY: genaiz-it/docker
+## genaiz-it/docker - Invokes docker build on genaiz-it
+genaiz-it/docker:
+	cd genaiz-it && make docker
+
+.PHONY: genaiz-it/install
+## genaiz-it/install - Invokes install on genaiz-it
+genaiz-it/install:
+	cd genaiz-it && make install
+
+.PHONY: genaiz-lib/all
+## genaiz-lib/all - Invokes all on genaiz-lib
+genaiz-lib/all:
+	cd genaiz-lib && make all
+
+.PHONY: genaiz-oauth/all
+## genaiz-oauth/all - Invokes all on genaiz-oauth
+genaiz-oauth/all:
+	cd genaiz-oauth && make all
+
+.PHONY: genaiz-oauth/docker
+## genaiz-oauth/docker - Invokes docker build on genaiz-oauth
+genaiz-oauth/docker:
+	cd genaiz-oauth && make docker
+
+.PHONY: genaiz-oauth/install
+## genaiz-oauth/install - Invokes install on genaiz-oauth
+genaiz-oauth/install:
+	cd genaiz-oauth && make install

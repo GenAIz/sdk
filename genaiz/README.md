@@ -2,7 +2,7 @@
 
 ## Makefile
 
-Build the project with its associated make file can install the application, its manual pages and associated resources. To install locally:
+Building the project with its associated make file can install the application, its manual pages and associated resources. To install locally:
 
 ```shell
 cd genaiz && make all

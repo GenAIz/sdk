@@ -1,4 +1,4 @@
-package registry
+package wiremock
 
 import (
 	"os/user"
@@ -11,11 +11,11 @@ import (
 func NewStop() *cobra.Command {
 	var stopCmd = &cobra.Command{
 		Use:   "stop",
-		Short: "Stops the CNCF Distribution registry",
-		Long:  "Stops the CNCF Distribution registry if it is running",
+		Short: "Stops the Wiremock Wiremock service",
+		Long:  "Stops the Wiremock Wiremock service if it is running",
 		Run: func(cmd *cobra.Command, args []string) {
 			var currentUser, _ = user.Current()
-			var service = compose.NewRegistryService(cmd.Context(), currentUser)
+			var service = compose.NewWiremockService(cmd.Context(), currentUser)
 
 			cobra.CheckErr(service.Stop())
 		},

@@ -1,12 +1,13 @@
 {
-  "name": "mock_account_login_session_create_ok",
-  "scenarioName": "mock-account-login",
+  "name": "function_publish_login_bash_example",
+  "scenarioName": "publish_bash_example_ok",
+  "newScenarioState": "authenticated",
   "request": {
     "url": "/v1/user/session/create",
     "method": "POST",
     "formParameters": {
       "email": {
-        "equalTo": "_test@genaiz.com"
+        "equalTo": "_bash_example@genaiz.com"
       },
       "password": {
         "equalTo": "success"
@@ -19,11 +20,11 @@
       "code": 200,
       "status": "OK",
       "data": {
-        "id": 1,
+        "id": 2,
         "nco": 0,
         "nms": 0,
         "flags": 1,
-        "userId": 1,
+        "userId": 2,
         "expiry": -1
       }
     },

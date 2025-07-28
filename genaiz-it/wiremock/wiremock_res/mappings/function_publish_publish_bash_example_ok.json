@@ -1,6 +1,7 @@
 {
-  "name": "my_bash_example_function_provision_ok",
-  "scenarioName": "my-bash-example",
+  "name": "function_publish_publish_bash_example_ok",
+  "scenarioName": "publish_bash_example_ok",
+  "newScenarioState": "provisioned",
   "request": {
     "urlPath": "/v1/sf/provision",
     "method": "POST",
@@ -35,7 +36,7 @@
       "status": "OK",
       "data": {
         "sf": {
-          "id": 1,
+          "id": 2,
           "nco": 1,
           "nms": 1,
           "flags": 1,
@@ -44,7 +45,7 @@
           "description": "My Bash Example",
           "oem": "com.genaiz",
           "handle": "my-bash-example",
-          "fqdn": "com.genaiz",
+          "fqdn": "dev.genaiz.com",
           "img": "registry/my-bash-example",
           "digest": "",
           "version": "0.1-dev",

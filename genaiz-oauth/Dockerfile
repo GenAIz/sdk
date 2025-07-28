@@ -12,13 +12,13 @@ RUN go mod download
 WORKDIR /var/tmp/build/genaiz-lib
 COPY genaiz-lib/ .
 
-WORKDIR /var/tmp/build/genaiz
-COPY genaiz/ .
+WORKDIR /var/tmp/build/genaiz-oauth
+COPY genaiz-oauth/ .
 RUN go build
 
 FROM alpine:3.21 AS runtime
 
-COPY --from=build /var/tmp/build/genaiz/genaiz /usr/local/bin/genaiz
+COPY --from=build /var/tmp/build/genaiz-oauth/genaiz-oauth /usr/local/bin/genaiz-oauth
 
 RUN apk add --no-cache bash
 RUN addgroup -g 1000 -S genaiz && \
@@ -30,4 +30,4 @@ RUN addgroup -g 1000 -S genaiz && \
 USER genaiz
 WORKDIR /home/genaiz
 
-ENTRYPOINT ["genaiz"]
+ENTRYPOINT ["genaiz-oauth"]

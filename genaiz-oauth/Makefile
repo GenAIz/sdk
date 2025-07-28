@@ -35,15 +35,17 @@ coverage: report
 	@echo "Opening coverage..."
 	go tool cover -html=cover.out
 
+.PHONY: docker
+## docker - Produces a docker image following the buildDocker.sh script
+docker: build
+	@echo "Building docker image..."
+	./buildDocker.sh $(REGISTRY)
+
 .PHONY: install
 ## install - Installs the binary under the users bin directory ($HOME/go/bin)
 install: build
 	@echo "Installing..."
 	go install
-
-.PHONY: recipes
-## recipes - Should install embedded recipes and recipe packs under the users share folder ($HOME/.local/share/genaiz)
-recipes:
 
 .PHONY: report
 ## report - produces a coverage report invoking the go test tool, produced as cover.out in source folder

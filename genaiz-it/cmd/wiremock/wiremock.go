@@ -2,18 +2,17 @@ package wiremock
 
 import (
 	"github.com/spf13/cobra"
-
-	"genaiz.com/genaiz-it/cmd/wiremock/function"
-	"genaiz.com/genaiz-it/cmd/wiremock/mapping"
 )
 
 func NewWiremock() *cobra.Command {
 	var wiremock = &cobra.Command{
 		Use:   "wiremock",
-		Short: "Invokes wiremock tooling",
-		Long:  "Invokes wiremock tooling and helpers to setup mocked tests",
+		Short: "Manages a standalone Wiremock Broker",
+		Long:  "Manages a standalone Wiremock Broker with the provided internal resources as mocks",
 	}
 
-	wiremock.AddCommand(function.NewFunction(), mapping.NewMapping())
+	wiremock.AddCommand(
+		NewStart(),
+		NewStop())
 	return wiremock
 }

@@ -1,0 +1,36 @@
+{
+  "name": "account_login_create_session_ok",
+  "scenarioName": "create_session_ok",
+  "newScenarioState": "ok",
+  "request": {
+    "url": "/v1/user/session/create",
+    "method": "POST",
+    "formParameters": {
+      "email": {
+        "equalTo": "_test@genaiz.com"
+      },
+      "password": {
+        "equalTo": "success"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "code": 200,
+      "status": "OK",
+      "data": {
+        "id": 1,
+        "nco": 0,
+        "nms": 0,
+        "flags": 1,
+        "userId": 1,
+        "expiry": -1
+      }
+    },
+    "headers": {
+      "Content-Type": "application/json",
+      "Set-Cookie": "s=success"
+    }
+  }
+}
