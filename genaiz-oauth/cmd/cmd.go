@@ -12,7 +12,7 @@ func New() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:     "genaiz-oauth",
 		Short:   "GenAIz OAuth Utility Toolkit",
-		Version: "0.0.1",
+		Version: "0.0.2",
 	}
 
 	cmd.AddCommand(

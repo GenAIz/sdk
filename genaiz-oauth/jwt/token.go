@@ -3,7 +3,6 @@ package jwt
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"os"
 	"time"
 
@@ -23,9 +22,7 @@ type Builder interface {
 
 	WithExpiry(int) Builder
 
-	WithOperations([]string) Builder
-
-	WithRepository(string) Builder
+	WithAccess(string, []string) Builder
 
 	WithSigner(string, string) Builder
 }
@@ -37,29 +34,12 @@ type access struct {
 }
 
 type builder struct {
-	audience   string
-	expiry     time.Duration
-	operations []string
-	repository string
+	audience string
+	expiry   time.Duration
+	access   []*access
 
 	signingCertFile string
 	signingKeyFile  string
-}
-
-func (b *builder) getAccessClaim() (*access, error) {
-	if b.repository != "" {
-		if len(b.operations) > 0 {
-			b.operations = []string{"push", "pull"}
-		}
-
-		return &access{
-			Type:    "repository",
-			Name:    b.repository,
-			Actions: b.operations,
-		}, nil
-	}
-
-	return nil, errors.New("access claim must have a repository value")
 }
 
 func (b *builder) getSigningCert() (*x509.Certificate, error) {
@@ -103,25 +83,22 @@ func (b *builder) Build() ([]byte, error) {
 	if cert, err = b.getSigningCert(); err == nil {
 		var now = time.Now()
 		var token jwt3.Token
-		var accessClaim *access
 
-		if accessClaim, err = b.getAccessClaim(); err == nil {
-			var jwtBuilder = jwt3.NewBuilder().
-				Audience([]string{b.audience}).
-				Claim("access", accessClaim).
-				Expiration(now.Add(b.expiry)).
-				Issuer(cert.Issuer.CommonName).
-				JwtID(uuid.NewString()).
-				NotBefore(now)
+		var jwtBuilder = jwt3.NewBuilder().
+			Audience([]string{b.audience}).
+			Claim("access", b.access).
+			Expiration(now.Add(b.expiry)).
+			Issuer(cert.Issuer.CommonName).
+			JwtID(uuid.NewString()).
+			NotBefore(now)
 
-			if token, err = jwtBuilder.Build(); err == nil {
-				var signingKeyOption jwt3.SignEncryptParseOption
-				var result []byte
+		if token, err = jwtBuilder.Build(); err == nil {
+			var signingKeyOption jwt3.SignEncryptParseOption
+			var result []byte
 
-				if signingKeyOption, err = b.getSigningKey(); err == nil {
-					if result, err = jwt3.Sign(token, signingKeyOption); err == nil {
-						return result, nil
-					}
+			if signingKeyOption, err = b.getSigningKey(); err == nil {
+				if result, err = jwt3.Sign(token, signingKeyOption); err == nil {
+					return result, nil
 				}
 			}
 		}
@@ -148,6 +125,14 @@ func (b *builder) Decode(token []byte) (any, error) {
 
 	return nil, err
 }
+func (b *builder) WithAccess(repository string, operations []string) Builder {
+	b.access = append(b.access, &access{
+		Type:    "repository",
+		Name:    repository,
+		Actions: operations,
+	})
+	return b
+}
 
 func (b *builder) WithAudience(audience string) Builder {
 	b.audience = audience
@@ -156,16 +141,6 @@ func (b *builder) WithAudience(audience string) Builder {
 
 func (b *builder) WithExpiry(minutes int) Builder {
 	b.expiry = time.Minute * time.Duration(minutes)
-	return b
-}
-
-func (b *builder) WithOperations(operations []string) Builder {
-	b.operations = operations
-	return b
-}
-
-func (b *builder) WithRepository(repository string) Builder {
-	b.repository = repository
 	return b
 }
 
