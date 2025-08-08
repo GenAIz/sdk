@@ -80,8 +80,7 @@ func newGenerate(handler func([]byte, io.Writer) error) *cobra.Command {
 					var builder = jwt.NewBuilder().
 						WithAudience(options.audience).
 						WithExpiry(options.expiry).
-						WithOperations(options.operations).
-						WithRepository(options.repository)
+						WithAccess(options.repository, options.operations)
 
 					options.anchorFilePaths()
 					builder.WithSigner(options.fileSigningCert, options.fileSigningKey)
