@@ -89,3 +89,18 @@ func TestGetFileType(t *testing.T) {
 	assert.EqualValues(t, expectedType, GetFileType("test.txt"))
 	assert.EqualValues(t, expectedType, GetFileType("folder/.hiddenFolder/test.txt"))
 }
+
+func TestIsReadable(t *testing.T) {
+	var dir string
+	var fd *os.File
+	var err error
+
+	dir, err = os.MkdirTemp("/tmp", "genait")
+	assert.NoError(t, err)
+	fd, err = os.CreateTemp(dir, "testIsReadable")
+	assert.NoError(t, err)
+	defer RemoveSilently(dir)
+
+	assert.NoError(t, IsReadable(fd.Name()))
+	assert.Error(t, IsReadable(fd.Name()+".notexist"))
+}

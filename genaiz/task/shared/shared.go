@@ -17,8 +17,12 @@ type Identity struct {
 	Version string // Version is a revision string for comparing the same entities at different revisions
 }
 
-func (i Identity) HasIdentifiers() bool {
-	return i.Id != "" && i.Hash != ""
+func (i Identity) HasIdentifier() bool {
+	return i.Id != ""
+}
+
+func (i Identity) HasRepoIdentifier() bool {
+	return i.HasIdentifier() && i.Hash != ""
 }
 
 // Next returns the current definition of

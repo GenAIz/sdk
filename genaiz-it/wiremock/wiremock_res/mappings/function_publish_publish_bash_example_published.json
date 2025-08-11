@@ -1,0 +1,46 @@
+{
+  "name": "function_publish_publish_bash_example_published",
+  "scenarioName": "publish bash example",
+  "newScenarioState": "published",
+  "request": {
+    "urlPath": "/v1/sf/publish",
+    "method": "POST",
+    "formParameters": {
+      "id": {
+        "equalTo": "2"
+      },
+      "hash": {
+        "matches": "sha256:[a-fA-F0-9]+"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "code": 200,
+      "status": "OK",
+      "data": {
+        "sf": {
+          "id": 2,
+          "nco": 1,
+          "nms": 1,
+          "flags": 1,
+          "seq": 1,
+          "name": "My Bash Example",
+          "description": "My Bash Example",
+          "oem": "com.genaiz",
+          "handle": "my-bash-example",
+          "fqdn": "com.genaiz/my-bash-example",
+          "img": "registry:5000/com.genaiz/my-bash-example:0.0.1-rc-0",
+          "digest": "sha256:A7327",
+          "version": "0.0.1-rc-0",
+          "type": "FUNCTION"
+        },
+        "auth": ""
+      }
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

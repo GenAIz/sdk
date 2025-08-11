@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	errorNoBuildToProvision  = errors.New("could not find an image to provision, call build first")
-	errorNoProvision         = errors.New("can not publish non-provisioned functions")
-	errorNoProvisionIdentity = errors.New("could not identify provisioned image")
+	errorNoBuildToProvision = errors.New("could not find an image to provision, call build first")
+	errorNoProvision        = errors.New("can not publish non-provisioned functions")
+	errorNoRepoIdentity     = errors.New("could not identify repository hash")
 )
 
 type ProvisionParams struct {
@@ -61,22 +61,12 @@ func NewPublishTask() *task.Task[ProvisionParams] {
 func handleProvisionContext(params *ProvisionParams, state *task.State) error {
 	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
-		var client *Client
-		var err error
 
-		if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
-			var sf *Function
+		state.Logger.Debugf("Validating smart function provisioning for [%s/%s]", params.Oem, params.Handle)
 
-			state.Logger.Debugf("Finding existing provisions for [%s/%s]", params.Oem, params.Handle)
-
-			if sf, err = client.GetFunction(params.Oem, params.Handle); err == nil {
-				state.Internal, err = sf.asIdentity().Next(current)
-			} else if errors.Is(err, errorNotFound) {
-				err = nil
-			}
+		if current.HasIdentifier() {
+			return nil
 		}
-
-		return err
 	}
 
 	return errorNoBuildToProvision
@@ -129,43 +119,29 @@ func handleProvisionPretend(params *ProvisionParams, state *task.State) error {
 func handlePublishContext(params *ProvisionParams, state *task.State) error {
 	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
-		var client *Client
 
-		if current.HasIdentifiers() {
-			var err error
+		state.Logger.Debugf("Validating smart function publishing for [%s/%s]", params.Oem, params.Handle)
 
-			if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
-				var published *Function
-
-				if published, err = client.GetFunctionById(current.Id); err == nil {
-					if published.Digest == current.Hash {
-						return nil
-					}
-
-					err = fmt.Errorf("provisioning conflicts:\npublished: [%s]\nlocal: [%s]", published.Digest, current.Hash)
-				}
-			}
-
-			return err
+		if current.HasRepoIdentifier() {
+			return nil
 		}
-
-		return errorNoProvisionIdentity
 	}
 
-	return errorNoProvision
+	return errorNoRepoIdentity
 }
 
 func handlePublishComplete(params *ProvisionParams, state *task.State) error {
 	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
 
-		if current.HasIdentifiers() {
+		if current.HasRepoIdentifier() {
 			var client *Client
 			var err error
 
 			if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
 				_, err = client.PublishFunction(current)
 				state.Output = ""
+				state.Logger.Infof("Publish smart function v%s [%s], %s", current.Version, current.Id, current.Hash)
 			}
 
 			return err
@@ -179,7 +155,7 @@ func handlePublishPretend(params *ProvisionParams, state *task.State) error {
 	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
 
-		if current.HasIdentifiers() {
+		if current.HasIdentifier() {
 			var client *Client
 			var err error
 

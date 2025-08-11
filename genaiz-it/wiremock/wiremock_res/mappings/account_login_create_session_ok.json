@@ -1,6 +1,6 @@
 {
   "name": "account_login_create_session_ok",
-  "scenarioName": "create_session_ok",
+  "scenarioName": "create session ok",
   "newScenarioState": "ok",
   "request": {
     "url": "/v1/user/session/create",

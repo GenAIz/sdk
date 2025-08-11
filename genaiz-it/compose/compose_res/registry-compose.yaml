@@ -4,11 +4,14 @@ services:
     image: registry:latest
     environment:
       - "REGISTRY_AUTH=token"
-      - "REGISTRY_AUTH_TOKEN_REALM=https://oauth/token"
-      - "REGISTRY_AUTH_TOKEN_SERVICE=broker"
+      - "REGISTRY_AUTH_TOKEN_REALM=http://broker:8081/v1/token"
+      - "REGISTRY_AUTH_TOKEN_SERVICE=registry:5000"
       - "REGISTRY_AUTH_TOKEN_AUTOREDIRECT=false"
-      - "REGISTRY_AUTH_TOKEN_ISSUER=dev.genaiz.com"
+      - "REGISTRY_AUTH_TOKEN_ISSUER=iss.genaiz.com"
       - "REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE=${AUTH_PATH}/bundle.crt"
+      - "REGISTRY_AUTH_TOKEN_JWKS=${AUTH_PATH}/keys.jwks"
+      - "REGISTRY_STORAGE_DELETE_ENABLED=false"
+      - "REGISTRY_LOG_LEVEL=debug"
       - "OTEL_TRACES_EXPORTER=none"
     ports:
       - "5000:5000"

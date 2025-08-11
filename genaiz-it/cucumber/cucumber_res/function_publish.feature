@@ -29,9 +29,10 @@ Feature: function publish
     Given the scenario "build bash example" ran with condition "service_completed_successfully"
     And the scenario "login bash example" ran with condition "service_completed_successfully"
     And the registry is running with condition: "service_healthy"
+    And the execution group "<docker_gid>"
     And a provisioned function with token
     And the following parameters
       | handle          | oem        | version |
-      | my-bash-example | com.genaiz | 0.1     |
-    When I run the command "sf publish <orchestrator> --version=<version>"
+      | my-bash-example | com.genaiz | 0.0.1   |
+    When I run the command "sf publish <orchestrator> --context=<handle> --version=<version> --logLevel=debug"
     Then I should have a docker image tagged "registry/<oem>/<handle>:<version>-dev"

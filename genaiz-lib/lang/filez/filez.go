@@ -2,7 +2,6 @@
 package filez
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -80,15 +79,14 @@ func GetFileType(path string) string {
 	return ""
 }
 
+// IsReadable returns an error if the file path provided can not be read
 func IsReadable(file string) error {
-	var path = file
-	var info os.FileInfo
+	var fd *os.File
 	var err error
 
-	if info, err = os.Stat(path); err == nil {
-		if info.Mode().Perm()&0400 != 0400 {
-			return fmt.Errorf("%s can not be read", path)
-		}
+	// That's the only way to test readability in Go, os.Stat doesn't cover ownership
+	if fd, err = os.OpenFile(file, os.O_RDONLY, 666); fd != nil {
+		return fd.Close()
 	}
 
 	return err

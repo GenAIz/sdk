@@ -2,6 +2,7 @@ package compose
 
 import (
 	"context"
+	"os"
 	"os/user"
 	"path/filepath"
 
@@ -9,6 +10,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz-oauth/cert"
+	"genaiz.com/genaiz-oauth/jwt"
 )
 
 const (
@@ -23,20 +25,30 @@ type registry struct {
 	project *types.Project
 }
 
-func (r *registry) authFolder() string {
-	return filepath.Join(registryWd, "auth")
+func (r *registry) authFolder(rootFolder string) string {
+	return filepath.Join(rootFolder, "auth")
 }
 
-func (r *registry) setupRegistryDir(authFolder string) error {
+func (r *registry) libFolder(authFolder string) string {
+	return filepath.Join(authFolder, "lib")
+}
+
+func (r *registry) setupRegistryDir(rootFolder string) error {
+	var authFolder = r.authFolder(rootFolder)
+	var libFolder = r.libFolder(rootFolder)
 	var reset func()
 	var err error
+
+	if err = os.MkdirAll(libFolder, 0750); err != nil {
+		return err
+	}
 
 	if reset, err = dirz.CreateWorkingDir(authFolder); err == nil {
 		defer reset()
 		var arbiter = cert.NewArbiter().
 			WithBundle("bundle.crt").
 			WithAuthority("ca.cert", "ca.key").
-			WithServer("server.cert", "server.key").
+			WithServer("signing.cert", "signing.key").
 			WithCaCommonName("iss.genaiz.com").
 			WithCaLifetime(1).
 			WithCommonName("dev.genaiz.com").
@@ -47,8 +59,12 @@ func (r *registry) setupRegistryDir(authFolder string) error {
 			WithProvince("QC")
 
 		if err = arbiter.BuildCert(); err == nil {
-			if err = arbiter.BuildRootBundle(); err != nil {
-				return err
+			if err = arbiter.BuildRootBundle(); err == nil {
+				var keyManager = jwt.NewKeyManager().
+					WithSetFile("keys.jwks").
+					WithPemKeys("signing.cert")
+
+				err = keyManager.WriteKeySet()
 			}
 		}
 	}
@@ -56,7 +72,7 @@ func (r *registry) setupRegistryDir(authFolder string) error {
 	return err
 }
 
-func (r *registry) setupRegistryProject(authFolder string) error {
+func (r *registry) setupRegistryProject(rootFolder string) error {
 	var environment = map[string]string{
 		"AUTH_PATH": "/etc/distribution/auth",
 	}
@@ -69,8 +85,16 @@ func (r *registry) setupRegistryProject(authFolder string) error {
 			serviceConfig.Volumes = []types.ServiceVolumeConfig{
 				{
 					Type:   types.VolumeTypeBind,
-					Source: authFolder,
+					Source: r.authFolder(rootFolder),
 					Target: environment["AUTH_PATH"],
+					Bind: &types.ServiceVolumeBind{
+						CreateHostPath: false,
+					},
+				},
+				{
+					Type:   types.VolumeTypeBind,
+					Source: r.libFolder(rootFolder),
+					Target: "/var/lib/registry",
 					Bind: &types.ServiceVolumeBind{
 						CreateHostPath: false,
 					},
@@ -84,11 +108,10 @@ func (r *registry) setupRegistryProject(authFolder string) error {
 }
 
 func (r *registry) Init() error {
-	var authFolder = filepath.Join(registryWd, "auth")
 	var err error
 
-	if err = r.setupRegistryProject(authFolder); err == nil {
-		err = r.setupRegistryDir(authFolder)
+	if err = r.setupRegistryProject(registryWd); err == nil {
+		err = r.setupRegistryDir(registryWd)
 	}
 
 	return err
@@ -101,7 +124,7 @@ func (r *registry) Start() error {
 func (r *registry) Stop() error {
 	var err error
 	var environment = map[string]string{
-		"AUTH_PATH": r.authFolder(),
+		"AUTH_PATH": r.authFolder(registryWd),
 	}
 
 	if r.project, err = r.loadProjectWithEnv(registryRes, environment); err == nil {
