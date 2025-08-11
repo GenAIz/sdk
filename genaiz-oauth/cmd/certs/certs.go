@@ -16,8 +16,8 @@ var (
 		fileBundle:     "root.crt",
 		fileCaCert:     "ca.cert",
 		fileCaKey:      "ca.key",
-		fileServerCert: "signing.cert",
-		fileServerKey:  "signing.key",
+		fileServerCert: "server.cert",
+		fileServerKey:  "server.key",
 	}
 )
 

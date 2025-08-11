@@ -18,8 +18,8 @@ const (
 
 var (
 	defaults = tokenDefaults{
-		fileSigningCert: "server.cert",
-		fileSigningKey:  "server.key",
+		fileSigningCert: "signing.cert",
+		fileSigningKey:  "signing.key",
 	}
 )
 

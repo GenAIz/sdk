@@ -16,11 +16,16 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/moby/go-archive"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
+)
+
+const (
+	hashPrefix = "sha256:"
 )
 
 var (
@@ -169,6 +174,7 @@ func handleBuildCreate(params *BuildParams, state *task.State) error {
 
 	if resp, err := dockerClient.ImageBuild(params.Context, buildCtx, options); err == nil {
 		var scanner = bufio.NewScanner(resp.Body)
+		defer filez.CloseSilently(resp.Body)
 
 		for scanner.Scan() {
 			var output Output
@@ -303,8 +309,17 @@ func handleInspectComplete(params *BuildParams, state *task.State) error {
 		state.Logger.Debugf("Inspecting docker image [%s]", state.Output)
 
 		if resp, err = dockerClient.ImageInspect(params.Context, state.Output); err == nil {
+			var digest string
+
+			if len(resp.RepoDigests) > 0 {
+				if i := strings.LastIndex(resp.RepoDigests[0], hashPrefix); i >= 0 {
+					digest = resp.RepoDigests[0][i+len(hashPrefix):]
+				}
+			}
+
 			state.Internal = &shared.Identity{
-				Hash:    resp.ID,
+				Id:      resp.ID,
+				Hash:    digest,
 				Version: params.GetVersion(),
 			}
 		}
@@ -325,7 +340,7 @@ func handleInspectContext(params *BuildParams, state *task.State) error {
 			}
 		}
 
-		if state.Output == "" {
+		if err == nil && state.Output == "" {
 			return ErrorNoBuild
 		}
 	}

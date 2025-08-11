@@ -1,16 +1,39 @@
 package docker
 
 import (
+	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/registry"
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
+
+type PushStatus struct {
+	Id             string                    `json:"id"`
+	Status         string                    `json:"status"`
+	Progress       string                    `json:"progress"`
+	ProgressDetail *PushStatusProgressDetail `json:"progressDetail"`
+	Aux            *PushStatusAux            `json:"aux"`
+}
+
+type PushStatusAux struct {
+	Tag    string `json:"Tag"`
+	Digest string `json:"Digest"`
+	Size   int64  `json:"Size"`
+}
+
+type PushStatusProgressDetail struct {
+	Current int64 `json:"current"`
+	Total   int64 `json:"total"`
+}
 
 type PushParams struct {
 	task.Env
@@ -41,17 +64,47 @@ func handlePushContext(params *PushParams, state *task.State) error {
 func handlePushComplete(params *PushParams, state *task.State) error {
 	if state.Internal != nil && state.Output != "" {
 		var remote = state.Internal.(*shared.Identity)
-		var pushOptions = image.PushOptions{RegistryAuth: remote.Auth}
+		var jsonAuth, _ = registry.EncodeAuthConfig(registry.AuthConfig{
+			RegistryToken: remote.Auth,
+		})
+		var pushOptions = image.PushOptions{
+			RegistryAuth: jsonAuth,
+		}
 		var rd io.ReadCloser
 		var err error
 
 		state.Logger.Debugf("Tagging docker image [%s]", remote.Path)
 
 		if err = dockerClient.ImageTag(params.Context, state.Output, remote.Path); err == nil {
-			state.Logger.Debugf("Pushing docker image [%s]", remote.Id)
+			state.Logger.Debugf("Pushing smart function id [%s]", remote.Id)
 
 			if rd, err = dockerClient.ImagePush(params.Context, remote.Path, pushOptions); err == nil {
+				var output PushStatus
+				var scanner = bufio.NewScanner(rd)
 				defer filez.CloseSilently(rd)
+
+				for scanner.Scan() {
+					if err = json.Unmarshal(scanner.Bytes(), &output); err == nil {
+						if !strings.Contains(output.Status, remote.Version) {
+							if output.ProgressDetail != nil {
+								state.Logger.Debugf("%s: %s [%d:%d] %s", output.Id, output.Status,
+									output.ProgressDetail.Current, output.ProgressDetail.Total, output.Progress)
+							} else if output.Id != "" {
+								state.Logger.Debugf("%s: %s", output.Id, output.Status)
+							} else if output.Status != "" {
+								state.Logger.Debugf("%s", output.Status)
+							}
+						}
+					} else {
+						state.Logger.Warningf("Could not parse json with error: %s", err)
+						state.Logger.Debugf("String: %s", scanner.Text())
+					}
+				}
+
+				if output.Aux != nil {
+					remote.Hash = output.Aux.Digest
+					state.Logger.Infof("Provisioned smart function v%s [%s], %s, size: %d", remote.Version, remote.Id, remote.Hash, output.Aux.Size)
+				}
 			}
 		}
 

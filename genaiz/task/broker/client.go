@@ -61,19 +61,6 @@ type clientPayload[P any] struct {
 	Status string
 }
 
-func (c *Client) GetFunction(oem string, handle string) (*Function, error) {
-	return c.getFunctionByParams(map[string]string{
-		"oem":    oem,
-		"handle": handle,
-	})
-}
-
-func (c *Client) GetFunctionById(id string) (*Function, error) {
-	return c.getFunctionByParams(map[string]string{
-		"id": id,
-	})
-}
-
 func (c *Client) Login(username string, password *[]byte) (*AuthSession, error) {
 	var url string
 	var err error
@@ -204,7 +191,8 @@ func (c *Client) PublishFunction(identity *shared.Identity) (*Function, error) {
 			SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
 			SetResult(&clientPayload[Function]{}).
 			SetFormData(map[string]string{
-				"id": identity.Id,
+				"id":     identity.Id,
+				"digest": identity.Hash,
 			}).
 			Post(url)
 
@@ -241,34 +229,6 @@ func (c *Client) authFromCookie(name string, cookies []*http.Cookie) string {
 
 func (c *Client) closeSilently(client *resty.Client) {
 	_ = client.Close()
-}
-
-func (c *Client) getFunctionByParams(params map[string]string) (*Function, error) {
-	if c.AuthToken != "" {
-		var url string
-		var err error
-
-		if url, err = c.makeUrl(apiVersion1, pathFunction, "get"); err == nil {
-			var client = c.factory()
-			var resp *resty.Response
-
-			defer c.closeSilently(client)
-			resp, err = client.R().
-				SetExpectResponseContentType("application/json").
-				SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
-				SetResult(&clientPayload[Provision]{}).
-				SetQueryParams(params).
-				Get(url)
-
-			return resultOrError(resp, func(body any) *Function {
-				var payload = resp.Result().(*clientPayload[Provision])
-
-				return &payload.Data.Sf
-			})
-		}
-	}
-
-	return nil, errorNoAuth
 }
 
 func (c *Client) loginUrl() string {

@@ -309,7 +309,7 @@ func (g *genaiz) Stop() error {
 		if slices.Contains(g.services, "registry") {
 			var rs = newRegistryService(g.ctx, g.user)
 
-			if err = rs.setupRegistryProject(rs.authFolder()); err != nil {
+			if err = rs.setupRegistryProject(registryWd); err != nil {
 				return err
 			}
 
@@ -349,16 +349,15 @@ func NewGenaizService(ctx context.Context, user *user.User, version string, feat
 }
 
 type alterations struct {
-	command        string
-	environment    []string
-	execGroup      string
-	execUser       string
-	feature        *cucumber.Feature
-	internals      map[string]string
-	params         map[string]string
-	scenarios      map[string]string
-	scenarioParams map[string]map[string]string
-	services       map[string]string
+	command     string
+	environment []string
+	execGroup   string
+	execUser    string
+	feature     *cucumber.Feature
+	internals   map[string]string
+	params      map[string]string
+	scenarios   map[string]string
+	services    map[string]string
 
 	workDir string
 }

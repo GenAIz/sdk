@@ -1,6 +1,6 @@
 {
   "name": "function_publish_login_bash_example",
-  "scenarioName": "publish_bash_example_ok",
+  "scenarioName": "login bash example",
   "newScenarioState": "authenticated",
   "request": {
     "url": "/v1/user/session/create",

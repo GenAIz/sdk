@@ -1,6 +1,7 @@
 package dirz
 
 import (
+	"genaiz.com/genaiz-lib/lang/panicz"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,9 +17,9 @@ func AnchorWorkingFile(path string) string {
 		var parentIndex = strings.Index(path, "..")
 
 		if parentIndex == 0 {
-			nonRelative = path[2:]
+			nonRelative = path[3:]
 		} else {
-			nonRelative = path[1:]
+			nonRelative = path[2:]
 		}
 	} else {
 		nonRelative = path
@@ -28,16 +29,19 @@ func AnchorWorkingFile(path string) string {
 		return filepath.Base(path)
 	}
 
-	return path
+	return nonRelative
 }
 
 // ChangeWorkingDir changes a working directory if it exists, returning a reset function to reposition the context to its original path
 func ChangeWorkingDir(args ...string) (func(), error) {
-	var reset func()
+	var reset = func() {}
 	var err error
 
 	if len(args) > 0 && args[0] != "." {
-		var cwd, _ = os.Getwd()
+		var cwd string
+
+		cwd, err = os.Getwd()
+		panicz.PanicIfError(err)
 
 		if err = os.Chdir(args[0]); err == nil {
 			reset = func() {
@@ -51,17 +55,18 @@ func ChangeWorkingDir(args ...string) (func(), error) {
 
 // CreateWorkingDir creates a working directory, if it doesn't exist, changes the context working dir and returns a reset function to reposition the context to its original path
 func CreateWorkingDir(args ...string) (func(), error) {
-	var reset func()
+	var reset = func() {}
 	var err error
 
 	if len(args) > 0 && args[0] != "." {
 		if err = os.MkdirAll(args[0], 0750); err == nil {
-			var cwd, _ = os.Getwd()
+			var cwd string
 
-			if err = os.Chdir(args[0]); err == nil {
-				reset = func() {
-					_ = os.Chdir(cwd)
-				}
+			cwd, err = os.Getwd()
+			panicz.PanicIfError(err)
+			panicz.PanicIfError(os.Chdir(args[0]))
+			reset = func() {
+				_ = os.Chdir(cwd)
 			}
 		}
 	}
