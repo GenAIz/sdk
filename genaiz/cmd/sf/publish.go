@@ -40,7 +40,6 @@ func (pe *PublishExecutor) Display() {
 		"broker": pe.brokerAddr,
 	},
 		&pe.optionArches.Option,
-		&pe.optionFqdn.Option,
 		&pe.optionHandle.Option,
 		&pe.optionName.Option,
 		&pe.optionRebuild.Option,
@@ -120,7 +119,6 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 		},
 		Arches:      pe.Ledger.GetList(pe.optionArches),
 		Description: nameDesc,
-		Fqdn:        pe.Ledger.GetString(pe.optionFqdn),
 		Handle:      pe.Ledger.GetString(pe.optionHandle),
 		Name:        nameDesc,
 		Oem:         pe.Ledger.GetString(pe.optionOem),
@@ -139,7 +137,6 @@ func (pe *PublishExecutor) makePushParams() *docker.PushParams {
 
 type PublishOptions struct {
 	optionArches   *config.ListOption
-	optionFqdn     *config.StringOption
 	optionHandle   *config.StringOption
 	optionName     *config.StringOption
 	optionRebuild  *config.BoolOption
@@ -152,7 +149,6 @@ type PublishOptions struct {
 func (po *PublishOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		po.optionArches,
-		po.optionFqdn,
 		po.optionHandle,
 		po.optionName,
 		po.optionRebuild,
@@ -227,7 +223,6 @@ func makePublishInitParams(ledger *config.Ledger, options *PublishOptions) *layo
 			ConfigName: ledger.ConfigName,
 		},
 		Arches:  archTypes,
-		FQDN:    ledger.GetString(options.optionFqdn),
 		Type:    *functionType,
 		Handle:  ledger.GetString(options.optionHandle),
 		Name:    ledger.GetString(options.optionName),
@@ -247,17 +242,6 @@ func newOptionArches(cmd string) *config.ListOption {
 	}
 }
 
-func newOptionFqdn(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:       "SF." + cmd + ".FQDN",
-			Param:     "fqdn",
-			Usage:     "fully qualified domain name to which the function belongs",
-			Validator: config.Validation.DomainName,
-		},
-	}
-}
-
 func newOptionHandle(cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
@@ -269,9 +253,8 @@ func newOptionHandle(cmd string) *config.StringOption {
 
 				return filepath.Base(wd)
 			},
-			Validator: config.Validation.FolderName,
+			Validator: config.Validation.Handle,
 		},
-		// TODO: Validator, this needs to be non-empty with certain max length
 	}
 }
 
@@ -285,8 +268,8 @@ func newOptionName(defaultOption *config.StringOption, cmd string) *config.Strin
 			DefaultGetter: func(ledger *config.Ledger) any {
 				return ledger.GetString(defaultOption)
 			},
+			Validator: config.Validation.Name,
 		},
-		// TODO: Validator, this needs to be non-empty with certain max length
 	}
 }
 
@@ -304,11 +287,11 @@ func newOptionNoUpdate() *config.BoolOption {
 func newOptionOem(cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:   "SF." + cmd + ".OEM",
-			Param: "oem",
-			Usage: "unique id belonging to the publisher of the function",
+			Key:       "SF." + cmd + ".OEM",
+			Param:     "oem",
+			Usage:     "unique id belonging to the publisher of the function",
+			Validator: config.Validation.Oem,
 		},
-		// TODO: Validator, this needs to be non-empty with certain max length
 	}
 }
 
@@ -367,7 +350,6 @@ func newPublishOptions(cmd string, cli *Cli, flagOptions ...*config.BoolOption) 
 
 	return &PublishOptions{
 		optionArches:   newOptionArches(cmd),
-		optionFqdn:     newOptionFqdn(cmd),
 		optionHandle:   optionHandle,
 		optionName:     newOptionName(optionHandle, cmd),
 		optionNoUpdate: optionNoUpdate,

@@ -34,7 +34,6 @@ func (ce *CreateExecutor) Display() {
 	},
 		&ce.optionArches.Option,
 		&ce.optionConfigType.Option,
-		&ce.optionFqdn.Option,
 		&ce.optionHandle.Option,
 		&ce.optionName.Option,
 		&ce.optionType.Option,
@@ -98,7 +97,6 @@ func (ce *CreateExecutor) makeRecipeParams(recipeName string, folderPath string)
 	var handleName = ce.Ledger.GetString(ce.optionHandle)
 	var recipeOptions = []*config.Option{
 		&ce.optionArches.Option,
-		&ce.optionFqdn.Option,
 		&ce.optionHandle.Option,
 		&ce.optionMountInput.Option,
 		&ce.optionMountOutput.Option,
@@ -128,7 +126,6 @@ func (co *CreateOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		co.optionArches,
 		co.optionConfigType,
-		co.optionFqdn,
 		co.optionHandle,
 		co.optionName,
 		co.optionType,
@@ -149,7 +146,7 @@ func NewCreate(ledger *config.Ledger, cli *Cli) *cobra.Command {
 		Long:    "Creates a Smart Function from scratch, interactively by default, optionally using a selected template",
 		Example: "genaiz sf create smart-function-1",
 		Args: cobra.MatchAll(cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
-			if !options.optionHandle.Validator(args[0]) {
+			if !config.Validation.FolderName(args[0]) {
 				return errors.New("invalid folder name, only alphanumeric characters, dots, dashes and underscores are allowed")
 			}
 

@@ -8,12 +8,15 @@ import (
 	"genaiz.com/genaiz/task"
 )
 
+var (
+	errorNeedsConfigFile = errors.New("file should exists")
+	errorNoConfigFile    = errors.New("no config file found")
+)
+
 type ConfigWriter interface {
 	Write(string) error
 
 	BuildArches() (string, []string)
-
-	BuildFqdn() (string, string)
 
 	BuildHandle() (string, string)
 
@@ -37,8 +40,6 @@ type ConfigWriter interface {
 
 	WithInput(string) ConfigWriter
 
-	WithFqdn(string) ConfigWriter
-
 	WithName(string) ConfigWriter
 
 	WithOem(string) ConfigWriter
@@ -53,7 +54,6 @@ type ConfigWriter interface {
 type InitParams struct {
 	CreateParams
 	Arches      []ArchType
-	FQDN        string
 	Handle      string
 	Name        string
 	Type        FunctionType
@@ -73,24 +73,6 @@ func NewInitTask(writer ConfigWriter) *task.Task[InitParams] {
 	}
 }
 
-func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task.State) error {
-	if state.Output != "" {
-		state.Logger.Debugf("Init writing to [%s]", state.Output)
-		return writer.WithArches(params.Arches).
-			WithFqdn(params.FQDN).
-			WithHandle(params.Handle).
-			WithName(params.Name).
-			WithType(params.Type).
-			WithInput(params.MountInput).
-			WithOutput(params.MountOutput).
-			WithOem(params.OEM).
-			WithVersion(params.Version).
-			Write(state.Output)
-	}
-
-	return nil
-}
-
 func handleLayoutInitContext(params *InitParams, state *task.State) error {
 	if state.Output == "" {
 		state.Logger.Debugf("Init finding a configuration file for writing")
@@ -105,11 +87,28 @@ func handleLayoutInitContext(params *InitParams, state *task.State) error {
 			}
 
 			state.Output = file
-			return errors.New("file should exists")
+			return errorNeedsConfigFile
 		}
 	}
 
 	return nil
+}
+
+func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task.State) error {
+	if state.Output != "" {
+		state.Logger.Debugf("Init writing to [%s]", state.Output)
+		return writer.WithArches(params.Arches).
+			WithHandle(params.Handle).
+			WithName(params.Name).
+			WithType(params.Type).
+			WithInput(params.MountInput).
+			WithOutput(params.MountOutput).
+			WithOem(params.OEM).
+			WithVersion(params.Version).
+			Write(state.Output)
+	}
+
+	return errorNoConfigFile
 }
 
 func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *task.State) error {
@@ -118,10 +117,8 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 
 		state.Logger.Debugf("Pretending to initialize [%s]", state.Output)
 
-		writer.WithFqdn(params.FQDN)
 		writer.WithHandle(params.Handle)
 		pretendSlice(pretender, writer.WithArches(params.Arches).BuildArches)
-		pretendValue(pretender, writer.BuildFqdn)
 		pretendValue(pretender, writer.WithName(params.Name).BuildName)
 		pretendValue(pretender, writer.BuildHandle)
 		pretendValue(pretender, writer.WithType(params.Type).BuildType)
@@ -132,7 +129,7 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 		return nil
 	}
 
-	return errors.New("no configuration file to write")
+	return errorNoConfigFile
 }
 
 func handleLayoutInitUpdate(writer ConfigWriter, params *InitParams, state *task.State) error {

@@ -37,35 +37,12 @@ func TestInitWriter_BuildArches(t *testing.T) {
 	assert.ElementsMatch(t, expectedArches, actualValue)
 }
 
-func TestInitWriter_BuildFqdn(t *testing.T) {
-	var expectedFqdn = "test.genaiz.com"
-	var expectedTag = expectedFqdn[strings.Index(expectedFqdn, ".")+1:]
-	var testViper = viper.New()
-	var testWriter = &InitWriter{
-		PublishOptions: &PublishOptions{
-			optionFqdn:   newOptionFqdn("_test"),
-			optionHandle: newOptionHandle("_test"),
-		},
-		vp:      testViper,
-		baseTag: newOptionDockerTag(),
-	}
-	var actualKey, actualValue = testWriter.WithFqdn(expectedFqdn).BuildFqdn()
-
-	assert.EqualValues(t, testWriter.optionFqdn.Key, actualKey)
-	assert.EqualValues(t, expectedFqdn, actualValue)
-
-	_, actualValue = testWriter.WithFqdn("").BuildFqdn()
-
-	assert.EqualValues(t, expectedFqdn, actualValue)
-	assert.EqualValues(t, expectedTag, testViper.GetString(testWriter.baseTag.Key))
-}
-
 func TestInitWriter_BuildHandle(t *testing.T) {
 	var expectedHandle = "test-handle"
 	var testViper = viper.New()
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionFqdn:   newOptionFqdn("_test"),
+			optionOem:    newOptionOem("_test"),
 			optionHandle: newOptionHandle("_test"),
 		},
 		vp:      testViper,
@@ -122,9 +99,11 @@ func TestInitWriter_BuildOem(t *testing.T) {
 	var expectedOem = "oem"
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionOem: newOptionOem("_test"),
+			optionHandle: newOptionHandle("handle"),
+			optionOem:    newOptionOem("_test"),
 		},
-		vp: viper.New(),
+		vp:      viper.New(),
+		baseTag: newOptionDockerTag(),
 	}
 	var actualKey, actualValue = testWriter.WithOem(expectedOem).BuildOem()
 
@@ -201,14 +180,14 @@ func TestInitWriter_BuildVersion(t *testing.T) {
 
 func TestInitWriter_Write(t *testing.T) {
 	var expectedFile = "/tmp/.genaiz/init_write_test.yaml"
-	var expectedFqdn = "genaiz.com"
+	var expectedOem = "genaiz.com"
 	var expectedHandle = "test-handle"
 	var expectedVersion = "0.0.0"
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionFqdn:    newOptionVersion("_test", testCli),
+			optionOem:     newOptionOem("_test"),
 			optionHandle:  newOptionHandle("_test"),
 			optionVersion: newOptionVersion("_test", testCli),
 		},
@@ -220,7 +199,7 @@ func TestInitWriter_Write(t *testing.T) {
 
 	if _, err := filez.CreateRecursive(testFolder, filepath.Base(expectedFile)); err == nil {
 		assert.NoError(t, testWriter.
-			WithFqdn(expectedFqdn).
+			WithOem(expectedOem).
 			WithHandle(expectedHandle).
 			WithVersion(expectedVersion).
 			Write(expectedFile))
@@ -228,7 +207,7 @@ func TestInitWriter_Write(t *testing.T) {
 		assert.NotPanics(t, func() { testWriter.WithConfigFile(expectedFile) })
 
 		assert.EqualValues(t, "latest", testViper.GetString(testWriter.baseVersion.Key))
-		assert.EqualValues(t, expectedFqdn+"/"+expectedHandle, testViper.GetString(testWriter.baseTag.Key))
+		assert.EqualValues(t, expectedOem+"/"+expectedHandle, testViper.GetString(testWriter.baseTag.Key))
 	} else {
 		assert.NoError(t, err)
 	}
@@ -241,7 +220,6 @@ func TestInitWriter_WriteInvalidFile(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionFqdn:    newOptionVersion("_test", testCli),
 			optionHandle:  newOptionHandle("_test"),
 			optionVersion: newOptionVersion("_test", testCli),
 		},
@@ -263,7 +241,6 @@ func TestInitExecutor_Display(t *testing.T) {
 	var testOptions = NewInitOptions(NewSfCli(nil, nil, nil))
 	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
 	var expectedHandle = "handle"
-	var expectedFqdn = "fqdn.genaiz.com"
 	var expectedName = "name-init"
 	var expectedOem = "oem"
 	var expectedVersion = "0.0.0"
@@ -276,7 +253,6 @@ func TestInitExecutor_Display(t *testing.T) {
 
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
-	testViper.Set(testOptions.optionFqdn.Key, expectedFqdn)
 	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
 	testViper.Set(testOptions.optionName.Key, expectedName)
 	testViper.Set(testOptions.optionOem.Key, expectedOem)
@@ -285,7 +261,6 @@ func TestInitExecutor_Display(t *testing.T) {
 	testExecutor.Display()
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionArches.Param+`:[\s\t]*\[`+strings.Join(expectedArches, " ")+`\]`), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionFqdn.Param+`:[\s\t]*`+expectedFqdn), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionHandle.Param+`:[\s\t]*`+expectedHandle), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
@@ -309,8 +284,8 @@ func TestInitExecutor_Pretend(t *testing.T) {
 	}
 
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
-	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
+	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testViper.Set(newOptionArches("Init").Key, layout.ArchTypeArm64)
 	testExecutor.Pretend()
@@ -334,8 +309,8 @@ func TestInitExecutor_Proceed(t *testing.T) {
 
 	testLedger.Logger = logrus.New()
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
-	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
+	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testExecutor.Proceed()
 	assert.True(t, calledInit)
@@ -356,11 +331,11 @@ func TestNewInit(t *testing.T) {
 		optionDockerVersion: newOptionDockerVersion(),
 	}
 	var testInit = NewInit(testLedger, testCli)
-	var expectedFqdn = "init.genaiz.com"
 	var expectedHandle = "init-handle"
+	var expectedOem = "init-oem"
 
-	testViper.Set(newOptionFqdn("Init").Key, expectedFqdn)
 	testViper.Set(newOptionHandle("Init").Key, expectedHandle)
+	testViper.Set(newOptionOem("Init").Key, expectedOem)
 	testViper.Set(newOptionType("Init").Key, layout.FunctionTypeFunction)
 	testInit.PostRun = func(cmd *cobra.Command, args []string) {
 		initCompleted = true
@@ -370,8 +345,8 @@ func TestNewInit(t *testing.T) {
 	assert.True(t, initCompleted)
 
 	if actual := testOutput.String(); actual != "" {
-		assert.Contains(t, actual, expectedFqdn)
 		assert.Contains(t, actual, expectedHandle)
+		assert.Contains(t, actual, expectedOem)
 		assert.Contains(t, actual, layout.FunctionTypeFunction)
 	} else {
 		assert.Fail(t, "no --dry content")

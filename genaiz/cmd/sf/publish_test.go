@@ -33,7 +33,6 @@ func TestPublishExecutor_Display(t *testing.T) {
 	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
 	var expectedBroker = "broker"
 	var expectedHandle = "handle"
-	var expectedFqdn = "fqdn.genaiz.com"
 	var expectedName = "name-publish"
 	var expectedOem = "oem"
 	var expectedType = layout.FunctionTypeFunction
@@ -49,7 +48,6 @@ func TestPublishExecutor_Display(t *testing.T) {
 
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
-	testViper.Set(testOptions.optionFqdn.Key, expectedFqdn)
 	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
 	testViper.Set(testOptions.optionName.Key, expectedName)
 	testViper.Set(testOptions.optionOem.Key, expectedOem)
@@ -58,7 +56,6 @@ func TestPublishExecutor_Display(t *testing.T) {
 	testExecutor.Display()
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionArches.Param+`:[\s\t]*\[`+strings.Join(expectedArches, " ")+`\]`), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionFqdn.Param+`:[\s\t]*`+expectedFqdn), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionHandle.Param+`:[\s\t]*`+expectedHandle), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionRebuild.Param+`:[\s\t]*false`), actual)
@@ -100,8 +97,8 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
 		assert.False(t, calledBuild)
@@ -145,8 +142,8 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
 		assert.False(t, calledBuild)
@@ -191,8 +188,8 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
 		assert.True(t, calledBuild)
@@ -238,8 +235,8 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionRebuild.Key, true)
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
 		assert.True(t, calledBuild)
@@ -284,8 +281,8 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
@@ -330,8 +327,8 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
@@ -377,8 +374,8 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
@@ -425,8 +422,8 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testOptions.optionRebuild.Key, true)
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionFqdn.Key, "test.genaiz.com")
 		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
 		testExecutor.Proceed()
@@ -483,7 +480,6 @@ func TestNewPublishOptions(t *testing.T) {
 	var expectedCmd = "Publish"
 	var testCli = NewSfCli(nil, nil, nil)
 	var expectedArches = newOptionArches(expectedCmd)
-	var expectedFqdn = newOptionFqdn(expectedCmd)
 	var expectedHandle = newOptionHandle(expectedCmd)
 	var expectedName = newOptionName(expectedHandle, expectedCmd)
 	var expectedOem = newOptionOem(expectedCmd)
@@ -492,7 +488,6 @@ func TestNewPublishOptions(t *testing.T) {
 	var testOptions = NewPublishOptions(testCli)
 
 	assert.True(t, expectedArches.Equals(&testOptions.optionArches.Option))
-	assert.True(t, expectedFqdn.Equals(&testOptions.optionFqdn.Option))
 	assert.True(t, expectedHandle.Equals(&testOptions.optionHandle.Option))
 	assert.True(t, expectedName.Equals(&testOptions.optionName.Option))
 	assert.True(t, expectedOem.Equals(&testOptions.optionOem.Option))
@@ -525,19 +520,6 @@ func TestNewPublishOptions_ValidateArches(t *testing.T) {
 	assert.True(t, testOption.Validator(layout.ArchTypes.Values))
 }
 
-func TestNewPublishOptions_ValidateFqdn(t *testing.T) {
-	var testOption = newOptionFqdn("_test")
-
-	assert.False(t, testOption.Validator("not a valid domain"))
-	assert.False(t, testOption.Validator(".com"))
-	assert.False(t, testOption.Validator("a.a"))
-	assert.False(t, testOption.Validator("a%.acorn"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyzAbcdefghijklmnopqrstuvwxyzABcdefghijklmnopqrstuvwxyz.info"))
-	assert.True(t, testOption.Validator("dev.genaiz.com"))
-	assert.True(t, testOption.Validator("dev.genaiz.com"))
-	assert.True(t, testOption.Validator("genaiz.com"))
-}
-
 func TestNewPublishOptions_ValidateHandle(t *testing.T) {
 	var testOption = newOptionHandle("_test")
 
@@ -547,7 +529,22 @@ func TestNewPublishOptions_ValidateHandle(t *testing.T) {
 		assert.False(t, testOption.Validator(string(c)))
 	}
 
-	assert.True(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789."))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO_.PQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO_-PQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO__PQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO-_PQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO-.PQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO--PQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO.-PQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO._PQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO..PQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator(".abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("-abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
+	assert.False(t, testOption.Validator("_abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
+	assert.True(t, testOption.Validator("abcdefghijklmnopqrstuvwxyx-ABCDEFG.HIJKLMNOPQR_STUVWXYZ0123456789"))
 }
 
 func TestNewPublishOptions_ValidateType(t *testing.T) {
@@ -571,8 +568,8 @@ func Test_makePublishInitParams_WithArches(t *testing.T) {
 	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
 	var actualParams *layout.InitParams
 
-	testViper.Set(testOptions.optionFqdn.Key, "dev.genaiz.com")
 	testViper.Set(testOptions.optionHandle.Key, "handle")
+	testViper.Set(testOptions.optionOem.Key, "oem")
 	testViper.Set(testOptions.optionType.Key, layout.FunctionTypeTrigger)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
 	testViper.Set(testOptions.optionVersion.Key, "0.0.0")

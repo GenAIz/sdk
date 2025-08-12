@@ -28,7 +28,6 @@ func TestCreatorExecutor_Display(t *testing.T) {
 	var testOptions = NewCreateOptions(NewSfCli(nil, nil, nil))
 	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
 	var expectedHandle = "handle"
-	var expectedFqdn = "fqdn.genaiz.com"
 	var expectedName = "name-create"
 	var expectedOem = "oem"
 	var expectedRecipe = "recipe"
@@ -43,7 +42,6 @@ func TestCreatorExecutor_Display(t *testing.T) {
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
 	testViper.Set(testOptions.optionConfigType.Key, layout.ConfigTypeJson)
-	testViper.Set(testOptions.optionFqdn.Key, expectedFqdn)
 	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
 	testViper.Set(testOptions.optionName.Key, expectedName)
 	testViper.Set(testOptions.optionOem.Key, expectedOem)
@@ -53,7 +51,6 @@ func TestCreatorExecutor_Display(t *testing.T) {
 	testExecutor.Display()
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionArches.Param+`:[\s\t]*\[`+strings.Join(expectedArches, " ")+`\]`), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionFqdn.Param+`:[\s\t]*`+expectedFqdn), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+layout.ConfigTypeJson), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionHandle.Param+`:[\s\t]*`+expectedHandle), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
@@ -81,8 +78,8 @@ func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 	}
 
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
-	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
+	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testExecutor.Pretend()
 	assert.True(t, calledCreate)
@@ -108,8 +105,8 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 	}
 
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
-	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
+	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testExecutor.Pretend()
@@ -136,8 +133,8 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 	}
 
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
-	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
+	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Proceed()
@@ -164,8 +161,8 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 	}
 
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
-	testViper.Set(testExecutor.optionFqdn.Key, "test.genaiz.com")
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
+	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 	testLedger.Logger = &logrus.Logger{}

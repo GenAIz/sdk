@@ -20,19 +20,26 @@ type validators struct {
 	DomainName    Validates
 	FileExists    Validates
 	FolderName    Validates
+	Handle        Validates
+	Oem           Validates
+	Name          Validates
 	Version       Validates
 	VersionNumber Validates
 }
 
 var (
+	nameStrings   = stringMatches(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9\-._][a-zA-Z0-9]+)*$`)
 	versionNumber = stringMatches(`^(?:[1-9][0-9]*|0)$`)
 
-	Validation = &validators{
+	Validation = validators{
 		DirCreated:    validateDirCreated,
 		DirExists:     validateDirExists,
 		DomainName:    stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),
 		FileExists:    validateFileExists,
 		FolderName:    stringMatches(`^[a-zA-Z0-9\-._\/]+$`),
+		Handle:        AllOf(nameStrings, stringMaxLength(128)),
+		Oem:           AllOf(nameStrings, stringMaxLength(128)),
+		Name:          stringMaxLength(255),
 		Version:       validateVersion,
 		VersionNumber: versionNumber,
 	}
@@ -45,6 +52,19 @@ func AllFromEnumerated[T string](enum *enumz.EnumType[T]) Validates {
 
 		for _, arch := range list {
 			if !enum.IsValid(cast.ToString(arch)) {
+				return false
+			}
+		}
+
+		return true
+	}
+}
+
+// AllOf creates a Validates which ensures all validation rules specified are valid for the provided value
+func AllOf(validates ...Validates) Validates {
+	return func(value any) bool {
+		for _, validate := range validates {
+			if !validate(value) {
 				return false
 			}
 		}
@@ -71,11 +91,19 @@ func Optionally(validates Validates) Validates {
 	}
 }
 
+// stringMatches returns a Validates which indicates whether a string value matches the specified regex
 func stringMatches(pattern string) Validates {
 	var regex = regexp.MustCompile(pattern)
 
 	return func(value any) bool {
 		return regex.Match([]byte(cast.ToString(value)))
+	}
+}
+
+// stringMaxLength returns a Validates which indicates whether a string value exceeds the specified length
+func stringMaxLength(length int) Validates {
+	return func(value any) bool {
+		return len(cast.ToString(value)) <= length
 	}
 }
 
@@ -106,6 +134,7 @@ func validateFileExists(path any) bool {
 	return s != nil && !s.IsDir()
 }
 
+// validateVersion validates a string against the SemVer 2.0.0 semantic form, but without any specific additional tags (-RC, -Final, etc..)
 func validateVersion(version any) bool {
 	var stringVersion = version.(string)
 

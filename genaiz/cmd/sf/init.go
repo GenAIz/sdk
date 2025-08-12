@@ -29,10 +29,6 @@ func (iw *InitWriter) BuildArches() (string, []string) {
 	return iw.optionArches.Key, iw.vp.GetStringSlice(iw.optionArches.Key)
 }
 
-func (iw *InitWriter) BuildFqdn() (string, string) {
-	return iw.optionFqdn.Key, iw.vp.GetString(iw.optionFqdn.Key)
-}
-
 func (iw *InitWriter) BuildHandle() (string, string) {
 	return iw.optionHandle.Key, iw.vp.GetString(iw.optionHandle.Key)
 }
@@ -85,22 +81,11 @@ func (iw *InitWriter) WithConfigFile(file string) layout.ConfigWriter {
 	return iw
 }
 
-func (iw *InitWriter) WithFqdn(value string) layout.ConfigWriter {
-	if value != "" {
-		var handle = iw.vp.GetString(iw.optionHandle.Key)
-
-		iw.setTag(value, handle)
-		iw.vp.Set(iw.optionFqdn.Key, value)
-	}
-
-	return iw
-}
-
 func (iw *InitWriter) WithHandle(value string) layout.ConfigWriter {
 	if value != "" {
-		var fqdn = iw.vp.GetString(iw.optionFqdn.Key)
+		var oem = iw.vp.GetString(iw.optionOem.Key)
 
-		iw.setTag(fqdn, value)
+		iw.setTag(oem, value)
 		iw.vp.Set(iw.optionHandle.Key, value)
 	}
 
@@ -124,6 +109,9 @@ func (iw *InitWriter) WithName(value string) layout.ConfigWriter {
 
 func (iw *InitWriter) WithOem(value string) layout.ConfigWriter {
 	if value != "" {
+		var handle = iw.vp.GetString(iw.optionHandle.Key)
+
+		iw.setTag(value, handle)
 		iw.vp.Set(iw.optionOem.Key, value)
 	}
 
@@ -161,11 +149,11 @@ func (iw *InitWriter) Write(filepath string) error {
 	return iw.vp.WriteConfigAs(filepath)
 }
 
-func (iw *InitWriter) setTag(fqdn string, handle string) {
+func (iw *InitWriter) setTag(oem string, handle string) {
 	var tagTokens []string
 
-	if fqdn != "" {
-		var fqdnTokens = strings.Split(fqdn, ".")
+	if oem != "" {
+		var fqdnTokens = strings.Split(oem, ".")
 		var size = len(fqdnTokens)
 
 		if size > 1 {
@@ -193,7 +181,6 @@ func (ie *InitExecutor) Display() {
 	ie.Ledger.DisplayOptions(
 		&ie.optionArches.Option,
 		&ie.optionConfigType.Option,
-		&ie.optionFqdn.Option,
 		&ie.optionHandle.Option,
 		&ie.optionName.Option,
 		&ie.optionType.Option,
@@ -240,7 +227,6 @@ func (io *InitOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		io.optionArches,
 		io.optionConfigType,
-		io.optionFqdn,
 		io.optionHandle,
 		io.optionInteractive,
 		io.optionMountInput,
@@ -324,7 +310,6 @@ func makeInitParams(ledger *config.Ledger, initOptions *InitOptions) *layout.Ini
 			ConfigName: ledger.ConfigName,
 		},
 		Arches:      archTypes,
-		FQDN:        ledger.GetString(initOptions.optionFqdn),
 		Type:        *functionType,
 		Handle:      ledger.GetString(initOptions.optionHandle),
 		Name:        ledger.GetString(initOptions.optionName),
