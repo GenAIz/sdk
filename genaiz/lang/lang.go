@@ -21,6 +21,11 @@ func HandleExit(msg interface{}) {
 	}
 }
 
+// Ref makes a pointer to a value, no comment...
+func Ref[T any](value T) *T {
+	return &value
+}
+
 // Supplier returns a function supplying the provided value, useful for testing otherwise should only be used in limited cases. Always pass a real factory when possible.
 func Supplier[P any](value *P) func() *P {
 	return func() *P {

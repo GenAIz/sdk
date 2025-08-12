@@ -19,7 +19,6 @@ type ProvisionParams struct {
 	Broker
 	Arches      []string
 	Description string
-	Fqdn        string
 	Handle      string
 	Name        string
 	Oem         string
@@ -31,7 +30,6 @@ func (pp ProvisionParams) asFunction() *Function {
 	return &Function{
 		Arches:      pp.Arches,
 		Description: pp.Description,
-		Fqdn:        pp.Fqdn,
 		Handle:      pp.Handle,
 		Name:        pp.Name,
 		Oem:         pp.Oem,
@@ -98,7 +96,6 @@ func handleProvisionPretend(params *ProvisionParams, state *task.State) error {
 			fmt.Printf("  -d arches=%s\\\n", params.Arches)
 			fmt.Printf("  -d name=%s\\\n", params.Name)
 			fmt.Printf("  -d description=%s\\\n", params.Description)
-			fmt.Printf("  -d fqdn=%s\\\n", params.Fqdn)
 			fmt.Printf("  -d oem=%s\\\n", params.Oem)
 			fmt.Printf("  -d handle=%s\\\n", params.Handle)
 			fmt.Printf("  -d version=%s\\\n", params.Version)

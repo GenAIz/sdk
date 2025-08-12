@@ -32,6 +32,12 @@ func TestHandleExit(t *testing.T) {
 	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
+func TestRef(t *testing.T) {
+	var expectedString = "test"
+
+	assert.Equal(t, expectedString, *Ref(expectedString))
+}
+
 func TestSupplier(t *testing.T) {
 	var expectedValue = "value"
 

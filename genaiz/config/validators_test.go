@@ -6,8 +6,22 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task/layout"
 )
+
+func TestAllOf(t *testing.T) {
+	var testFailAllOf = AllOf(func(value any) bool {
+		return true
+	}, func(value any) bool {
+		return false
+	})
+
+	assert.False(t, testFailAllOf("test"))
+	assert.True(t, AllOf(func(value any) bool {
+		return true
+	})("test"))
+}
 
 func TestAllFromEnumerated(t *testing.T) {
 	var testValidates = AllFromEnumerated(layout.ArchTypes)
@@ -40,6 +54,13 @@ func TestStringMatches(t *testing.T) {
 	assert.False(t, testValidates("VALUE"))
 }
 
+func TestStringMaxLength(t *testing.T) {
+	var testValidates = stringMaxLength(4)
+
+	assert.True(t, testValidates("test"))
+	assert.False(t, testValidates("testing"))
+}
+
 func TestValidateDirCreated(t *testing.T) {
 	assert.True(t, validateDirCreated("/tmp"))
 	assert.True(t, validateDirCreated("/tmp/genait-a/b"))
@@ -47,21 +68,25 @@ func TestValidateDirCreated(t *testing.T) {
 }
 
 func TestValidateDirExists(t *testing.T) {
-	var file, err = os.CreateTemp("/tmp", "genait-*")
+	if fd, err := os.CreateTemp("/tmp", "genaiz.config*"); err == nil {
+		defer filez.RemoveSilently(fd.Name())
 
-	assert.NoError(t, err)
-	assert.False(t, validateDirExists(file.Name()))
-	assert.True(t, validateDirExists("/tmp"))
-	assert.NoError(t, os.Remove(file.Name()))
+		assert.False(t, validateDirExists(fd.Name()))
+		assert.True(t, validateDirExists("/tmp"))
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestValidateFileExists(t *testing.T) {
-	var file, err = os.CreateTemp("/tmp", "genait-*")
+	if fd, err := os.CreateTemp("/tmp", "genaiz.config*"); err == nil {
+		defer filez.RemoveSilently(fd.Name())
 
-	assert.NoError(t, err)
-	assert.True(t, validateFileExists(file.Name()))
-	assert.False(t, validateFileExists("/tmp"))
-	assert.NoError(t, os.Remove(file.Name()))
+		assert.True(t, validateFileExists(fd.Name()))
+		assert.False(t, validateFileExists("/tmp"))
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestValidateVersion(t *testing.T) {
