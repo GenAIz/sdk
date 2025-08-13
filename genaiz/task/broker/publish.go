@@ -71,12 +71,12 @@ func handleProvisionContext(params *ProvisionParams, state *task.State) error {
 }
 
 func handleProvisionComplete(params *ProvisionParams, state *task.State) error {
-	var client *Client
+	var brokerClient Client
 	var err error
 
-	if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
-		state.Logger.Debugf("Provisioning function on url [%s]", client.provisionUrl())
-		state.Internal, err = client.ProvisionFunction(params.asFunction())
+	if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+		state.Logger.Debugf("Provisioning function on url [%s]", brokerClient.ProvisionUrl())
+		state.Internal, err = brokerClient.ProvisionFunction(params.asFunction())
 	}
 
 	return err
@@ -84,15 +84,15 @@ func handleProvisionComplete(params *ProvisionParams, state *task.State) error {
 
 func handleProvisionPretend(params *ProvisionParams, state *task.State) error {
 	if state.Error == nil {
-		var client *Client
+		var brokerClient Client
 		var err error
 
-		if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
+		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
 			var remote = state.Internal.(*shared.Identity)
 
 			state.Logger.Debugf("Pretending to provision to [%s]", params.HostAddr)
 			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
-			fmt.Printf("  --cookie=\"s=%s\"\\\n", client.AuthToken)
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
 			fmt.Printf("  -d arches=%s\\\n", params.Arches)
 			fmt.Printf("  -d name=%s\\\n", params.Name)
 			fmt.Printf("  -d description=%s\\\n", params.Description)
@@ -100,7 +100,7 @@ func handleProvisionPretend(params *ProvisionParams, state *task.State) error {
 			fmt.Printf("  -d handle=%s\\\n", params.Handle)
 			fmt.Printf("  -d version=%s\\\n", params.Version)
 			fmt.Printf("  -d type=%s\\\n", params.Type)
-			fmt.Printf("%s\n", client.provisionUrl())
+			fmt.Printf("%s\n", brokerClient.ProvisionUrl())
 			remote.Id = "$ID"
 			remote.Path = params.HostAddr + "/" + params.Handle
 			return nil
@@ -132,11 +132,11 @@ func handlePublishComplete(params *ProvisionParams, state *task.State) error {
 		var current = state.Internal.(*shared.Identity)
 
 		if current.HasRepoIdentifier() {
-			var client *Client
+			var brokerClient Client
 			var err error
 
-			if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
-				_, err = client.PublishFunction(current)
+			if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+				_, err = brokerClient.PublishFunction(current)
 				state.Output = ""
 				state.Logger.Infof("Publish smart function v%s [%s], %s", current.Version, current.Id, current.Hash)
 			}
@@ -153,15 +153,15 @@ func handlePublishPretend(params *ProvisionParams, state *task.State) error {
 		var current = state.Internal.(*shared.Identity)
 
 		if current.HasIdentifier() {
-			var client *Client
+			var brokerClient Client
 			var err error
 
-			if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
+			if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
 				state.Logger.Debugf("Pretending to provision to [%s]", params.HostAddr)
 				fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
-				fmt.Printf("  --cookie=\"s=%s\"\\\n", client.AuthToken)
+				fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
 				fmt.Printf("  -d id=%s\\\n", current.Id)
-				fmt.Printf("%s\n", client.publishUrl())
+				fmt.Printf("%s\n", brokerClient.PublishUrl())
 				return nil
 			}
 

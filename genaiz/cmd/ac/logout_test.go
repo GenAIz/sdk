@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
@@ -50,11 +51,11 @@ func TestNewLogout(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testLogout = NewLogout(testLedger)
-	var tmpFile, err = os.CreateTemp("/tmp", "genaiz.auth")
 
-	if err == nil {
+	if tmpFile, err := os.CreateTemp("", "genaiz.auth"); err == nil {
 		var patch = mock.Patches{T: t}.OsExit(func(i int) {})
 
+		defer filez.RemoveSilently(tmpFile.Name())
 		defer patch.Unpatch()
 		testLedger.Logger = &logrus.Logger{}
 		testLedger.AuthFile = tmpFile.Name()
@@ -62,6 +63,6 @@ func TestNewLogout(t *testing.T) {
 		assert.NotEmpty(t, patch.CalledWith)
 		assert.EqualValues(t, 1, patch.CalledWith)
 	} else {
-		assert.Fail(t, "could not create tmp file")
+		assert.Fail(t, err.Error())
 	}
 }

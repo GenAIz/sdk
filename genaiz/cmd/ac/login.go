@@ -73,16 +73,14 @@ func (le *LoginExecutor) makeLoginParams(brokerParam *broker.Broker) *broker.Log
 	}
 }
 
-func (le *LoginExecutor) queryPassword() *[]byte {
+func (le *LoginExecutor) queryPassword() []byte {
 	var password = le.Ledger.GetString(le.optionPassword)
-	var result *[]byte
+	var result []byte
 
 	if password == "" {
-		result = le.Ledger.QuerySecret("password: ")
+		result = *le.Ledger.QuerySecret("password: ")
 	} else {
-		var bytes = []byte(password)
-
-		result = &bytes
+		result = []byte(password)
 	}
 
 	return result
