@@ -246,22 +246,24 @@ func handleLoginDelete(params *LoginParams, state *task.State) error {
 		state.Logger.Debugf("Logging out session id [%s]", state.Output)
 
 		if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
-			if err = client.Logout(state.Output); err == nil {
-				var auth = NewAuthData(params.AuthFile)
-				var accounts []*AuthAccount
+			var auth = NewAuthData(params.AuthFile)
+			var accounts []*AuthAccount
 
-				state.Logger.Debugf("Pruning session id [%s]", state.Output)
-
-				for _, a := range auth.Accounts {
-					if state.Output != fmt.Sprintf("%d", a.SessionId) {
-						accounts = append(accounts, a)
-					}
-				}
-
-				auth.Accounts = accounts
-				state.Output = params.Username
-				return auth.Write(params.AuthFile)
+			if err = client.Logout(state.Output); err != nil {
+				state.Logger.Warn("Could not delete session for host [%s]: %s", params.HostAddr, err)
 			}
+
+			state.Logger.Debugf("Pruning session id [%s]", state.Output)
+
+			for _, a := range auth.Accounts {
+				if state.Output != fmt.Sprintf("%d", a.SessionId) {
+					accounts = append(accounts, a)
+				}
+			}
+
+			auth.Accounts = accounts
+			state.Output = params.Username
+			return auth.Write(params.AuthFile)
 		}
 
 		return err
