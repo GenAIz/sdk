@@ -32,7 +32,7 @@ var (
 	errorNoPath       = errors.New("broker path is not available")
 	errorUnauthorized = errors.New("unauthorized, please login")
 
-	clientByHost = map[string]*Client{}
+	clientByHost = map[string]Client{}
 	clientErrors = map[int]error{
 		400: errorBadRequest,
 		401: errorUnauthorized,
@@ -41,16 +41,48 @@ var (
 		500: errorInternal,
 		501: errorNoPath,
 	}
+	clientFactory = NewClientFactory()
 )
+
+type Client interface {
+	GetAuthToken() string
+
+	GetExpiry() int
+
+	Login(string, []byte) (*AuthSession, error)
+
+	LoginUrl() string
+
+	Logout(string) error
+
+	LogoutUrl() string
+
+	ProvisionFunction(*Function) (*shared.Identity, error)
+
+	ProvisionUrl() string
+
+	PublishFunction(*shared.Identity) (*Function, error)
+
+	PublishUrl() string
+
+	Session() (*Session, error)
+
+	SessionUrl() string
+
+	SessionValid(*Session) bool
+
+	WithAccount(*AuthAccount) (Client, error)
+}
 
 type path string
 
 type version string
 
-type Client struct {
+type client struct {
 	AuthToken string
 	Expiry    int
 	HostAddr  string
+	UserId    int
 
 	factory func() *resty.Client
 }
@@ -61,22 +93,30 @@ type clientPayload[P any] struct {
 	Status string
 }
 
-func (c *Client) Login(username string, password *[]byte) (*AuthSession, error) {
+func (c *client) GetAuthToken() string {
+	return c.AuthToken
+}
+
+func (c *client) GetExpiry() int {
+	return c.Expiry
+}
+
+func (c *client) Login(username string, password []byte) (*AuthSession, error) {
 	var url string
 	var err error
 
 	if url, err = c.makeUrl(apiVersion1, pathSession, "create"); err == nil {
-		var client = c.factory()
+		var cl = c.factory()
 		var resp *resty.Response
 		var result *AuthSession
 
-		defer c.closeSilently(client)
-		resp, err = client.R().
+		defer c.closeSilently(cl)
+		resp, err = cl.R().
 			SetExpectResponseContentType("application/json").
 			SetResult(&clientPayload[Session]{}).
 			SetFormData(map[string]string{
 				"email":    username,
-				"password": string(*password),
+				"password": string(password),
 				"expiry":   strconv.FormatInt(int64(c.Expiry*60), 10),
 			}).
 			Post(url)
@@ -91,6 +131,7 @@ func (c *Client) Login(username string, password *[]byte) (*AuthSession, error) 
 					var payload = resp.Result().(*clientPayload[Session])
 
 					c.AuthToken = cookieValue
+					c.UserId = payload.Data.UserId
 					result = NewAuthSession(&payload.Data, username, cookieValue)
 				}
 			} else if resp.Status() != "" {
@@ -106,16 +147,20 @@ func (c *Client) Login(username string, password *[]byte) (*AuthSession, error) 
 	return nil, err
 }
 
-func (c *Client) Logout(sessionId string) error {
+func (c *client) LoginUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "create")
+}
+
+func (c *client) Logout(sessionId string) error {
 	var url string
 	var err error
 
 	if url, err = c.makeUrl(apiVersion1, pathSession, "delete"); err == nil {
-		var client = c.factory()
+		var cl = c.factory()
 		var resp *resty.Response
 
-		defer c.closeSilently(client)
-		resp, err = client.R().
+		defer c.closeSilently(cl)
+		resp, err = cl.R().
 			SetExpectResponseContentType("application/json").
 			SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
 			SetResult(&clientPayload[Session]{}).
@@ -138,17 +183,21 @@ func (c *Client) Logout(sessionId string) error {
 	return nil
 }
 
-func (c *Client) ProvisionFunction(function *Function) (*shared.Identity, error) {
+func (c *client) LogoutUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "delete")
+}
+
+func (c *client) ProvisionFunction(function *Function) (*shared.Identity, error) {
 	if c.AuthToken != "" {
 		var url string
 		var err error
 
 		if url, err = c.makeUrl(apiVersion1, pathFunction, "provision"); err == nil {
-			var client = c.factory()
+			var cl = c.factory()
 			var resp *resty.Response
 
-			defer c.closeSilently(client)
-			resp, err = client.R().
+			defer c.closeSilently(cl)
+			resp, err = cl.R().
 				SetExpectResponseContentType("application/json").
 				SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
 				SetResult(&clientPayload[Provision]{}).
@@ -177,16 +226,20 @@ func (c *Client) ProvisionFunction(function *Function) (*shared.Identity, error)
 	return nil, errorNoAuth
 }
 
-func (c *Client) PublishFunction(identity *shared.Identity) (*Function, error) {
+func (c *client) ProvisionUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "provision")
+}
+
+func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 	var url string
 	var err error
 
 	if url, err = c.makeUrl(apiVersion1, pathFunction, "publish"); err == nil {
-		var client = c.factory()
+		var cl = c.factory()
 		var resp *resty.Response
 
-		defer c.closeSilently(client)
-		resp, err = client.R().
+		defer c.closeSilently(cl)
+		resp, err = cl.R().
 			SetExpectResponseContentType("application/json").
 			SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
 			SetResult(&clientPayload[Function]{}).
@@ -206,18 +259,56 @@ func (c *Client) PublishFunction(identity *shared.Identity) (*Function, error) {
 	return nil, errorNoAuth
 }
 
-func (c *Client) WithAccount(account *AuthAccount) (*Client, error) {
+func (c *client) PublishUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "publish")
+}
+
+func (c *client) Session() (*Session, error) {
+	var url string
+	var err error
+
+	if url, err = c.makeUrl(apiVersion1, pathSession, "get"); err == nil {
+		var cl = c.factory()
+		var resp *resty.Response
+
+		defer c.closeSilently(cl)
+		resp, err = cl.R().
+			SetExpectResponseContentType("application/json").
+			SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+			SetResult(&clientPayload[Session]{}).
+			Get(url)
+
+		return resultOrError(resp, func(body any) *Session {
+			var payload = resp.Result().(*clientPayload[Session])
+
+			return &payload.Data
+		})
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) SessionUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "get")
+}
+
+func (c *client) SessionValid(session *Session) bool {
+	return session.Id > 0 && session.UserId == c.UserId
+}
+
+func (c *client) WithAccount(account *AuthAccount) (Client, error) {
 	panicz.RequiresNotNil("account", account)
 
 	if !account.IsExpired() {
 		c.AuthToken = account.Token
+		c.UserId = account.UserId
 		return c, nil
 	}
 
 	return nil, errors.New("broker session is expired")
 }
 
-func (c *Client) authFromCookie(name string, cookies []*http.Cookie) string {
+func (c *client) authFromCookie(name string, cookies []*http.Cookie) string {
 	for _, cookie := range cookies {
 		if cookie.Name == name {
 			return cookie.Value
@@ -227,19 +318,11 @@ func (c *Client) authFromCookie(name string, cookies []*http.Cookie) string {
 	return ""
 }
 
-func (c *Client) closeSilently(client *resty.Client) {
+func (c *client) closeSilently(client *resty.Client) {
 	_ = client.Close()
 }
 
-func (c *Client) loginUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "create")
-}
-
-func (c *Client) logoutUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "delete")
-}
-
-func (c *Client) makeUrl(version version, path path, rpc ...string) (string, error) {
+func (c *client) makeUrl(version version, path path, rpc ...string) (string, error) {
 	if c.HostAddr == "" {
 		return "", errors.New("invalid host address")
 	}
@@ -247,25 +330,23 @@ func (c *Client) makeUrl(version version, path path, rpc ...string) (string, err
 	return makeHostUrl(c.HostAddr, version, path, rpc...), nil
 }
 
-func (c *Client) provisionUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "provision")
+type ClientFactory struct {
+	New func(string) Client
+	Get func(string, string) (Client, error)
 }
 
-func (c *Client) publishUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "publish")
-}
+func GetClient(authFile string, addr string) (Client, error) {
+	var key = sanitizeHostUrl(addr)
+	var result Client
 
-func GetClient(authFile string, addr string) (*Client, error) {
-	var result *Client
-
-	if result = clientByHost[addr]; result == nil {
+	if result = clientByHost[key]; result == nil {
 		var auth = NewAuthData(authFile)
 		var account *AuthAccount
 		var err error
 
-		if account, err = auth.Find(addr); err == nil {
-			if result, err = NewClient(addr).WithAccount(account); err == nil {
-				clientByHost[addr] = result
+		if account, err = auth.Find(key); err == nil {
+			if result, err = NewClient(key).WithAccount(account); err == nil {
+				clientByHost[key] = result
 				return result, nil
 			}
 		}
@@ -276,10 +357,17 @@ func GetClient(authFile string, addr string) (*Client, error) {
 	return result, nil
 }
 
-func NewClient(addr string) *Client {
+func NewClient(addr string) Client {
 	return newClientWithFactory(addr, defaultExpiryMinutes, func() *resty.Client {
 		return resty.New()
 	})
+}
+
+func NewClientFactory() *ClientFactory {
+	return &ClientFactory{
+		New: NewClient,
+		Get: GetClient,
+	}
 }
 
 func makeHostUrl(host string, version version, path path, rpc ...string) string {
@@ -298,8 +386,8 @@ func makeHostUrl(host string, version version, path path, rpc ...string) string 
 	return strings.Join(result, "/")
 }
 
-func newClientWithFactory(addr string, expiry int, factory func() *resty.Client) *Client {
-	return &Client{
+func newClientWithFactory(addr string, expiry int, factory func() *resty.Client) Client {
+	return &client{
 		Expiry:   expiry,
 		HostAddr: addr,
 		factory:  factory,

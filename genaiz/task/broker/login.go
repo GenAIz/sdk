@@ -13,13 +13,16 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/task"
 )
 
 var (
-	ErrorNoAuth    = errors.New("auth not established")
-	ErrorNoLogin   = errors.New("not logged in")
-	ErrorNoSession = errors.New("could not elect a session")
+	ErrorNoAuth          = errors.New("auth not established")
+	ErrorNoLogin         = errors.New("not logged in")
+	ErrorNoSession       = errors.New("could not elect a session")
+	ErrorSessionConflict = errors.New("could not choose a session to logout")
+	ErrorSessionInvalid  = errors.New("session is not valid")
 )
 
 type AuthAccount struct {
@@ -41,7 +44,7 @@ func (ad *AuthData) Find(hostAddr string) (*AuthAccount, error) {
 		}
 	}
 
-	return nil, errors.New("no broker session found")
+	return nil, ErrorNoSession
 }
 
 func (ad *AuthData) ForHostUser(host string, username string) (*AuthAccount, error) {
@@ -94,7 +97,7 @@ func (ad *AuthData) Push(hostAddr string, session *AuthSession) *AuthData {
 	}
 
 	for _, a := range ad.Accounts {
-		if !strings.EqualFold(key, hostAddr) {
+		if !strings.EqualFold(key, a.HostAddr) {
 			accounts = append(accounts, a)
 		}
 	}
@@ -112,17 +115,14 @@ func (ad *AuthData) Write(outFile string) error {
 	var err error
 
 	if fw, err = filez.CreateRecursive(dir, file); err == nil {
-		var buff = bufio.NewWriter(fw)
-		var data []byte
-
 		defer filez.CloseSilently(fw)
-		if data, err = yaml.Marshal(ad); err == nil {
-			if _, err = buff.Write(data); err == nil {
-				err = buff.Flush()
-			}
-		}
+		var buff = bufio.NewWriter(fw)
+		var data, _ = yaml.Marshal(ad)
 
-		_ = os.Chmod(fw.Name(), 0600)
+		_, err = buff.Write(data)
+		panicz.PanicIfError(err)
+		panicz.PanicIfError(buff.Flush())
+		panicz.PanicIfError(os.Chmod(fw.Name(), 0600))
 	}
 
 	return err
@@ -142,7 +142,7 @@ func (s *AuthSession) IsExpired() bool {
 
 type LoginParams struct {
 	*Broker
-	Password *[]byte
+	Password []byte
 	Username string
 }
 
@@ -193,8 +193,9 @@ func NewLogoutTask() *task.Task[LoginParams] {
 
 func NewSessionTask() *task.Task[Broker] {
 	return &task.Task[Broker]{
-		Name:      "broker-session",
-		OnPrepare: handleSessionContext,
+		Name:       "broker-session",
+		OnPrepare:  handleSessionContext,
+		OnComplete: handleSessionValidate,
 	}
 }
 
@@ -218,12 +219,12 @@ func handleLoginCreate(params *LoginParams, state *task.State) error {
 	var err error
 
 	if state.Output == "" {
-		var client = NewClient(params.HostAddr)
+		var brokerClient = clientFactory.New(params.HostAddr)
 		var session *AuthSession
 
-		state.Logger.Debugf("Creating session on url [%s]", client.loginUrl())
+		state.Logger.Debugf("Creating session on url [%s]", brokerClient.LoginUrl())
 
-		if session, err = client.Login(params.Username, params.Password); err == nil {
+		if session, err = brokerClient.Login(params.Username, params.Password); err == nil {
 			var auth = NewAuthData(params.AuthFile)
 			var newAuth = auth.Push(params.HostAddr, session)
 
@@ -232,25 +233,27 @@ func handleLoginCreate(params *LoginParams, state *task.State) error {
 				return nil
 			}
 		}
+
+		state.Logger.Errorf("Could not create session: [%s]", err)
+		return err
 	}
 
-	state.Logger.Errorf("Could not create session: [%s]", err)
-	return err
+	return nil
 }
 
 func handleLoginDelete(params *LoginParams, state *task.State) error {
 	if state.Output != "" {
-		var client *Client
+		var brokerClient Client
 		var err error
 
 		state.Logger.Debugf("Logging out session id [%s]", state.Output)
 
-		if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
+		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
 			var auth = NewAuthData(params.AuthFile)
 			var accounts []*AuthAccount
 
-			if err = client.Logout(state.Output); err != nil {
-				state.Logger.Warn("Could not delete session for host [%s]: %s", params.HostAddr, err)
+			if err = brokerClient.Logout(state.Output); err != nil {
+				state.Logger.Warnf("Could not delete session for host [%s]: %s", params.HostAddr, err)
 			}
 
 			state.Logger.Debugf("Pruning session id [%s]", state.Output)
@@ -274,14 +277,14 @@ func handleLoginDelete(params *LoginParams, state *task.State) error {
 
 func handleLoginPretend(params *LoginParams, state *task.State) error {
 	if errors.Is(state.Error, ErrorNoAuth) {
-		var client = NewClient(params.HostAddr)
+		var brokerClient = clientFactory.New(params.HostAddr)
 
 		state.Logger.Debugf("Pretending to login to [%s] with username [%s]", params.HostAddr, params.Username)
 		fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 		fmt.Printf("-d username=%s\\\n", params.Username)
 		fmt.Printf("-d password=**********\\\n")
-		fmt.Printf("-d expiry=%d\\\n", client.Expiry)
-		fmt.Printf("%s\n", client.loginUrl())
+		fmt.Printf("-d expiry=%d\\\n", brokerClient.GetExpiry())
+		fmt.Printf("%s\n", brokerClient.LoginUrl())
 		return nil
 	}
 
@@ -299,7 +302,7 @@ func handleLogoutContext(params *LoginParams, state *task.State) error {
 		var account *AuthAccount
 		var err error
 
-		if params.HostAddr != "" || params.Username != "" {
+		if params.Username != "" {
 			account, err = auth.ForHostUser(params.HostAddr, params.Username)
 		} else if size == 1 {
 			account = auth.Accounts[0]
@@ -313,8 +316,10 @@ func handleLogoutContext(params *LoginParams, state *task.State) error {
 				return nil
 			}
 
-			return ErrorNoSession
+			return ErrorSessionConflict
 		}
+
+		return err
 	}
 
 	return ErrorNoLogin
@@ -322,23 +327,16 @@ func handleLogoutContext(params *LoginParams, state *task.State) error {
 
 func handleLogoutPretend(params *LoginParams, state *task.State) error {
 	if state.Output != "" {
-		var client *Client
+		var brokerClient Client
 		var err error
 
-		if client, err = GetClient(params.AuthFile, params.HostAddr); err == nil {
+		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
 			state.Logger.Debugf("Pretending to logout from session id [%s]", state.Output)
-
-			if params.HostAddr != "" {
-				state.Logger.Debugf("For host [%s]", params.HostAddr)
-			}
-
-			if params.Username != "" {
-				state.Logger.Debugf("And username [%s]", params.Username)
-			}
-
+			state.Logger.Debugf("For host [%s]", params.HostAddr)
+			state.Logger.Debugf("And username [%s]", params.Username)
 			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 			fmt.Printf("-d id=%s\\\n", state.Output)
-			fmt.Printf("%s\n", client.logoutUrl())
+			fmt.Printf("%s\n", brokerClient.LogoutUrl())
 			return nil
 		}
 
@@ -368,6 +366,31 @@ func handleSessionContext(params *Broker, state *task.State) error {
 		state.Logger.Debugf("Found session for active broker address [%s]", account.HostAddr)
 		state.Output = account.Token
 		return nil
+	}
+
+	return ErrorNoAuth
+}
+
+func handleSessionValidate(params *Broker, state *task.State) error {
+	if state.Output != "" {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+			var session *Session
+
+			if session, err = brokerClient.Session(); err == nil {
+				if brokerClient.SessionValid(session) {
+					state.Logger.Debugf("Session [%d] validated for user [%d]", session.Id, session.UserId)
+					return nil
+				} else {
+					err = ErrorSessionInvalid
+				}
+			}
+		}
+
+		state.Output = ""
+		return err
 	}
 
 	return ErrorNoAuth

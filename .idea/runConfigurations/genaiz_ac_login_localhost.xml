@@ -2,9 +2,9 @@
   <configuration default="false" name="genaiz ac login localhost" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
-    <parameters value="ac login localhost:8081 --username=_test@genaiz.com --logLevel=debug --refresh" />
+    <parameters value="ac login localhost:8081 --username=_test@genaiz.com --logLevel=debug" />
     <envs>
-      <env name="GENAIZ_PASSWORD" value="success" />
+      <env name="GENAIZ_PASSWORD" value="password" />
     </envs>
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
