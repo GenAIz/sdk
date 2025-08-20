@@ -15,23 +15,28 @@ type Validates func(value any) bool
 
 // validators provides Validates for various validation needs
 type validators struct {
+	Blob          Validates
 	DirCreated    Validates
 	DirExists     Validates
 	DomainName    Validates
 	FileExists    Validates
 	FolderName    Validates
 	Handle        Validates
+	HandlePort    Validates
 	Oem           Validates
 	Name          Validates
+	RequiredName  Validates
 	Version       Validates
 	VersionNumber Validates
 }
 
 var (
 	nameStrings   = stringMatches(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9\-._][a-zA-Z0-9]+)*$`)
+	nameMaxSize   = stringMaxLength(255)
 	versionNumber = stringMatches(`^(?:[1-9][0-9]*|0)$`)
 
 	Validation = validators{
+		Blob:          stringMaxLength(4096),
 		DirCreated:    validateDirCreated,
 		DirExists:     validateDirExists,
 		DomainName:    stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),
@@ -39,7 +44,8 @@ var (
 		FolderName:    stringMatches(`^[a-zA-Z0-9\-._\/]+$`),
 		Handle:        AllOf(nameStrings, stringMaxLength(128)),
 		Oem:           AllOf(nameStrings, stringMaxLength(128)),
-		Name:          stringMaxLength(255),
+		Name:          nameMaxSize,
+		RequiredName:  AllOf(stringMinLength(1), nameMaxSize),
 		Version:       validateVersion,
 		VersionNumber: versionNumber,
 	}
@@ -104,6 +110,13 @@ func stringMatches(pattern string) Validates {
 func stringMaxLength(length int) Validates {
 	return func(value any) bool {
 		return len(cast.ToString(value)) <= length
+	}
+}
+
+// stringMinLength returns a Validates which indicates whether a string value is of at least the specified length
+func stringMinLength(length int) Validates {
+	return func(value any) bool {
+		return len(cast.ToString(value)) >= length
 	}
 }
 

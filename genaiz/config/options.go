@@ -14,7 +14,6 @@ import (
 // Option is a struct describing all the data and facilities needed to manage a configuration value in a config.Ledger
 type Option struct {
 	Key           string            // Key is used in configuration files
-	Alias         string            // Alias is also used in configuration files
 	Param         string            // Param is used from the shell
 	Short         string            // Short is the shortened one letter alias for param
 	Env           string            // Env is the environment string used to retrieve the config
@@ -31,7 +30,6 @@ func (o *Option) Equals(other *Option) bool {
 		o.Param == other.Param &&
 		o.Short == other.Short &&
 		o.Env == other.Env &&
-		o.Alias == other.Alias &&
 		o.Usage == other.Usage &&
 		o.DefaultValue == other.DefaultValue
 }

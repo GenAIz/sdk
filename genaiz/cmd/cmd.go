@@ -16,6 +16,7 @@ import (
 
 	"genaiz.com/genaiz/cmd/ac"
 	"genaiz.com/genaiz/cmd/sf"
+	"genaiz.com/genaiz/cmd/wf"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/version"
 
@@ -31,15 +32,15 @@ type Runner interface {
 }
 
 type RunnerOptions struct {
-	logFormat      *config.StringOption
-	logLevel       *config.StringOption
-	overrideConfig *config.StringOption
-	runConfirm     *config.BoolOption
-	runDry         *config.BoolOption
-	runPretend     *config.BoolOption
-	solutionPath   *config.StringOption
-	stdIn          io.Reader
-	stdOut         io.Writer
+	logFormat    *config.StringOption
+	logLevel     *config.StringOption
+	runConfig    *config.StringOption
+	runConfirm   *config.BoolOption
+	runDry       *config.BoolOption
+	runPretend   *config.BoolOption
+	solutionPath *config.StringOption
+	stdIn        io.Reader
+	stdOut       io.Writer
 }
 
 func (ro *RunnerOptions) Confirm(ledger *config.Ledger, display ...func()) bool {
@@ -90,7 +91,7 @@ func (ro *RunnerOptions) Pretend(ledger *config.Ledger) bool {
 
 func (ro *RunnerOptions) allDefiners() []config.Definer {
 	return []config.Definer{
-		ro.overrideConfig,
+		ro.runConfig,
 		ro.solutionPath,
 		ro.logFormat,
 		ro.logLevel,
@@ -123,7 +124,8 @@ func New(ledger *config.Ledger) *cobra.Command {
 	}
 
 	ledger.Register(root, options.allDefiners()...)
-	ledger.AddConfigOption(options.overrideConfig)
+	ledger.AddConfigOption(options.runConfig)
+	root.AddCommand(wf.NewWf(ledger, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(sf.NewSf(ledger, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(ac.NewAc(ledger))
 	return root
@@ -131,15 +133,15 @@ func New(ledger *config.Ledger) *cobra.Command {
 
 func NewRunnerOptions() *RunnerOptions {
 	return &RunnerOptions{
-		logFormat:      newOptionLogFormat(),
-		logLevel:       newOptionLogLevel(),
-		overrideConfig: newOptionOverrideConfig(),
-		runConfirm:     newOptionRunConfirm(),
-		runDry:         newOptionRunDry(),
-		runPretend:     newOptionRunPretend(),
-		solutionPath:   newOptionSolutionPath(),
-		stdIn:          os.Stdin,
-		stdOut:         os.Stdout,
+		logFormat:    newOptionSolutionLogFormat(),
+		logLevel:     newOptionSolutionLogLevel(),
+		runConfig:    newOptionRunConfig(),
+		runConfirm:   newOptionRunConfirm(),
+		runDry:       newOptionRunDry(),
+		runPretend:   newOptionRunPretend(),
+		solutionPath: newOptionSolutionPath(),
+		stdIn:        os.Stdin,
+		stdOut:       os.Stdout,
 	}
 }
 
@@ -184,6 +186,18 @@ func getLevel(levelString string) (logrus.Level, error) {
 	return logrus.InfoLevel, fmt.Errorf("level [%s] not supported, info will be used", levelString)
 }
 
+func newOptionRunConfig() *config.StringOption {
+	return &config.StringOption{
+		Option: config.Option{
+			Param: "config",
+			Usage: "configuration file path of the smart function or a solution",
+			DefaultGetter: func(ledger *config.Ledger) any {
+				return ledger.WorkDir
+			},
+		},
+	}
+}
+
 func newOptionRunConfirm() *config.BoolOption {
 	return &config.BoolOption{
 		Option: config.Option{
@@ -214,10 +228,11 @@ func newOptionRunPretend() *config.BoolOption {
 	}
 }
 
-func newOptionLogFormat() *config.StringOption {
+func newOptionSolutionLogFormat() *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:          "SF.LogFormat",
+			Key:          "Solution.LogFormat",
+			Env:          "SN_LOG_FORMAT",
 			Param:        "logFormat",
 			Usage:        "log format as supported by Logrus. Also supports \"json\" for structured logging",
 			DefaultValue: "[%time%|%lvl%] %msg%",
@@ -225,10 +240,11 @@ func newOptionLogFormat() *config.StringOption {
 	}
 }
 
-func newOptionLogLevel() *config.StringOption {
+func newOptionSolutionLogLevel() *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:          "SF.LogLevel",
+			Key:          "Solution.LogLevel",
+			Env:          "SN_LOG_LEVEL",
 			Param:        "logLevel",
 			Usage:        "log level for controlling logging details. Supported case insensitive values: debug, d, error e, info, i, quiet q, trace t, warning and w",
 			DefaultValue: "quiet",
@@ -236,23 +252,11 @@ func newOptionLogLevel() *config.StringOption {
 	}
 }
 
-func newOptionOverrideConfig() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF.Config",
-			Param: "config",
-			Usage: "configuration file path of the smart function or a solution",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.WorkDir
-			},
-		},
-	}
-}
-
 func newOptionSolutionPath() *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:       "WF.Path",
+			Key:       "Solution.Path",
+			Env:       "SN_PATH",
 			Param:     "solution",
 			Usage:     "configuration file path of the smart function solution, if any",
 			Validator: config.Optionally(config.Validation.FileExists),

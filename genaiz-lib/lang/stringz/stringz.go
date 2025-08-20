@@ -43,3 +43,12 @@ func SingleTagLabel(label string, delimiter string, tag string) string {
 
 	return label
 }
+
+// SubstrFrom extracts the part of the string after the specified, including the indexed character or empty string if the index overflows the string length.
+func SubstrFrom(label string, index int) string {
+	if index < len(label) {
+		return label[index:]
+	}
+
+	return ""
+}

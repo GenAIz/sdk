@@ -127,6 +127,46 @@ Similar to run, but starting a disposable container attached to the current shel
 genaiz sf test --help
 ```
 
+### workflow (wf)
+
+The workflow module allows a user to create, add and remove workflow configurations from a solution file.
+
+#### create
+
+The create command takes an optional path, where a solution can be found, and adds a workflow to it. If no path is supplied, the command reads the current working dir, if the path does not exist, it creates it. If the workflow already exists an error is returned.
+
+```shell
+genaiz wf create --help
+```
+
+#### delete
+
+The delete command removes a workflow from the current working dir solution. If the workflow does not exist, it returns an error.
+
+```shell
+genaiz wf delete --help
+```
+
+#### links add/rm
+
+The "links" commands can be used to add and remove links to and from an existing workflow. If the workflow does not exist, it returns an error.
+
+```shell
+genaiz wf links --help
+genaiz wf links add --help
+genaiz wf links rm --help
+```
+
+#### nodes add/rm
+
+The "nodes" commands can be used to add and remove nodes to and from an existing workflow. If the workflow does not exist, it returns an error.
+
+```shell
+genaiz wf nodes --help
+genaiz wf nodes add --help
+genaiz wf nodes rm --help
+```
+
 ### account (ac)
 
 The account module is used to manage account credentials and configuration policies with an Orchestrating Broker.

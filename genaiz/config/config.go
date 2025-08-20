@@ -23,6 +23,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz/task/shared"
 )
 
 const (
@@ -146,6 +147,7 @@ func (lr *Ledger) AddConfigOption(option *StringOption) {
 
 			if err := lr.viper.MergeInConfig(); err != nil {
 				lr.LogDebug("could not merge config [%s]", path)
+				lr.LogDebug("%s", err.Error())
 			}
 		}
 	})
@@ -243,6 +245,17 @@ func (lr *Ledger) GetBool(option *BoolOption) bool {
 	}
 
 	return cast.ToBool(result)
+}
+
+// GetConfigType returns a shared.ConfigType if the provided option is set to a supported configuration type
+func (lr *Ledger) GetConfigType(option *StringOption) (*shared.ConfigType, error) {
+	var configTypeString = lr.GetString(option)
+
+	if configTypeString != "" {
+		return shared.ConfigTypes.FromString(configTypeString)
+	}
+
+	return nil, errors.New("unspecified config type parameter")
 }
 
 // GetList returns the list value of a ListOption from Get as a slice of strings

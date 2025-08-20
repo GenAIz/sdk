@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"genaiz.com/genaiz-lib/lang/panicz"
 )
 
 func TestCloseSilently(t *testing.T) {
@@ -19,6 +17,13 @@ func TestCloseSilently(t *testing.T) {
 	}
 
 	assert.NotPanics(t, func() { CloseSilently(nil) })
+}
+
+func TestCreateRecursive_Err(t *testing.T) {
+	var expectedDir = "///.genaiz"
+
+	_, err := CreateRecursive(expectedDir, "FilezTest.txt")
+	assert.Error(t, err)
 }
 
 func TestCreateRecursive(t *testing.T) {
@@ -48,6 +53,9 @@ func TestFirstNamedFile(t *testing.T) {
 	var testBytes []byte
 	var err error
 
+	defer RemoveSilently(dir)
+	defer func() { _ = os.Chdir(back) }()
+
 	assert.NoError(t, os.Chdir(dir))
 	assert.NoError(t, os.Mkdir("testDir", 0750))
 	assert.NoError(t, os.WriteFile("testFile", []byte("invalid"), 0640))
@@ -61,15 +69,29 @@ func TestFirstNamedFile(t *testing.T) {
 	} else {
 		assert.Fail(t, "could not read test file")
 	}
-
-	panicz.PanicIfError(os.RemoveAll(dir))
-	panicz.PanicIfError(os.Chdir(back))
 }
 
-func TestFirstNamedFileUnderInvalidDir(t *testing.T) {
+func TestFirstNamedFileUnder_InvalidDir(t *testing.T) {
 	var _, err = FirstNamedFileUnder("/invalid", "name")
 
 	assert.Error(t, err)
+}
+
+func TestFirstNamedFileUnder_NotFound(t *testing.T) {
+	var testName = "name"
+	var back, _ = os.Getwd()
+	var dir, _ = os.MkdirTemp("/tmp", "genait")
+	var err error
+
+	defer RemoveSilently(dir)
+	defer func() { _ = os.Chdir(back) }()
+
+	assert.NoError(t, os.Chdir(dir))
+	assert.NoError(t, os.Mkdir("testDir", 0750))
+
+	_, err = FirstNamedFile(testName)
+	assert.Error(t, err)
+	assert.Equal(t, "not found", err.Error())
 }
 
 func TestFromWorkDir(t *testing.T) {

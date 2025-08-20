@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
@@ -89,10 +90,10 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
@@ -135,10 +136,10 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
@@ -180,10 +181,10 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -226,10 +227,10 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -273,10 +274,10 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
@@ -320,10 +321,10 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
@@ -366,10 +367,10 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -413,10 +414,10 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -444,8 +445,10 @@ func TestNewPublish(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(ledger *config.Ledger) bool {
-			return true
+		BaseCli: cli.BaseCli{
+			Dry: func(ledger *config.Ledger) bool {
+				return true
+			},
 		},
 		optionDockerContext: newOptionDockerContext(),
 		optionDockerFile:    newOptionDockerFile(),

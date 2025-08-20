@@ -6,26 +6,13 @@ package sf
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 )
-
-type Decisive func(*config.Ledger) bool
-
-type Interactive func(*config.Ledger, ...func()) bool
-
-type Executor interface {
-	Display()
-
-	Pretend()
-
-	Proceed()
-}
 
 type BaseExecutor struct {
 	Cli     *Cli
@@ -34,24 +21,11 @@ type BaseExecutor struct {
 }
 
 type Cli struct {
-	Confirm Interactive
-	Dry     Decisive
-	Pretend Decisive
-
+	cli.BaseCli
 	optionDockerContext *config.StringOption
 	optionDockerFile    *config.StringOption
 	optionDockerTag     *config.StringOption
 	optionDockerVersion *config.StringOption
-}
-
-func (c *Cli) Exec(ledger *config.Ledger, executor Executor) {
-	if !c.isDry(ledger, executor.Display) {
-		if c.isPretend(ledger) {
-			executor.Pretend()
-		} else {
-			c.execConfirm(ledger, executor.Proceed, executor.Display)
-		}
-	}
 }
 
 func (c *Cli) SfOptions() []*config.Option {
@@ -72,72 +46,45 @@ func (c *Cli) allDefiners() []config.Definer {
 	}
 }
 
-func (c *Cli) execConfirm(ledger *config.Ledger, exec func(), display ...func()) {
-	if c.Confirm != nil && c.Confirm(ledger, display...) {
-		exec()
-	} else {
-		fmt.Println("Cancelled, exiting")
-		os.Exit(0)
-	}
-}
-
-func (c *Cli) isDecisive(ledger *config.Ledger, decisive Decisive, display ...func()) bool {
-	if decisive != nil && decisive(ledger) {
-		for _, d := range display {
-			d()
-		}
-
-		return true
-	}
-
-	return false
-}
-
-func (c *Cli) isDry(ledger *config.Ledger, display ...func()) bool {
-	return c.isDecisive(ledger, c.Dry, display...)
-}
-
-func (c *Cli) isPretend(ledger *config.Ledger) bool {
-	return c.isDecisive(ledger, c.Pretend)
-}
-
-func NewSf(ledger *config.Ledger, confirm Interactive, dry, pretend Decisive) *cobra.Command {
-	var cli = NewSfCli(confirm, dry, pretend)
-	var sf = &cobra.Command{
+func NewSf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Decisive) *cobra.Command {
+	var sfCli = NewSfCli(confirm, dry, pretend)
+	var sfCmd = &cobra.Command{
 		Use:     "function",
 		Aliases: []string{"sf"},
 		Short:   "Genaiz Smart Function Toolkit",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			var flags = cmd.Flags()
 
-			ledger.ToWorkDir(cli.optionDockerContext, flags)
-			ledger.FromWorkDir(cli.optionDockerFile, flags)
+			ledger.ToWorkDir(sfCli.optionDockerContext, flags)
+			ledger.FromWorkDir(sfCli.optionDockerFile, flags)
 		},
 	}
 
-	ledger.Register(sf, cli.allDefiners()...)
-	sf.AddCommand(
-		NewBuild(ledger, cli),
-		NewCreate(ledger, cli),
-		NewInit(ledger, cli),
-		NewList(ledger, cli),
-		NewRun(ledger, cli),
-		NewDebug(ledger, cli),
-		NewTest(ledger, cli),
-		NewStop(ledger, cli),
-		NewStart(ledger, cli),
-		NewPublish(ledger, cli),
+	ledger.Register(sfCmd, sfCli.allDefiners()...)
+	sfCmd.AddCommand(
+		NewBuild(ledger, sfCli),
+		NewCreate(ledger, sfCli),
+		NewInit(ledger, sfCli),
+		NewList(ledger, sfCli),
+		NewRun(ledger, sfCli),
+		NewDebug(ledger, sfCli),
+		NewTest(ledger, sfCli),
+		NewStop(ledger, sfCli),
+		NewStart(ledger, sfCli),
+		NewPublish(ledger, sfCli),
 	)
 	// The sf command captures context modifications and those are needed before the ledger sets defaults
-	cobra.OnInitialize(func() { ledger.ChangeWorkDir(cli.optionDockerContext) })
-	return sf
+	cobra.OnInitialize(func() { ledger.ChangeWorkDir(sfCli.optionDockerContext) })
+	return sfCmd
 }
 
-func NewSfCli(confirm Interactive, dry, pretend Decisive) *Cli {
+func NewSfCli(confirm cli.Interactive, dry, pretend cli.Decisive) *Cli {
 	return &Cli{
-		Confirm: confirm,
-		Dry:     dry,
-		Pretend: pretend,
+		BaseCli: cli.BaseCli{
+			Confirm: confirm,
+			Dry:     dry,
+			Pretend: pretend,
+		},
 
 		optionDockerContext: newOptionDockerContext(),
 		optionDockerFile:    newOptionDockerFile(),

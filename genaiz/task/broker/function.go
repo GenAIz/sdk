@@ -40,7 +40,7 @@ func (pp ProvisionParams) asFunction() *Function {
 
 func NewProvisionTask() *task.Task[ProvisionParams] {
 	return &task.Task[ProvisionParams]{
-		Name:       "broker-provision",
+		Name:       "function-provision",
 		OnPrepare:  handleProvisionContext,
 		OnComplete: handleProvisionComplete,
 		OnPretend:  handleProvisionPretend,
@@ -49,7 +49,7 @@ func NewProvisionTask() *task.Task[ProvisionParams] {
 
 func NewPublishTask() *task.Task[ProvisionParams] {
 	return &task.Task[ProvisionParams]{
-		Name:       "broker-publish",
+		Name:       "function-publish",
 		OnPrepare:  handlePublishContext,
 		OnComplete: handlePublishComplete,
 		OnPretend:  handlePublishPretend,

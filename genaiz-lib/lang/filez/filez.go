@@ -2,6 +2,7 @@
 package filez
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,8 +20,13 @@ func CloseSilently(toClose io.ReadCloser) {
 
 // CreateRecursive creates a file under the specified dir, creating the path first if necessary
 func CreateRecursive(dir string, name string) (*os.File, error) {
-	panicz.PanicIfError(os.MkdirAll(dir, 0750))
-	return os.Create(filepath.Join(dir, name))
+	var err error
+
+	if err = os.MkdirAll(dir, 0750); err == nil {
+		return os.OpenFile(filepath.Join(dir, name), os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0660)
+	}
+
+	return nil, err
 }
 
 // CreateRecursiveTemp creates a temporary file under the specified dir, creating the path if necessary
@@ -38,9 +44,10 @@ func FirstNamedFile(name string) (string, error) {
 
 // FirstNamedFileUnder returns the first file with the provided name under the provided path non-recursively, that is the part excluding an extension matching
 func FirstNamedFileUnder(path string, name string) (string, error) {
-	var entries, err = os.ReadDir(path)
+	var entries []os.DirEntry
+	var err error
 
-	if err == nil {
+	if entries, err = os.ReadDir(path); err == nil {
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				var file = filepath.Base(entry.Name())
@@ -51,6 +58,8 @@ func FirstNamedFileUnder(path string, name string) (string, error) {
 				}
 			}
 		}
+
+		return "", errors.New("not found")
 	}
 
 	return "", err

@@ -2,11 +2,13 @@ package dirz
 
 import (
 	"errors"
-	"genaiz.com/genaiz-lib/lang/filez"
-	"genaiz.com/genaiz-lib/lang/panicz"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/panicz"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -163,4 +165,32 @@ func TestCreateWorkingDir(t *testing.T) {
 	reset()
 	actual, _ = os.Getwd()
 	assert.Equal(t, cwd, actual)
+}
+
+func TestOptionalWorkingDir_NoArgs(t *testing.T) {
+	var cwd string
+	var err error
+
+	if cwd, err = os.Getwd(); err == nil {
+		var fn = OptionalWorkingDir()
+		var actual string
+
+		if actual, err = fn(); err == nil {
+			assert.Equal(t, cwd, actual)
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestOptionalWorkingDir(t *testing.T) {
+	var fn = OptionalWorkingDir("path", "test")
+	var actual string
+	var err error
+
+	if actual, err = fn(); err == nil {
+		assert.True(t, strings.HasSuffix(actual, "path/test"))
+	}
+
+	assert.NoError(t, err)
 }

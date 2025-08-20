@@ -6,6 +6,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/shared"
 )
 
 var (
@@ -77,8 +78,8 @@ func handleLayoutInitContext(params *InitParams, state *task.State) error {
 	if state.Output == "" {
 		state.Logger.Debugf("Init finding a configuration file for writing")
 
-		if params.NeedsConfigFile() {
-			state.Output = filez.FromWorkDir(params.ConfigName + "." + *params.ConfigType)
+		if !params.IsConfigTypeNone() {
+			state.Output = params.GetConfigFile()
 		} else {
 			var file, _ = filez.FirstNamedFile(params.ConfigName)
 
@@ -113,19 +114,19 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 
 func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *task.State) error {
 	if state.Output != "" {
-		var pretender = newConfigPretender(state.Output)
+		var pretender = shared.NewConfigPretender(state.Output)
 
 		state.Logger.Debugf("Pretending to initialize [%s]", state.Output)
 
 		writer.WithHandle(params.Handle)
-		pretendSlice(pretender, writer.WithArches(params.Arches).BuildArches)
-		pretendValue(pretender, writer.WithName(params.Name).BuildName)
-		pretendValue(pretender, writer.BuildHandle)
-		pretendValue(pretender, writer.WithType(params.Type).BuildType)
-		pretendValue(pretender, writer.WithInput(params.MountInput).BuildInput)
-		pretendMap(pretender, writer.WithOutput(params.MountOutput).BuildOutput)
-		pretendValue(pretender, writer.WithOem(params.OEM).BuildOem)
-		pretendValue(pretender, writer.WithVersion(params.Version).BuildVersion)
+		shared.PretendSlice(pretender, writer.WithArches(params.Arches).BuildArches)
+		shared.PretendValue(pretender, writer.WithName(params.Name).BuildName)
+		shared.PretendValue(pretender, writer.BuildHandle)
+		shared.PretendValue(pretender, writer.WithType(params.Type).BuildType)
+		shared.PretendValue(pretender, writer.WithInput(params.MountInput).BuildInput)
+		shared.PretendMap(pretender, writer.WithOutput(params.MountOutput).BuildOutput)
+		shared.PretendValue(pretender, writer.WithOem(params.OEM).BuildOem)
+		shared.PretendValue(pretender, writer.WithVersion(params.Version).BuildVersion)
 		return nil
 	}
 

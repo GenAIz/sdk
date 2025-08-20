@@ -159,14 +159,14 @@ func TestRunnerOptions_allDefiners(t *testing.T) {
 
 	assert.NotEmpty(t, testOptions.logLevel)
 	assert.NotEmpty(t, testOptions.logFormat)
-	assert.NotEmpty(t, testOptions.overrideConfig)
+	assert.NotEmpty(t, testOptions.runConfig)
 	assert.NotEmpty(t, testOptions.runConfirm)
 	assert.NotEmpty(t, testOptions.runDry)
 	assert.NotEmpty(t, testOptions.runPretend)
 	assert.NotEmpty(t, testOptions.solutionPath)
 	assert.Contains(t, testDefiners, testOptions.logLevel)
 	assert.Contains(t, testDefiners, testOptions.logFormat)
-	assert.Contains(t, testDefiners, testOptions.overrideConfig)
+	assert.Contains(t, testDefiners, testOptions.runConfig)
 	assert.Contains(t, testDefiners, testOptions.runConfirm)
 	assert.Contains(t, testDefiners, testOptions.runDry)
 	assert.Contains(t, testDefiners, testOptions.runPretend)
@@ -180,13 +180,14 @@ func TestNew(t *testing.T) {
 
 	testLedger.LoggerFactory(testLedger)
 	assert.EqualValues(t, version.Version, testCmd.Version)
+	assert.Equal(t, 3, len(testCmd.Commands()))
 }
 
 func TestNew_ErrorLogFactory(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = New(testLedger)
-	var testLogLevel = newOptionLogLevel()
+	var testLogLevel = newOptionSolutionLogLevel()
 
 	testViper.Set(testLogLevel.Key, "invalid")
 	testLedger.InitLogging()
@@ -299,7 +300,7 @@ func Test_getLevel(t *testing.T) {
 func Test_newOptionOverrideConfig_defaultGetter(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = newOptionOverrideConfig()
+	var testOption = newOptionRunConfig()
 	var expectedDir = "/tmp"
 
 	testLedger.WorkDir = expectedDir

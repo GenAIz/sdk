@@ -13,6 +13,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type StubWriter struct {
@@ -132,8 +133,10 @@ func Test_handleLayoutInitContext_needsConfig(t *testing.T) {
 	var actual = &task.State{Logger: logrus.New()}
 	var testParams = &InitParams{
 		CreateParams: CreateParams{
-			ConfigType: lang.Ref(ConfigTypeJson),
-			ConfigName: "test",
+			ConfigParams: shared.ConfigParams{
+				ConfigType: lang.Ref(shared.ConfigTypeJson),
+				ConfigName: "test",
+			},
 		},
 	}
 
@@ -145,7 +148,9 @@ func Test_handleLayoutInitContext_noConfig(t *testing.T) {
 	var actual = &task.State{Logger: logrus.New()}
 	var testParams = &InitParams{
 		CreateParams: CreateParams{
-			ConfigName: "test",
+			ConfigParams: shared.ConfigParams{
+				ConfigName: "test",
+			},
 		},
 	}
 
@@ -165,7 +170,9 @@ func Test_handleLayoutInitContext(t *testing.T) {
 		var actual = &task.State{Logger: logrus.New()}
 		var testParams = &InitParams{
 			CreateParams: CreateParams{
-				ConfigName: "test",
+				ConfigParams: shared.ConfigParams{
+					ConfigName: "test",
+				},
 			},
 		}
 

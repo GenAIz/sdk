@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
@@ -212,8 +213,10 @@ func TestNewRun(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(ledger *config.Ledger) bool {
-			return true
+		BaseCli: cli.BaseCli{
+			Dry: func(ledger *config.Ledger) bool {
+				return true
+			},
 		},
 		optionDockerContext: newOptionDockerContext(),
 		optionDockerFile:    newOptionDockerFile(),

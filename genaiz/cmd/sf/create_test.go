@@ -12,10 +12,11 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz-lib/mock"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 func TestCreatorExecutor_Display(t *testing.T) {
@@ -41,7 +42,7 @@ func TestCreatorExecutor_Display(t *testing.T) {
 
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
-	testViper.Set(testOptions.optionConfigType.Key, layout.ConfigTypeJson)
+	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
 	testViper.Set(testOptions.optionName.Key, expectedName)
 	testViper.Set(testOptions.optionOem.Key, expectedOem)
@@ -51,7 +52,7 @@ func TestCreatorExecutor_Display(t *testing.T) {
 	testExecutor.Display()
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionArches.Param+`:[\s\t]*\[`+strings.Join(expectedArches, " ")+`\]`), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+layout.ConfigTypeJson), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionHandle.Param+`:[\s\t]*`+expectedHandle), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
@@ -77,6 +78,7 @@ func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskPretendStub(&calledRecipe),
 	}
 
+	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
@@ -104,6 +106,7 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskPretendStub(&calledRecipe),
 	}
 
+	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
@@ -132,6 +135,7 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
 	}
 
+	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
@@ -160,6 +164,7 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
 	}
 
+	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
@@ -178,8 +183,10 @@ func TestNewCreate(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(ledger *config.Ledger) bool {
-			return true
+		BaseCli: cli.BaseCli{
+			Dry: func(ledger *config.Ledger) bool {
+				return true
+			},
 		},
 		optionDockerContext: newOptionDockerContext(),
 		optionDockerFile:    newOptionDockerFile(),
@@ -209,8 +216,10 @@ func TestNewCreate_InvalidFolder(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(ledger *config.Ledger) bool {
-			return true
+		BaseCli: cli.BaseCli{
+			Dry: func(ledger *config.Ledger) bool {
+				return true
+			},
 		},
 		optionDockerContext: newOptionDockerContext(),
 		optionDockerFile:    newOptionDockerFile(),
@@ -226,38 +235,6 @@ func TestNewCreate_InvalidFolder(t *testing.T) {
 	testCreate.SetArgs([]string{expectedFolder})
 	assert.Error(t, testCreate.Execute())
 	assert.False(t, createCompleted)
-}
-
-func Test_toConfigType(t *testing.T) {
-	var expectedKey = "key"
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = config.StringOption{
-		Option: config.Option{
-			Key: expectedKey,
-		},
-	}
-
-	testViper.Set(expectedKey, layout.ConfigTypeToml)
-	assert.EqualValues(t, layout.ConfigTypeToml, *toConfigType(testLedger, &testOption))
-}
-
-func Test_toConfigType_Invalid(t *testing.T) {
-	var patch = mock.Patches{T: t}.OsExit(func(int) {})
-	var expectedKey = "key"
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = config.StringOption{
-		Option: config.Option{
-			Key: expectedKey,
-		},
-	}
-
-	defer patch.Unpatch()
-	testViper.Set(expectedKey, "invalid")
-	toConfigType(testLedger, &testOption)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func newCreateTaskCompleteStub(flag *bool) CreateTaskFactory {

@@ -61,6 +61,13 @@ func TestStringMaxLength(t *testing.T) {
 	assert.False(t, testValidates("testing"))
 }
 
+func TestStringMinLength(t *testing.T) {
+	var testValidates = stringMinLength(5)
+
+	assert.False(t, testValidates("test"))
+	assert.True(t, testValidates("testing"))
+}
+
 func TestValidateDirCreated(t *testing.T) {
 	assert.True(t, validateDirCreated("/tmp"))
 	assert.True(t, validateDirCreated("/tmp/genait-a/b"))

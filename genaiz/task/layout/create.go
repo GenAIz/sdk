@@ -8,20 +8,12 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type CreateParams struct {
-	ConfigName string
-	ConfigType *ConfigType
+	shared.ConfigParams
 	FolderPath string
-}
-
-func (cp CreateParams) GetConfigFile(path string) string {
-	return filepath.Join(path, cp.ConfigName+"."+*cp.ConfigType)
-}
-
-func (cp CreateParams) NeedsConfigFile() bool {
-	return cp.ConfigType != nil && *cp.ConfigType != ConfigTypeNone
 }
 
 func NewCreateTask() *task.Task[CreateParams] {
@@ -38,7 +30,7 @@ func handleLayoutCreate(params *CreateParams, state *task.State) error {
 	var err error
 
 	if path, err = handleLayoutCreatePath(params, state); err == nil {
-		if params.NeedsConfigFile() || state.Output != "" {
+		if !params.IsConfigTypeNone() || state.Output != "" {
 			state.Output, err = handleLayoutCreateFile(path, params, state)
 		} else {
 			err = os.Chdir(path)
@@ -48,11 +40,32 @@ func handleLayoutCreate(params *CreateParams, state *task.State) error {
 	return err
 }
 
+func handleLayoutCreateContext(params *CreateParams, state *task.State) error {
+	var path, _ = filepath.Abs(params.FolderPath)
+	var dir, _ = os.Stat(path)
+
+	state.Logger.Debugf("Inspecting path [%s]", path)
+
+	if !params.IsConfigTypeNone() {
+		var configFilePath = filepath.Join(path, params.ConfigName+"."+*params.ConfigType)
+
+		if file, _ := os.Stat(configFilePath); file != nil {
+			return errors.New("context already exist")
+		} else if dir == nil {
+			return errors.New("context is not writeable")
+		}
+
+		state.Output = configFilePath
+	}
+
+	return nil
+}
+
 func handleLayoutCreateFile(path string, params *CreateParams, state *task.State) (string, error) {
 	var err error
 	var filePath string
 
-	if params.NeedsConfigFile() {
+	if !params.IsConfigTypeNone() {
 		filePath = params.GetConfigFile(path)
 	} else if state.Output != "" {
 		filePath = state.Output
@@ -64,7 +77,7 @@ func handleLayoutCreateFile(path string, params *CreateParams, state *task.State
 		var absPath, _ = filepath.Abs(filePath)
 		var fd *os.File
 
-		if fd, err = os.OpenFile(absPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0640); fd != nil {
+		if fd, err = os.OpenFile(absPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0660); fd != nil {
 			filez.CloseSilently(fd)
 		}
 	}
@@ -85,27 +98,6 @@ func handleLayoutCreatePath(params *CreateParams, state *task.State) (string, er
 	state.Logger.Debugf("Creating path [%s]", path)
 	err = os.MkdirAll(path, 0750)
 	return path, err
-}
-
-func handleLayoutCreateContext(params *CreateParams, state *task.State) error {
-	var path, _ = filepath.Abs(params.FolderPath)
-	var dir, _ = os.Stat(path)
-
-	state.Logger.Debugf("Inspecting path [%s]", path)
-
-	if params.NeedsConfigFile() {
-		var configFilePath = filepath.Join(path, params.ConfigName+"."+*params.ConfigType)
-
-		if file, _ := os.Stat(configFilePath); file != nil {
-			return errors.New("context already exist")
-		} else if dir != nil && dir.Mode()&os.ModePerm == os.ModePerm {
-			return errors.New("context is not writeable")
-		}
-
-		state.Output = configFilePath
-	}
-
-	return nil
 }
 
 func handleLayoutCreatePretend(params *CreateParams, state *task.State) error {
