@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/layout"
@@ -179,7 +180,7 @@ func TestInitWriter_BuildVersion(t *testing.T) {
 }
 
 func TestInitWriter_Write(t *testing.T) {
-	var expectedFile = "/tmp/.genaiz/init_write_test.yaml"
+	var expectedFile = "/tmp/.init_test/init_write_test.yaml"
 	var expectedOem = "genaiz.com"
 	var expectedHandle = "test-handle"
 	var expectedVersion = "0.0.0"
@@ -216,7 +217,7 @@ func TestInitWriter_Write(t *testing.T) {
 }
 
 func TestInitWriter_WriteInvalidFile(t *testing.T) {
-	var invalidFile = "/tmp/.genaiz/init_write_invalid.yaml"
+	var invalidFile = "/tmp/.init_test/init_write_invalid.yaml"
 	var testCli = NewSfCli(nil, nil, nil)
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
@@ -283,6 +284,7 @@ func TestInitExecutor_Pretend(t *testing.T) {
 		initTaskFactory: newInitTaskPretendStub(&calledInit),
 	}
 
+	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
@@ -308,6 +310,7 @@ func TestInitExecutor_Proceed(t *testing.T) {
 	}
 
 	testLedger.Logger = logrus.New()
+	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
@@ -322,8 +325,10 @@ func TestNewInit(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
 	var testCli = &Cli{
-		Dry: func(ledger *config.Ledger) bool {
-			return true
+		BaseCli: cli.BaseCli{
+			Dry: func(ledger *config.Ledger) bool {
+				return true
+			},
 		},
 		optionDockerContext: newOptionDockerContext(),
 		optionDockerFile:    newOptionDockerFile(),

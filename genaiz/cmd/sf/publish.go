@@ -12,6 +12,7 @@ import (
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type InspectTaskFactory func() *task.Task[docker.BuildParams]
@@ -220,7 +221,9 @@ func makePublishInitParams(ledger *config.Ledger, options *PublishOptions) *layo
 
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
-			ConfigName: ledger.ConfigName,
+			ConfigParams: shared.ConfigParams{
+				ConfigName: ledger.ConfigName,
+			},
 		},
 		Arches:  archTypes,
 		Type:    *functionType,

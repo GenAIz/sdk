@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type configStruct struct {
@@ -349,6 +350,36 @@ func TestLedger_GetBool(t *testing.T) {
 
 	testViper.Set(testOption.Key, "true")
 	assert.True(t, testLedger.GetBool(testOption))
+}
+
+func TestLedger_GetConfigType(t *testing.T) {
+	var expectedKey = "key"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = StringOption{
+		Option: Option{
+			Key: expectedKey,
+		},
+	}
+
+	testViper.Set(expectedKey, shared.ConfigTypeToml)
+	actual, err := testLedger.GetConfigType(&testOption)
+	assert.NoError(t, err)
+	assert.EqualValues(t, shared.ConfigTypeToml, *actual)
+}
+
+func TestLedger_GetConfigType_Invalid(t *testing.T) {
+	var expectedKey = "key"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = StringOption{
+		Option: Option{
+			Key: expectedKey,
+		},
+	}
+
+	testViper.Set(expectedKey, "")
+	actual, err := testLedger.GetConfigType(&testOption)
+	assert.Error(t, err)
+	assert.Empty(t, actual)
 }
 
 func TestLedger_GetList(t *testing.T) {

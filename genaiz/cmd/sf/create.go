@@ -12,6 +12,7 @@ import (
 	"genaiz.com/genaiz/recipe"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type CreateTaskFactory func() *task.Task[layout.CreateParams]
@@ -86,9 +87,14 @@ func (ce *CreateExecutor) Proceed() {
 }
 
 func (ce *CreateExecutor) makeCreateParams() *layout.CreateParams {
+	var configType, err = ce.Ledger.GetConfigType(ce.optionConfigType)
+
+	lang.HandleExit(err)
 	return &layout.CreateParams{
-		ConfigName: ce.Ledger.ConfigName,
-		ConfigType: toConfigType(ce.Ledger, ce.optionConfigType),
+		ConfigParams: shared.ConfigParams{
+			ConfigName: ce.Ledger.ConfigName,
+			ConfigType: configType,
+		},
 		FolderPath: ce.FolderPath,
 	}
 }
@@ -206,17 +212,4 @@ func newOptionRecipe() *config.StringOption {
 			Usage: "name of a recipe to use as template for the Smart Function",
 		},
 	}
-}
-
-func toConfigType(ledger *config.Ledger, option *config.StringOption) *layout.ConfigType {
-	var configTypeString = ledger.GetString(option)
-	var result *layout.ConfigType
-	var err error
-
-	if configTypeString != "" {
-		result, err = layout.ConfigTypes.FromString(configTypeString)
-		lang.HandleExit(err)
-	}
-
-	return result
 }

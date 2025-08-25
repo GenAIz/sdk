@@ -1,12 +1,28 @@
 package shared
 
-import "errors"
+import (
+	"errors"
+	"path/filepath"
+
+	"genaiz.com/genaiz/lang/enumz"
+)
+
+const (
+	ConfigTypeJson ConfigType = "json"
+	ConfigTypeNone ConfigType = ""
+	ConfigTypeToml ConfigType = "toml"
+	ConfigTypeYaml ConfigType = "yaml"
+)
 
 var (
+	ConfigTypes = enumz.NewEnumType(ConfigTypeJson, ConfigTypeNone, ConfigTypeToml, ConfigTypeYaml)
+
 	ErrorConflict  = errors.New("conflicting version signatures")
 	ErrorDuplicate = errors.New("duplicate version signatures")
 	ErrorNoChanges = errors.New("no changes needed")
 )
+
+type ConfigType = string
 
 // Identity is a shared data type which applies to an entity in a remote or local system. It's made to compare signatures between different sources. A source will typically need an Auth string to give access to the entity located on the provided Path and then return its Hash.
 type Identity struct {
@@ -25,19 +41,21 @@ func (i Identity) HasRepoIdentifier() bool {
 	return i.HasIdentifier() && i.Hash != ""
 }
 
-// Next returns the current definition of
-func (i Identity) Next(next *Identity) (*Identity, error) {
-	if next.Hash == i.Hash {
-		if next.Version == i.Version {
-			return nil, ErrorNoChanges
-		} else {
-			return nil, ErrorDuplicate
-		}
-	} else {
-		if next.Version == i.Version {
-			return nil, ErrorConflict
-		}
-	}
+type ConfigParams struct {
+	ConfigName string
+	ConfigType *ConfigType
+}
 
-	return next, nil
+// GetConfigFile returns the file path of the config file described by the params
+func (cp ConfigParams) GetConfigFile(paths ...string) string {
+	var filePaths []string
+
+	filePaths = append(filePaths, paths...)
+	filePaths = append(filePaths, cp.ConfigName+"."+*cp.ConfigType)
+	return filepath.Join(filePaths...)
+}
+
+// IsConfigTypeNone indicates whether a value is equivalent to no config
+func (cp ConfigParams) IsConfigTypeNone() bool {
+	return cp.ConfigType == nil || *cp.ConfigType == ConfigTypeNone
 }

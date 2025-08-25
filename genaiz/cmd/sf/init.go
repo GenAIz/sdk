@@ -15,6 +15,7 @@ import (
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type InitWriter struct {
@@ -294,9 +295,12 @@ func makeInitParams(ledger *config.Ledger, initOptions *InitOptions) *layout.Ini
 	var functionTypeString = ledger.GetString(initOptions.optionType)
 	var archTypes []layout.ArchType
 	var functionType *layout.FunctionType
+	var configType *shared.ConfigType
 	var err error
 
 	functionType, err = layout.FunctionTypes.FromString(functionTypeString)
+	lang.HandleExit(err)
+	configType, err = ledger.GetConfigType(initOptions.optionConfigType)
 	lang.HandleExit(err)
 
 	if len(archTypeStrings) > 0 {
@@ -306,8 +310,10 @@ func makeInitParams(ledger *config.Ledger, initOptions *InitOptions) *layout.Ini
 
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
-			ConfigType: toConfigType(ledger, initOptions.optionConfigType),
-			ConfigName: ledger.ConfigName,
+			ConfigParams: shared.ConfigParams{
+				ConfigType: configType,
+				ConfigName: ledger.ConfigName,
+			},
 		},
 		Arches:      archTypes,
 		Type:        *functionType,
@@ -326,7 +332,7 @@ func newOptionConfigType(cmd string) *config.StringOption {
 			Key:       "SF." + cmd + ".ConfigType",
 			Param:     "configType",
 			Usage:     "sets the format of the configuration file created. Supported values are \"yaml\", \"toml\", \"json\" or \"none\"",
-			Validator: config.Optionally(config.AnyOfEnumerated(layout.ConfigTypes)),
+			Validator: config.Optionally(config.AnyOfEnumerated(shared.ConfigTypes)),
 		},
 	}
 }

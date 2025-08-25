@@ -1,10 +1,11 @@
 package dirz
 
 import (
-	"genaiz.com/genaiz-lib/lang/panicz"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"genaiz.com/genaiz-lib/lang/panicz"
 )
 
 // AnchorWorkingFile modifies a path if it starts with . or .., anchoring the rest of the path to the current work dir
@@ -81,4 +82,19 @@ func DoIfPathExist(path string, call func() error) error {
 	}
 
 	return nil
+}
+
+// OptionalWorkingDir returns a provider returning the absolute path of the provided arguments or the current working dir if no arguments are provided
+func OptionalWorkingDir(args ...string) func() (string, error) {
+	var result func() (string, error)
+
+	if len(args) > 0 {
+		result = func() (string, error) {
+			return filepath.Abs(filepath.Join(args...))
+		}
+	} else {
+		result = os.Getwd
+	}
+
+	return result
 }

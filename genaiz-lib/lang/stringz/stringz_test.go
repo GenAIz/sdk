@@ -59,3 +59,13 @@ func TestSingleTagLabelEmptyTag(t *testing.T) {
 
 	assert.EqualValues(t, expectedLabel, SingleTagLabel(expectedLabel, ":", ""))
 }
+
+func TestSubstrFromEmpty(t *testing.T) {
+	assert.Empty(t, SubstrFrom("", 1))
+}
+
+func TestSubstrFrom(t *testing.T) {
+	var expected = "test"
+
+	assert.Equal(t, expected, SubstrFrom("path:test", 5))
+}

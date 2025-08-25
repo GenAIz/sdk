@@ -129,7 +129,6 @@ func TestOption_equals(t *testing.T) {
 		Key:          "key",
 		Param:        "param",
 		Short:        "shot",
-		Alias:        "alias",
 		Usage:        "usage",
 		Env:          "env",
 		DefaultValue: "default",
@@ -141,8 +140,6 @@ func TestOption_equals(t *testing.T) {
 	testOption.Param = expectedOption.Param
 	assert.False(t, expectedOption.Equals(testOption))
 	testOption.Short = expectedOption.Short
-	assert.False(t, expectedOption.Equals(testOption))
-	testOption.Alias = expectedOption.Alias
 	assert.False(t, expectedOption.Equals(testOption))
 	testOption.Usage = expectedOption.Usage
 	assert.False(t, expectedOption.Equals(testOption))
