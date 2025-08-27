@@ -1,4 +1,4 @@
-package wf
+package sn
 
 import (
 	"bytes"
@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -30,70 +29,107 @@ func TestCreateExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewCreateOptions()
+	var testDefaultOption = &config.StringOption{}
+	var testOptions = &CreateOptions{
+		optionConfigType:     newOptionConfigType("test"),
+		optionDescription:    newOptionDescription(testDefaultOption),
+		optionHandle:         newOptionHandle("test"),
+		optionName:           newOptionName(testDefaultOption),
+		optionOem:            newOptionOem("test"),
+		optionVersion:        newOptionVersion("test"),
+		optionWorkflowHandle: newOptionWorkflowHandle(),
+		optionWorkflowName:   newOptionWorkflowName(testDefaultOption),
+	}
+	var expectedDescription = "description"
+	var expectedFolder = "folder"
 	var expectedHandle = "handle"
-	var expectedName = "name-create"
-	var expectedDesc = "desc-create"
+	var expectedName = "name"
+	var expectedOem = "oem"
+	var expectedVersion = "version"
+	var expectedWorkflowHandle = "workflowHandle"
+	var expectedWorkflowName = "workflowName"
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 		},
 		CreateOptions: testOptions,
+		FolderPath:    expectedFolder,
 	}
 
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
+	testViper.Set(testOptions.optionDescription.Key, expectedDescription)
 	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
 	testViper.Set(testOptions.optionName.Key, expectedName)
-	testViper.Set(testOptions.optionDescription.Key, expectedDesc)
+	testViper.Set(testOptions.optionOem.Key, expectedOem)
+	testViper.Set(testOptions.optionVersion.Key, expectedVersion)
+	testViper.Set(testOptions.optionWorkflowHandle.Key, expectedWorkflowHandle)
+	testViper.Set(testOptions.optionWorkflowName.Key, expectedWorkflowName)
 	testExecutor.Display()
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedDescription), actual)
+	assert.Regexp(t, regexp.MustCompile(`folder:[\s\t]*`+expectedFolder), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionHandle.Param+`:[\s\t]*`+expectedHandle), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedDesc), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionVersion.Param+`:[\s\t]*`+expectedVersion), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionWorkflowHandle.Param+`:[\s\t]*`+expectedWorkflowHandle), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionWorkflowName.Param+`:[\s\t]*`+expectedWorkflowName), actual)
 }
 
 func TestCreateExecutor_Pretend(t *testing.T) {
-	var calledWorkflow bool
+	var calledSolution, calledWorkflow bool
+	var testCli = NewSnCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var expectedHandle = "solution-handle"
+	var expectedOem = "solution-oem"
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
+			Cli:    testCli,
 		},
 		CreateOptions: NewCreateOptions(),
 
+		solutionTaskFactory: newSolutionTaskPretendStub(&calledSolution),
 		workflowTaskFactory: newWorkflowTaskPretendStub(&calledWorkflow),
 	}
 
-	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-	testViper.Set(testExecutor.optionName.Key, "create-name")
-	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
-	testViper.Set(testExecutor.optionDescription.Key, "create-desc")
+	testViper.Set(testExecutor.CreateOptions.optionHandle.Key, expectedHandle)
+	testViper.Set(testExecutor.CreateOptions.optionOem.Key, expectedOem)
+	testLedger.Register(&cobra.Command{}, testExecutor.CreateOptions.allDefiners()...)
+	testLedger.InitDefaults()
 	testExecutor.Pretend()
+	assert.True(t, calledSolution)
 	assert.True(t, calledWorkflow)
 }
 
 func TestCreateExecutor_Proceed(t *testing.T) {
-	var calledWorkflow bool
+	var calledSolution, calledWorkflow bool
+	var testCli = NewSnCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var expectedHandle = "solution-handle"
+	var expectedOem = "solution-oem"
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
+			Cli:    testCli,
 		},
 		CreateOptions: NewCreateOptions(),
 
+		solutionTaskFactory: newSolutionTaskCompleteStub(&calledSolution),
 		workflowTaskFactory: newWorkflowTaskCompleteStub(&calledWorkflow),
 	}
 
-	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
-	testViper.Set(testExecutor.optionName.Key, "create-name")
-	testViper.Set(testExecutor.optionDescription.Key, "create-desc")
-	testLedger.Logger = &logrus.Logger{}
+	testViper.Set(testExecutor.CreateOptions.optionHandle.Key, expectedHandle)
+	testViper.Set(testExecutor.CreateOptions.optionOem.Key, expectedOem)
+	testLedger.Register(&cobra.Command{}, testExecutor.CreateOptions.allDefiners()...)
+	testLedger.InitDefaults()
+	testLedger.InitLogging()
 	testExecutor.Proceed()
+	assert.True(t, calledSolution)
 	assert.True(t, calledWorkflow)
 }
 
@@ -113,18 +149,17 @@ func TestNewCreate(t *testing.T) {
 		},
 	}
 	var testCreate = NewCreate(testLedger, testCli)
-	var expectedFolder = "test-folder"
+	var expectedSolution = "solution-test"
 
-	testViper.Set(newOptionHandle("create").Key, "create-handle")
 	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
 		createCompleted = true
 	}
-	testCreate.SetArgs([]string{expectedFolder})
+	testCreate.SetArgs([]string{expectedSolution})
 	assert.NoError(t, testCreate.Execute())
 	assert.True(t, createCompleted)
 
 	if actual := testOutput.String(); actual != "" {
-		assert.Contains(t, actual, expectedFolder)
+		assert.Contains(t, actual, expectedSolution)
 	} else {
 		assert.Fail(t, "no --dry content")
 	}
@@ -146,7 +181,7 @@ func TestNewCreateDisappearingWorkingDir(t *testing.T) {
 		},
 	}
 	var testCreate = NewCreate(testLedger, testCli)
-	var testFile, err = filez.CreateRecursiveTemp("/tmp/.wf_create_test", "genaiz_wf_create*")
+	var testFile, err = filez.CreateRecursiveTemp("/tmp/.sn_create_test", "genaiz_sn_create*")
 	var back string
 
 	defer patch.Unpatch()
@@ -169,55 +204,32 @@ func TestNewCreateDisappearingWorkingDir(t *testing.T) {
 	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
-func TestNewCreateInvalidArgs(t *testing.T) {
-	var createCompleted = false
-	var testOutput = new(bytes.Buffer)
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
-	var testCli = &Cli{
-		BaseCli: cli.BaseCli{
-			Dry: func(ledger *config.Ledger) bool {
-				return true
+func newSolutionTaskCompleteStub(flag *bool) SolutionTaskFactory {
+	return func(broker.SolutionWriter) *task.Task[broker.SolutionParams] {
+		return &task.Task[broker.SolutionParams]{
+			OnPrepare: func(params *broker.SolutionParams, state *task.State) error {
+				return nil
 			},
-		},
+			OnComplete: func(params *broker.SolutionParams, state *task.State) error {
+				*flag = true
+				return nil
+			},
+		}
 	}
-	var testCreate = NewCreate(testLedger, testCli)
-
-	testViper.Set(newOptionHandle("create").Key, "create-handle")
-	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
-		createCompleted = true
-	}
-	testCreate.SetArgs([]string{"test.."})
-	assert.Error(t, testCreate.Execute())
-	assert.False(t, createCompleted)
-	assert.Empty(t, testOutput.String())
 }
 
-func TestNewCreateInvalidWorkingDir(t *testing.T) {
-	var createCompleted = false
-	var testOutput = new(bytes.Buffer)
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
-	var testCli = &Cli{
-		BaseCli: cli.BaseCli{
-			Dry: func(ledger *config.Ledger) bool {
-				return true
+func newSolutionTaskPretendStub(flag *bool) SolutionTaskFactory {
+	return func(broker.SolutionWriter) *task.Task[broker.SolutionParams] {
+		return &task.Task[broker.SolutionParams]{
+			OnPrepare: func(params *broker.SolutionParams, state *task.State) error {
+				return nil
 			},
-		},
+			OnPretend: func(params *broker.SolutionParams, state *task.State) error {
+				*flag = true
+				return nil
+			},
+		}
 	}
-	var testCreate = NewCreate(testLedger, testCli)
-	var testFile, err = filez.CreateRecursiveTemp("/tmp", ".genaiz_wf_create*")
-
-	panicz.PanicIfError(err)
-	defer filez.RemoveSilently(testFile.Name())
-	testViper.Set(newOptionHandle("create").Key, "create-handle")
-	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
-		createCompleted = true
-	}
-	testCreate.SetArgs([]string{testFile.Name()})
-	assert.Error(t, testCreate.Execute())
-	assert.False(t, createCompleted)
-	assert.Empty(t, testOutput.String())
 }
 
 func newWorkflowTaskCompleteStub(flag *bool) WorkflowTaskFactory {

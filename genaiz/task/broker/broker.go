@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -50,7 +51,48 @@ type Session struct {
 }
 
 type Solution struct {
-	Workflows []Workflow `yaml:"workflows"`
+	Description string
+	Handle      string
+	Name        string
+	Oem         string
+	Version     string
+	Workflows   []Workflow `yaml:"workflows"`
+}
+
+func (s Solution) Merge(update Solution) *Solution {
+	var result = &Solution{}
+
+	if update.Description != "" && !strings.EqualFold(update.Description, s.Description) {
+		result.Description = update.Description
+	} else {
+		result.Description = s.Description
+	}
+
+	if update.Name != "" && !strings.EqualFold(update.Name, s.Name) {
+		result.Name = update.Name
+	} else {
+		result.Name = s.Name
+	}
+
+	if update.Version != "" && !strings.EqualFold(update.Version, s.Version) {
+		result.Version = update.Version
+	} else {
+		result.Version = s.Version
+	}
+
+	for _, wf := range s.Workflows {
+		result.Workflows = append(result.Workflows, wf)
+	}
+
+	for _, wf := range update.Workflows {
+		if !slices.ContainsFunc(result.Workflows, WorkflowHandlePredicate(wf.Handle)) {
+			result.Workflows = append(result.Workflows, wf)
+		}
+	}
+
+	result.Handle = s.Handle
+	result.Oem = s.Oem
+	return result
 }
 
 type Workflow struct {

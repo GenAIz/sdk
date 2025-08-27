@@ -92,10 +92,10 @@ func (ce *CreateExecutor) makeCreateParams() *layout.CreateParams {
 	lang.HandleExit(err)
 	return &layout.CreateParams{
 		ConfigParams: shared.ConfigParams{
-			ConfigName: ce.Ledger.ConfigName,
-			ConfigType: configType,
+			ConfigName:   ce.Ledger.ConfigName,
+			ConfigType:   configType,
+			ConfigFolder: ce.FolderPath,
 		},
-		FolderPath: ce.FolderPath,
 	}
 }
 

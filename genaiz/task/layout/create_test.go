@@ -28,10 +28,10 @@ func TestNewCreateTask(t *testing.T) {
 func Test_handleLayoutCreate(t *testing.T) {
 	var testParams = &CreateParams{
 		ConfigParams: shared.ConfigParams{
-			ConfigType: lang.Ref(shared.ConfigTypeJson),
-			ConfigName: "notValid/name",
+			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigName:   "notValid/name",
+			ConfigFolder: "/tmp/.create_layout_test",
 		},
-		FolderPath: "/tmp/.create_layout_test",
 	}
 	var testState = &task.State{Logger: logrus.New()}
 	var cwd, err = os.Getwd()
@@ -39,11 +39,15 @@ func Test_handleLayoutCreate(t *testing.T) {
 	panicz.PanicIfError(err)
 	assert.Error(t, handleLayoutCreate(testParams, testState))
 	defer func() { _ = os.Chdir(cwd) }()
-	defer filez.RemoveSilently(testParams.FolderPath)
+	defer filez.RemoveSilently(testParams.ConfigFolder)
 }
 
 func Test_handleLayoutCreate_ConfigTypeNone(t *testing.T) {
-	var testParams = &CreateParams{FolderPath: "/tmp/.create_layout_test"}
+	var testParams = &CreateParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigFolder: "/tmp/.create_layout_test",
+		},
+	}
 	var testState = &task.State{Logger: logrus.New()}
 	var back, err = os.Getwd()
 	var expected string
@@ -52,13 +56,17 @@ func Test_handleLayoutCreate_ConfigTypeNone(t *testing.T) {
 	assert.NoError(t, handleLayoutCreate(testParams, testState))
 	expected, err = os.Getwd()
 	assert.NoError(t, err)
-	assert.Equal(t, expected, testParams.FolderPath)
+	assert.Equal(t, expected, testParams.ConfigFolder)
 	defer func() { _ = os.Chdir(back) }()
-	defer filez.RemoveSilently(testParams.FolderPath)
+	defer filez.RemoveSilently(testParams.ConfigFolder)
 }
 
 func Test_handleLayoutCreate_InvalidPath(t *testing.T) {
-	var testParams = &CreateParams{FolderPath: "/_not_allowed"}
+	var testParams = &CreateParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigFolder: "/_not_allowed",
+		},
+	}
 	var testState = &task.State{Logger: logrus.New()}
 
 	assert.Error(t, handleLayoutCreate(testParams, testState))
@@ -80,10 +88,10 @@ func Test_handleLayoutCreateContext(t *testing.T) {
 	var testState = &task.State{Logger: logrus.New()}
 	var testParams = &CreateParams{
 		ConfigParams: shared.ConfigParams{
-			ConfigName: "name",
-			ConfigType: lang.Ref(shared.ConfigTypeJson),
+			ConfigName:   "name",
+			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigFolder: "/tmp",
 		},
-		FolderPath: "/tmp",
 	}
 
 	assert.NoError(t, handleLayoutCreateContext(testParams, testState))
@@ -101,14 +109,14 @@ func Test_handleLayoutCreateContext_ContextAlreadyExists(t *testing.T) {
 	var testState = &task.State{Logger: logrus.New()}
 	var testParams = &CreateParams{
 		ConfigParams: shared.ConfigParams{
-			ConfigName: "name",
-			ConfigType: lang.Ref(shared.ConfigTypeJson),
+			ConfigName:   "name",
+			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigFolder: "/tmp/.layout_create_test",
 		},
-		FolderPath: "/tmp/.layout_create_test",
 	}
 
-	if _, err := filez.CreateRecursive(testParams.FolderPath, testParams.ConfigName+"."+shared.ConfigTypeJson); err == nil {
-		defer filez.RemoveSilently(testParams.FolderPath)
+	if _, err := filez.CreateRecursive(testParams.ConfigFolder, testParams.ConfigName+"."+shared.ConfigTypeJson); err == nil {
+		defer filez.RemoveSilently(testParams.ConfigFolder)
 
 		assert.Error(t, handleLayoutCreateContext(testParams, testState))
 	} else {
@@ -120,10 +128,10 @@ func Test_handleLayoutCreateContext_ContextNotWriteable(t *testing.T) {
 	var testState = &task.State{Logger: logrus.New()}
 	var testParams = &CreateParams{
 		ConfigParams: shared.ConfigParams{
-			ConfigName: "name",
-			ConfigType: lang.Ref(shared.ConfigTypeJson),
+			ConfigName:   "name",
+			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigFolder: "/_not_writeable_",
 		},
-		FolderPath: "/_not_writeable_",
 	}
 
 	assert.Error(t, handleLayoutCreateContext(testParams, testState))
@@ -141,7 +149,11 @@ func Test_handleLayoutCreateFile_ConfigTypeNone(t *testing.T) {
 func Test_handleLayoutCreatePretend(t *testing.T) {
 	var expectedPath = "folderPath"
 	var testState = &task.State{Logger: logrus.New()}
-	var testParams = &CreateParams{FolderPath: expectedPath}
+	var testParams = &CreateParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigFolder: expectedPath,
+		},
+	}
 	var stdoutRestore = os.Stdout
 	var r, w, _ = os.Pipe()
 
@@ -164,7 +176,11 @@ func Test_handleLayoutCreatePretend(t *testing.T) {
 func Test_handleLayoutCreatePretend_NoStateOutput(t *testing.T) {
 	var expectedPath = "folderPath"
 	var testState = &task.State{Logger: logrus.New()}
-	var testParams = &CreateParams{FolderPath: expectedPath}
+	var testParams = &CreateParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigFolder: expectedPath,
+		},
+	}
 	var stdoutRestore = os.Stdout
 	var r, w, _ = os.Pipe()
 

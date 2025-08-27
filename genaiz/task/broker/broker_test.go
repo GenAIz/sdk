@@ -25,6 +25,70 @@ func TestFunction_asIdentity(t *testing.T) {
 	assert.Equal(t, function.Version, actual.Version)
 }
 
+func TestSolution_Merge(t *testing.T) {
+	var expectedDescription = "description"
+	var expectedHandle = "handle"
+	var expectedName = "name"
+	var expectedOem = "oem"
+	var expectedVersion = "version"
+	var testSolution = &Solution{
+		Handle: expectedHandle,
+		Oem:    expectedOem,
+	}
+	var testUpdate = &Solution{
+		Description: expectedDescription,
+		Name:        expectedName,
+		Version:     expectedVersion,
+	}
+	var actual = testSolution.Merge(*testUpdate)
+
+	assert.Equal(t, expectedDescription, actual.Description)
+	assert.Equal(t, expectedHandle, actual.Handle)
+	assert.Equal(t, expectedName, actual.Name)
+	assert.Equal(t, expectedOem, actual.Oem)
+	assert.Equal(t, expectedVersion, actual.Version)
+	assert.Empty(t, actual.Workflows)
+}
+
+func TestSolution_MergeWorkflows(t *testing.T) {
+	var expectedDescription = "description"
+	var expectedHandle = "handle"
+	var expectedName = "name"
+	var expectedOem = "oem"
+	var expectedVersion = "version"
+	var mergedWorkflow = "merged"
+	var sourceWorkflow = "source"
+	var testSolution = &Solution{
+		Handle:      expectedHandle,
+		Oem:         expectedOem,
+		Description: expectedDescription,
+		Name:        expectedName,
+		Version:     expectedVersion,
+		Workflows: []Workflow{
+			{
+				Handle: sourceWorkflow,
+			},
+		},
+	}
+	var testUpdate = &Solution{
+		Workflows: []Workflow{
+			{
+				Handle: mergedWorkflow,
+			},
+		},
+	}
+	var actual = testSolution.Merge(*testUpdate)
+
+	assert.Equal(t, expectedDescription, actual.Description)
+	assert.Equal(t, expectedHandle, actual.Handle)
+	assert.Equal(t, expectedName, actual.Name)
+	assert.Equal(t, expectedOem, actual.Oem)
+	assert.Equal(t, expectedVersion, actual.Version)
+	assert.Equal(t, 2, len(actual.Workflows))
+	assert.Equal(t, sourceWorkflow, actual.Workflows[0].Handle)
+	assert.Equal(t, mergedWorkflow, actual.Workflows[1].Handle)
+}
+
 func TestWorkflowHandlePredicate(t *testing.T) {
 	var expectedHandle = "handle"
 	var testWorkflow = Workflow{Handle: expectedHandle}

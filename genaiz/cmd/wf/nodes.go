@@ -210,7 +210,8 @@ func NewNodesExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 		},
 		NodesOptions: options,
 
-		workflowTaskFactory: broker.NewWorkflowUpdateTask,
+		workflowTaskFactory:   broker.NewWorkflowUpdateTask,
+		workflowWriterFactory: newWorkflowWriter,
 	}
 }
 

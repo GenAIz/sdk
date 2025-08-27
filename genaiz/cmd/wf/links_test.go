@@ -266,13 +266,16 @@ func Test_validateArgsLinks(t *testing.T) {
 }
 
 func newWorkflowWriterStub(*config.Ledger, string) *workflowWriter {
-	return &workflowWriter{
-		current: &broker.Solution{
-			Workflows: []broker.Workflow{
-				{
-					Handle: "workflow",
-				},
+	var stub = &workflowWriter{
+		WorkflowWriter: config.NewWorkflowWriter(),
+	}
+
+	stub.WithCurrent(&broker.Solution{
+		Workflows: []broker.Workflow{
+			{
+				Handle: "workflow",
 			},
 		},
-	}
+	})
+	return stub
 }

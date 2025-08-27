@@ -16,6 +16,7 @@ import (
 
 	"genaiz.com/genaiz/cmd/ac"
 	"genaiz.com/genaiz/cmd/sf"
+	"genaiz.com/genaiz/cmd/sn"
 	"genaiz.com/genaiz/cmd/wf"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/version"
@@ -126,6 +127,7 @@ func New(ledger *config.Ledger) *cobra.Command {
 	ledger.Register(root, options.allDefiners()...)
 	ledger.AddConfigOption(options.runConfig)
 	root.AddCommand(wf.NewWf(ledger, options.Confirm, options.Dry, options.Pretend))
+	root.AddCommand(sn.NewSn(ledger, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(sf.NewSf(ledger, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(ac.NewAc(ledger))
 	return root

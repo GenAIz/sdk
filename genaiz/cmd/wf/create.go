@@ -2,15 +2,13 @@ package wf
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/iancoleman/strcase"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
@@ -39,14 +37,14 @@ func (ce *CreateExecutor) Display() {
 
 func (ce *CreateExecutor) Pretend() {
 	var params = ce.makeWorkflowParams()
-	var writer = newWorkflowWriter(ce.Ledger, params.GetConfigFile(params.WorkflowFolder))
+	var writer = newWorkflowWriter(ce.Ledger, params.GetConfigPath())
 
 	ce.workflowTaskFactory(writer).Pretend(params, ce.Ledger.Logger)
 }
 
 func (ce *CreateExecutor) Proceed() {
 	var params = ce.makeWorkflowParams()
-	var writer = newWorkflowWriter(ce.Ledger, params.GetConfigFile(params.WorkflowFolder))
+	var writer = newWorkflowWriter(ce.Ledger, params.GetConfigPath())
 	var plan = task.NewPlan("Workflow", ce.Ledger.Logger)
 
 	task.Single(plan, params, ce.workflowTaskFactory(writer))
@@ -58,15 +56,15 @@ func (ce *CreateExecutor) makeWorkflowParams() *broker.WorkflowParams {
 	lang.HandleExit(err)
 	return &broker.WorkflowParams{
 		ConfigParams: shared.ConfigParams{
-			ConfigName: ce.Ledger.ConfigName,
-			ConfigType: configType,
+			ConfigName:   ce.Ledger.ConfigName,
+			ConfigType:   configType,
+			ConfigFolder: ce.FolderPath,
 		},
 		Workflow: &broker.Workflow{
 			Description: ce.Ledger.GetString(ce.optionDescription),
 			Handle:      ce.Ledger.GetString(ce.optionHandle),
 			Name:        ce.Ledger.GetString(ce.optionName),
 		},
-		WorkflowFolder: ce.FolderPath,
 	}
 }
 
@@ -86,31 +84,20 @@ func (co *CreateOptions) allDefiners() []config.Definer {
 	}
 }
 
-func NewCreate(ledger *config.Ledger, cli *Cli) *cobra.Command {
+func NewCreate(ledger *config.Ledger, wfCli *Cli) *cobra.Command {
 	var createOptions = NewCreateOptions()
 	var createCmd = &cobra.Command{
 		Use:     "create [SOLUTION_PATH]",
 		Short:   "Creates a Workflow from scratch",
 		Long:    "Creates a Workflow from scratch, optionally using a selected template",
 		Example: "genaiz wf create solution-1 --handle=workflow-1",
-		Args: cobra.MatchAll(cobra.MaximumNArgs(1), func(cmd *cobra.Command, args []string) error {
-			if len(args) == 1 {
-				if info, err := os.Stat(args[0]); err == nil {
-					if !info.IsDir() {
-						return fmt.Errorf("%s is not a folder", args[0])
-					}
-				} else if !config.Validation.Handle(filepath.Base(args[0])) {
-					return fmt.Errorf("%s is not a valid solution name", args[0])
-				}
-			}
-
-			return nil
-		}),
+		Args: cobra.MatchAll(cobra.MaximumNArgs(1),
+			cli.ArgsFolderValidator("solution", config.Validation.Handle)),
 		Run: func(cmd *cobra.Command, args []string) {
 			var wdp = dirz.OptionalWorkingDir(args...)
 
 			if folder, err := wdp(); err == nil {
-				cli.Exec(ledger, NewCreateExecutor(cmd.Context(), ledger, cli, createOptions, folder))
+				wfCli.Exec(ledger, NewCreateExecutor(cmd.Context(), ledger, wfCli, createOptions, folder))
 			} else {
 				lang.HandleExit(err)
 			}
@@ -142,7 +129,7 @@ func NewCreateOptions() *CreateOptions {
 
 	return &CreateOptions{
 		optionConfigType:  newOptionConfigType(cmd),
-		optionDescription: newOptionDescription(&nameOption.Option),
+		optionDescription: newOptionDescription(nameOption),
 		optionHandle:      handleOption,
 		optionName:        nameOption,
 	}
@@ -161,7 +148,7 @@ func newOptionConfigType(cmd string) *config.StringOption {
 	}
 }
 
-func newOptionDescription(defaultOption *config.Option) *config.StringOption {
+func newOptionDescription(defaultOption *config.StringOption) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
 			Key:   "Workflow.Create.Description",
@@ -169,7 +156,7 @@ func newOptionDescription(defaultOption *config.Option) *config.StringOption {
 			Param: "description",
 			Usage: "description of the workflow created",
 			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.Get(defaultOption)
+				return ledger.GetString(defaultOption)
 			},
 			Validator: config.Validation.Blob,
 		},
@@ -182,7 +169,7 @@ func newOptionHandle(cmd string) *config.StringOption {
 			Key:       "Workflow." + strcase.ToCamel(cmd) + ".Handle",
 			Env:       "WF_" + strings.ToUpper(cmd) + "_HANDLE",
 			Param:     "handle",
-			Usage:     "name of the workflow to " + strings.ToLower(cmd),
+			Usage:     "handle of the workflow to " + strings.ToLower(cmd),
 			Validator: config.Validation.Handle,
 		},
 	}
