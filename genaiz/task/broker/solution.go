@@ -3,27 +3,36 @@ package broker
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/spf13/cast"
 
-	"genaiz.com/genaiz-lib/lang/dirz"
-	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
 
 var (
+	errorSolutionFileInvalid  = errors.New("solution config is invalid")
 	errorWorkflowConflict     = errors.New("workflow already exists")
 	errorWorkflowFileInvalid  = errors.New("workflow config is invalid")
-	errorWorkflowFileExists   = errors.New("workflow config file exists")
 	errorWorkflowFileNotFound = errors.New("workflow config file not found")
 	errorWorkflowNotFound     = errors.New("workflow not found")
 )
+
+type SolutionWriter interface {
+	BuildSolution() (string, Solution)
+
+	GetWorkflowByHandle(string) (*Workflow, error)
+
+	WithSolution(*Solution) SolutionWriter
+
+	WithWorkflow(*Workflow) SolutionWriter
+
+	Write(string) error
+}
 
 type WorkflowWriter interface {
 	BuildWorkflows() (string, []Workflow)
@@ -43,10 +52,14 @@ type WorkflowWriter interface {
 	Write(string) error
 }
 
+type SolutionParams struct {
+	shared.ConfigParams
+	*Solution
+}
+
 type WorkflowParams struct {
 	shared.ConfigParams
 	*Workflow
-	WorkflowFolder string
 	WorkflowUpdate bool
 }
 
@@ -59,6 +72,16 @@ func (wp WorkflowParams) workflowPredicate() func(Workflow) bool {
 
 	return func(Workflow) bool {
 		return false
+	}
+}
+
+func NewSolutionUpdateTask(writer SolutionWriter) *task.Task[SolutionParams] {
+	return &task.Task[SolutionParams]{
+		Name:         "solution-update",
+		OnPrepare:    handleSolutionCreateContext,
+		OnIncomplete: lang.Assists(writer, handleSolutionUpdateConfig),
+		OnComplete:   lang.Assists(writer, handleSolutionCreateConfig),
+		OnPretend:    lang.Assists(writer, handleSolutionUpdatePretend),
 	}
 }
 
@@ -81,45 +104,90 @@ func NewWorkflowUpdateTask(writer WorkflowWriter) *task.Task[WorkflowParams] {
 	}
 }
 
-func handleWorkflowCreateContext(params *WorkflowParams, state *task.State) error {
+func handleSolutionCreateConfig(writer SolutionWriter, params *SolutionParams, state *task.State) error {
+	if state.Output != "" {
+		state.Logger.Debugf("Solution writing to [%s]", state.Output)
+		return writer.WithSolution(params.Solution).
+			Write(state.Output)
+	}
+
+	return errorSolutionFileInvalid
+}
+
+func handleSolutionCreateContext(params *SolutionParams, state *task.State) error {
 	if state.Output == "" {
-		state.Logger.Debugf("Finding a workflow configuration file for writing")
+		var err error
 
-		if params.IsConfigTypeNone() {
-			var reset func()
-			var err error
+		state.Logger.Debugf("Finding a solution configuration file for writing")
 
-			if reset, err = dirz.ChangeWorkingDir(params.WorkflowFolder); err == nil {
-				defer reset()
-				var file string
-
-				if file, err = filez.FirstNamedFile(params.GetConfigFile()); err == nil {
-					state.Output = file
-					return errorWorkflowFileExists
-				}
-			}
-
+		if state.Output, err = params.ResolveConfigPath(); err != nil {
 			return err
-		} else {
-			state.Output = params.GetConfigFile(params.WorkflowFolder)
-
-			if info, err := os.Stat(state.Output); err == nil {
-				if info.IsDir() {
-					return errorWorkflowFileInvalid
-				}
-
-				return errorWorkflowFileExists
-			}
 		}
 	}
 
 	return nil
 }
 
+func handleSolutionUpdateConfig(writer SolutionWriter, params *SolutionParams, state *task.State) error {
+	if state.Output != "" {
+		var update *Workflow
+		var err error
+
+		state.Completed = true
+
+		if update, err = writer.GetWorkflowByHandle(params.Handle); err == nil {
+			return handleSolutionCreateConfig(writer.WithWorkflow(update), params, state)
+		}
+	}
+
+	return errorSolutionFileInvalid
+}
+
+func handleSolutionUpdatePretend(writer SolutionWriter, params *SolutionParams, state *task.State) error {
+	if state.Output != "" {
+		var pretender = shared.NewConfigPretender(state.Output)
+		var rootKey, solution = writer.WithSolution(params.Solution).
+			BuildSolution()
+
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s.description", rootKey), solution.Description
+		})
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s.handle", rootKey), solution.Handle
+		})
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s.name", rootKey), solution.Name
+		})
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s.oem", rootKey), solution.Oem
+		})
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s.version", rootKey), solution.Version
+		})
+		return nil
+	}
+
+	return errorSolutionFileInvalid
+}
+
+func handleWorkflowCreateContext(params *WorkflowParams, state *task.State) error {
+	if state.Output == "" {
+		var err error
+
+		state.Logger.Debugf("Finding a workflow configuration file for writing")
+
+		if state.Output, err = params.ResolveConfigPath(); err != nil {
+			return err
+		}
+	}
+
+	return errorWorkflowFileInvalid
+}
+
 func handleWorkflowDeleteContext(params *WorkflowParams, state *task.State) error {
 	var err = handleWorkflowCreateContext(params, state)
 
-	if errors.Is(err, errorWorkflowFileExists) {
+	if errors.Is(err, shared.ErrorConfigFileExists) {
 		return nil
 	}
 

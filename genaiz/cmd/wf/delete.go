@@ -30,14 +30,14 @@ func (de *DeleteExecutor) Display() {
 
 func (de *DeleteExecutor) Pretend() {
 	var params = de.makeWorkflowParams()
-	var writer = newWorkflowWriter(de.Ledger, params.GetConfigFile(params.WorkflowFolder))
+	var writer = newWorkflowWriter(de.Ledger, params.GetConfigFile())
 
 	de.workflowTaskFactory(writer).Pretend(params, de.Ledger.Logger)
 }
 
 func (de *DeleteExecutor) Proceed() {
 	var params = de.makeWorkflowParams()
-	var writer = newWorkflowWriter(de.Ledger, params.GetConfigFile(params.WorkflowFolder))
+	var writer = newWorkflowWriter(de.Ledger, params.GetConfigFile())
 	var plan = task.NewPlan("Workflow", de.Ledger.Logger)
 
 	task.Single(plan, params, de.workflowTaskFactory(writer))

@@ -180,7 +180,7 @@ func TestNew(t *testing.T) {
 
 	testLedger.LoggerFactory(testLedger)
 	assert.EqualValues(t, version.Version, testCmd.Version)
-	assert.Equal(t, 3, len(testCmd.Commands()))
+	assert.Equal(t, 4, len(testCmd.Commands()))
 }
 
 func TestNew_ErrorLogFactory(t *testing.T) {

@@ -13,7 +13,6 @@ import (
 
 type CreateParams struct {
 	shared.ConfigParams
-	FolderPath string
 }
 
 func NewCreateTask() *task.Task[CreateParams] {
@@ -41,7 +40,7 @@ func handleLayoutCreate(params *CreateParams, state *task.State) error {
 }
 
 func handleLayoutCreateContext(params *CreateParams, state *task.State) error {
-	var path, _ = filepath.Abs(params.FolderPath)
+	var path, _ = filepath.Abs(params.ConfigFolder)
 	var dir, _ = os.Stat(path)
 
 	state.Logger.Debugf("Inspecting path [%s]", path)
@@ -90,7 +89,7 @@ func handleLayoutCreatePath(params *CreateParams, state *task.State) (string, er
 	var err error
 
 	if state.Output == "" {
-		path = params.FolderPath
+		path = params.ConfigFolder
 	} else {
 		path = filepath.Dir(state.Output)
 	}
@@ -101,7 +100,7 @@ func handleLayoutCreatePath(params *CreateParams, state *task.State) (string, er
 }
 
 func handleLayoutCreatePretend(params *CreateParams, state *task.State) error {
-	fmt.Printf("mkdir -p %s && cd %s\n", params.FolderPath, params.FolderPath)
+	fmt.Printf("mkdir -p %s && cd %s\n", params.ConfigFolder, params.ConfigFolder)
 
 	if state.Output != "" {
 		fmt.Printf("touch %s\n", state.Output)

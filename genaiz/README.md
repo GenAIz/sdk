@@ -127,6 +127,18 @@ Similar to run, but starting a disposable container attached to the current shel
 genaiz sf test --help
 ```
 
+### solution (sn)
+
+The solution module allows a user to create a solution with a default workflow setting solution values which will be used as default values for child components such as [workflows](#workflow-wf) and [functions](#function-sf).
+
+#### create
+
+Create initializes a new or an existing solution with the specified values. A solution must always have a workflow, creating a solution implies creating a default workflow with default or specified values as well.
+
+```shell
+genaiz sn create --help
+```
+
 ### workflow (wf)
 
 The workflow module allows a user to create, add and remove workflow configurations from a solution file.
