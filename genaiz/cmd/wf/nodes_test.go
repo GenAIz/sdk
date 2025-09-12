@@ -376,6 +376,44 @@ func TestNewNodes(t *testing.T) {
 	assert.Equal(t, 2, len(testCmd.Commands()))
 }
 
+func Test_newOptionSfDeserialized_dashSeq(t *testing.T) {
+	var expectedOem = "genaiz.com"
+	var expectedHandle = "handle_test"
+	var expectedVersion = "0.0.1"
+	var expectedSeq = 37
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var serializedOption = newOptionSfSerialized("test")
+	var testOption = newOptionSfDeserialized(serializedOption, "test")
+	var actual *broker.WorkflowNodeFunction
+
+	testViper.Set(serializedOption.Key, fmt.Sprintf("%s/%s:%s-rc-%d", expectedOem, expectedHandle, expectedVersion, expectedSeq))
+	actual = testOption.DefaultGetter(testLedger).(*broker.WorkflowNodeFunction)
+	assert.Equal(t, expectedOem, actual.Oem)
+	assert.Equal(t, expectedHandle, actual.Handle)
+	assert.Equal(t, expectedVersion, actual.Version)
+	assert.Equal(t, expectedSeq, actual.Seq)
+}
+
+func Test_newOptionSfDeserialized_dotSeq(t *testing.T) {
+	var expectedOem = "genaiz.com"
+	var expectedHandle = "handle_test"
+	var expectedVersion = "0.0.1"
+	var expectedSeq = 37
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var serializedOption = newOptionSfSerialized("test")
+	var testOption = newOptionSfDeserialized(serializedOption, "test")
+	var actual *broker.WorkflowNodeFunction
+
+	testViper.Set(serializedOption.Key, fmt.Sprintf("%s/%s:%s-rc.%d", expectedOem, expectedHandle, expectedVersion, expectedSeq))
+	actual = testOption.DefaultGetter(testLedger).(*broker.WorkflowNodeFunction)
+	assert.Equal(t, expectedOem, actual.Oem)
+	assert.Equal(t, expectedHandle, actual.Handle)
+	assert.Equal(t, expectedVersion, actual.Version)
+	assert.Equal(t, expectedSeq, actual.Seq)
+}
+
 func Test_newOptionSfDeserialized_noOem(t *testing.T) {
 	var expectedHandle = "handle_test"
 	var expectedVersion = "0.0.1"
@@ -397,12 +435,12 @@ func Test_newOptionSfDeserialized_noSeq(t *testing.T) {
 	var expectedOem = "genaiz.com"
 	var expectedHandle = "handle_test"
 	var expectedVersion = "0.0.1"
-
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var serializedOption = newOptionSfSerialized("test")
 	var testOption = newOptionSfDeserialized(serializedOption, "test")
 	var actual *broker.WorkflowNodeFunction
+
 	testViper.Set(serializedOption.Key, fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVersion))
 	actual = testOption.DefaultGetter(testLedger).(*broker.WorkflowNodeFunction)
 	assert.Equal(t, expectedOem, actual.Oem)

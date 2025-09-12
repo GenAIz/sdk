@@ -58,6 +58,7 @@ func TestDeleteExecutor_Pretend(t *testing.T) {
 	}
 
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
+	testLedger.InitLogging()
 	testExecutor.Pretend()
 	assert.True(t, calledWorkflow)
 }

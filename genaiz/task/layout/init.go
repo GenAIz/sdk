@@ -135,8 +135,15 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 
 func handleLayoutInitUpdate(writer ConfigWriter, params *InitParams, state *task.State) error {
 	if state.Output != "" {
+		var err error
+
 		state.Logger.Debugf("Init updating existing [%s]", state.Output)
-		return handleLayoutInitCreate(writer.WithConfigFile(state.Output), params, state)
+
+		if err = handleLayoutInitCreate(writer.WithConfigFile(state.Output), params, state); err == nil {
+			state.Completed = true
+		}
+
+		return err
 	}
 
 	return nil

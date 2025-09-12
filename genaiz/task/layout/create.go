@@ -41,7 +41,6 @@ func handleLayoutCreate(params *CreateParams, state *task.State) error {
 
 func handleLayoutCreateContext(params *CreateParams, state *task.State) error {
 	var path, _ = filepath.Abs(params.ConfigFolder)
-	var dir, _ = os.Stat(path)
 
 	state.Logger.Debugf("Inspecting path [%s]", path)
 
@@ -50,8 +49,6 @@ func handleLayoutCreateContext(params *CreateParams, state *task.State) error {
 
 		if file, _ := os.Stat(configFilePath); file != nil {
 			return errors.New("context already exist")
-		} else if dir == nil {
-			return errors.New("context is not writeable")
 		}
 
 		state.Output = configFilePath

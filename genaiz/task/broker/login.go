@@ -147,10 +147,10 @@ type LoginParams struct {
 }
 
 func NewAuthData(authFile ...string) *AuthData {
-	var bytes []byte
-	var err error
-
 	if len(authFile) > 0 {
+		var bytes []byte
+		var err error
+
 		if bytes, err = os.ReadFile(authFile[0]); err == nil {
 			var auth AuthData
 
@@ -243,33 +243,30 @@ func handleLoginCreate(params *LoginParams, state *task.State) error {
 
 func handleLoginDelete(params *LoginParams, state *task.State) error {
 	if state.Output != "" {
+		var auth = NewAuthData(params.AuthFile)
+		var accounts []*AuthAccount
 		var brokerClient Client
 		var err error
 
 		state.Logger.Debugf("Logging out session id [%s]", state.Output)
 
 		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
-			var auth = NewAuthData(params.AuthFile)
-			var accounts []*AuthAccount
-
 			if err = brokerClient.Logout(state.Output); err != nil {
 				state.Logger.Warnf("Could not delete session for host [%s]: %s", params.HostAddr, err)
 			}
-
-			state.Logger.Debugf("Pruning session id [%s]", state.Output)
-
-			for _, a := range auth.Accounts {
-				if state.Output != fmt.Sprintf("%d", a.SessionId) {
-					accounts = append(accounts, a)
-				}
-			}
-
-			auth.Accounts = accounts
-			state.Output = params.Username
-			return auth.Write(params.AuthFile)
 		}
 
-		return err
+		state.Logger.Debugf("Pruning session id [%s]", state.Output)
+
+		for _, a := range auth.Accounts {
+			if state.Output != fmt.Sprintf("%d", a.SessionId) {
+				accounts = append(accounts, a)
+			}
+		}
+
+		auth.Accounts = accounts
+		state.Output = params.Username
+		return auth.Write(params.AuthFile)
 	}
 
 	return ErrorNoSession

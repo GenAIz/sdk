@@ -12,7 +12,7 @@ import (
 
 func ArgsFolderValidator(typeName string, validates config.Validates) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {
-		if len(args) == 1 {
+		if len(args) >= 1 {
 			if info, err := os.Stat(args[0]); err == nil {
 				if !info.IsDir() {
 					return fmt.Errorf("%s is not a folder", args[0])

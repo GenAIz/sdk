@@ -55,8 +55,10 @@ func TestSolutionWriter_Read(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = NewBuilder().WithViper(testViper).Build()
 	var testWriter = &SolutionWriter{}
-	var actual = testWriter.Read(testLedger, "/_not_exist")
+	var actual *SolutionWriter
 
+	testLedger.InitLogging()
+	actual = testWriter.Read(testLedger, "/?not_exist")
 	assert.Empty(t, actual.current)
 }
 

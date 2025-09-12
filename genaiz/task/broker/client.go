@@ -1,11 +1,14 @@
 package broker
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"resty.dev/v3"
 
@@ -15,22 +18,27 @@ import (
 )
 
 const (
-	defaultExpiryMinutes = 5 * 24 * 60
+	defaultExpiryMinutes  = 5 * 24 * 60
+	defaultTimeoutSeconds = 15
 
 	apiVersion1  version = "v1"
-	pathSession  path    = "user/session"
 	pathFunction path    = "sf"
+	pathSession  path    = "user/session"
+	pathSolution path    = "oem/solution"
 )
 
 var (
-	errorBadRequest   = errors.New("broker refused the request")
-	errorForbidden    = errors.New("broker denied access")
-	errorInternal     = errors.New("broker request crashed")
-	errorNoAuth       = errors.New("client not authenticated")
-	errorNotFound     = errors.New("broker did not find the entity")
-	errorNoResponse   = errors.New("client did not get a response")
-	errorNoPath       = errors.New("broker path is not available")
-	errorUnauthorized = errors.New("unauthorized, please login")
+	errorBadRequest     = errors.New("broker refused the request")
+	errorForbidden      = errors.New("broker denied access")
+	errorInternal       = errors.New("broker request crashed")
+	errorInvalidHost    = errors.New("invalid host address")
+	errorNoAuth         = errors.New("client not authenticated")
+	errorNotFound       = errors.New("broker did not find the entity")
+	errorNoResponse     = errors.New("client did not get a response")
+	errorNoPath         = errors.New("broker path is not available")
+	errorNoToken        = errors.New("could not read token from cookie")
+	errorSessionExpired = errors.New("broker session is expired")
+	errorUnauthorized   = errors.New("unauthorized, please login")
 
 	clientByHost = map[string]Client{}
 	clientErrors = map[int]error{
@@ -44,10 +52,16 @@ var (
 	clientFactory = NewClientFactory()
 )
 
+type path string
+
+type version string
+
 type Client interface {
 	GetAuthToken() string
 
 	GetExpiry() int
+
+	GetTimeout() int
 
 	Login(string, []byte) (*AuthSession, error)
 
@@ -59,11 +73,15 @@ type Client interface {
 
 	ProvisionFunction(*Function) (*shared.Identity, error)
 
-	ProvisionUrl() string
+	ProvisionFunctionUrl() string
 
 	PublishFunction(*shared.Identity) (*Function, error)
 
-	PublishUrl() string
+	PublishFunctionUrl() string
+
+	PublishSolution(*Solution) (*shared.Identity, error)
+
+	PublishSolutionUrl() string
 
 	Session() (*Session, error)
 
@@ -74,23 +92,27 @@ type Client interface {
 	WithAccount(*AuthAccount) (Client, error)
 }
 
-type path string
-
-type version string
-
 type client struct {
 	AuthToken string
 	Expiry    int
 	HostAddr  string
 	UserId    int
 
-	factory func() *resty.Client
+	requestBridge func() requestBridge
 }
 
 type clientPayload[P any] struct {
 	Code   int
 	Data   P
 	Status string
+}
+
+type solutionSlices struct {
+	Solution       SolutionRemote `json:"solution"`
+	Workflows      []Workflow     `json:"workflows"`
+	WorkflowLinks  []WorkflowLink `json:"workflowLinks"`
+	WorkflowNodes  []WorkflowNode `json:"workflowNodes"`
+	SmartFunctions []Function     `json:"smartFunctions"`
 }
 
 func (c *client) GetAuthToken() string {
@@ -101,20 +123,25 @@ func (c *client) GetExpiry() int {
 	return c.Expiry
 }
 
+func (c *client) GetTimeout() int {
+	var bridge = c.requestBridge()
+
+	return int(bridge.Timeout() / time.Second)
+}
+
 func (c *client) Login(username string, password []byte) (*AuthSession, error) {
 	var url string
 	var err error
 
 	if url, err = c.makeUrl(apiVersion1, pathSession, "create"); err == nil {
-		var cl = c.factory()
-		var resp *resty.Response
+		var rb = c.requestBridge()
+		var resp responseBridge
 		var result *AuthSession
 
-		defer c.closeSilently(cl)
-		resp, err = cl.R().
-			SetExpectResponseContentType("application/json").
-			SetResult(&clientPayload[Session]{}).
-			SetFormData(map[string]string{
+		defer c.closeSilently(rb)
+		resp, err = rb.Json().
+			Resulting(&clientPayload[Session]{}).
+			Params(map[string]string{
 				"email":    username,
 				"password": string(password),
 				"expiry":   strconv.FormatInt(int64(c.Expiry*60), 10),
@@ -126,7 +153,7 @@ func (c *client) Login(username string, password []byte) (*AuthSession, error) {
 				var cookieValue = c.authFromCookie("s", resp.Cookies())
 
 				if cookieValue == "" {
-					err = errors.New("could not read token from cookie")
+					err = errorNoToken
 				} else {
 					var payload = resp.Result().(*clientPayload[Session])
 
@@ -156,15 +183,14 @@ func (c *client) Logout(sessionId string) error {
 	var err error
 
 	if url, err = c.makeUrl(apiVersion1, pathSession, "delete"); err == nil {
-		var cl = c.factory()
-		var resp *resty.Response
+		var rb = c.requestBridge()
+		var resp responseBridge
 
-		defer c.closeSilently(cl)
-		resp, err = cl.R().
-			SetExpectResponseContentType("application/json").
-			SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
-			SetResult(&clientPayload[Session]{}).
-			SetFormData(map[string]string{
+		defer c.closeSilently(rb)
+		resp, err = rb.Json().
+			Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+			Resulting(&clientPayload[Session]{}).
+			Params(map[string]string{
 				"id": sessionId,
 			}).
 			Post(url)
@@ -193,18 +219,16 @@ func (c *client) ProvisionFunction(function *Function) (*shared.Identity, error)
 		var err error
 
 		if url, err = c.makeUrl(apiVersion1, pathFunction, "provision"); err == nil {
-			var cl = c.factory()
-			var resp *resty.Response
+			var rb = c.requestBridge()
+			var resp responseBridge
 
-			defer c.closeSilently(cl)
-			resp, err = cl.R().
-				SetExpectResponseContentType("application/json").
-				SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
-				SetResult(&clientPayload[Provision]{}).
-				SetFormData(map[string]string{
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+				Resulting(&clientPayload[Provision]{}).
+				Params(map[string]string{
 					"name":        function.Name,
 					"description": function.Description,
-					"fqdn":        function.Fqdn,
 					"oem":         function.Oem,
 					"handle":      function.Handle,
 					"type":        function.Type,
@@ -221,68 +245,113 @@ func (c *client) ProvisionFunction(function *Function) (*shared.Identity, error)
 				return result
 			})
 		}
+
+		return nil, err
 	}
 
 	return nil, errorNoAuth
 }
 
-func (c *client) ProvisionUrl() string {
+func (c *client) ProvisionFunctionUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "provision")
 }
 
 func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
-	var url string
-	var err error
+	if c.AuthToken != "" {
+		var url string
+		var err error
 
-	if url, err = c.makeUrl(apiVersion1, pathFunction, "publish"); err == nil {
-		var cl = c.factory()
-		var resp *resty.Response
+		if url, err = c.makeUrl(apiVersion1, pathFunction, "publish"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
 
-		defer c.closeSilently(cl)
-		resp, err = cl.R().
-			SetExpectResponseContentType("application/json").
-			SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
-			SetResult(&clientPayload[Function]{}).
-			SetFormData(map[string]string{
-				"id":     identity.Id,
-				"digest": identity.Hash,
-			}).
-			Post(url)
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+				Resulting(&clientPayload[Function]{}).
+				Params(map[string]string{
+					"id":     identity.Id,
+					"digest": identity.Hash,
+				}).
+				Post(url)
 
-		return resultOrError(resp, func(body any) *Function {
-			var payload = resp.Result().(*clientPayload[Function])
+			return resultOrError(resp, func(body any) *Function {
+				var payload = resp.Result().(*clientPayload[Function])
 
-			return &payload.Data
-		})
+				return &payload.Data
+			})
+		}
+
+		return nil, err
 	}
 
 	return nil, errorNoAuth
 }
 
-func (c *client) PublishUrl() string {
+func (c *client) PublishFunctionUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "publish")
 }
 
+func (c *client) PublishSolution(solution *Solution) (*shared.Identity, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathSolution, "publish"); err == nil {
+			var solutionBytes, _ = json.Marshal(solution)
+			var rb = c.requestBridge()
+			var resp responseBridge
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+				Resulting(&clientPayload[solutionSlices]{}).
+				Params(map[string]string{
+					"solution": string(solutionBytes),
+				}).
+				Post(url)
+
+			return resultOrError(resp, func(body any) *shared.Identity {
+				var payload = resp.Result().(*clientPayload[solutionSlices])
+				var graph = &payload.Data
+
+				return graph.Solution.asIdentity()
+			})
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) PublishSolutionUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "publish")
+}
+
 func (c *client) Session() (*Session, error) {
-	var url string
-	var err error
+	if c.AuthToken != "" {
+		var url string
+		var err error
 
-	if url, err = c.makeUrl(apiVersion1, pathSession, "get"); err == nil {
-		var cl = c.factory()
-		var resp *resty.Response
+		if url, err = c.makeUrl(apiVersion1, pathSession, "get"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
 
-		defer c.closeSilently(cl)
-		resp, err = cl.R().
-			SetExpectResponseContentType("application/json").
-			SetCookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
-			SetResult(&clientPayload[Session]{}).
-			Get(url)
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+				Resulting(&clientPayload[Session]{}).
+				Get(url)
 
-		return resultOrError(resp, func(body any) *Session {
-			var payload = resp.Result().(*clientPayload[Session])
+			return resultOrError(resp, func(body any) *Session {
+				var payload = resp.Result().(*clientPayload[Session])
 
-			return &payload.Data
-		})
+				return &payload.Data
+			})
+		}
+
+		return nil, err
 	}
 
 	return nil, errorNoAuth
@@ -305,7 +374,7 @@ func (c *client) WithAccount(account *AuthAccount) (Client, error) {
 		return c, nil
 	}
 
-	return nil, errors.New("broker session is expired")
+	return nil, errorSessionExpired
 }
 
 func (c *client) authFromCookie(name string, cookies []*http.Cookie) string {
@@ -318,13 +387,13 @@ func (c *client) authFromCookie(name string, cookies []*http.Cookie) string {
 	return ""
 }
 
-func (c *client) closeSilently(client *resty.Client) {
+func (c *client) closeSilently(client io.Closer) {
 	_ = client.Close()
 }
 
 func (c *client) makeUrl(version version, path path, rpc ...string) (string, error) {
 	if c.HostAddr == "" {
-		return "", errors.New("invalid host address")
+		return "", errorInvalidHost
 	}
 
 	return makeHostUrl(c.HostAddr, version, path, rpc...), nil
@@ -358,8 +427,13 @@ func GetClient(authFile string, addr string) (Client, error) {
 }
 
 func NewClient(addr string) Client {
-	return newClientWithFactory(addr, defaultExpiryMinutes, func() *resty.Client {
-		return resty.New()
+	return newClientWithBridge(addr, defaultExpiryMinutes, func() requestBridge {
+		var cl = resty.New().SetTimeout(defaultTimeoutSeconds * time.Second)
+
+		return &restyBridge{
+			client:  cl,
+			request: cl.R(),
+		}
 	})
 }
 
@@ -386,21 +460,35 @@ func makeHostUrl(host string, version version, path path, rpc ...string) string 
 	return strings.Join(result, "/")
 }
 
-func newClientWithFactory(addr string, expiry int, factory func() *resty.Client) Client {
+func newClientWithBridge(addr string, expiry int, bridge func() requestBridge) Client {
 	return &client{
-		Expiry:   expiry,
-		HostAddr: addr,
-		factory:  factory,
+		Expiry:        expiry,
+		HostAddr:      addr,
+		requestBridge: bridge,
 	}
 }
 
-func resultOrError[T any](response *resty.Response, transformer func(body any) *T) (*T, error) {
+func resultOrError[T any](response responseBridge, transformer func(body any) *T) (*T, error) {
 	if response != nil {
 		if response.IsSuccess() {
 			return transformer(response.Result()), nil
+		} else if response.StatusCode() == 400 {
+			var bytes = response.Bytes()
+
+			if bytes != nil {
+				var respError Error
+
+				if err := json.Unmarshal(bytes, &respError); err == nil {
+					return nil, errors.New(respError.Message)
+				} else {
+					return nil, errors.New(string(bytes))
+				}
+			}
+
+			return nil, clientErrors[400]
 		} else {
 			return nil, mapz.GetOrDefault(clientErrors, response.StatusCode(), func() error {
-				return errors.New(response.Status())
+				return fmt.Errorf("%d %s", response.StatusCode(), response.Status())
 			})
 		}
 	}

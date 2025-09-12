@@ -25,6 +25,24 @@ func TestFunction_asIdentity(t *testing.T) {
 	assert.Equal(t, function.Version, actual.Version)
 }
 
+func TestSolution_asIdentity(t *testing.T) {
+	var actual *shared.Identity
+	var solution = SolutionRemote{
+		Solution: Solution{
+			Version: "version",
+		},
+		Id:     37,
+		Digest: "digest",
+		Fqdn:   "path",
+	}
+
+	actual = solution.asIdentity()
+	assert.Equal(t, solution.Id, cast.ToInt64(actual.Id))
+	assert.Equal(t, solution.Digest, actual.Hash)
+	assert.Equal(t, solution.Fqdn, actual.Path)
+	assert.Equal(t, solution.Version, actual.Version)
+}
+
 func TestSolution_Merge(t *testing.T) {
 	var expectedDescription = "description"
 	var expectedHandle = "handle"

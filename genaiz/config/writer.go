@@ -8,13 +8,13 @@ import (
 	"slices"
 
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task/broker"
 )
 
 type BaseWriter struct {
+	BaseReader
 	current *broker.Solution
 }
 
@@ -37,15 +37,12 @@ func (bw *BaseWriter) GetWorkflows() []broker.Workflow {
 }
 
 func (bw *BaseWriter) Read(ledger *Ledger, input string) *BaseWriter {
-	var document SolutionDocument
-
-	if bytes, err := os.ReadFile(input); err == nil {
-		if err = yaml.Unmarshal(bytes, &document); err != nil {
-			ledger.Logger.Error(err)
-		}
+	if solution, err := bw.ReadFile(input); err == nil {
+		bw.current = solution
+	} else {
+		ledger.Logger.Errorf("could not parse %s: %s", input, err)
 	}
 
-	bw.current = document.Solution
 	return bw
 }
 
@@ -61,10 +58,6 @@ func (bw *BaseWriter) UpdatePath(vp *viper.Viper, path string) (*os.File, error)
 	}
 
 	return filez.CreateRecursive(filepath.Dir(path), filepath.Base(path))
-}
-
-type SolutionDocument struct {
-	Solution *broker.Solution
 }
 
 type SolutionWriter struct {

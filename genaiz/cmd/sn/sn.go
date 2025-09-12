@@ -7,12 +7,27 @@ import (
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type BaseExecutor struct {
 	Cli     *Cli
 	Context context.Context
 	Ledger  *config.Ledger
+
+	folderPath string
+}
+
+func (be BaseExecutor) makeConfigParams(option *config.StringOption) *shared.ConfigParams {
+	var configType, err = be.Ledger.GetConfigType(option)
+
+	lang.HandleExit(err)
+	return &shared.ConfigParams{
+		ConfigName:   be.Ledger.ConfigName,
+		ConfigType:   configType,
+		ConfigFolder: be.folderPath,
+	}
 }
 
 type Cli struct {
@@ -28,6 +43,7 @@ func NewSn(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	}
 
 	wfCmd.AddCommand(NewCreate(ledger, snCli))
+	wfCmd.AddCommand(NewPublish(ledger, snCli))
 	return wfCmd
 }
 

@@ -38,51 +38,53 @@ func (pp ProvisionParams) asFunction() *Function {
 	}
 }
 
-func NewProvisionTask() *task.Task[ProvisionParams] {
+func NewFunctionProvisionTask() *task.Task[ProvisionParams] {
 	return &task.Task[ProvisionParams]{
 		Name:       "function-provision",
-		OnPrepare:  handleProvisionContext,
-		OnComplete: handleProvisionComplete,
-		OnPretend:  handleProvisionPretend,
+		OnPrepare:  handleFunctionProvisionContext,
+		OnComplete: handleFunctionProvisionComplete,
+		OnPretend:  handleFunctionProvisionPretend,
 	}
 }
 
-func NewPublishTask() *task.Task[ProvisionParams] {
+func NewFunctionPublishTask() *task.Task[ProvisionParams] {
 	return &task.Task[ProvisionParams]{
 		Name:       "function-publish",
-		OnPrepare:  handlePublishContext,
-		OnComplete: handlePublishComplete,
-		OnPretend:  handlePublishPretend,
+		OnPrepare:  handleFunctionPublishContext,
+		OnComplete: handleFunctionPublishComplete,
+		OnPretend:  handleFunctionPublishPretend,
 	}
 }
 
-func handleProvisionContext(params *ProvisionParams, state *task.State) error {
+func handleFunctionProvisionContext(params *ProvisionParams, state *task.State) error {
 	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
 
 		state.Logger.Debugf("Validating smart function provisioning for [%s/%s]", params.Oem, params.Handle)
 
-		if current.HasIdentifier() {
-			return nil
+		if current.HasRepoIdentifier() {
+			state.Logger.Debugf("Provisioning for [%s/%s] exists", params.Oem, params.Handle)
 		}
+
+		return nil
 	}
 
 	return errorNoBuildToProvision
 }
 
-func handleProvisionComplete(params *ProvisionParams, state *task.State) error {
+func handleFunctionProvisionComplete(params *ProvisionParams, state *task.State) error {
 	var brokerClient Client
 	var err error
 
 	if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
-		state.Logger.Debugf("Provisioning function on url [%s]", brokerClient.ProvisionUrl())
+		state.Logger.Debugf("Provisioning function on url [%s]", brokerClient.ProvisionFunctionUrl())
 		state.Internal, err = brokerClient.ProvisionFunction(params.asFunction())
 	}
 
 	return err
 }
 
-func handleProvisionPretend(params *ProvisionParams, state *task.State) error {
+func handleFunctionProvisionPretend(params *ProvisionParams, state *task.State) error {
 	if state.Error == nil {
 		var brokerClient Client
 		var err error
@@ -100,7 +102,7 @@ func handleProvisionPretend(params *ProvisionParams, state *task.State) error {
 			fmt.Printf("  -d handle=%s\\\n", params.Handle)
 			fmt.Printf("  -d version=%s\\\n", params.Version)
 			fmt.Printf("  -d type=%s\\\n", params.Type)
-			fmt.Printf("%s\n", brokerClient.ProvisionUrl())
+			fmt.Printf("%s\n", brokerClient.ProvisionFunctionUrl())
 			remote.Id = "$ID"
 			remote.Path = params.HostAddr + "/" + params.Handle
 			return nil
@@ -113,7 +115,7 @@ func handleProvisionPretend(params *ProvisionParams, state *task.State) error {
 	return state.Error
 }
 
-func handlePublishContext(params *ProvisionParams, state *task.State) error {
+func handleFunctionPublishContext(params *ProvisionParams, state *task.State) error {
 	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
 
@@ -127,7 +129,7 @@ func handlePublishContext(params *ProvisionParams, state *task.State) error {
 	return errorNoRepoIdentity
 }
 
-func handlePublishComplete(params *ProvisionParams, state *task.State) error {
+func handleFunctionPublishComplete(params *ProvisionParams, state *task.State) error {
 	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
 
@@ -148,7 +150,7 @@ func handlePublishComplete(params *ProvisionParams, state *task.State) error {
 	return errorNoProvision
 }
 
-func handlePublishPretend(params *ProvisionParams, state *task.State) error {
+func handleFunctionPublishPretend(params *ProvisionParams, state *task.State) error {
 	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
 
@@ -161,7 +163,7 @@ func handlePublishPretend(params *ProvisionParams, state *task.State) error {
 				fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 				fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
 				fmt.Printf("  -d id=%s\\\n", current.Id)
-				fmt.Printf("%s\n", brokerClient.PublishUrl())
+				fmt.Printf("%s\n", brokerClient.PublishFunctionUrl())
 				return nil
 			}
 
