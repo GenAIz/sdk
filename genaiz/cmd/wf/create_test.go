@@ -71,6 +71,7 @@ func TestCreateExecutor_Pretend(t *testing.T) {
 	testViper.Set(testExecutor.optionName.Key, "create-name")
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
 	testViper.Set(testExecutor.optionDescription.Key, "create-desc")
+	testLedger.InitLogging()
 	testExecutor.Pretend()
 	assert.True(t, calledWorkflow)
 }

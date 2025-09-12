@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/iancoleman/strcase"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
@@ -17,22 +16,21 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
-type SolutionTaskFactory func(broker.SolutionWriter) *task.Task[broker.SolutionParams]
+type SolutionCreateTaskFactory func(broker.SolutionWriter) *task.Task[broker.SolutionParams]
 
 type WorkflowTaskFactory func(broker.WorkflowWriter) *task.Task[broker.WorkflowParams]
 
 type CreateExecutor struct {
 	BaseExecutor
 	*CreateOptions
-	FolderPath string
 
-	solutionTaskFactory SolutionTaskFactory
+	solutionTaskFactory SolutionCreateTaskFactory
 	workflowTaskFactory WorkflowTaskFactory
 }
 
 func (ce *CreateExecutor) Display() {
 	ce.Ledger.DisplayOptionsWithMap(&map[string]string{
-		"folder": ce.FolderPath,
+		"folder": ce.folderPath,
 	},
 		&ce.CreateOptions.optionConfigType.Option,
 		&ce.optionDescription.Option,
@@ -46,7 +44,7 @@ func (ce *CreateExecutor) Display() {
 }
 
 func (ce *CreateExecutor) Pretend() {
-	var configParams = ce.makeConfigParams()
+	var configParams = ce.makeConfigParams(ce.optionConfigType)
 	var snParams = ce.makeSolutionParams(configParams)
 	var snWriter = config.NewSolutionWriter().Read(ce.Ledger, snParams.GetConfigPath())
 	var wfParams = ce.makeWorkflowParams(configParams)
@@ -61,7 +59,7 @@ func (ce *CreateExecutor) Pretend() {
 }
 
 func (ce *CreateExecutor) Proceed() {
-	var configParams = ce.makeConfigParams()
+	var configParams = ce.makeConfigParams(ce.optionConfigType)
 	var snParams = ce.makeSolutionParams(configParams)
 	var snWriter = config.NewSolutionWriter().Read(ce.Ledger, snParams.GetConfigPath())
 	var wfParams = ce.makeWorkflowParams(configParams)
@@ -73,17 +71,6 @@ func (ce *CreateExecutor) Proceed() {
 		task.NewWorker(snParams, ce.solutionTaskFactory(snWriter)),
 		task.NewWorker(wfParams, ce.workflowTaskFactory(wfWriter)),
 	)
-}
-
-func (ce *CreateExecutor) makeConfigParams() *shared.ConfigParams {
-	var configType, err = ce.Ledger.GetConfigType(ce.optionConfigType)
-
-	lang.HandleExit(err)
-	return &shared.ConfigParams{
-		ConfigName:   ce.Ledger.ConfigName,
-		ConfigType:   configType,
-		ConfigFolder: ce.FolderPath,
-	}
 }
 
 func (ce *CreateExecutor) makeSolutionParams(configParams *shared.ConfigParams) *broker.SolutionParams {
@@ -110,17 +97,12 @@ func (ce *CreateExecutor) makeWorkflowParams(configParams *shared.ConfigParams) 
 }
 
 type CreateOptions struct {
-	optionConfigType     *config.StringOption
-	optionDescription    *config.StringOption
-	optionHandle         *config.StringOption
-	optionName           *config.StringOption
-	optionOem            *config.StringOption
-	optionVersion        *config.StringOption
+	PublishOptions
 	optionWorkflowHandle *config.StringOption
 	optionWorkflowName   *config.StringOption
 }
 
-func (co *CreateOptions) allDefiners() []config.Definer {
+func (co CreateOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		co.optionConfigType,
 		co.optionDescription,
@@ -161,12 +143,12 @@ func NewCreate(ledger *config.Ledger, snCli *Cli) *cobra.Command {
 func NewCreateExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *CreateOptions, folderPath string) *CreateExecutor {
 	return &CreateExecutor{
 		BaseExecutor: BaseExecutor{
-			Cli:     cli,
-			Context: ctx,
-			Ledger:  ledger,
+			Cli:        cli,
+			Context:    ctx,
+			Ledger:     ledger,
+			folderPath: folderPath,
 		},
 		CreateOptions: options,
-		FolderPath:    folderPath,
 
 		solutionTaskFactory: broker.NewSolutionUpdateTask,
 		workflowTaskFactory: broker.NewWorkflowUpdateTask,
@@ -174,18 +156,20 @@ func NewCreateExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opt
 }
 
 func NewCreateOptions() *CreateOptions {
-	var cmd = "create"
+	var cmd = "Create"
 	var handleOption = newOptionHandle(cmd)
-	var nameOption = newOptionName(handleOption)
+	var nameOption = newOptionName(handleOption, cmd)
 	var wfHandleOption = newOptionWorkflowHandle()
 
 	return &CreateOptions{
-		optionConfigType:     newOptionConfigType(cmd),
-		optionDescription:    newOptionDescription(nameOption),
-		optionHandle:         handleOption,
-		optionName:           nameOption,
-		optionOem:            newOptionOem(cmd),
-		optionVersion:        newOptionVersion(cmd),
+		PublishOptions: PublishOptions{
+			optionConfigType:  newOptionConfigType(cmd),
+			optionDescription: newOptionDescription(nameOption, cmd),
+			optionHandle:      handleOption,
+			optionName:        nameOption,
+			optionOem:         newOptionOem(cmd),
+			optionVersion:     newOptionVersion(cmd),
+		},
 		optionWorkflowHandle: wfHandleOption,
 		optionWorkflowName:   newOptionWorkflowName(wfHandleOption),
 	}
@@ -194,7 +178,7 @@ func NewCreateOptions() *CreateOptions {
 func newOptionConfigType(cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:          "Solution." + strcase.ToCamel(cmd) + ".ConfigType",
+			Key:          "Solution." + cmd + ".ConfigType",
 			Env:          "SN_" + strings.ToUpper(cmd) + "_CONFIG_TYPE",
 			Param:        "configType",
 			Usage:        "sets the format of the configuration file to modify. Supported values are \"yaml\", \"toml\", \"json\" or \"none\"",
@@ -204,11 +188,11 @@ func newOptionConfigType(cmd string) *config.StringOption {
 	}
 }
 
-func newOptionDescription(defaultOption *config.StringOption) *config.StringOption {
+func newOptionDescription(defaultOption *config.StringOption, cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:   "Solution.Create.Description",
-			Env:   "SN_CREATE_DESCRIPTION",
+			Key:   "Solution." + cmd + ".Description",
+			Env:   "SN_" + strings.ToUpper(cmd) + "_DESCRIPTION",
 			Param: "description",
 			Usage: "description of the solution created",
 			DefaultGetter: func(ledger *config.Ledger) any {
@@ -222,7 +206,7 @@ func newOptionDescription(defaultOption *config.StringOption) *config.StringOpti
 func newOptionHandle(cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:       "Solution." + strcase.ToCamel(cmd) + ".Handle",
+			Key:       "Solution." + cmd + ".Handle",
 			Env:       "SN_" + strings.ToUpper(cmd) + "_HANDLE",
 			Param:     "handle",
 			Usage:     "handle of the solution to " + strings.ToLower(cmd),
@@ -231,11 +215,11 @@ func newOptionHandle(cmd string) *config.StringOption {
 	}
 }
 
-func newOptionName(defaultOption *config.StringOption) *config.StringOption {
+func newOptionName(defaultOption *config.StringOption, cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:   "Solution.Create.Name",
-			Env:   "SN_CREATE_NAME",
+			Key:   "Solution." + cmd + ".Name",
+			Env:   "SN_" + strings.ToUpper(cmd) + "_NAME",
 			Param: "name",
 			Short: "n",
 			Usage: "name of the solution to create",

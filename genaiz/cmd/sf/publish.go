@@ -167,7 +167,7 @@ func NewPublish(ledger *config.Ledger, cli *Cli) *cobra.Command {
 		Short:   "Publishes a Smart Function metadata and image to a Broker",
 		Long:    "Publishes a Smart Function metadata and image to a Broker, by provisioning its information and then pushing it the Broker's registry",
 		Example: "genaiz sf publish --handle=my-function --oem=com.genaiz --version=0.1-dev www.genaiz.com",
-		Args:    cobra.MatchAll(cobra.ExactArgs(1)),
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli.Exec(ledger, NewPublishExecutor(cmd.Context(), ledger, cli, options, args[0]))
 		},
@@ -190,9 +190,9 @@ func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, op
 		buildTaskFactory:     docker.NewBuildTask,
 		initTaskFactory:      layout.NewInitTask,
 		inspectTaskFactory:   docker.NewInspectTask,
-		provisionTaskFactory: broker.NewProvisionTask,
+		provisionTaskFactory: broker.NewFunctionProvisionTask,
 		pushTaskFactory:      docker.NewPushTask,
-		publishTaskFactory:   broker.NewPublishTask,
+		publishTaskFactory:   broker.NewFunctionPublishTask,
 	}
 }
 

@@ -311,8 +311,19 @@ func newOptionSfDeserialized(serializedOption *config.StringOption, cmd string) 
 					}
 
 					if i = strings.Index(serialized, "-rc"); i >= 0 {
-						deserialized.Version = serialized[0:i]
-						deserialized.Seq = cast.ToInt(serialized[i+3:])
+						var j = strings.Index(serialized, "-rc.")
+
+						if j < 0 {
+							j = strings.Index(serialized, "-rc-")
+						}
+
+						if j >= 0 {
+							deserialized.Version = serialized[0:j]
+							deserialized.Seq = cast.ToInt(serialized[j+4:])
+						} else {
+							deserialized.Version = serialized[0:i]
+							deserialized.Seq = cast.ToInt(serialized[i+3:])
+						}
 					} else {
 						deserialized.Version = serialized
 					}
@@ -361,17 +372,16 @@ func newOptionSfOem(defaultOption *config.Option, cmd string) *config.StringOpti
 func newOptionSfSeq(defaultOption *config.Option, cmd string) *config.StringOption {
 	return &config.StringOption{
 		Option: config.Option{
-			Key:          "Workflow." + cmd + ".Function.Seq",
-			Env:          makeEnvKey("WF_" + cmd + "_FUNCTION_SEQ"),
-			Param:        "sf.seq",
-			Usage:        "sequence number of the node smart function",
-			DefaultValue: "0",
+			Key:   "Workflow." + cmd + ".Function.Seq",
+			Env:   makeEnvKey("WF_" + cmd + "_FUNCTION_SEQ"),
+			Param: "sf.seq",
+			Usage: "sequence number of the node smart function",
 			DefaultGetter: func(ledger *config.Ledger) any {
 				var dAny = ledger.Get(defaultOption)
 
 				return dAny.(*broker.WorkflowNodeFunction).Seq
 			},
-			Validator: config.Validation.VersionNumber,
+			Validator: config.Optionally(config.Validation.VersionNumber),
 		},
 	}
 }

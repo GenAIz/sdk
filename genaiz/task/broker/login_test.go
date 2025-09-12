@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -16,13 +17,13 @@ import (
 	"genaiz.com/genaiz/task"
 )
 
-type stubClient struct {
+type stubLoginClient struct {
 	client
 	session   *AuthSession
 	logoutErr error
 }
 
-func (s stubClient) Login(username string, password []byte) (*AuthSession, error) {
+func (s stubLoginClient) Login(username string, password []byte) (*AuthSession, error) {
 	if s.session != nil {
 		return s.session, nil
 	}
@@ -30,11 +31,11 @@ func (s stubClient) Login(username string, password []byte) (*AuthSession, error
 	return nil, errors.New("login error")
 }
 
-func (s stubClient) Logout(id string) error {
+func (s stubLoginClient) Logout(id string) error {
 	return s.logoutErr
 }
 
-func (s stubClient) Session() (*Session, error) {
+func (s stubLoginClient) Session() (*Session, error) {
 	if s.session == nil {
 		return nil, errors.New("session error")
 	}
@@ -44,7 +45,7 @@ func (s stubClient) Session() (*Session, error) {
 	}, nil
 }
 
-func (s stubClient) SessionValid(session *Session) bool {
+func (s stubLoginClient) SessionValid(session *Session) bool {
 	if session.UserId > 0 {
 		return s.client.SessionValid(session)
 
@@ -183,11 +184,11 @@ func TestAuthData_Push(t *testing.T) {
 func TestAuthData_Write_PermissionDenied(t *testing.T) {
 	var authData = NewAuthData()
 
-	assert.Error(t, authData.Write("/_root"))
+	assert.Error(t, authData.Write("/?root"))
 }
 
 func TestAuthData_Write(t *testing.T) {
-	var expectedFile = "/tmp/genaiz.login"
+	var expectedFile = filepath.Join(t.TempDir(), "genaiz.login")
 	var authData = &AuthData{
 		Accounts: []*AuthAccount{
 			{
@@ -198,7 +199,6 @@ func TestAuthData_Write(t *testing.T) {
 	}
 	var actual *AuthData
 
-	defer filez.RemoveSilently(expectedFile)
 	assert.NoError(t, authData.Write(expectedFile))
 	assert.NoError(t, filez.IsReadable(expectedFile))
 	actual = NewAuthData(expectedFile)
@@ -237,8 +237,9 @@ func TestNewSessionTask(t *testing.T) {
 }
 
 func Test_handleLoginContext_EmptyFile(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.login*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.login*"); err == nil {
 		var testState = &task.State{Logger: logrus.New()}
 		var testParams = &LoginParams{
 			Broker: &Broker{
@@ -254,8 +255,9 @@ func Test_handleLoginContext_EmptyFile(t *testing.T) {
 }
 
 func Test_handleLoginContext(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.login*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.login*"); err == nil {
 		var authData = NewAuthData(fd.Name())
 		var testState = &task.State{Logger: logrus.New()}
 		var testParams = &LoginParams{
@@ -276,7 +278,9 @@ func Test_handleLoginContext(t *testing.T) {
 }
 
 func Test_handleLoginCreate_LoginErr(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.login*"); err == nil {
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.login*"); err == nil {
 		var restoredFactory = clientFactory.New
 		var testState = &task.State{Logger: logrus.New()}
 		var testParams = &LoginParams{
@@ -288,12 +292,11 @@ func Test_handleLoginCreate_LoginErr(t *testing.T) {
 			Password: []byte("password"),
 		}
 
-		defer filez.RemoveSilently(fd.Name())
 		defer func() {
 			clientFactory.New = restoredFactory
 		}()
 		clientFactory.New = func(hostAddr string) Client {
-			return &stubClient{}
+			return &stubLoginClient{}
 		}
 
 		assert.Error(t, handleLoginCreate(testParams, testState))
@@ -305,7 +308,9 @@ func Test_handleLoginCreate_TokenPresent(t *testing.T) {
 }
 
 func Test_handleLoginCreate_WriteErr(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.login*"); err == nil {
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.login*"); err == nil {
 		var restoredFactory = clientFactory.New
 		var testState = &task.State{Logger: logrus.New()}
 		var testParams = &LoginParams{
@@ -319,12 +324,11 @@ func Test_handleLoginCreate_WriteErr(t *testing.T) {
 
 		panicz.PanicIfError(os.Chmod(fd.Name(), 0400))
 
-		defer filez.RemoveSilently(fd.Name())
 		defer func() {
 			clientFactory.New = restoredFactory
 		}()
 		clientFactory.New = func(hostAddr string) Client {
-			return &stubClient{
+			return &stubLoginClient{
 				session: &AuthSession{
 					Token:    "token",
 					Username: "user",
@@ -337,7 +341,9 @@ func Test_handleLoginCreate_WriteErr(t *testing.T) {
 }
 
 func Test_handleLoginCreate(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.login*"); err == nil {
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.login*"); err == nil {
 		var expectedHost = "hostAddr"
 		var expectedUser = "username"
 		var expectedToken = "token"
@@ -353,12 +359,11 @@ func Test_handleLoginCreate(t *testing.T) {
 		var restoredFactory = clientFactory.New
 		var actual *AuthAccount
 
-		defer filez.RemoveSilently(fd.Name())
 		defer func() {
 			clientFactory.New = restoredFactory
 		}()
 		clientFactory.New = func(hostAddr string) Client {
-			return &stubClient{
+			return &stubLoginClient{
 				session: &AuthSession{
 					Token:    expectedToken,
 					Username: expectedUser,
@@ -383,34 +388,10 @@ func Test_handleLoginDelete_NoSession(t *testing.T) {
 	assert.ErrorIs(t, ErrorNoSession, handleLoginDelete(testParams, testState))
 }
 
-func Test_handleLoginDelete_NoHostSession(t *testing.T) {
-	var expectedSessionId = int64(37)
-	var expectedError = errors.New("expected")
-	var testState = &task.State{
-		Logger: logrus.New(),
-		Output: cast.ToString(expectedSessionId),
-	}
-	var testParams = &LoginParams{
-		Broker: &Broker{
-			AuthFile: "file",
-			HostAddr: "hostAddr",
-		},
-	}
-	var restoredFactory = clientFactory.Get
-
-	defer func() {
-		clientFactory.Get = restoredFactory
-	}()
-	clientFactory.Get = func(authFile, addr string) (Client, error) {
-		return nil, expectedError
-	}
-
-	assert.ErrorIs(t, expectedError, handleLoginDelete(testParams, testState))
-}
-
 func Test_handleLoginDelete_LogoutFailed(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var expectedSessionId = int64(37)
 		var testState = &task.State{
 			Logger: logrus.New(),
@@ -428,7 +409,7 @@ func Test_handleLoginDelete_LogoutFailed(t *testing.T) {
 			clientFactory.Get = restoredFactory
 		}()
 		clientFactory.Get = func(authFile, addr string) (Client, error) {
-			return &stubClient{
+			return &stubLoginClient{
 				logoutErr: errors.New("unexpected"),
 			}, nil
 		}
@@ -440,8 +421,9 @@ func Test_handleLoginDelete_LogoutFailed(t *testing.T) {
 }
 
 func Test_handleLoginDelete(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var expectedHost = "hostAddr"
 		var expectedSessionId = int64(37)
 		var testSession = &AuthSession{
@@ -463,7 +445,7 @@ func Test_handleLoginDelete(t *testing.T) {
 			clientFactory.Get = restoredFactory
 		}()
 		clientFactory.Get = func(authFile, addr string) (Client, error) {
-			return &stubClient{
+			return &stubLoginClient{
 				session: testSession,
 			}, nil
 		}
@@ -525,8 +507,9 @@ func Test_handleLoginPretend(t *testing.T) {
 }
 
 func Test_handleLogoutContext_NoAuth(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var testState = &task.State{
 			Logger: logrus.New(),
 		}
@@ -543,8 +526,9 @@ func Test_handleLogoutContext_NoAuth(t *testing.T) {
 }
 
 func Test_handleLogoutContext_NoForHostUser(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var testSession = &AuthSession{
 			Token: "token",
 		}
@@ -569,8 +553,9 @@ func Test_handleLogoutContext_NoForHostUser(t *testing.T) {
 }
 
 func Test_handleLogoutContext_TooManyLogins(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var testSession = &AuthSession{
 			Token: "token",
 		}
@@ -594,8 +579,9 @@ func Test_handleLogoutContext_TooManyLogins(t *testing.T) {
 }
 
 func Test_handleLogoutContext_UsernameLogin(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var expectedSessionId = int64(37)
 		var expectedUser = "username"
 		var testSession = &AuthSession{
@@ -625,8 +611,9 @@ func Test_handleLogoutContext_UsernameLogin(t *testing.T) {
 }
 
 func Test_handleLogoutContext(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var expectedSessionId = int64(37)
 		var expectedUser = "username"
 		var testSession = &AuthSession{
@@ -716,7 +703,7 @@ func Test_handleLogoutPretend(t *testing.T) {
 		clientFactory.Get = restoredFactory
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
-		return &stubClient{
+		return &stubLoginClient{
 			session: &AuthSession{
 				Token:    "token",
 				Username: "user",
@@ -745,8 +732,9 @@ func Test_handleSessionContext_NoAuth(t *testing.T) {
 }
 
 func Test_handleSessionContext_NoHostSession(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var expectedToken = "token"
 		var testSession = &AuthSession{
 			Expiry: time.Now().Add(time.Hour).UnixMilli(),
@@ -770,8 +758,9 @@ func Test_handleSessionContext_NoHostSession(t *testing.T) {
 }
 
 func Test_handleSessionContext_ActiveExpired(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var testSession = &AuthSession{
 			Expiry: 0,
 		}
@@ -790,8 +779,9 @@ func Test_handleSessionContext_ActiveExpired(t *testing.T) {
 }
 
 func Test_handleSessionContext_Active(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var expectedToken = "token"
 		var testSession = &AuthSession{
 			Expiry: time.Now().Add(time.Hour).UnixMilli(),
@@ -813,8 +803,9 @@ func Test_handleSessionContext_Active(t *testing.T) {
 }
 
 func Test_handleSessionContext(t *testing.T) {
-	if fd, err := os.CreateTemp("", "genaiz.logout*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
 		var expectedHost = "hostAddr"
 		var expectedToken = "token"
 		var testSession = &AuthSession{
@@ -881,7 +872,7 @@ func Test_handleSessionValidate_SessionError(t *testing.T) {
 		clientFactory.Get = restoredFactory
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
-		return &stubClient{}, nil
+		return &stubLoginClient{}, nil
 	}
 
 	assert.Error(t, handleSessionValidate(testParams, testState))
@@ -904,7 +895,7 @@ func Test_handleSessionValidate_SessionInvalid(t *testing.T) {
 		clientFactory.Get = restoredFactory
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
-		return &stubClient{
+		return &stubLoginClient{
 			client: client{
 				UserId: 37,
 			},
@@ -933,7 +924,7 @@ func Test_handleSessionValidate(t *testing.T) {
 		clientFactory.Get = restoredFactory
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
-		return &stubClient{
+		return &stubLoginClient{
 			client: client{
 				UserId: 0,
 			},

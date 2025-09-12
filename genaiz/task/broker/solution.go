@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 
 var (
 	errorSolutionFileInvalid  = errors.New("solution config is invalid")
+	errorSolutionInvalid      = errors.New("solution is invalid")
 	errorWorkflowConflict     = errors.New("workflow already exists")
 	errorWorkflowFileInvalid  = errors.New("workflow config is invalid")
 	errorWorkflowFileNotFound = errors.New("workflow config file not found")
@@ -57,6 +59,18 @@ type SolutionParams struct {
 	*Solution
 }
 
+type SolutionPublishParams struct {
+	Broker
+	*Solution
+	Provisions []ProvisionParams
+}
+
+func (spp SolutionPublishParams) HasProvision(oem, handle string) bool {
+	return slices.ContainsFunc(spp.Provisions, func(fn ProvisionParams) bool {
+		return strings.EqualFold(fn.Oem, oem) && strings.EqualFold(fn.Handle, handle)
+	})
+}
+
 type WorkflowParams struct {
 	shared.ConfigParams
 	*Workflow
@@ -72,6 +86,15 @@ func (wp WorkflowParams) workflowPredicate() func(Workflow) bool {
 
 	return func(Workflow) bool {
 		return false
+	}
+}
+
+func NewSolutionPublishTask() *task.Task[SolutionPublishParams] {
+	return &task.Task[SolutionPublishParams]{
+		Name:       "solution-publish",
+		OnPrepare:  handleSolutionPublishContext,
+		OnComplete: handleSolutionPublishComplete,
+		OnPretend:  handleSolutionPublishPretend,
 	}
 }
 
@@ -126,6 +149,75 @@ func handleSolutionCreateContext(params *SolutionParams, state *task.State) erro
 	}
 
 	return nil
+}
+
+func handleSolutionPublishComplete(params *SolutionPublishParams, state *task.State) error {
+	var brokerClient Client
+	var err error
+
+	if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+		var solution = params.Solution
+		var identity *shared.Identity
+
+		if identity, err = brokerClient.PublishSolution(solution); err == nil {
+			state.Logger.Infof("Published solution %s:%s", identity.Path, identity.Version)
+			return nil
+		}
+	}
+
+	return err
+}
+
+func handleSolutionPublishContext(params *SolutionPublishParams, state *task.State) error {
+	if params.Solution != nil {
+		var allNodeFunctions []WorkflowNodeFunction
+
+		state.Logger.Debugf("Validating solution publishing for [%s/%s]", params.Oem, params.Handle)
+
+		for _, w := range params.Workflows {
+			if len(w.Nodes) > 0 {
+				for _, n := range w.Nodes {
+					if n.Sf != nil {
+						allNodeFunctions = append(allNodeFunctions, *n.Sf)
+					}
+				}
+			} else {
+				return fmt.Errorf("the workflow %s must have at least one node", w.Handle)
+			}
+		}
+
+		for _, sf := range allNodeFunctions {
+			if !params.HasProvision(sf.Oem, sf.Handle) {
+				return fmt.Errorf("the function %s/%s could not be found within the solution", sf.Oem, sf.Handle)
+			}
+		}
+
+		return nil
+	}
+
+	return errorSolutionInvalid
+}
+
+func handleSolutionPublishPretend(params *SolutionPublishParams, state *task.State) error {
+	if state.Error == nil {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+			var data, _ = json.Marshal(params.Solution)
+
+			state.Logger.Debugf("Pretending to publish solution to [%s]", params.HostAddr)
+			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+			fmt.Printf("  -d solution=%s\\\n", string(data))
+			fmt.Printf("%s\n", brokerClient.PublishSolutionUrl())
+			return nil
+		}
+
+		return err
+	}
+
+	return state.Error
 }
 
 func handleSolutionUpdateConfig(writer SolutionWriter, params *SolutionParams, state *task.State) error {

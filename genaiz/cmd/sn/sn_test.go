@@ -14,7 +14,7 @@ func TestNewSn(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewSn(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 1, len(testCmd.Commands()))
+	assert.Equal(t, 2, len(testCmd.Commands()))
 }
 
 func TestNewSnCli(t *testing.T) {

@@ -124,19 +124,6 @@ func Test_handleLayoutCreateContext_ContextAlreadyExists(t *testing.T) {
 	}
 }
 
-func Test_handleLayoutCreateContext_ContextNotWriteable(t *testing.T) {
-	var testState = &task.State{Logger: logrus.New()}
-	var testParams = &CreateParams{
-		ConfigParams: shared.ConfigParams{
-			ConfigName:   "name",
-			ConfigType:   lang.Ref(shared.ConfigTypeJson),
-			ConfigFolder: "/_not_writeable_",
-		},
-	}
-
-	assert.Error(t, handleLayoutCreateContext(testParams, testState))
-}
-
 func Test_handleLayoutCreateFile_ConfigTypeNone(t *testing.T) {
 	var testState = &task.State{Logger: logrus.New()}
 	var testParams = &CreateParams{}

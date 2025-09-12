@@ -40,6 +40,13 @@ func TestArgsFolderValidator_InvalidName(t *testing.T) {
 	assert.Contains(t, err.Error(), expectedInvalid)
 }
 
+func TestArgsFolderValidator_MultiArgs(t *testing.T) {
+	var expectedType = "testType"
+	var validator = ArgsFolderValidator(expectedType, config.Validation.Handle)
+
+	assert.NoError(t, validator(nil, []string{"valid", "not--a-folder-argument"}))
+}
+
 func TestArgsFolderValidator_NoArgs(t *testing.T) {
 	var expectedType = "testType"
 	var validator = ArgsFolderValidator(expectedType, config.Validation.Handle)

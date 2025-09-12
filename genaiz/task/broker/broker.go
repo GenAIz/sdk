@@ -13,6 +13,12 @@ type Broker struct {
 	HostAddr string
 }
 
+type Error struct {
+	Code    int    `json:"code"`
+	Status  string `json:"status"`
+	Message string `json:"error"`
+}
+
 type Function struct {
 	Id          int // Id is assigned by a publishing Broker and refers to the Smart Function release cycle
 	Arches      []string
@@ -23,6 +29,7 @@ type Function struct {
 	Digest      string
 	Name        string
 	Oem         string
+	Seq         int
 	Type        string
 	Version     string
 }
@@ -51,12 +58,28 @@ type Session struct {
 }
 
 type Solution struct {
-	Description string
-	Handle      string
-	Name        string
-	Oem         string
-	Version     string
-	Workflows   []Workflow `yaml:"workflows"`
+	Description string     `json:"description"`
+	Handle      string     `json:"handle"`
+	Name        string     `json:"name"`
+	Oem         string     `json:"oem"`
+	Version     string     `json:"version"`
+	Workflows   []Workflow `json:"workflows"`
+}
+
+type SolutionRemote struct {
+	Solution
+	Id     int64
+	Digest string
+	Fqdn   string
+}
+
+func (s SolutionRemote) asIdentity() *shared.Identity {
+	return &shared.Identity{
+		Id:      strconv.FormatInt(s.Id, 10),
+		Hash:    s.Digest,
+		Path:    s.Fqdn,
+		Version: s.Version,
+	}
 }
 
 func (s Solution) Merge(update Solution) *Solution {
@@ -96,18 +119,18 @@ func (s Solution) Merge(update Solution) *Solution {
 }
 
 type Workflow struct {
-	Name        string `yaml:"name"`
-	Description string
-	Handle      string
-	Links       []WorkflowLink
-	Nodes       []WorkflowNode
+	Name        string         `json:"name"`
+	Description string         `json:"Description"`
+	Handle      string         `json:"handle"`
+	Links       []WorkflowLink `json:"links"`
+	Nodes       []WorkflowNode `json:"nodes"`
 }
 
 type WorkflowLink struct {
-	LhsNode     string
-	LhsNodePort string
-	RhsNode     string
-	RhsNodePort string
+	LhsNode     string `json:"lhsNode"`
+	LhsNodePort string `json:"lhsNodePort"`
+	RhsNode     string `json:"rhsNode"`
+	RhsNodePort string `json:"rhsNodePort"`
 }
 
 func (wl WorkflowLink) Equals(wl2 WorkflowLink) bool {
@@ -118,10 +141,10 @@ func (wl WorkflowLink) Equals(wl2 WorkflowLink) bool {
 }
 
 type WorkflowNode struct {
-	Name        string
-	Description string
-	Handle      string
-	Sf          *WorkflowNodeFunction
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	Handle      string                `json:"handle"`
+	Sf          *WorkflowNodeFunction `json:"sf"`
 }
 
 func (wn WorkflowNode) Equals(wn2 WorkflowNode) bool {
@@ -129,10 +152,10 @@ func (wn WorkflowNode) Equals(wn2 WorkflowNode) bool {
 }
 
 type WorkflowNodeFunction struct {
-	Oem     string
-	Handle  string
-	Version string
-	Seq     int
+	Oem     string `yaml:"oem" json:"oem"`
+	Handle  string `yaml:"handle" json:"handle"`
+	Version string `yaml:"version" json:"version"`
+	Seq     int    `yaml:"seq,omitempty" json:"seq,omitzero"`
 }
 
 func WorkflowHandlePredicate(handle string) func(Workflow) bool {

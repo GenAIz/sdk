@@ -31,12 +31,14 @@ func TestCreateExecutor_Display(t *testing.T) {
 		Build()
 	var testDefaultOption = &config.StringOption{}
 	var testOptions = &CreateOptions{
-		optionConfigType:     newOptionConfigType("test"),
-		optionDescription:    newOptionDescription(testDefaultOption),
-		optionHandle:         newOptionHandle("test"),
-		optionName:           newOptionName(testDefaultOption),
-		optionOem:            newOptionOem("test"),
-		optionVersion:        newOptionVersion("test"),
+		PublishOptions: PublishOptions{
+			optionConfigType:  newOptionConfigType("test"),
+			optionDescription: newOptionDescription(testDefaultOption, "test"),
+			optionHandle:      newOptionHandle("test"),
+			optionName:        newOptionName(testDefaultOption, "test"),
+			optionOem:         newOptionOem("test"),
+			optionVersion:     newOptionVersion("test"),
+		},
 		optionWorkflowHandle: newOptionWorkflowHandle(),
 		optionWorkflowName:   newOptionWorkflowName(testDefaultOption),
 	}
@@ -50,10 +52,10 @@ func TestCreateExecutor_Display(t *testing.T) {
 	var expectedWorkflowName = "workflowName"
 	var testExecutor = &CreateExecutor{
 		BaseExecutor: BaseExecutor{
-			Ledger: testLedger,
+			Ledger:     testLedger,
+			folderPath: expectedFolder,
 		},
 		CreateOptions: testOptions,
-		FolderPath:    expectedFolder,
 	}
 
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
@@ -92,7 +94,7 @@ func TestCreateExecutor_Pretend(t *testing.T) {
 		},
 		CreateOptions: NewCreateOptions(),
 
-		solutionTaskFactory: newSolutionTaskPretendStub(&calledSolution),
+		solutionTaskFactory: newSolutionCreateTaskPretendStub(&calledSolution),
 		workflowTaskFactory: newWorkflowTaskPretendStub(&calledWorkflow),
 	}
 
@@ -100,6 +102,7 @@ func TestCreateExecutor_Pretend(t *testing.T) {
 	testViper.Set(testExecutor.CreateOptions.optionOem.Key, expectedOem)
 	testLedger.Register(&cobra.Command{}, testExecutor.CreateOptions.allDefiners()...)
 	testLedger.InitDefaults()
+	testLedger.InitLogging()
 	testExecutor.Pretend()
 	assert.True(t, calledSolution)
 	assert.True(t, calledWorkflow)
@@ -119,7 +122,7 @@ func TestCreateExecutor_Proceed(t *testing.T) {
 		},
 		CreateOptions: NewCreateOptions(),
 
-		solutionTaskFactory: newSolutionTaskCompleteStub(&calledSolution),
+		solutionTaskFactory: newSolutionCreateTaskCompleteStub(&calledSolution),
 		workflowTaskFactory: newWorkflowTaskCompleteStub(&calledWorkflow),
 	}
 
@@ -204,7 +207,7 @@ func TestNewCreateDisappearingWorkingDir(t *testing.T) {
 	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
-func newSolutionTaskCompleteStub(flag *bool) SolutionTaskFactory {
+func newSolutionCreateTaskCompleteStub(flag *bool) SolutionCreateTaskFactory {
 	return func(broker.SolutionWriter) *task.Task[broker.SolutionParams] {
 		return &task.Task[broker.SolutionParams]{
 			OnPrepare: func(params *broker.SolutionParams, state *task.State) error {
@@ -218,7 +221,7 @@ func newSolutionTaskCompleteStub(flag *bool) SolutionTaskFactory {
 	}
 }
 
-func newSolutionTaskPretendStub(flag *bool) SolutionTaskFactory {
+func newSolutionCreateTaskPretendStub(flag *bool) SolutionCreateTaskFactory {
 	return func(broker.SolutionWriter) *task.Task[broker.SolutionParams] {
 		return &task.Task[broker.SolutionParams]{
 			OnPrepare: func(params *broker.SolutionParams, state *task.State) error {
