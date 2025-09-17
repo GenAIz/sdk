@@ -389,6 +389,8 @@ func handleWorkflowUpdateConfig(writer WorkflowWriter, params *WorkflowParams, s
 					}
 
 					err = writer.WithWorkflows(writer.GetWorkflows()).
+						WithWorkflowLinks(update.Handle, params.Links).
+						WithWorkflowNodes(update.Handle, params.Nodes).
 						Write(state.Output)
 					return nil
 				} else {
