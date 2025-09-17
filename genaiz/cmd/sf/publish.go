@@ -19,7 +19,7 @@ type InspectTaskFactory func() *task.Task[docker.BuildParams]
 
 type ProvisionTaskFactory func() *task.Task[broker.ProvisionParams]
 
-type PublishTaskFactory func() *task.Task[broker.ProvisionParams]
+type PublishTaskFactory func() *task.Task[broker.PublishParams]
 
 type PushTaskFactory func() *task.Task[docker.PushParams]
 
@@ -54,6 +54,7 @@ func (pe *PublishExecutor) Display() {
 func (pe *PublishExecutor) Pretend() {
 	var buildParams = makeBuildParams(&pe.BaseExecutor)
 	var provisionParams = pe.makeProvisionParams()
+	var publishParams = pe.makePublishParams(provisionParams)
 	var pushParams = pe.makePushParams()
 	var rebuild = pe.Ledger.GetBool(pe.optionRebuild)
 	var noUpdate = pe.Ledger.GetBool(pe.optionNoUpdate)
@@ -67,7 +68,7 @@ func (pe *PublishExecutor) Pretend() {
 	workers = append(workers, task.NewPretender(buildParams, pe.inspectTaskFactory()))
 	workers = append(workers, task.NewPretender(provisionParams, pe.provisionTaskFactory()))
 	workers = append(workers, task.NewPretender(pushParams, pe.pushTaskFactory()))
-	workers = append(workers, task.NewPretender(provisionParams, pe.publishTaskFactory()))
+	workers = append(workers, task.NewPretender(publishParams, pe.publishTaskFactory()))
 
 	if !noUpdate {
 		var builder = makeInitBuilder(pe.Cli)
@@ -85,6 +86,7 @@ func (pe *PublishExecutor) Proceed() {
 	var noUpdate = pe.Ledger.GetBool(pe.optionNoUpdate)
 	var buildParams = makeBuildParams(&pe.BaseExecutor)
 	var provisionParams = pe.makeProvisionParams()
+	var publishParams = pe.makePublishParams(provisionParams)
 	var pushParams = pe.makePushParams()
 	var workers []task.Worker
 	var plan = task.NewPlan("Publish", pe.Ledger.Logger)
@@ -97,7 +99,7 @@ func (pe *PublishExecutor) Proceed() {
 		task.NewWorker(buildParams, pe.inspectTaskFactory()),
 		task.NewWorker(provisionParams, pe.provisionTaskFactory()),
 		task.NewWorker(pushParams, pe.pushTaskFactory()),
-		task.NewWorker(provisionParams, pe.publishTaskFactory()),
+		task.NewWorker(publishParams, pe.publishTaskFactory()),
 	)
 
 	if !noUpdate {
@@ -125,6 +127,17 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 		Oem:         pe.Ledger.GetString(pe.optionOem),
 		Type:        pe.Ledger.GetString(pe.optionType),
 		Version:     pe.Ledger.GetString(pe.optionVersion),
+	}
+}
+
+func (pe *PublishExecutor) makePublishParams(provisionParams *broker.ProvisionParams) *broker.PublishParams {
+	return &broker.PublishParams{
+		Broker: broker.Broker{
+			AuthFile: pe.Ledger.AuthFile,
+			HostAddr: pe.brokerAddr,
+		},
+		Handle: provisionParams.Handle,
+		Oem:    provisionParams.Oem,
 	}
 }
 

@@ -313,7 +313,7 @@ func handleInspectComplete(params *BuildParams, state *task.State) error {
 
 			if len(resp.RepoDigests) > 0 {
 				if i := strings.LastIndex(resp.RepoDigests[0], hashPrefix); i >= 0 {
-					digest = resp.RepoDigests[0][i+len(hashPrefix):]
+					digest = resp.RepoDigests[0][i:]
 				}
 			}
 

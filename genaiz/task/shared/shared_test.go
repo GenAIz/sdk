@@ -30,6 +30,14 @@ func TestIdentity_HasRepoIdentifier(t *testing.T) {
 	assert.True(t, testIdentity.HasRepoIdentifier())
 }
 
+func TestIdentity_IsFlagSet(t *testing.T) {
+	var testIdentity = &Identity{
+		Flags: 1 << 0,
+	}
+
+	assert.True(t, testIdentity.IsFlagSet(1<<0))
+}
+
 func TestConfigParams_GetConfigFile(t *testing.T) {
 	var expectedName = "name"
 	var expectedFolder = "folder"

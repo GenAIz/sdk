@@ -34,6 +34,7 @@ type FunctionOptions struct {
 type FunctionParams struct {
 	buildParams     *docker.BuildParams
 	provisionParams *broker.ProvisionParams
+	publishParams   *broker.PublishParams
 	pushParams      *docker.PushParams
 }
 
@@ -109,7 +110,7 @@ func (pe *PublishExecutor) Pretend() {
 			pretenders = append(pretenders, task.NewPretender(fp.buildParams, pe.inspectTaskFactory()))
 			pretenders = append(pretenders, task.NewPretender(fp.provisionParams, pe.provisionTaskFactory()))
 			pretenders = append(pretenders, task.NewPretender(fp.pushParams, pe.pushTaskFactory()))
-			pretenders = append(pretenders, task.NewPretender(fp.provisionParams, pe.publishTaskFactory()))
+			pretenders = append(pretenders, task.NewPretender(fp.publishParams, pe.publishTaskFactory()))
 		}
 
 		pretenders = append(pretenders, task.NewPretender(snParams, pe.solutionPublishTaskFactory()))
@@ -129,7 +130,7 @@ func (pe *PublishExecutor) Proceed() {
 			workers = append(workers, task.NewWorker(fp.buildParams, pe.inspectTaskFactory()))
 			workers = append(workers, task.NewWorker(fp.provisionParams, pe.provisionTaskFactory()))
 			workers = append(workers, task.NewWorker(fp.pushParams, pe.pushTaskFactory()))
-			workers = append(workers, task.NewWorker(fp.provisionParams, pe.publishTaskFactory()))
+			workers = append(workers, task.NewWorker(fp.publishParams, pe.publishTaskFactory()))
 		}
 
 		workers = append(workers, task.NewWorker(snParams, pe.solutionPublishTaskFactory()))
@@ -150,9 +151,12 @@ func (pe *PublishExecutor) collectAndCall(fn func(*broker.SolutionPublishParams,
 			var snParams *broker.SolutionPublishParams
 
 			for k, values := range reader.FindFunctionValues() {
+				var provisionParams = pe.makeFunctionProvisionParams(values, solution)
+
 				fnParams = append(fnParams, FunctionParams{
 					buildParams:     pe.makeFunctionBuildParams(filepath.Dir(k), values),
-					provisionParams: pe.makeFunctionProvisionParams(values, solution),
+					provisionParams: provisionParams,
+					publishParams:   pe.makeFunctionPublishParams(provisionParams),
 					pushParams:      pe.makeFunctionPushParams(),
 				})
 			}
@@ -229,6 +233,18 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 		Oem:         ledger.GetString(options.optionOem),
 		Type:        ledger.GetString(options.optionType),
 		Version:     ledger.GetString(options.optionVersion),
+	}
+}
+
+func (pe *PublishExecutor) makeFunctionPublishParams(provisionParams *broker.ProvisionParams) *broker.PublishParams {
+	return &broker.PublishParams{
+		Broker: broker.Broker{
+			AuthFile: pe.Ledger.AuthFile,
+			HostAddr: pe.brokerAddr,
+		},
+		Handle:      provisionParams.Handle,
+		Oem:         provisionParams.Oem,
+		SkipUnknown: true,
 	}
 }
 

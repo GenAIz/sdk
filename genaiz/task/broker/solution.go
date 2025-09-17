@@ -59,6 +59,10 @@ type SolutionParams struct {
 	*Solution
 }
 
+func (sp SolutionParams) HasWorkflows() bool {
+	return sp.Solution != nil && len(sp.Workflows) > 0
+}
+
 type SolutionPublishParams struct {
 	Broker
 	*Solution
@@ -77,10 +81,26 @@ type WorkflowParams struct {
 	WorkflowUpdate bool
 }
 
+func (wp WorkflowParams) GetHandle() string {
+	if wp.Workflow != nil {
+		return wp.Workflow.Handle
+	}
+
+	return ""
+}
+
+func (wp WorkflowParams) GetName() string {
+	if wp.Workflow != nil {
+		return wp.Workflow.Name
+	}
+
+	return ""
+}
+
 func (wp WorkflowParams) workflowPredicate() func(Workflow) bool {
 	if wp.Handle != "" {
 		return WorkflowHandlePredicate(wp.Handle)
-	} else if wp.Name != " " {
+	} else if wp.Name != "" {
 		return WorkflowNamePredicate(wp.Name)
 	}
 
@@ -222,14 +242,17 @@ func handleSolutionPublishPretend(params *SolutionPublishParams, state *task.Sta
 
 func handleSolutionUpdateConfig(writer SolutionWriter, params *SolutionParams, state *task.State) error {
 	if state.Output != "" {
-		var update *Workflow
-		var err error
+		if params.HasWorkflows() {
+			// Remove existing workflows from createConfig, we can not overwrite them with solution update
+			slices.DeleteFunc(params.Workflows, func(wf Workflow) bool {
+				var _, err = writer.GetWorkflowByHandle(wf.Handle)
+
+				return err == nil
+			})
+		}
 
 		state.Completed = true
-
-		if update, err = writer.GetWorkflowByHandle(params.Handle); err == nil {
-			return handleSolutionCreateConfig(writer.WithWorkflow(update), params, state)
-		}
+		return handleSolutionCreateConfig(writer, params, state)
 	}
 
 	return errorSolutionFileInvalid
@@ -241,6 +264,7 @@ func handleSolutionUpdatePretend(writer SolutionWriter, params *SolutionParams, 
 		var rootKey, solution = writer.WithSolution(params.Solution).
 			BuildSolution()
 
+		state.Logger.Debugf("Pretending to update solution %s", params.Name)
 		shared.PretendValue(pretender, func() (string, string) {
 			return fmt.Sprintf("%s.description", rootKey), solution.Description
 		})
@@ -262,6 +286,16 @@ func handleSolutionUpdatePretend(writer SolutionWriter, params *SolutionParams, 
 	return errorSolutionFileInvalid
 }
 
+func handleWorkflowCreateConfig(writer WorkflowWriter, params *WorkflowParams, state *task.State) error {
+	if state.Output != "" {
+		state.Logger.Debugf("Workflow writing to [%s]", state.Output)
+		return writer.WithWorkflow(params.Workflow).
+			Write(state.Output)
+	}
+
+	return errorWorkflowFileInvalid
+}
+
 func handleWorkflowCreateContext(params *WorkflowParams, state *task.State) error {
 	if state.Output == "" {
 		var err error
@@ -273,31 +307,7 @@ func handleWorkflowCreateContext(params *WorkflowParams, state *task.State) erro
 		}
 	}
 
-	return errorWorkflowFileInvalid
-}
-
-func handleWorkflowDeleteContext(params *WorkflowParams, state *task.State) error {
-	var err = handleWorkflowCreateContext(params, state)
-
-	if errors.Is(err, shared.ErrorConfigFileExists) {
-		return nil
-	}
-
-	if err == nil {
-		return errorWorkflowFileNotFound
-	}
-
-	return err
-}
-
-func handleWorkflowCreateConfig(writer WorkflowWriter, params *WorkflowParams, state *task.State) error {
-	if state.Output != "" {
-		state.Logger.Debugf("Workflow writing to [%s]", state.Output)
-		return writer.WithWorkflow(params.Workflow).
-			Write(state.Output)
-	}
-
-	return errorWorkflowFileInvalid
+	return nil
 }
 
 func handleWorkflowDeleteConfig(writer WorkflowWriter, params *WorkflowParams, state *task.State) error {
@@ -317,59 +327,36 @@ func handleWorkflowDeleteConfig(writer WorkflowWriter, params *WorkflowParams, s
 			Write(state.Output)
 	}
 
-	return nil
+	return errorWorkflowFileInvalid
 }
 
-func handleWorkflowUpdateConfig(writer WorkflowWriter, params *WorkflowParams, state *task.State) error {
-	if state.Output != "" {
-		var update *Workflow
-		var err error
+func handleWorkflowDeleteContext(params *WorkflowParams, state *task.State) error {
+	var err = handleWorkflowCreateContext(params, state)
 
-		state.Completed = true
-
-		if update, err = writer.GetWorkflowByHandle(params.Handle); err == nil {
-			if params.WorkflowUpdate {
-				var updated = params.Workflow
-
-				state.Logger.Debugf("Workflow [%s] updated to [%s]", update.Name, state.Output)
-
-				if params.Description != "" {
-					update.Description = params.Description
-				}
-
-				if params.Handle != "" {
-					update.Handle = params.Handle
-				}
-
-				err = writer.WithWorkflows(writer.GetWorkflows()).
-					WithWorkflowLinks(update.Handle, updated.Links).
-					WithWorkflowNodes(update.Handle, updated.Nodes).
-					Write(state.Output)
-				return nil
-			} else {
-				state.Logger.Errorf("Workflow [%s] already exist", params.Name)
-				return errorWorkflowConflict
-			}
-		} else {
-			return handleWorkflowCreateConfig(
-				writer.WithWorkflows(writer.GetWorkflows()), params, state)
-		}
+	if errors.Is(err, shared.ErrorConfigFileExists) {
+		return nil
 	}
 
-	return errorWorkflowFileInvalid
+	if err == nil {
+		return errorWorkflowFileNotFound
+	}
+
+	return err
 }
 
 func handleWorkflowDeletePretend(params *WorkflowParams, state *task.State) error {
 	if state.Output != "" {
 		var pretender = shared.NewConfigPretender(state.Output)
+		var handle = params.GetHandle()
+		var name = params.GetName()
 
-		if params.Workflow.Handle != "" {
+		if handle != "" {
 			shared.PretendDeleteByField(pretender, func() (string, string, string) {
-				return "solution.workflows[]", "handle", params.Workflow.Handle
+				return "solution.workflows[]", "handle", handle
 			})
-		} else if params.Workflow.Name != "" {
+		} else if name != "" {
 			shared.PretendDeleteByField(pretender, func() (string, string, string) {
-				return "solution.workflows[]", "name", params.Workflow.Name
+				return "solution.workflows[]", "name", name
 			})
 		} else {
 			return errorWorkflowNotFound
@@ -381,12 +368,50 @@ func handleWorkflowDeletePretend(params *WorkflowParams, state *task.State) erro
 	return errorWorkflowFileInvalid
 }
 
+func handleWorkflowUpdateConfig(writer WorkflowWriter, params *WorkflowParams, state *task.State) error {
+	if state.Output != "" {
+		var update *Workflow
+		var err error
+
+		if params.Workflow != nil {
+			state.Completed = true
+
+			if update, err = writer.GetWorkflowByHandle(params.Handle); err == nil {
+				if params.WorkflowUpdate {
+					state.Logger.Debugf("Workflow [%s] updated to [%s]", update.Handle, state.Output)
+
+					if params.Description != "" {
+						update.Description = params.Description
+					}
+
+					if params.Name != "" {
+						update.Name = params.Name
+					}
+
+					err = writer.WithWorkflows(writer.GetWorkflows()).
+						Write(state.Output)
+					return nil
+				} else {
+					state.Logger.Errorf("Workflow [%s] already exist", params.Name)
+					return errorWorkflowConflict
+				}
+			} else {
+				return handleWorkflowCreateConfig(
+					writer.WithWorkflows(writer.GetWorkflows()), params, state)
+			}
+		}
+
+		return errors.New("no workflow found in params")
+	}
+
+	return errorWorkflowFileInvalid
+}
+
 func handleWorkflowUpdatePretend(writer WorkflowWriter, params *WorkflowParams, state *task.State) error {
 	if state.Output != "" {
 		var comparison = params.workflowPredicate()
 		var pretender = shared.NewConfigPretender(state.Output)
 		var rootKey, workflows = writer.WithWorkflows(writer.GetWorkflows()).
-			WithWorkflow(params.Workflow).
 			BuildWorkflows()
 
 		state.Logger.Debugf("Pretending to writing workflow [%s] to [%s]", params.Name, state.Output)
@@ -403,19 +428,13 @@ func handleWorkflowUpdatePretend(writer WorkflowWriter, params *WorkflowParams, 
 
 			if !strings.EqualFold(wf.Name, params.Name) || !params.WorkflowUpdate {
 				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].name", rootKey, i), wf.Name
+					return fmt.Sprintf("%s[%d].name", rootKey, i), params.Name
 				})
 			}
 
 			if !strings.EqualFold(wf.Description, params.Description) || !params.WorkflowUpdate {
 				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].description", rootKey, i), wf.Description
-				})
-			}
-
-			if !strings.EqualFold(wf.Handle, params.Handle) || !params.WorkflowUpdate {
-				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].handle", rootKey, i), wf.Handle
+					return fmt.Sprintf("%s[%d].description", rootKey, i), params.Description
 				})
 			}
 

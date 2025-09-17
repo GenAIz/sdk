@@ -8,6 +8,14 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
+var (
+	FunctionFlags = &functionFlags{
+		Active:       1 << 0,
+		Released:     1 << 1,
+		Provisioning: 1 << 2,
+	}
+)
+
 type Broker struct {
 	AuthFile string
 	HostAddr string
@@ -23,6 +31,7 @@ type Function struct {
 	Id          int // Id is assigned by a publishing Broker and refers to the Smart Function release cycle
 	Arches      []string
 	Description string
+	Flags       int
 	Fqdn        string
 	Handle      string
 	Img         string
@@ -37,10 +46,17 @@ type Function struct {
 func (f Function) asIdentity() *shared.Identity {
 	return &shared.Identity{
 		Id:      strconv.Itoa(f.Id),
+		Flags:   f.Flags,
 		Hash:    f.Digest,
 		Path:    f.Img,
 		Version: f.Version,
 	}
+}
+
+type functionFlags struct {
+	Active       int
+	Released     int
+	Provisioning int
 }
 
 type Provision struct {
