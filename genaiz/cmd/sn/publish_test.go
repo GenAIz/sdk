@@ -256,7 +256,7 @@ func TestPublishExecutor_Pretend(t *testing.T) {
 		solutionReader:             config.NewSolutionReader(testLedger),
 		inspectTaskFactory:         newTaskPretendStub(&calledInspect, &docker.BuildParams{}),
 		provisionTaskFactory:       newTaskPretendStub(&calledProvision, &broker.ProvisionParams{}),
-		publishTaskFactory:         newTaskPretendStub(&calledPublish, &broker.ProvisionParams{}),
+		publishTaskFactory:         newTaskPretendStub(&calledPublish, &broker.PublishParams{}),
 		pushTaskFactory:            newTaskPretendStub(&calledPush, &docker.PushParams{}),
 		solutionPublishTaskFactory: newTaskPretendStub(&calledSolutionPublish, &broker.SolutionPublishParams{}),
 	}
@@ -375,7 +375,7 @@ func TestPublishExecutor_Proceed(t *testing.T) {
 		solutionReader:             config.NewSolutionReader(testLedger),
 		inspectTaskFactory:         newTaskProceedStub(&calledInspect, &docker.BuildParams{}),
 		provisionTaskFactory:       newTaskProceedStub(&calledProvision, &broker.ProvisionParams{}),
-		publishTaskFactory:         newTaskProceedStub(&calledPublish, &broker.ProvisionParams{}),
+		publishTaskFactory:         newTaskProceedStub(&calledPublish, &broker.PublishParams{}),
 		pushTaskFactory:            newTaskProceedStub(&calledPush, &docker.PushParams{}),
 		solutionPublishTaskFactory: newTaskProceedStub(&calledSolutionPublish, &broker.SolutionPublishParams{}),
 	}

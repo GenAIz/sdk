@@ -71,6 +71,7 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testPublishParams = &broker.PublishParams{}
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -86,7 +87,7 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
 		inspectTaskFactory:   newTaskPretendStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskPretendStub(&calledProvision, testProvisionParams),
-		publishTaskFactory:   newTaskPretendStub(&calledPublish, testProvisionParams),
+		publishTaskFactory:   newTaskPretendStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
@@ -117,6 +118,7 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testPublishParams = &broker.PublishParams{}
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -132,7 +134,7 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
 		inspectTaskFactory:   newTaskPretendStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskPretendStub(&calledProvision, testProvisionParams),
-		publishTaskFactory:   newTaskPretendStub(&calledPublish, testProvisionParams),
+		publishTaskFactory:   newTaskPretendStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
@@ -162,6 +164,7 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testPublishParams = &broker.PublishParams{}
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -177,7 +180,7 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
 		inspectTaskFactory:   newTaskPretendStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskPretendStub(&calledProvision, testProvisionParams),
-		publishTaskFactory:   newTaskPretendStub(&calledPublish, testProvisionParams),
+		publishTaskFactory:   newTaskPretendStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
@@ -208,6 +211,7 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testPublishParams = &broker.PublishParams{}
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -223,7 +227,7 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
 		inspectTaskFactory:   newTaskPretendStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskPretendStub(&calledProvision, testProvisionParams),
-		publishTaskFactory:   newTaskPretendStub(&calledPublish, testProvisionParams),
+		publishTaskFactory:   newTaskPretendStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
@@ -255,6 +259,7 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testPublishParams = &broker.PublishParams{}
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -270,7 +275,7 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		initTaskFactory:      newInitTaskCompleteStub(&calledInit),
 		inspectTaskFactory:   newTaskProceedStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskProceedStub(&calledProvision, testProvisionParams),
-		publishTaskFactory:   newTaskProceedStub(&calledPublish, testProvisionParams),
+		publishTaskFactory:   newTaskProceedStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
@@ -302,6 +307,7 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testPublishParams = &broker.PublishParams{}
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -317,7 +323,7 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 		initTaskFactory:      newInitTaskCompleteStub(&calledInit),
 		inspectTaskFactory:   newTaskProceedStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskProceedStub(&calledProvision, testProvisionParams),
-		publishTaskFactory:   newTaskProceedStub(&calledPublish, testProvisionParams),
+		publishTaskFactory:   newTaskProceedStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
@@ -348,6 +354,7 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testPublishParams = &broker.PublishParams{}
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -363,7 +370,7 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		initTaskFactory:      newInitTaskCompleteStub(&calledInit),
 		inspectTaskFactory:   newTaskProceedStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskProceedStub(&calledProvision, testProvisionParams),
-		publishTaskFactory:   newTaskProceedStub(&calledPublish, testProvisionParams),
+		publishTaskFactory:   newTaskProceedStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
@@ -395,6 +402,7 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
+	var testPublishParams = &broker.PublishParams{}
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -410,7 +418,7 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		initTaskFactory:      newInitTaskCompleteStub(&calledInit),
 		inspectTaskFactory:   newTaskProceedStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskProceedStub(&calledProvision, testProvisionParams),
-		publishTaskFactory:   newTaskProceedStub(&calledPublish, testProvisionParams),
+		publishTaskFactory:   newTaskProceedStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 

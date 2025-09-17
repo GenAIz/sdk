@@ -13,7 +13,12 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
+)
+
+var (
+	errorSkipPush = errors.New("skipping push, due to existing repository hash")
 )
 
 type PushStatus struct {
@@ -42,16 +47,24 @@ type PushParams struct {
 
 func NewPushTask() *task.Task[PushParams] {
 	return &task.Task[PushParams]{
-		Name:       "docker-push",
-		OnPrepare:  handlePushContext,
-		OnComplete: handlePushComplete,
-		OnPretend:  handlePushPretend,
+		Name:         "docker-push",
+		OnPrepare:    handlePushContext,
+		OnComplete:   handlePushComplete,
+		OnIncomplete: handlePushIncomplete,
+		OnPretend:    handlePushPretend,
 	}
 }
 
 func handlePushContext(params *PushParams, state *task.State) error {
 	if state.Internal == nil {
 		return errors.New("push called without provisioning")
+	} else {
+		var current = state.Internal.(*shared.Identity)
+
+		if !current.IsFlagSet(broker.FunctionFlags.Provisioning) {
+			state.Logger.Debugf("Function [%s] can not be pushed at this time", current.Hash)
+			return errorSkipPush
+		}
 	}
 
 	if state.Output == "" {
@@ -113,6 +126,20 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 	}
 
 	return errors.New("no provisioned image to push")
+}
+
+func handlePushIncomplete(params *PushParams, state *task.State) error {
+	state.Completed = true
+
+	if errors.Is(state.Error, errorSkipPush) && state.Internal != nil {
+		var remote = state.Internal.(*shared.Identity)
+
+		if remote.Hash != "" {
+			return nil
+		}
+	}
+
+	return state.Error
 }
 
 func handlePushPretend(params *PushParams, state *task.State) error {
