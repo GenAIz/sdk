@@ -154,12 +154,7 @@ func (iw *InitWriter) setTag(oem string, handle string) {
 	var tagTokens []string
 
 	if oem != "" {
-		var fqdnTokens = strings.Split(oem, ".")
-		var size = len(fqdnTokens)
-
-		if size > 1 {
-			tagTokens = append(tagTokens, strings.Join(fqdnTokens[size-2:], "."))
-		}
+		tagTokens = append(tagTokens, oem)
 	}
 
 	if handle != "" {

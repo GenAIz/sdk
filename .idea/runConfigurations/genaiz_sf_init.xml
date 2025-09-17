@@ -2,7 +2,7 @@
   <configuration default="false" name="genaiz sf init" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out/samples/myBashExample" />
-    <parameters value="sf init --arch=x86_64 --oem=com.genaiz --handle=my-bash-example-init --name=&quot;My Bash Example Init&quot; --version=0.0.1 --configType=yaml --in=../input --out=../output" />
+    <parameters value="sf init --arch=x86_64 --oem=com.genaiz.connectors --handle=my-bash-example-init --name=&quot;My Bash Example Init&quot; --version=0.0.1 --configType=yaml --in=../input --out=../output" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />
