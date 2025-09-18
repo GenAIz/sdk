@@ -76,6 +76,8 @@ func (t Task[P]) execute(params *P, state *State) *State {
 	logger.Debugf("Preparing task [%s]", t.Name)
 
 	if err = t.OnPrepare(params, state); err != nil {
+		state.Error = err
+
 		if t.OnIncomplete == nil {
 			logger.Errorf("Preparing task [%s] failed with error: %s", t.Name, err)
 			state.Error = err

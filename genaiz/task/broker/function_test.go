@@ -96,19 +96,39 @@ func Test_handleFunctionProvisionContext(t *testing.T) {
 
 	assert.ErrorIs(t, handleFunctionProvisionContext(testParams, &task.State{Logger: testLogger}), errorNoBuildToProvision)
 	assert.Error(t, handleFunctionProvisionContext(&ProvisionParams{}, &task.State{Internal: &shared.Identity{}}))
-	assert.NoError(t, handleFunctionProvisionContext(testParams, &task.State{Logger: testLogger, Internal: &shared.Identity{Id: "id"}}))
-	assert.NoError(t, handleFunctionProvisionContext(testParams, &task.State{Logger: testLogger, Internal: &shared.Identity{Id: "id", Hash: "hash"}}))
+	assert.Error(t, handleFunctionProvisionContext(&ProvisionParams{}, &task.State{Internal: &shared.Identity{Id: "sha256:1"}}))
+	assert.NoError(t, handleFunctionProvisionContext(testParams, &task.State{Logger: testLogger, Internal: &shared.Identity{Id: "sha256:1"}}))
+	assert.NoError(t, handleFunctionProvisionContext(testParams, &task.State{Logger: testLogger, Internal: &shared.Identity{Id: "sha256:1", Hash: "hash"}}))
 }
 
 func Test_handleFunctionProvisionComplete(t *testing.T) {
-	var restoredFactory = clientFactory.New
+	var testState = &task.State{
+		Logger:   logrus.New(),
+		Internal: &shared.Identity{},
+	}
+	var testParams = &ProvisionParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		Oem:    "testOem",
+		Handle: "testHandle",
+	}
+	var testIdentity = &shared.Identity{Id: "id"}
+	var restoredFactory = clientFactory.Get
 
 	defer func() {
-		clientFactory.New = restoredFactory
+		clientFactory.Get = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
-		return &stubFunctionClient{}
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubFunctionClient{
+			provisionIdentity: testIdentity,
+		}, nil
 	}
+
+	assert.NoError(t, handleFunctionProvisionComplete(testParams, testState))
+	assert.Empty(t, testState.Internal.(*shared.Identity).Hash)
+	assert.Equal(t, testIdentity.Id, testState.Internal.(*shared.Identity).Id)
 }
 
 func Test_handleFunctionProvisionComplete_ConflictingHashes(t *testing.T) {
@@ -345,6 +365,17 @@ func Test_handleFunctionPublishContext_NotProvisioning(t *testing.T) {
 	assert.ErrorIs(t, handleFunctionPublishContext(&PublishParams{}, testState), errorNoRepoProvisioning)
 }
 
+func Test_handleFunctionPublishContext_ProvisioningDuplicate(t *testing.T) {
+	var testState = &task.State{
+		Internal: &shared.Identity{
+			Hash: "someHash",
+		},
+		Logger: logrus.New(),
+	}
+
+	assert.ErrorIs(t, handleFunctionPublishContext(&PublishParams{}, testState), errorDuplicatePublishing)
+}
+
 func Test_handleFunctionPublishComplete(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testState = &task.State{
@@ -424,7 +455,7 @@ func Test_handleFunctionPublishIncomplete(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleFunctionPublishIncomplete(testParams, testState), expectedError)
-	assert.False(t, testState.Completed)
+	assert.True(t, testState.Completed)
 	assert.NotEmpty(t, testState.Internal)
 }
 

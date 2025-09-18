@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	errorNoBuildToProvision = errors.New("could not find an image to provision, call build first")
-	errorNoProvision        = errors.New("can not publish non-provisioned functions")
-	errorNoRepoIdentity     = errors.New("could not identify repository hash")
-	errorNoRepoProvisioning = errors.New("can not publish without provisioning rights")
+	errorDuplicatePublishing = errors.New("the smart function was already published")
+	errorNoBuildToProvision  = errors.New("could not find an image to provision, call build first")
+	errorNoProvision         = errors.New("can not publish non-provisioned functions")
+	errorNoRepoIdentity      = errors.New("could not identify repository hash")
+	errorNoRepoProvisioning  = errors.New("can not publish without provisioning rights")
 )
 
 type ProvisionParams struct {
@@ -69,6 +70,10 @@ func handleFunctionProvisionContext(params *ProvisionParams, state *task.State) 
 	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
 
+		if !strings.HasPrefix(current.Id, "sha256") {
+			return errors.New("can not provision smart function without a known image digest")
+		}
+
 		if params.Oem != "" && params.Handle != "" {
 			state.Logger.Debugf("Validated smart function provisioning for [%s/%s]", params.Oem, params.Handle)
 
@@ -92,12 +97,15 @@ func handleFunctionProvisionComplete(params *ProvisionParams, state *task.State)
 	if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
 		var current = state.Internal.(*shared.Identity)
 		var identity *shared.Identity
+		var provisioned = params.asFunction()
 
 		state.Logger.Debugf("Provisioning function on url [%s]", brokerClient.ProvisionFunctionUrl())
+		provisioned.ImgDigest = current.Id
+		state.Logger.Debugf("Provisioning image digest [%s]", provisioned.ImgDigest)
 
-		if identity, err = brokerClient.ProvisionFunction(params.asFunction()); err == nil {
+		if identity, err = brokerClient.ProvisionFunction(provisioned); err == nil {
 			if identity.Hash != "" && identity.Hash != current.Hash {
-				state.Logger.Debugf("Overwriting function [%s/%s]", params.Oem, params.Handle)
+				state.Logger.Debugf("Overwriting function [%s/%s]?", params.Oem, params.Handle)
 				identity.Hash = ""
 			} else if current.Hash != "" {
 				// Edge case: Hashes out of sync, skip push, try publish
@@ -150,7 +158,12 @@ func handleFunctionPublishContext(params *PublishParams, state *task.State) erro
 		state.Logger.Debugf("Validating function publishing for [%s/%s]", params.Oem, params.Handle)
 
 		if !current.IsFlagSet(FunctionFlags.Provisioning) {
-			return errorNoRepoProvisioning
+			if current.Hash == "" {
+				return errorNoRepoProvisioning
+			}
+
+			state.Logger.Debugf("Smart Function [%s/%s] is already published", params.Oem, params.Handle)
+			return errorDuplicatePublishing
 		}
 
 		if current.HasRepoIdentifier() {
@@ -184,6 +197,8 @@ func handleFunctionPublishComplete(params *PublishParams, state *task.State) err
 }
 
 func handleFunctionPublishIncomplete(params *PublishParams, state *task.State) error {
+	state.Completed = true
+
 	if params.SkipUnknown {
 		if errors.Is(state.Error, errorNoRepoIdentity) {
 			state.Logger.Warnf("Function publish will be skipped because no repository hash is known")
@@ -193,7 +208,6 @@ func handleFunctionPublishIncomplete(params *PublishParams, state *task.State) e
 			state.Logger.Warnf("Function publish will be skipped because provisioning rights do not allow it")
 		}
 
-		state.Completed = true
 		state.Internal = nil
 		return nil
 	}
