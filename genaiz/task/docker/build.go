@@ -168,6 +168,7 @@ func handleBuildCreate(params *BuildParams, state *task.State) error {
 		Dockerfile: params.Dockerfile,
 		Tags:       []string{reference},
 		Labels:     map[string]string{"sf": params.DockerTag},
+		PullParent: true,
 	}
 
 	state.Logger.Debugf("Building a docker image tagged [%s]", reference)
