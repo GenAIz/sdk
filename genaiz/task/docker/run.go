@@ -58,7 +58,7 @@ func NewTestTask() *task.Task[ContainerParams] {
 }
 
 func handleDebugCompletion(params *ContainerParams, state *task.State) error {
-	return fmt.Errorf("not implemented in version [%s]", version.Version)
+	return fmt.Errorf("not implemented in version [%s]", version.GetVersion())
 }
 
 func handleDebugPretend(params *ContainerParams, state *task.State) error {

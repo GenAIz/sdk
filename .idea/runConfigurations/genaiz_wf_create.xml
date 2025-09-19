@@ -2,6 +2,7 @@
   <configuration default="false" name="genaiz wf create" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out" />
+    <go_parameters value="-tags dev" />
     <parameters value="wf create myBashSolution --name=&quot;Workflow One&quot; --handle=workflow-1 --description=&quot;First Workflow Description&quot; --logLevel=debug" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />

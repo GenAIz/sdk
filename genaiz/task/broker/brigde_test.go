@@ -1,13 +1,17 @@
 package broker
 
 import (
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 	"resty.dev/v3"
+
+	"genaiz.com/genaiz/version/env"
 )
 
 func TestRestyBridge_Close(t *testing.T) {
@@ -32,6 +36,24 @@ func TestRestyBridge_Cookie(t *testing.T) {
 }
 
 func TestRestyBridge_Get(t *testing.T) {
+	var expected = "expectedGet"
+	var testServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, expected)
+	}))
+	var testResty = resty.New()
+	var testBridge = &restyBridge{
+		client:  testResty,
+		request: testResty.R(),
+	}
+	defer testServer.Close()
+
+	resp, err := testBridge.Get(testServer.URL)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+	assert.Equal(t, expected, string(resp.Bytes()))
+}
+
+func TestRestyBridge_Get_Error(t *testing.T) {
 	var testResty = resty.New()
 	var testBridge = &restyBridge{
 		client:  testResty,
@@ -68,6 +90,24 @@ func TestRestyBridge_Params(t *testing.T) {
 }
 
 func TestRestyBridge_Post(t *testing.T) {
+	var expected = "expectedPost"
+	var testServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, expected)
+	}))
+	var testResty = resty.New()
+	var testBridge = &restyBridge{
+		client:  testResty,
+		request: testResty.R(),
+	}
+	defer testServer.Close()
+
+	resp, err := testBridge.Post(testServer.URL)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+	assert.Equal(t, expected, string(resp.Bytes()))
+}
+
+func TestRestyBridge_Post_Error(t *testing.T) {
 	var testResty = resty.New()
 	var testBridge = &restyBridge{
 		client:  testResty,
@@ -100,4 +140,19 @@ func TestRestyBridge_Timeout(t *testing.T) {
 
 	testResty.SetTimeout(expectedTimeout)
 	assert.Equal(t, expectedTimeout, testBridge.Timeout())
+}
+
+func Test_protocolGateChecker(t *testing.T) {
+	if env.IsAllowedProtocol("http") {
+		assert.NoError(t, protocolGateChecker(&resty.Client{}, &resty.Request{
+			URL: "http://somehost",
+		}))
+	} else {
+		assert.Error(t, protocolGateChecker(&resty.Client{}, &resty.Request{
+			URL: "http://somehost",
+		}))
+		assert.NoError(t, protocolGateChecker(&resty.Client{}, &resty.Request{
+			URL: "https://somehost",
+		}))
+	}
 }

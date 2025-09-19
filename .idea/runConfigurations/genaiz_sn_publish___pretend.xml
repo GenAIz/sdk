@@ -2,6 +2,7 @@
   <configuration default="false" name="genaiz sn publish --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out/eugenia" />
+    <go_parameters value="-tags dev" />
     <parameters value="sn publish localhost:8081 --pretend" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />

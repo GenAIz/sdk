@@ -2,6 +2,7 @@
   <configuration default="false" name="genaiz sf create --recipe=bash-example" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-tags dev" />
     <parameters value="sf create --recipe=bash-example --oem=com.genaiz --handle=my-bash-example --name=&quot;My Bash Example&quot; --configType=yaml --logLevel=debug --version=0.1.0 out/samples/myBashExample" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />

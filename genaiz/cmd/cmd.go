@@ -107,7 +107,7 @@ func New(ledger *config.Ledger) *cobra.Command {
 	var root = &cobra.Command{
 		Use:     "genaiz",
 		Short:   "Genaiz SmartFunction Toolkit",
-		Version: version.Version,
+		Version: version.GetVersion(),
 	}
 
 	ledger.LoggerFactory = func(ledger *config.Ledger) *logrus.Logger {

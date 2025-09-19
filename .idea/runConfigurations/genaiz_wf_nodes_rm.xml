@@ -2,6 +2,7 @@
   <configuration default="false" name="genaiz wf nodes rm" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out/myIdeSolution" />
+    <go_parameters value="-tags dev" />
     <parameters value="wf nodes rm workflow-1 node1" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />

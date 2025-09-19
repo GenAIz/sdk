@@ -2,6 +2,7 @@
   <configuration default="false" name="genaiz sn create" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out" />
+    <go_parameters value="-tags dev" />
     <parameters value="sn create myIdeSolution --name=&quot;Ide Solution&quot; --handle=solution-1 --description=&quot;IDE Solution test&quot; --oem=genaiz.com --wf.handle=workflow-1 --wf.name=&quot;Default Workflow&quot;" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />

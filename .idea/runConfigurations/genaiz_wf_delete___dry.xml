@@ -2,6 +2,7 @@
   <configuration default="false" name="genaiz wf delete --dry" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out/myBashSolution" />
+    <go_parameters value="-tags dev" />
     <parameters value="wf delete workflow-1 --dry" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />

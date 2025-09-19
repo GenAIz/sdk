@@ -2,6 +2,7 @@
   <configuration default="false" name="genaiz ac logout" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-tags dev" />
     <parameters value="ac logout" />
     <envs>
       <env name="GENAIZ_PASSWORD" value="success" />
