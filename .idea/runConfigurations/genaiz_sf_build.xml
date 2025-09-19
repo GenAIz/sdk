@@ -2,6 +2,7 @@
   <configuration default="false" name="genaiz sf build" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-tags dev" />
     <parameters value="sf build --context=out/samples/myBashExample --logLevel=debug" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />

@@ -1,3 +1,13 @@
 package version
 
-var Version = "0.1.16"
+import (
+	"fmt"
+
+	"genaiz.com/genaiz/version/env"
+)
+
+var version = "0.1.17"
+
+func GetVersion() string {
+	return fmt.Sprintf("%s%s", version, env.GetVersionTag())
+}

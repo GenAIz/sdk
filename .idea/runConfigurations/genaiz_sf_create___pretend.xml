@@ -2,6 +2,7 @@
   <configuration default="false" name="genaiz sf create --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-tags dev" />
     <parameters value="sf create --arch=x86 --arch=arm --oem=com.genaiz --handle=my-idea-pretend --name=&quot;My Idea Pretend&quot; --version=0.0.1 --configType=yaml --in=../input --out=../output --pretend out/samples/myIdeaPretend" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />

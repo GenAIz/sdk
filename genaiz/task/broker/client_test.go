@@ -16,6 +16,7 @@ import (
 	"resty.dev/v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz/version/env"
 )
 
 type emptyClient struct {
@@ -186,9 +187,10 @@ func TestClient_Login_NoResponseStatus(t *testing.T) {
 
 func TestClient_LoginUrl(t *testing.T) {
 	var expectedHost = "host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
 	var testClient = &client{HostAddr: expectedHost}
 
-	assert.Contains(t, testClient.LoginUrl(), fmt.Sprintf("%s://%s", "http", expectedHost))
+	assert.Contains(t, testClient.LoginUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
 func TestClient_Logout(t *testing.T) {
@@ -247,9 +249,10 @@ func TestClient_Logout_NoResponseStatus(t *testing.T) {
 
 func TestClient_LogoutUrl(t *testing.T) {
 	var expectedHost = "host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
 	var testClient = &client{HostAddr: expectedHost}
 
-	assert.Contains(t, testClient.LogoutUrl(), fmt.Sprintf("%s://%s", "http", expectedHost))
+	assert.Contains(t, testClient.LogoutUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
 func TestClient_ProvisionFunction(t *testing.T) {
@@ -312,9 +315,10 @@ func TestClient_ProvisionFunction_NoAuth(t *testing.T) {
 
 func TestClient_ProvisionFunctionUrl(t *testing.T) {
 	var expectedHost = "host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
 	var testClient = &client{HostAddr: expectedHost}
 
-	assert.Contains(t, testClient.ProvisionFunctionUrl(), fmt.Sprintf("%s://%s", "http", expectedHost))
+	assert.Contains(t, testClient.ProvisionFunctionUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
 func TestClient_PublishFunction(t *testing.T) {
@@ -374,9 +378,10 @@ func TestClient_PublishFunction_NoAuth(t *testing.T) {
 
 func TestClient_PublishFunctionUrl(t *testing.T) {
 	var expectedHost = "host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
 	var testClient = &client{HostAddr: expectedHost}
 
-	assert.Contains(t, testClient.PublishFunctionUrl(), fmt.Sprintf("%s://%s", "http", expectedHost))
+	assert.Contains(t, testClient.PublishFunctionUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
 func TestClient_PublishSolution(t *testing.T) {
@@ -452,9 +457,10 @@ func TestClient_PublishSolution_NoAuth(t *testing.T) {
 
 func TestClient_PublishSolutionUrl(t *testing.T) {
 	var expectedHost = "host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
 	var testClient = &client{HostAddr: expectedHost}
 
-	assert.Contains(t, testClient.PublishSolutionUrl(), fmt.Sprintf("%s://%s", "http", expectedHost))
+	assert.Contains(t, testClient.PublishSolutionUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
 func TestClient_Session(t *testing.T) {
@@ -501,9 +507,10 @@ func TestClient_Session_NoAuth(t *testing.T) {
 
 func TestClient_SessionUrl(t *testing.T) {
 	var expectedHost = "host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
 	var testClient = &client{HostAddr: expectedHost}
 
-	assert.Contains(t, testClient.SessionUrl(), fmt.Sprintf("%s://%s", "http", expectedHost))
+	assert.Contains(t, testClient.SessionUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
 func TestGetClient(t *testing.T) {
@@ -579,12 +586,13 @@ func TestNewClientFactory(t *testing.T) {
 
 func Test_makeHostUrl(t *testing.T) {
 	var expectedHost = "host"
-	var expectedAddr = "https://host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
+	var expectedAddr = expectedPrefix + "/" + expectedHost
 	var expectedVerb = "verb"
 
-	assert.Equal(t, fmt.Sprintf("%s://%s/%s/%s", "http", expectedHost, apiVersion1, pathFunction),
+	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s", expectedPrefix, expectedHost, apiVersion1, pathFunction),
 		makeHostUrl(expectedHost, apiVersion1, pathFunction))
-	assert.Equal(t, fmt.Sprintf("%s://%s/%s/%s/%s", "http", expectedHost, apiVersion1, pathFunction, expectedVerb),
+	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s/%s", expectedPrefix, expectedHost, apiVersion1, pathFunction, expectedVerb),
 		makeHostUrl(expectedHost, apiVersion1, pathFunction, expectedVerb))
 	assert.Equal(t, fmt.Sprintf("%s/%s/%s", expectedAddr, apiVersion1, pathFunction),
 		makeHostUrl(expectedAddr, apiVersion1, pathFunction))

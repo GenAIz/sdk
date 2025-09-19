@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"resty.dev/v3"
+
+	"genaiz.com/genaiz/version/env"
 )
 
 type requestBridge interface {
@@ -41,7 +43,13 @@ func (r *restyBridge) Cookie(cookie *http.Cookie) requestBridge {
 }
 
 func (r *restyBridge) Get(url string) (responseBridge, error) {
-	return r.request.Get(url)
+	var resp, err = r.request.Get(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (r *restyBridge) Json() requestBridge {
@@ -55,7 +63,13 @@ func (r *restyBridge) Params(params map[string]string) requestBridge {
 }
 
 func (r *restyBridge) Post(url string) (responseBridge, error) {
-	return r.request.Post(url)
+	var resp, err = r.request.Post(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (r *restyBridge) Resulting(ref any) requestBridge {
@@ -79,4 +93,12 @@ type responseBridge interface {
 	Status() string
 
 	StatusCode() int
+}
+
+func protocolGateChecker(client *resty.Client, req *resty.Request) error {
+	if env.IsAllowedProtocol(req.URL) {
+		return nil
+	}
+
+	return errorDisallowedProtocol
 }

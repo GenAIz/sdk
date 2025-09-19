@@ -15,6 +15,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/task/shared"
+	"genaiz.com/genaiz/version/env"
 )
 
 const (
@@ -28,18 +29,19 @@ const (
 )
 
 var (
-	errorBadRequest     = errors.New("broker refused the request")
-	errorDisconnected   = errors.New("broker connection timed out")
-	errorForbidden      = errors.New("broker denied access")
-	errorInternal       = errors.New("broker request crashed")
-	errorInvalidHost    = errors.New("invalid host address")
-	errorNoAuth         = errors.New("client not authenticated")
-	errorNotFound       = errors.New("broker did not find the entity")
-	errorNoResponse     = errors.New("client did not get a response")
-	errorNoPath         = errors.New("broker path is not available")
-	errorNoToken        = errors.New("could not read token from cookie")
-	errorSessionExpired = errors.New("broker session is expired")
-	errorUnauthorized   = errors.New("unauthorized, please login")
+	errorBadRequest         = errors.New("broker refused the request")
+	errorDisallowedProtocol = errors.New("broker protocol is not allowed")
+	errorDisconnected       = errors.New("broker connection timed out")
+	errorForbidden          = errors.New("broker denied access")
+	errorInternal           = errors.New("broker request crashed")
+	errorInvalidHost        = errors.New("invalid host address")
+	errorNoAuth             = errors.New("client not authenticated")
+	errorNotFound           = errors.New("broker did not find the entity")
+	errorNoResponse         = errors.New("client did not get a response")
+	errorNoPath             = errors.New("broker path is not available")
+	errorNoToken            = errors.New("could not read token from cookie")
+	errorSessionExpired     = errors.New("broker session is expired")
+	errorUnauthorized       = errors.New("unauthorized, please login")
 
 	clientByHost = map[string]Client{}
 	clientErrors = map[int]error{
@@ -431,7 +433,9 @@ func GetClient(authFile string, addr string) (Client, error) {
 
 func NewClient(addr string) Client {
 	return newClientWithBridge(addr, defaultExpiryMinutes, func() requestBridge {
-		var cl = resty.New().SetTimeout(defaultTimeoutSeconds * time.Second)
+		var cl = resty.New().
+			AddRequestMiddleware(protocolGateChecker).
+			SetTimeout(defaultTimeoutSeconds * time.Second)
 
 		return &restyBridge{
 			client:  cl,
@@ -447,14 +451,14 @@ func NewClientFactory() *ClientFactory {
 	}
 }
 
-func makeHostUrl(host string, version version, path path, rpc ...string) string {
+func makeHostUrl(host string, apiVersion version, path path, rpc ...string) string {
 	var result []string
 
 	if !strings.HasPrefix(host, "http") {
-		result = append(result, "http:/")
+		result = append(result, env.DefaultProtocolPrefix(host))
 	}
 
-	result = append(result, sanitizeHostUrl(host), string(version), string(path))
+	result = append(result, sanitizeHostUrl(host), string(apiVersion), string(path))
 
 	if len(rpc) > 0 {
 		result = append(result, rpc...)

@@ -179,7 +179,7 @@ func TestNew(t *testing.T) {
 	var testCmd = New(testLedger)
 
 	testLedger.LoggerFactory(testLedger)
-	assert.EqualValues(t, version.Version, testCmd.Version)
+	assert.EqualValues(t, version.GetVersion(), testCmd.Version)
 	assert.Equal(t, 4, len(testCmd.Commands()))
 }
 
@@ -191,7 +191,7 @@ func TestNew_ErrorLogFactory(t *testing.T) {
 
 	testViper.Set(testLogLevel.Key, "invalid")
 	testLedger.InitLogging()
-	assert.EqualValues(t, version.Version, testCmd.Version)
+	assert.EqualValues(t, version.GetVersion(), testCmd.Version)
 }
 
 func Test_getFormatter(t *testing.T) {
