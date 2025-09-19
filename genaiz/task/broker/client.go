@@ -29,6 +29,7 @@ const (
 
 var (
 	errorBadRequest     = errors.New("broker refused the request")
+	errorDisconnected   = errors.New("broker connection timed out")
 	errorForbidden      = errors.New("broker denied access")
 	errorInternal       = errors.New("broker request crashed")
 	errorInvalidHost    = errors.New("invalid host address")
@@ -42,6 +43,7 @@ var (
 
 	clientByHost = map[string]Client{}
 	clientErrors = map[int]error{
+		0:   errorDisconnected,
 		400: errorBadRequest,
 		401: errorUnauthorized,
 		403: errorForbidden,
@@ -231,6 +233,7 @@ func (c *client) ProvisionFunction(function *Function) (*shared.Identity, error)
 					"description": function.Description,
 					"oem":         function.Oem,
 					"handle":      function.Handle,
+					"imgDigest":   function.ImgDigest,
 					"type":        function.Type,
 					"version":     function.Version,
 					"arches":      strings.Join(function.Arches, ","),

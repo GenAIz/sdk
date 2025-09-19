@@ -36,6 +36,7 @@ type Function struct {
 	Handle      string
 	Img         string
 	Digest      string
+	ImgDigest   string
 	Name        string
 	Oem         string
 	Seq         int
