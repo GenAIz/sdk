@@ -21,8 +21,6 @@ func TestBaseExecutor_makeConfigParams(t *testing.T) {
 	var actual *shared.ConfigParams
 	var err error
 
-	actual, err = testExecutor.makeConfigParams(testOption)
-	assert.Error(t, err)
 	testViper.Set(testOption.Key, shared.ConfigTypeJson)
 	actual, err = testExecutor.makeConfigParams(testOption)
 	assert.NoError(t, err)

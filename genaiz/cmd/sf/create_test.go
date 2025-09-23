@@ -130,7 +130,9 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 		},
 		CreateOptions: NewCreateOptions(testCli),
 
-		initTaskFactory:   newInitTaskCompleteStub(&calledInit),
+		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
+			calledInit = true
+		}),
 		createTaskFactory: newCreateTaskCompleteStub(&calledCreate),
 		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
 	}
@@ -159,7 +161,9 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 		},
 		CreateOptions: NewCreateOptions(testCli),
 
-		initTaskFactory:   newInitTaskCompleteStub(&calledInit),
+		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
+			calledInit = true
+		}),
 		createTaskFactory: newCreateTaskCompleteStub(&calledCreate),
 		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
 	}

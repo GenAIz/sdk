@@ -23,6 +23,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -251,11 +252,11 @@ func (lr *Ledger) GetBool(option *BoolOption) bool {
 func (lr *Ledger) GetConfigType(option *StringOption) (*shared.ConfigType, error) {
 	var configTypeString = lr.GetString(option)
 
-	if configTypeString != "" {
-		return shared.ConfigTypes.FromString(configTypeString)
+	if configTypeString == "none" {
+		return lang.Ref(shared.ConfigTypeNone), nil
 	}
 
-	return nil, errors.New("unspecified config type parameter")
+	return shared.ConfigTypes.FromString(configTypeString)
 }
 
 // GetList returns the list value of a ListOption from Get as a slice of strings

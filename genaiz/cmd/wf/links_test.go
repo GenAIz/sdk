@@ -108,6 +108,7 @@ func TestLinksExecutor_PretendInvalidConfigType(t *testing.T) {
 	}
 
 	defer patch.Unpatch()
+	testViper.Set(testOptions.optionConfigType.Key, "invalid")
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testExecutor.Pretend()
 	assert.False(t, calledWorkflow)
@@ -176,6 +177,7 @@ func TestLinksExecutor_ProceedInvalidConfigType(t *testing.T) {
 	}
 
 	defer patch.Unpatch()
+	testViper.Set(testOptions.optionConfigType.Key, "invalid")
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testExecutor.Proceed()
 	assert.False(t, calledWorkflow)

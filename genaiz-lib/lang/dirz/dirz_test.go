@@ -7,9 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"genaiz.com/genaiz-lib/lang/filez"
-	"genaiz.com/genaiz-lib/lang/panicz"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,11 +21,12 @@ func TestDoIfPathExist(t *testing.T) {
 }
 
 func TestDoIfPathExist_NotExist(t *testing.T) {
+	var testDir = t.TempDir()
 	var testCall = func() error {
 		return errors.New("expected")
 	}
 
-	assert.NoError(t, DoIfPathExist("/_not_exist", testCall))
+	assert.NoError(t, DoIfPathExist(filepath.Join(testDir, "_not_exist"), testCall))
 }
 
 func TestAnchorWorkingFile_Local(t *testing.T) {
@@ -38,78 +36,62 @@ func TestAnchorWorkingFile_Local(t *testing.T) {
 }
 
 func TestAnchorWorkingFile_Relative(t *testing.T) {
-	var cwd, _ = os.Getwd()
+	var testDir = t.TempDir()
 	var expected = "testFile"
-	var testPath = "/tmp/_genaiz_anchoring"
 
-	assert.NoError(t, os.MkdirAll(testPath, 0750))
-	assert.NoError(t, os.Chdir(testPath))
-
-	defer func() {
-		panicz.PanicIfError(os.Chdir(cwd))
-		filez.RemoveSilently(testPath)
-	}()
-
+	t.Chdir(testDir)
 	assert.Equal(t, expected, AnchorWorkingFile("../"+expected))
 	assert.Equal(t, expected, AnchorWorkingFile("./"+expected))
 }
 
 func TestAnchorWorkingFile_Suffix(t *testing.T) {
-	var cwd, _ = os.Getwd()
+	var testDir = t.TempDir()
 	var expected = "testFile"
-	var testPath = "/tmp/_genaiz_anchoring"
 
-	assert.NoError(t, os.MkdirAll(testPath, 0750))
-	assert.NoError(t, os.Chdir(testPath))
-
-	defer func() {
-		panicz.PanicIfError(os.Chdir(cwd))
-		filez.RemoveSilently(testPath)
-	}()
-
-	assert.Equal(t, expected, AnchorWorkingFile(filepath.Join(testPath, expected)))
+	t.Chdir(testDir)
+	assert.Equal(t, expected, AnchorWorkingFile(filepath.Join(testDir, expected)))
 }
 
 func TestChangeWorkingDir_CurrentDir(t *testing.T) {
-	var cwd, _ = os.Getwd()
+	var testDir = t.TempDir()
 	var actual string
 	var reset func()
 	var err error
 
+	t.Chdir(testDir)
 	reset, err = ChangeWorkingDir()
 	assert.NoError(t, err)
 	reset()
 	actual, _ = os.Getwd()
-	assert.Equal(t, cwd, actual)
+	assert.Equal(t, testDir, actual)
 	reset, err = ChangeWorkingDir(".")
 	assert.NoError(t, err)
 	reset()
 	actual, _ = os.Getwd()
-	assert.Equal(t, cwd, actual)
+	assert.Equal(t, testDir, actual)
 }
 
 func TestChangeWorkingDir_NotReadable(t *testing.T) {
-	var cwd, _ = os.Getwd()
+	var testDir = t.TempDir()
 	var actual string
 	var reset func()
 	var err error
 
-	reset, err = ChangeWorkingDir("/opt/_genaiz_not_readable")
+	t.Chdir(testDir)
+	reset, err = ChangeWorkingDir(filepath.Join(testDir, "_not_readable"))
 	assert.Error(t, err)
 	reset()
 	actual, _ = os.Getwd()
-	assert.Equal(t, cwd, actual)
+	assert.Equal(t, testDir, actual)
 }
 
 func TestChangeWorkingDir(t *testing.T) {
-	var expected = "/tmp/_genaiz_readable/test"
+	var expected = t.TempDir()
 	var cwd, _ = os.Getwd()
 	var actual string
 	var reset func()
 	var err error
 
-	assert.NoError(t, os.MkdirAll(expected, 0750))
-	defer filez.RemoveSilently("/tmp/_genaiz_readable")
 	reset, err = ChangeWorkingDir(expected)
 	assert.NoError(t, err)
 	actual, _ = os.Getwd()
@@ -120,45 +102,46 @@ func TestChangeWorkingDir(t *testing.T) {
 }
 
 func TestCreateWorkingDir_CurrentDir(t *testing.T) {
-	var cwd, _ = os.Getwd()
+	var testDir = t.TempDir()
 	var actual string
 	var reset func()
 	var err error
 
+	t.Chdir(testDir)
 	reset, err = CreateWorkingDir()
 	assert.NoError(t, err)
 	reset()
 	actual, _ = os.Getwd()
-	assert.Equal(t, cwd, actual)
+	assert.Equal(t, testDir, actual)
 	reset, err = CreateWorkingDir(".")
 	assert.NoError(t, err)
 	reset()
 	actual, _ = os.Getwd()
-	assert.Equal(t, cwd, actual)
+	assert.Equal(t, testDir, actual)
 }
 
 func TestCreateWorkingDir_NotWritable(t *testing.T) {
-	var cwd, _ = os.Getwd()
+	var testDir = t.TempDir()
 	var actual string
 	var reset func()
 	var err error
 
+	t.Chdir(testDir)
 	reset, err = CreateWorkingDir("/opt/_genaiz_not_writable")
 	assert.Error(t, err)
 	reset()
 	actual, _ = os.Getwd()
-	assert.Equal(t, cwd, actual)
+	assert.Equal(t, testDir, actual)
 }
 
 func TestCreateWorkingDir(t *testing.T) {
-	var expected = "/tmp/_genaiz_writeable/test"
+	var expected = t.TempDir()
 	var cwd, _ = os.Getwd()
 	var actual string
 	var reset func()
 	var err error
 
 	reset, err = CreateWorkingDir(expected)
-	defer filez.RemoveSilently("/tmp/_genaiz_writeable")
 	assert.NoError(t, err)
 	actual, _ = os.Getwd()
 	assert.Equal(t, expected, actual)
@@ -168,8 +151,11 @@ func TestCreateWorkingDir(t *testing.T) {
 }
 
 func TestOptionalWorkingDir_NoArgs(t *testing.T) {
+	var testDir = t.TempDir()
 	var cwd string
 	var err error
+
+	t.Chdir(testDir)
 
 	if cwd, err = os.Getwd(); err == nil {
 		var fn = OptionalWorkingDir()
@@ -193,4 +179,18 @@ func TestOptionalWorkingDir(t *testing.T) {
 	}
 
 	assert.NoError(t, err)
+}
+
+func TestWorkingDirBase(t *testing.T) {
+	var testDir = t.TempDir()
+
+	t.Chdir(testDir)
+	assert.True(t, strings.HasSuffix(testDir, WorkingDirBase()))
+}
+
+func TestWorkingDirParent(t *testing.T) {
+	var testDir = t.TempDir()
+
+	t.Chdir(testDir)
+	assert.Equal(t, filepath.Dir(testDir), WorkingDirParent())
 }

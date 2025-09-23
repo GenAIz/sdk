@@ -2,12 +2,13 @@ package sf
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
@@ -72,7 +73,7 @@ func (pe *PublishExecutor) Pretend() {
 
 	if !noUpdate {
 		var builder = makeInitBuilder(pe.Cli)
-		var initParams = makePublishInitParams(pe.Ledger, pe.PublishOptions)
+		var initParams = pe.makePublishInitParams()
 
 		workers = append(workers, task.NewPretender(initParams, pe.initTaskFactory(builder)))
 	}
@@ -104,7 +105,7 @@ func (pe *PublishExecutor) Proceed() {
 
 	if !noUpdate {
 		var builder = makeInitBuilder(pe.Cli)
-		var initParams = makePublishInitParams(pe.Ledger, pe.PublishOptions)
+		var initParams = pe.makePublishInitParams()
 
 		workers = append(workers, task.NewWorker(initParams, pe.initTaskFactory(builder)))
 	}
@@ -127,6 +128,36 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 		Oem:         pe.Ledger.GetString(pe.optionOem),
 		Type:        pe.Ledger.GetString(pe.optionType),
 		Version:     pe.Ledger.GetString(pe.optionVersion),
+	}
+}
+
+func (pe *PublishExecutor) makePublishInitParams() *layout.InitParams {
+	var archTypeStrings = pe.Ledger.GetList(pe.optionArches)
+	var functionTypeString = pe.Ledger.GetString(pe.optionType)
+	var archTypes []layout.ArchType
+	var functionType *layout.FunctionType
+	var err error
+
+	functionType, err = layout.FunctionTypes.FromString(functionTypeString)
+	cobra.CheckErr(err)
+
+	if len(archTypeStrings) > 0 {
+		archTypes, err = layout.ArchTypes.AllFromStrings(&archTypeStrings)
+		cobra.CheckErr(err)
+	}
+
+	return &layout.InitParams{
+		CreateParams: layout.CreateParams{
+			ConfigParams: shared.ConfigParams{
+				ConfigName: pe.Ledger.ConfigName,
+			},
+		},
+		Arches:  archTypes,
+		Type:    *functionType,
+		Handle:  pe.Ledger.GetString(pe.optionHandle),
+		Name:    pe.Ledger.GetString(pe.optionName),
+		OEM:     pe.Ledger.GetString(pe.optionOem),
+		Version: pe.Ledger.GetString(pe.optionVersion),
 	}
 }
 
@@ -209,169 +240,46 @@ func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, op
 	}
 }
 
-func NewPublishOptions(cli *Cli) *PublishOptions {
-	var options = newPublishOptions("Publish", cli)
-
-	options.optionRebuild = newOptionRebuild()
-	options.optionNoUpdate = newOptionNoUpdate()
-	return options
-}
-
-func makePublishInitParams(ledger *config.Ledger, options *PublishOptions) *layout.InitParams {
-	var archTypeStrings = ledger.GetList(options.optionArches)
-	var functionTypeString = ledger.GetString(options.optionType)
-	var archTypes []layout.ArchType
-	var functionType *layout.FunctionType
-	var err error
-
-	functionType, err = layout.FunctionTypes.FromString(functionTypeString)
-	cobra.CheckErr(err)
-
-	if len(archTypeStrings) > 0 {
-		archTypes, err = layout.ArchTypes.AllFromStrings(&archTypeStrings)
-		cobra.CheckErr(err)
-	}
-
-	return &layout.InitParams{
-		CreateParams: layout.CreateParams{
-			ConfigParams: shared.ConfigParams{
-				ConfigName: ledger.ConfigName,
-			},
-		},
-		Arches:  archTypes,
-		Type:    *functionType,
-		Handle:  ledger.GetString(options.optionHandle),
-		Name:    ledger.GetString(options.optionName),
-		OEM:     ledger.GetString(options.optionOem),
-		Version: ledger.GetString(options.optionVersion),
-	}
-}
-
-func newOptionArches(cmd string) *config.ListOption {
-	return &config.ListOption{
-		Option: config.Option{
-			Key:       "SF." + cmd + ".Arches",
-			Param:     "arch",
-			Usage:     "a list of architectures assigned to the function scope of execution. Supported: x86, x86_64, arm and arm64",
-			Validator: config.AllFromEnumerated(layout.ArchTypes),
-		},
-	}
-}
-
-func newOptionHandle(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF." + cmd + ".Handle",
-			Param: "handle",
-			Usage: "a unique string identifying the function across its oem, valid characters can only be alphanumerics, the dot, dash and underscore",
-			DefaultSetter: func(ledger *config.Ledger) any {
-				var wd, _ = os.Getwd()
-
-				return filepath.Base(wd)
-			},
-			Validator: config.Validation.Handle,
-		},
-	}
-}
-
-func newOptionName(defaultOption *config.StringOption, cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF." + cmd + ".Name",
-			Param: "name",
-			Short: "n",
-			Usage: "display name of the function to create, defaults to the handle value if not provided",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.GetString(defaultOption)
-			},
-			Validator: config.Validation.Name,
-		},
-	}
-}
-
-func newOptionNoUpdate() *config.BoolOption {
-	return &config.BoolOption{
-		Option: config.Option{
-			Key:          "SF.Publish.No_Update",
-			Param:        "noUpdate",
-			DefaultValue: "false",
-			Usage:        "if set publish will not update configuration values after publishing",
-		},
-	}
-}
-
-func newOptionOem(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:       "SF." + cmd + ".OEM",
-			Param:     "oem",
-			Usage:     "unique id belonging to the publisher of the function",
-			Validator: config.Validation.Oem,
-		},
-	}
-}
-
-func newOptionRebuild() *config.BoolOption {
-	return &config.BoolOption{
-		Option: config.Option{
-			Key:          "SF.Publish.Rebuild",
-			Param:        "rebuild",
-			DefaultValue: "false",
-			Usage:        "if set publish will force building the Smart Function before provisioning",
-		},
-	}
-}
-
-func newOptionType(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "SF." + cmd + ".Type",
-			Param:        "type",
-			Short:        "t",
-			DefaultValue: "function",
-			Usage:        "type of the function to create, only \"connector\", \"function\" or \"trigger\" are supported",
-			Validator:    config.AnyOfEnumerated(layout.FunctionTypes),
-		},
-	}
-}
-
-func newOptionVersion(cmd string, cli *Cli) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF." + cmd + ".Version",
-			Param: "version",
-			Short: "v",
-			Usage: "initial version to use for the smart function",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.GetString(cli.optionDockerVersion)
-			},
-			Validator: config.Validation.Version,
-		},
-	}
-}
-
-func newPublishOptions(cmd string, cli *Cli, flagOptions ...*config.BoolOption) *PublishOptions {
-	var optionHandle = newOptionHandle(cmd)
-	var optionRebuild *config.BoolOption
-	var optionNoUpdate *config.BoolOption
-	var size = len(flagOptions)
-
-	if size > 0 {
-		optionRebuild = flagOptions[0]
-	}
-
-	if size > 1 {
-		optionNoUpdate = flagOptions[1]
-	}
+func NewPublishOptions(sfCli *Cli) *PublishOptions {
+	var parentOpt = cli.Options.Configs.SolutionPath().
+		WithKeys(&schema.Genaiz.Function.Init.SolutionPath).
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return dirz.WorkingDirParent()
+		}).BuildStringOption()
+	var handleOpt = cli.Options.Functions.Handle().
+		WithKeys(&schema.Genaiz.Function.Publish.Handle).
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return dirz.WorkingDirBase()
+		}).
+		BuildStringOption()
 
 	return &PublishOptions{
-		optionArches:   newOptionArches(cmd),
-		optionHandle:   optionHandle,
-		optionName:     newOptionName(optionHandle, cmd),
-		optionNoUpdate: optionNoUpdate,
-		optionRebuild:  optionRebuild,
-		optionType:     newOptionType(cmd),
-		optionOem:      newOptionOem(cmd),
-		optionVersion:  newOptionVersion(cmd, cli),
+		optionArches: cli.Options.Functions.Arches().
+			WithKeys(&schema.Genaiz.Function.Publish.Arches).
+			BuildListOption(),
+		optionHandle: handleOpt,
+		optionName: cli.Options.Functions.Name().
+			WithKeys(&schema.Genaiz.Function.Publish.Name).
+			WithUsage("defaults to the handle value if not provided").
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(handleOpt)
+			}).BuildStringOption(),
+		optionNoUpdate: cli.Options.Configs.NoUpdate().
+			WithKeys(&schema.Genaiz.Function.Publish.NoUpdate).
+			BuildBoolOption(),
+		optionOem: cli.Options.Functions.Oem().
+			WithKeys(&schema.Genaiz.Function.Publish.Oem).
+			WithDefaultGetter(sfCli.ParentOem(parentOpt)).
+			BuildStringOption(),
+		optionRebuild: cli.Options.Functions.Rebuild().
+			WithKeys(&schema.Genaiz.Function.Publish.Rebuild).
+			BuildBoolOption(),
+		optionType: cli.Options.Functions.Type().
+			WithKeys(&schema.Genaiz.Function.Publish.Type).
+			BuildStringOption(),
+		optionVersion: cli.Options.Functions.Version().
+			WithKeys(&schema.Genaiz.Function.Publish.Version).
+			WithDefaultGetter(sfCli.ParentVersion(parentOpt)).
+			BuildStringOption(),
 	}
 }

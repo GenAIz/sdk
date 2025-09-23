@@ -14,9 +14,9 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
@@ -69,6 +69,7 @@ func TestPublishExecutor_Display(t *testing.T) {
 
 func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
+	var testDir = t.TempDir()
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testPublishParams = &broker.PublishParams{}
@@ -91,10 +92,9 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
@@ -116,6 +116,7 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 
 func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
+	var testDir = t.TempDir()
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testPublishParams = &broker.PublishParams{}
@@ -138,10 +139,9 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
@@ -162,6 +162,7 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 
 func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
+	var testDir = t.TempDir()
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testPublishParams = &broker.PublishParams{}
@@ -184,10 +185,9 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -209,6 +209,7 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 
 func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
+	var testDir = t.TempDir()
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testPublishParams = &broker.PublishParams{}
@@ -231,10 +232,9 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 		pushTaskFactory:      newTaskPretendStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -257,6 +257,8 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 
 func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
+	var expectedVersion = "0.0.0"
+	var testDir = t.TempDir()
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testPublishParams = &broker.PublishParams{}
@@ -271,18 +273,21 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: testOptions,
 
-		buildTaskFactory:     newBuildTaskCompleteStub(&calledBuild),
-		initTaskFactory:      newInitTaskCompleteStub(&calledInit),
+		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
+		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
+			calledInit = true
+			assert.Equal(t, expectedVersion, params.Version)
+		}),
 		inspectTaskFactory:   newTaskProceedStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskProceedStub(&calledProvision, testProvisionParams),
 		publishTaskFactory:   newTaskProceedStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.publish_test")
+		testViper.Set(testExecutor.Cli.optionDockerVersion.Key, expectedVersion)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
@@ -305,6 +310,9 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 
 func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
+	var expectedArches = []string{layout.ArchTypeX86, layout.ArchTypeArm64}
+	var expectedHandle = "handleNoRebuildUpdate"
+	var testDir = filepath.Join(t.TempDir(), expectedHandle)
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testPublishParams = &broker.PublishParams{}
@@ -319,39 +327,49 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: testOptions,
 
-		buildTaskFactory:     newBuildTaskCompleteStub(&calledBuild),
-		initTaskFactory:      newInitTaskCompleteStub(&calledInit),
+		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
+		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
+			calledInit = true
+			assert.Equal(t, expectedArches, params.Arches)
+			assert.Equal(t, expectedHandle, params.Handle)
+		}),
 		inspectTaskFactory:   newTaskProceedStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskProceedStub(&calledProvision, testProvisionParams),
 		publishTaskFactory:   newTaskProceedStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
+	var err error
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
-		var fileName = tmpFile.Name()
+	if err = os.MkdirAll(testDir, 0750); err == nil {
+		var tmpFile *os.File
 
-		defer filez.RemoveSilently("/tmp/.publish_test")
-		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
-		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
-		testViper.Set(testExecutor.optionOem.Key, "oem")
-		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
-		testLedger.Logger = &logrus.Logger{}
-		testExecutor.Proceed()
-		assert.False(t, calledBuild)
-		assert.True(t, calledInspect)
-		assert.True(t, calledProvision)
-		assert.True(t, calledPush)
-		assert.True(t, calledPublish)
-		assert.True(t, calledInit)
-	} else {
-		assert.NoError(t, err)
+		if tmpFile, err = os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
+			var fileName = tmpFile.Name()
+
+			t.Chdir(testDir)
+			testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
+			testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
+			testViper.Set(testOptions.optionArches.Key, expectedArches)
+			testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
+			testViper.Set(testExecutor.optionOem.Key, "oem")
+			testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
+			testLedger.Logger = &logrus.Logger{}
+			testExecutor.Proceed()
+			assert.False(t, calledBuild)
+			assert.True(t, calledInspect)
+			assert.True(t, calledProvision)
+			assert.True(t, calledPush)
+			assert.True(t, calledPublish)
+			assert.True(t, calledInit)
+		}
 	}
+
+	assert.NoError(t, err)
 }
 
 func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
+	var testDir = t.TempDir()
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testPublishParams = &broker.PublishParams{}
@@ -366,18 +384,19 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: testOptions,
 
-		buildTaskFactory:     newBuildTaskCompleteStub(&calledBuild),
-		initTaskFactory:      newInitTaskCompleteStub(&calledInit),
+		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
+		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
+			calledInit = true
+		}),
 		inspectTaskFactory:   newTaskProceedStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskProceedStub(&calledProvision, testProvisionParams),
 		publishTaskFactory:   newTaskProceedStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -400,6 +419,8 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 
 func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
+	var expectedArches = []string{layout.ArchTypeX86, layout.ArchTypeArm64}
+	var testDir = t.TempDir()
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
 	var testPublishParams = &broker.PublishParams{}
@@ -414,20 +435,23 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: testOptions,
 
-		buildTaskFactory:     newBuildTaskCompleteStub(&calledBuild),
-		initTaskFactory:      newInitTaskCompleteStub(&calledInit),
+		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
+		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
+			calledInit = true
+			assert.Equal(t, expectedArches, params.Arches)
+		}),
 		inspectTaskFactory:   newTaskProceedStub(&calledInspect, testBuildParams),
 		provisionTaskFactory: newTaskProceedStub(&calledProvision, testProvisionParams),
 		publishTaskFactory:   newTaskProceedStub(&calledPublish, testPublishParams),
 		pushTaskFactory:      newTaskProceedStub(&calledPush, &docker.PushParams{}),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.publish_test", "GDockerfile"); err == nil {
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.publish_test")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
+		testViper.Set(testOptions.optionArches.Key, expectedArches)
 		testViper.Set(testOptions.optionRebuild.Key, true)
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
@@ -468,8 +492,8 @@ func TestNewPublish(t *testing.T) {
 	var expectedHandle = "handle"
 	var expectedHost = "host"
 
-	testViper.Set(newOptionHandle("Publish").Key, expectedHandle)
-	testViper.Set(newOptionVersion("Publish", testCli).Key, expectedVersion)
+	testViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedHandle)
+	testViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedVersion)
 	testPublish.SetArgs([]string{expectedHost})
 	testPublish.PostRun = func(cmd *cobra.Command, args []string) {
 		publishCompleted = true
@@ -487,126 +511,9 @@ func TestNewPublish(t *testing.T) {
 	}
 }
 
-func TestNewPublishOptions(t *testing.T) {
-	var expectedCmd = "Publish"
-	var testCli = NewSfCli(nil, nil, nil)
-	var expectedArches = newOptionArches(expectedCmd)
-	var expectedHandle = newOptionHandle(expectedCmd)
-	var expectedName = newOptionName(expectedHandle, expectedCmd)
-	var expectedOem = newOptionOem(expectedCmd)
-	var expectedType = newOptionType(expectedCmd)
-	var expectedVersion = newOptionVersion(expectedCmd, testCli)
-	var testOptions = NewPublishOptions(testCli)
-
-	assert.True(t, expectedArches.Equals(&testOptions.optionArches.Option))
-	assert.True(t, expectedHandle.Equals(&testOptions.optionHandle.Option))
-	assert.True(t, expectedName.Equals(&testOptions.optionName.Option))
-	assert.True(t, expectedOem.Equals(&testOptions.optionOem.Option))
-	assert.True(t, expectedType.Equals(&testOptions.optionType.Option))
-	assert.True(t, expectedVersion.Equals(&testOptions.optionVersion.Option))
-}
-
-func TestNewPublishOptions_GetDefaultName(t *testing.T) {
-	var cwd, _ = os.Getwd()
-	var expectedName = filepath.Base(cwd)
-	var expectedCmd = "_test"
-	var testHandleOption = newOptionHandle(expectedCmd)
-	var testNameOption = newOptionName(testHandleOption, expectedCmd)
-	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
-
-	testLedger.Register(&cobra.Command{}, testHandleOption)
-	testLedger.InitDefaults()
-	assert.EqualValues(t, expectedName, testNameOption.DefaultGetter(testLedger))
-}
-
-func TestNewPublishOptions_ValidateArches(t *testing.T) {
-	var testOption = newOptionArches("_test")
-
-	assert.False(t, testOption.Validator("not a valid arch"))
-
-	for _, arch := range layout.ArchTypes.Values {
-		assert.True(t, testOption.Validator(arch))
-	}
-
-	assert.True(t, testOption.Validator(layout.ArchTypes.Values))
-}
-
-func TestNewPublishOptions_ValidateHandle(t *testing.T) {
-	var testOption = newOptionHandle("_test")
-
-	assert.False(t, testOption.Validator("not a valid handle"))
-
-	for _, c := range "`~!@#$%^&*()+=\\][}{'\";:>,<?|" {
-		assert.False(t, testOption.Validator(string(c)))
-	}
-
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789."))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO_.PQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO_-PQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO__PQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO-_PQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO-.PQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO--PQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO.-PQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO._PQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNO..PQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator(".abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("-abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
-	assert.False(t, testOption.Validator("_abcdefghijklmnopqrstuvwxyxABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
-	assert.True(t, testOption.Validator("abcdefghijklmnopqrstuvwxyx-ABCDEFG.HIJKLMNOPQR_STUVWXYZ0123456789"))
-}
-
-func TestNewPublishOptions_ValidateType(t *testing.T) {
-	var testOption = newOptionType("_test")
-
-	assert.False(t, testOption.Validator("not valid ever"))
-
-	for _, ct := range layout.FunctionTypes.Values {
-		assert.True(t, testOption.Validator(ct))
-	}
-
-	// mutually exclusive, does not accept multiple types
-	assert.False(t, testOption.Validator(layout.FunctionTypes))
-}
-
-func Test_makePublishInitParams_WithArches(t *testing.T) {
-	var testCli = NewSfCli(nil, nil, nil)
-	var testOptions = newPublishOptions("Publish", testCli)
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
-	var actualParams *layout.InitParams
-
-	testViper.Set(testOptions.optionHandle.Key, "handle")
-	testViper.Set(testOptions.optionOem.Key, "oem")
-	testViper.Set(testOptions.optionType.Key, layout.FunctionTypeTrigger)
-	testViper.Set(testOptions.optionArches.Key, expectedArches)
-	testViper.Set(testOptions.optionVersion.Key, "0.0.0")
-	actualParams = makePublishInitParams(testLedger, testOptions)
-	assert.EqualValues(t, expectedArches, actualParams.Arches)
-}
-
-func Test_newPublishOptions_Rebuild(t *testing.T) {
-	var expectedRebuildOption = config.BoolOption{}
-	var testCli = NewSfCli(nil, nil, nil)
-	var testOptions = newPublishOptions("Publish", testCli, &expectedRebuildOption)
-
-	assert.Same(t, &expectedRebuildOption, testOptions.optionRebuild)
-}
-
-func Test_newPublishOptions_RebuildAndNoUpdate(t *testing.T) {
-	var expectedNoUpdateOption = config.BoolOption{}
-	var expectedRebuildOption = config.BoolOption{}
-	var testCli = NewSfCli(nil, nil, nil)
-	var testOptions = newPublishOptions("Publish", testCli, &expectedRebuildOption, &expectedNoUpdateOption)
-
-	assert.Same(t, &expectedNoUpdateOption, testOptions.optionNoUpdate)
-	assert.Same(t, &expectedRebuildOption, testOptions.optionRebuild)
-}
-
 func newTaskPretendStub[T any](flag *bool, paramType *T) func() *task.Task[T] {
+	_ = paramType // suppress warning on inference type
+
 	return func() *task.Task[T] {
 		return &task.Task[T]{
 			OnPrepare: func(params *T, state *task.State) error {
@@ -621,6 +528,8 @@ func newTaskPretendStub[T any](flag *bool, paramType *T) func() *task.Task[T] {
 }
 
 func newTaskProceedStub[T any](flag *bool, paramType *T) func() *task.Task[T] {
+	_ = paramType // suppress warning on inference type
+
 	return func() *task.Task[T] {
 		return &task.Task[T]{
 			OnPrepare: func(params *T, state *task.State) error {

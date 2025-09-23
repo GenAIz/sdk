@@ -162,7 +162,7 @@ func TestSolutionReader_FindFunction_NoConfigFile(t *testing.T) {
 	}
 	var err error
 
-	if _, err = os.Create(filepath.Join(testDir, expectedName+".yaml")); err == nil {
+	if _, err = os.Create(filepath.Join(testDir, expectedName+"."+shared.ConfigTypeYaml)); err == nil {
 		if err = os.MkdirAll(filepath.Join(testDir, "notAFunction"), 0666); err == nil {
 			testLedger.Logger = logrus.New()
 			assert.Empty(t, testReader.FindFunctionValues())
@@ -171,6 +171,37 @@ func TestSolutionReader_FindFunction_NoConfigFile(t *testing.T) {
 	}
 
 	assert.NoError(t, err)
+}
+
+func TestSolutionReader_Find(t *testing.T) {
+	var testName = "testName"
+	var expectedName = testName + "." + shared.ConfigTypeYaml
+	var testDir = t.TempDir()
+	var testReader = &SolutionReader{
+		BaseReader: BaseReader{
+			configPath: testDir,
+		},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(filepath.Join(testDir, expectedName)); err == nil {
+		filez.CloseSilently(fd)
+		assert.NoError(t, testReader.Find(testName))
+		assert.Equal(t, shared.ConfigTypeYaml, testReader.GetConfigType())
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestSolutionReader_FindInvalidPath(t *testing.T) {
+	var testReader = &SolutionReader{
+		BaseReader: BaseReader{
+			configPath: "/_not_exist",
+		},
+	}
+
+	assert.Error(t, testReader.Find("testName"))
 }
 
 func TestSolutionReader_GetSolution(t *testing.T) {

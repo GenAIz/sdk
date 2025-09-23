@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://genaiz.com/genaiz.config.json",
+  "title": "Configuration",
+  "description": "A configuration file for the GenAIz SDK",
+  "type": "object",
+  "patternProperties": {
+    "^(?:sf|function)$": {
+      "type": "object",
+      "properties": {
+        "build": {
+          "type": "object",
+          "properties": {
+            "tag": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        },
+        "create": {
+          "type": "object",
+          "patternProperties": {
+            "^arches$": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "^configType$": {
+              "type": "string"
+            },
+            "^handle$": {
+              "type": "string"
+            },
+            "^mountInput$": {
+              "type": "string"
+            },
+            "^mountOutput$": {
+              "type": "string"
+            },
+            "^name$": {
+              "type": "string"
+            },
+            "^oem$": {
+              "type": "string"
+            },
+            "^recipe$": {
+              "type": "string"
+            },
+            "^solutionPath$": {
+              "type": "string"
+            },
+            "^type$": {
+              "type": "string"
+            },
+            "^version$": {
+              "type": "string"
+            }
+          }
+        },
+        "init": {
+          "type": "object",
+          "patternProperties": {
+            "^arches$": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "^configType$": {
+              "type": "string"
+            },
+            "^handle$": {
+              "type": "string"
+            },
+            "^mountInput$": {
+              "type": "string"
+            },
+            "^mountOutput$": {
+              "type": "string"
+            },
+            "^name$": {
+              "type": "string"
+            },
+            "^oem$": {
+              "type": "string"
+            },
+            "^solutionPath$": {
+              "type": "string"
+            },
+            "^type$": {
+              "type": "string"
+            },
+            "^version$": {
+              "type": "string"
+            }
+          }
+        },
+        "publish": {
+          "type": "object",
+          "patternProperties": {
+            "^arches$": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "^handle$": {
+              "type": "string"
+            },
+            "^name$": {
+              "type": "string"
+            },
+            "^noUpdate$": {
+              "type": "boolean"
+            },
+            "^oem$": {
+              "type": "string"
+            },
+            "^rebuild$": {
+              "type": "boolean"
+            },
+            "^type$": {
+              "type": "string"
+            },
+            "^version$": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "^(?:sn|solution)$": {
+      "type": "object",
+      "patternProperties": {
+        "^description$": {
+          "type": "string"
+        },
+        "^handle$": {
+          "type": "string"
+        },
+        "^name$": {
+          "type": "string"
+        },
+        "^oem$": {
+          "type": "string"
+        },
+        "^version$": {
+          "type": "string"
+        },
+        "^workflows$": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "patternProperties": {
+              "^name$": {
+                "type": "string"
+              },
+              "^description$": {
+                "type": "string"
+              },
+              "^handle$": {
+                "type": "string"
+              },
+              "^links$": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "lhsNode": {
+                      "type": "string"
+                    },
+                    "lhsNodePort": {
+                      "type": "string"
+                    },
+                    "rhsNode": {
+                      "type": "string"
+                    },
+                    "rhsNodePort": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "^nodes$": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^name$": {
+                      "type": "string"
+                    },
+                    "^description$": {
+                      "type": "string"
+                    },
+                    "^handle$": {
+                      "type": "string"
+                    },
+                    "^sf$": {
+                      "type": "object",
+                      "properties": {
+                        "oem": {
+                          "type": "string"
+                        },
+                        "handle": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
