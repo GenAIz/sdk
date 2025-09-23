@@ -163,14 +163,12 @@ func TestRunnerOptions_allDefiners(t *testing.T) {
 	assert.NotEmpty(t, testOptions.runConfirm)
 	assert.NotEmpty(t, testOptions.runDry)
 	assert.NotEmpty(t, testOptions.runPretend)
-	assert.NotEmpty(t, testOptions.solutionPath)
 	assert.Contains(t, testDefiners, testOptions.logLevel)
 	assert.Contains(t, testDefiners, testOptions.logFormat)
 	assert.Contains(t, testDefiners, testOptions.runConfig)
 	assert.Contains(t, testDefiners, testOptions.runConfirm)
 	assert.Contains(t, testDefiners, testOptions.runDry)
 	assert.Contains(t, testDefiners, testOptions.runPretend)
-	assert.Contains(t, testDefiners, testOptions.solutionPath)
 }
 
 func TestNew(t *testing.T) {

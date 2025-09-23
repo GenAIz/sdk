@@ -3,6 +3,7 @@ package sf
 import (
 	"bytes"
 	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -14,17 +15,29 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/layout"
+)
+
+var (
+	testInitKeys          = &schema.Keys{Doc: "Init"}
+	testInitOptionArches  = cli.Options.Functions.Arches().WithKeys(testInitKeys).BuildListOption()
+	testInitOptionHandle  = cli.Options.Functions.Handle().WithKeys(testInitKeys).BuildStringOption()
+	testInitOptionName    = cli.Options.Functions.Name().WithKeys(testInitKeys).WithDefaultGetter(func(ledger *config.Ledger) any { return ledger.GetString(testInitOptionHandle) }).BuildStringOption()
+	testInitOptionOem     = cli.Options.Functions.Oem().WithKeys(testInitKeys).BuildStringOption()
+	testInitOptionType    = cli.Options.Functions.Type().WithKeys(testInitKeys).BuildStringOption()
+	testInitOptionVersion = cli.Options.Functions.Type().WithKeys(testInitKeys).BuildStringOption()
 )
 
 func TestInitWriter_BuildArches(t *testing.T) {
 	var expectedArches = []string{"test"}
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionArches: newOptionArches("_test"),
+			optionArches: testInitOptionArches,
 		},
 		vp: viper.New(),
 	}
@@ -43,8 +56,8 @@ func TestInitWriter_BuildHandle(t *testing.T) {
 	var testViper = viper.New()
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionOem:    newOptionOem("_test"),
-			optionHandle: newOptionHandle("_test"),
+			optionOem:    testInitOptionOem,
+			optionHandle: testInitOptionHandle,
 		},
 		vp:      testViper,
 		baseTag: newOptionDockerTag(),
@@ -82,7 +95,7 @@ func TestInitWriter_BuildName(t *testing.T) {
 	var expectedName = "name"
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionName: newOptionName(newOptionHandle("_test"), "_test"),
+			optionName: testInitOptionName,
 		},
 		vp: viper.New(),
 	}
@@ -100,8 +113,8 @@ func TestInitWriter_BuildOem(t *testing.T) {
 	var expectedOem = "oem"
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionHandle: newOptionHandle("handle"),
-			optionOem:    newOptionOem("_test"),
+			optionHandle: testInitOptionHandle,
+			optionOem:    testInitOptionOem,
 		},
 		vp:      viper.New(),
 		baseTag: newOptionDockerTag(),
@@ -143,7 +156,7 @@ func TestInitWriter_BuildOutput(t *testing.T) {
 func TestInitWriter_BuildType(t *testing.T) {
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionType: newOptionType("_test"),
+			optionType: testInitOptionType,
 		},
 		vp: viper.New(),
 	}
@@ -159,11 +172,10 @@ func TestInitWriter_BuildType(t *testing.T) {
 
 func TestInitWriter_BuildVersion(t *testing.T) {
 	var expectedVersion = "0.0.0"
-	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionVersion: newOptionVersion("_test", testCli),
+			optionVersion: testInitOptionVersion,
 		},
 		vp:          testViper,
 		baseVersion: newOptionDockerVersion(),
@@ -184,13 +196,12 @@ func TestInitWriter_Write(t *testing.T) {
 	var expectedOem = "genaiz.com"
 	var expectedHandle = "test-handle"
 	var expectedVersion = "0.0.0"
-	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionOem:     newOptionOem("_test"),
-			optionHandle:  newOptionHandle("_test"),
-			optionVersion: newOptionVersion("_test", testCli),
+			optionOem:     testInitOptionOem,
+			optionHandle:  testInitOptionHandle,
+			optionVersion: testInitOptionVersion,
 		},
 		vp:          testViper,
 		baseTag:     newOptionDockerTag(),
@@ -218,11 +229,10 @@ func TestInitWriter_Write(t *testing.T) {
 
 func TestInitWriter_WriteInvalidFile(t *testing.T) {
 	var invalidFile = "/tmp/.init_test/init_write_invalid.yaml"
-	var testCli = NewSfCli(nil, nil, nil)
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
-			optionHandle:  newOptionHandle("_test"),
-			optionVersion: newOptionVersion("_test", testCli),
+			optionHandle:  testInitOptionHandle,
+			optionVersion: testInitOptionVersion,
 		},
 		vp:          viper.New(),
 		baseTag:     newOptionDockerTag(),
@@ -289,15 +299,18 @@ func TestInitExecutor_Pretend(t *testing.T) {
 	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
-	testViper.Set(newOptionArches("Init").Key, layout.ArchTypeArm64)
+	testViper.Set(testInitOptionArches.Key, layout.ArchTypeArm64)
 	testExecutor.Pretend()
 	assert.True(t, calledInit)
 }
 
 func TestInitExecutor_Proceed(t *testing.T) {
+	var calledInit bool
+	var expectedHandle = "handleProceed"
+	var testDir = filepath.Join(t.TempDir(), expectedHandle)
+	var expectedArches = []string{layout.ArchTypeX86, layout.ArchTypeArm}
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var calledInit = false
 	var testCli = NewSfCli(nil, nil, nil)
 	var testExecutor = &InitExecutor{
 		BaseExecutor: BaseExecutor{
@@ -306,17 +319,60 @@ func TestInitExecutor_Proceed(t *testing.T) {
 		},
 		InitOptions: NewInitOptions(testCli),
 
-		initTaskFactory: newInitTaskCompleteStub(&calledInit),
+		initTaskFactory: newInitTaskCompleteStub(func(actual *layout.InitParams) {
+			calledInit = true
+			assert.Equal(t, expectedArches, actual.Arches)
+		}),
+	}
+	var err error
+
+	if err = os.MkdirAll(testDir, 0750); err == nil {
+		t.Chdir(testDir)
+		testLedger.Logger = logrus.New()
+		testViper.Set(testExecutor.optionArches.Key, expectedArches)
+		testViper.Set(testExecutor.optionConfigType.Key, "yaml")
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionOem.Key, "oem")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
+		testExecutor.Proceed()
+		assert.True(t, calledInit)
 	}
 
-	testLedger.Logger = logrus.New()
-	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
-	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
-	testViper.Set(testExecutor.optionOem.Key, "oem")
-	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
-	testExecutor.Proceed()
-	assert.True(t, calledInit)
+	assert.NoError(t, err)
+}
+
+func TestInitExecutor_ProceedInvalidOem(t *testing.T) {
+	var expectedHandle = "handleProceed"
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testDir = filepath.Join(t.TempDir(), expectedHandle)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = NewSfCli(nil, nil, nil)
+	var testExecutor = &InitExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+			Cli:    testCli,
+		},
+		InitOptions: NewInitOptions(testCli),
+
+		initTaskFactory: newInitTaskCompleteStub(func(actual *layout.InitParams) {}),
+	}
+	var err error
+
+	defer patch.Unpatch()
+
+	if err = os.MkdirAll(testDir, 0750); err == nil {
+		t.Chdir(testDir)
+		testLedger.Logger = logrus.New()
+		testViper.Set(testExecutor.optionConfigType.Key, "yaml")
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
+		testExecutor.Proceed()
+	}
+
+	assert.NoError(t, err)
+	assert.True(t, patch.Called)
+	assert.Equal(t, 1, patch.CalledWith)
 }
 
 func TestNewInit(t *testing.T) {
@@ -339,9 +395,9 @@ func TestNewInit(t *testing.T) {
 	var expectedHandle = "init-handle"
 	var expectedOem = "init-oem"
 
-	testViper.Set(newOptionHandle("Init").Key, expectedHandle)
-	testViper.Set(newOptionOem("Init").Key, expectedOem)
-	testViper.Set(newOptionType("Init").Key, layout.FunctionTypeFunction)
+	testViper.Set(schema.Genaiz.Function.Init.Handle.Doc, expectedHandle)
+	testViper.Set(schema.Genaiz.Function.Init.Oem.Doc, expectedOem)
+	testViper.Set(schema.Genaiz.Function.Init.Type.Doc, layout.FunctionTypeFunction)
 	testInit.PostRun = func(cmd *cobra.Command, args []string) {
 		initCompleted = true
 	}
@@ -358,21 +414,7 @@ func TestNewInit(t *testing.T) {
 	}
 }
 
-func newInitTaskPretendStub(flag *bool) InitTaskFactory {
-	return func(layout.ConfigWriter) *task.Task[layout.InitParams] {
-		return &task.Task[layout.InitParams]{
-			OnPrepare: func(params *layout.InitParams, state *task.State) error {
-				return nil
-			},
-			OnPretend: func(params *layout.InitParams, state *task.State) error {
-				*flag = true
-				return nil
-			},
-		}
-	}
-}
-
-func newInitTaskCompleteStub(flag *bool) InitTaskFactory {
+func newInitTaskCompleteStub(checks func(params *layout.InitParams)) InitTaskFactory {
 	return func(builder layout.ConfigWriter) *task.Task[layout.InitParams] {
 		return &task.Task[layout.InitParams]{
 			Name: "init_test",
@@ -380,6 +422,20 @@ func newInitTaskCompleteStub(flag *bool) InitTaskFactory {
 				return nil
 			},
 			OnComplete: func(params *layout.InitParams, state *task.State) error {
+				checks(params)
+				return nil
+			},
+		}
+	}
+}
+
+func newInitTaskPretendStub(flag *bool) InitTaskFactory {
+	return func(layout.ConfigWriter) *task.Task[layout.InitParams] {
+		return &task.Task[layout.InitParams]{
+			OnPrepare: func(params *layout.InitParams, state *task.State) error {
+				return nil
+			},
+			OnPretend: func(params *layout.InitParams, state *task.State) error {
 				*flag = true
 				return nil
 			},

@@ -59,7 +59,7 @@ func (cp ConfigParams) GetConfigFile(paths ...string) string {
 	var filePaths []string
 	var typeString string
 
-	if cp.ConfigType != nil {
+	if !cp.IsConfigTypeNone() {
 		typeString = "." + *cp.ConfigType
 	}
 

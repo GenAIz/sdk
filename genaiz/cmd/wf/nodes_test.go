@@ -241,6 +241,7 @@ func TestNodesExecutor_PretendInvalidConfigType(t *testing.T) {
 	}
 
 	defer patch.Unpatch()
+	testViper.Set(testOptions.optionConfigType.Key, "invalid")
 	testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
 	testExecutor.Pretend()
 	assert.False(t, calledWorkflow)
@@ -309,6 +310,7 @@ func TestNodesExecutor_ProceedInvalidConfigType(t *testing.T) {
 	}
 
 	defer patch.Unpatch()
+	testViper.Set(testOptions.optionConfigType.Key, "invalid")
 	testLedger.Register(&cobra.Command{}, testOptions.removeDefiners()...)
 	testExecutor.Proceed()
 	assert.False(t, calledWorkflow)

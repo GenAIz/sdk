@@ -3,7 +3,7 @@
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
     <go_parameters value="-tags dev" />
-    <parameters value="sf create --arch=x86 --arch=arm --oem=com.genaiz --handle=my-idea-pretend --name=&quot;My Idea Pretend&quot; --version=0.0.1 --configType=yaml --in=../input --out=../output --pretend out/samples/myIdeaPretend" />
+    <parameters value="sf create --arch=x86 --arch=arm --oem=com.genaiz --handle=my-idea-pretend --name=&quot;My Idea Pretend&quot; --version=0.0.1 --config-type=yaml --mount-in=../input --mount-out=../output --pretend out/samples/myIdeaPretend" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

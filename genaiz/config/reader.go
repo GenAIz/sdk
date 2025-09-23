@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/viper"
 
+	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -14,6 +16,10 @@ type BaseReader struct {
 	configName string
 	configPath string
 	configType shared.ConfigType
+}
+
+func (br *BaseReader) GetConfigType() shared.ConfigType {
+	return br.configType
 }
 
 func (br *BaseReader) GetSolutionFile() string {
@@ -47,9 +53,31 @@ func (br *BaseReader) Read(configType shared.ConfigType, path ...string) (*broke
 
 func (br *BaseReader) ReadFile(filePath string) (*broker.Solution, error) {
 	var vp = viper.New()
-	var err error
 
 	vp.SetConfigFile(filePath)
+	return br.read(vp)
+}
+
+func (br *BaseReader) ReadName(configName string) (*broker.Solution, error) {
+	var vp = viper.New()
+	var result *broker.Solution
+	var file string
+	var err error
+
+	if file, err = filez.FirstNamedFileUnder(br.configPath, configName); err == nil {
+		vp.SetConfigFile(filepath.Join(br.configPath, file))
+
+		if result, err = br.read(vp); err == nil {
+			br.configType = filez.GetFileType(vp.ConfigFileUsed())
+			return result, nil
+		}
+	}
+
+	return nil, err
+}
+
+func (br *BaseReader) read(vp *viper.Viper) (*broker.Solution, error) {
+	var err error
 
 	if err = vp.ReadInConfig(); err == nil {
 		var solution *broker.Solution
@@ -66,6 +94,24 @@ type SolutionReader struct {
 	BaseReader
 	current *broker.Solution
 	ledger  *Ledger
+}
+
+func (sr *SolutionReader) Find(configName string) error {
+	var solution *broker.Solution
+	var err error
+
+	if sr.configPath != "" {
+		var reset, _ = dirz.ChangeWorkingDir(sr.configPath)
+
+		defer reset()
+	}
+
+	if solution, err = sr.BaseReader.ReadName(configName); err == nil {
+		sr.current = solution
+		return nil
+	}
+
+	return err
 }
 
 func (sr *SolutionReader) FindFunctionValues() map[string]*viper.Viper {

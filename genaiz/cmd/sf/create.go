@@ -7,9 +7,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/recipe"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
@@ -149,7 +152,7 @@ func NewCreate(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var create = &cobra.Command{
 		Use:     "create FOLDER_NAME",
 		Short:   "Creates a Smart Function from scratch",
-		Long:    "Creates a Smart Function from scratch, interactively by default, optionally using a selected template",
+		Long:    "Creates a Smart Function from scratch, optionally using a recipe",
 		Example: "genaiz sf create smart-function-1",
 		Args: cobra.MatchAll(cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
 			if !config.Validation.FolderName(args[0]) {
@@ -184,32 +187,56 @@ func NewCreateExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opt
 	}
 }
 
-func NewCreateOptions(cli *Cli) *CreateOptions {
-	var createCmd = "Create"
-	var publishOptions = newPublishOptions(createCmd, cli)
-
-	// Disable defaultSetter for create, since it doesn't exist yet
-	publishOptions.optionHandle.DefaultSetter = nil
+func NewCreateOptions(sfCli *Cli) *CreateOptions {
+	var parentOpt = cli.Options.Configs.SolutionPath().
+		WithKeys(&schema.Genaiz.Function.Create.SolutionPath).
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return dirz.WorkingDirOrPanic()
+		}).BuildStringOption()
+	var handleOpt = cli.Options.Functions.Handle().
+		WithKeys(&schema.Genaiz.Function.Create.Handle).
+		BuildStringOption()
 
 	return &CreateOptions{
 		InitOptions: &InitOptions{
-			PublishOptions:    publishOptions,
-			optionConfigType:  newOptionConfigType(createCmd),
-			optionInteractive: newOptionInteractive(),
-			optionMountInput:  newOptionMountInput(createCmd, false),
-			optionMountOutput: newOptionMountOutput(createCmd, false),
+			optionArches: cli.Options.Functions.Arches().
+				WithKeys(&schema.Genaiz.Function.Create.Arches).
+				BuildListOption(),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Function.Create.ConfigType).
+				WithDefaultGetter(sfCli.ParentConfigType(parentOpt)).
+				BuildStringOption(),
+			optionHandle: handleOpt,
+			optionInteractive: cli.Options.Modes.Interactive().
+				BuildBoolOption(),
+			optionMountInput: cli.Options.Functions.MountInput().
+				WithKeys(&schema.Genaiz.Function.Create.MountInput).
+				Validated(false).
+				BuildStringOption(),
+			optionMountOutput: cli.Options.Functions.MountOutput().
+				WithKeys(&schema.Genaiz.Function.Create.MountOutput).
+				Validated(false).
+				BuildStringOption(),
+			optionName: cli.Options.Functions.Name().
+				WithKeys(&schema.Genaiz.Function.Create.Name).
+				WithUsage("defaults to the handle value if not provided").
+				WithDefaultGetter(func(ledger *config.Ledger) any {
+					return ledger.GetString(handleOpt)
+				}).BuildStringOption(),
+			optionOem: cli.Options.Functions.Oem().
+				WithKeys(&schema.Genaiz.Function.Create.Oem).
+				WithDefaultGetter(sfCli.ParentOem(parentOpt)).
+				BuildStringOption(),
+			optionType: cli.Options.Functions.Type().
+				WithKeys(&schema.Genaiz.Function.Create.Type).
+				BuildStringOption(),
+			optionVersion: cli.Options.Functions.Version().
+				WithKeys(&schema.Genaiz.Function.Create.Version).
+				WithDefaultGetter(sfCli.ParentVersion(parentOpt)).
+				BuildStringOption(),
 		},
-		optionRecipe: newOptionRecipe(),
-	}
-}
-
-func newOptionRecipe() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF.Create.Recipe",
-			Param: "recipe",
-			Short: "r",
-			Usage: "name of a recipe to use as template for the Smart Function",
-		},
+		optionRecipe: cli.Options.Functions.Recipe().
+			WithKeys(&schema.Genaiz.Function.Create.Recipe).
+			BuildStringOption(),
 	}
 }

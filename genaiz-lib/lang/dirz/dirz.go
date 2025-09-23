@@ -98,3 +98,24 @@ func OptionalWorkingDir(args ...string) func() (string, error) {
 
 	return result
 }
+
+// WorkingDirBase returns the base of the current working directory or panics if it no longer exists
+func WorkingDirBase() string {
+	var wd = WorkingDirOrPanic()
+
+	return filepath.Base(wd)
+}
+
+func WorkingDirOrPanic() string {
+	var wd, err = os.Getwd()
+
+	panicz.PanicIfError(err)
+	return wd
+}
+
+// WorkingDirParent returns the base of the base, see WorkingDirBase
+func WorkingDirParent() string {
+	var base = WorkingDirOrPanic()
+
+	return filepath.Dir(base)
+}

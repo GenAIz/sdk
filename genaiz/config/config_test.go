@@ -367,7 +367,7 @@ func TestLedger_GetConfigType(t *testing.T) {
 	assert.EqualValues(t, shared.ConfigTypeToml, *actual)
 }
 
-func TestLedger_GetConfigType_Invalid(t *testing.T) {
+func TestLedger_GetConfigType_None(t *testing.T) {
 	var expectedKey = "key"
 	var testViper, testLedger = newTestConfigs()
 	var testOption = StringOption{
@@ -376,10 +376,10 @@ func TestLedger_GetConfigType_Invalid(t *testing.T) {
 		},
 	}
 
-	testViper.Set(expectedKey, "")
+	testViper.Set(expectedKey, "none")
 	actual, err := testLedger.GetConfigType(&testOption)
-	assert.Error(t, err)
-	assert.Empty(t, actual)
+	assert.NoError(t, err)
+	assert.EqualValues(t, shared.ConfigTypeNone, *actual)
 }
 
 func TestLedger_GetList(t *testing.T) {

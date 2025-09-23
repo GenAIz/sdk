@@ -33,15 +33,14 @@ type Runner interface {
 }
 
 type RunnerOptions struct {
-	logFormat    *config.StringOption
-	logLevel     *config.StringOption
-	runConfig    *config.StringOption
-	runConfirm   *config.BoolOption
-	runDry       *config.BoolOption
-	runPretend   *config.BoolOption
-	solutionPath *config.StringOption
-	stdIn        io.Reader
-	stdOut       io.Writer
+	logFormat  *config.StringOption
+	logLevel   *config.StringOption
+	runConfig  *config.StringOption
+	runConfirm *config.BoolOption
+	runDry     *config.BoolOption
+	runPretend *config.BoolOption
+	stdIn      io.Reader
+	stdOut     io.Writer
 }
 
 func (ro *RunnerOptions) Confirm(ledger *config.Ledger, display ...func()) bool {
@@ -93,7 +92,6 @@ func (ro *RunnerOptions) Pretend(ledger *config.Ledger) bool {
 func (ro *RunnerOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		ro.runConfig,
-		ro.solutionPath,
 		ro.logFormat,
 		ro.logLevel,
 		ro.runConfirm,
@@ -135,15 +133,14 @@ func New(ledger *config.Ledger) *cobra.Command {
 
 func NewRunnerOptions() *RunnerOptions {
 	return &RunnerOptions{
-		logFormat:    newOptionSolutionLogFormat(),
-		logLevel:     newOptionSolutionLogLevel(),
-		runConfig:    newOptionRunConfig(),
-		runConfirm:   newOptionRunConfirm(),
-		runDry:       newOptionRunDry(),
-		runPretend:   newOptionRunPretend(),
-		solutionPath: newOptionSolutionPath(),
-		stdIn:        os.Stdin,
-		stdOut:       os.Stdout,
+		logFormat:  newOptionSolutionLogFormat(),
+		logLevel:   newOptionSolutionLogLevel(),
+		runConfig:  newOptionRunConfig(),
+		runConfirm: newOptionRunConfirm(),
+		runDry:     newOptionRunDry(),
+		runPretend: newOptionRunPretend(),
+		stdIn:      os.Stdin,
+		stdOut:     os.Stdout,
 	}
 }
 
@@ -250,18 +247,6 @@ func newOptionSolutionLogLevel() *config.StringOption {
 			Param:        "logLevel",
 			Usage:        "log level for controlling logging details. Supported case insensitive values: debug, d, error e, info, i, quiet q, trace t, warning and w",
 			DefaultValue: "quiet",
-		},
-	}
-}
-
-func newOptionSolutionPath() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:       "Solution.Path",
-			Env:       "SN_PATH",
-			Param:     "solution",
-			Usage:     "configuration file path of the smart function solution, if any",
-			Validator: config.Optionally(config.Validation.FileExists),
 		},
 	}
 }

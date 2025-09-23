@@ -9,10 +9,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
@@ -212,11 +215,16 @@ func (ie *InitExecutor) makeInitParams() *layout.InitParams {
 }
 
 type InitOptions struct {
-	*PublishOptions
+	optionArches      *config.ListOption
 	optionConfigType  *config.StringOption
+	optionHandle      *config.StringOption
 	optionInteractive *config.BoolOption
 	optionMountInput  *config.StringOption
 	optionMountOutput *config.StringOption
+	optionName        *config.StringOption
+	optionOem         *config.StringOption
+	optionType        *config.StringOption
+	optionVersion     *config.StringOption
 }
 
 func (io *InitOptions) allDefiners() []config.Definer {
@@ -263,22 +271,62 @@ func NewInitExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, optio
 	}
 }
 
-func NewInitOptions(cli *Cli) *InitOptions {
-	var initCmd = "Init"
+func NewInitOptions(sfCli *Cli) *InitOptions {
+	var parentOpt = cli.Options.Configs.SolutionPath().
+		WithKeys(&schema.Genaiz.Function.Init.SolutionPath).
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return dirz.WorkingDirParent()
+		}).BuildStringOption()
+	var handleOpt = cli.Options.Functions.Handle().
+		WithKeys(&schema.Genaiz.Function.Init.Handle).
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return dirz.WorkingDirBase()
+		}).
+		BuildStringOption()
 
 	return &InitOptions{
-		PublishOptions:    newPublishOptions(initCmd, cli),
-		optionConfigType:  newOptionConfigType(initCmd),
-		optionInteractive: newOptionInteractive(),
-		optionMountInput:  newOptionMountInput(initCmd, false),
-		optionMountOutput: newOptionMountOutput(initCmd, false),
+		optionArches: cli.Options.Functions.Arches().
+			WithKeys(&schema.Genaiz.Function.Init.Arches).
+			BuildListOption(),
+		optionConfigType: cli.Options.Configs.Type().
+			WithKeys(&schema.Genaiz.Function.Init.ConfigType).
+			WithDefaultGetter(sfCli.ParentConfigType(parentOpt)).
+			BuildStringOption(),
+		optionHandle: handleOpt,
+		optionInteractive: cli.Options.Modes.Interactive().
+			BuildBoolOption(),
+		optionMountInput: cli.Options.Functions.MountInput().
+			WithKeys(&schema.Genaiz.Function.Init.MountInput).
+			Validated(false).
+			BuildStringOption(),
+		optionMountOutput: cli.Options.Functions.MountOutput().
+			WithKeys(&schema.Genaiz.Function.Init.MountOutput).
+			Validated(false).
+			BuildStringOption(),
+		optionName: cli.Options.Functions.Name().
+			WithKeys(&schema.Genaiz.Function.Init.Name).
+			WithUsage("defaults to the handle value if not provided").
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(handleOpt)
+			}).BuildStringOption(),
+		optionOem: cli.Options.Functions.Oem().
+			WithKeys(&schema.Genaiz.Function.Init.Oem).
+			WithDefaultGetter(sfCli.ParentOem(parentOpt)).
+			BuildStringOption(),
+		optionType: cli.Options.Functions.Type().
+			WithKeys(&schema.Genaiz.Function.Init.Type).
+			BuildStringOption(),
+		optionVersion: cli.Options.Functions.Version().
+			WithKeys(&schema.Genaiz.Function.Init.Version).
+			WithDefaultGetter(sfCli.ParentVersion(parentOpt)).
+			BuildStringOption(),
 	}
 }
 
-func makeInitBuilder(cli *Cli) *InitWriter {
+func makeInitBuilder(sfCli *Cli) *InitWriter {
 	return &InitWriter{
-		PublishOptions: newPublishOptions("Publish", cli),
-		RunOptions:     NewRunOptions(cli),
+		PublishOptions: NewPublishOptions(sfCli),
+		RunOptions:     NewRunOptions(sfCli),
 		baseTag:        newOptionDockerTag(),
 		baseVersion:    newOptionDockerVersion(),
 		vp:             viper.New(),
@@ -318,26 +366,5 @@ func makeInitParams(ledger *config.Ledger, initOptions *InitOptions) *layout.Ini
 		MountOutput: ledger.GetString(initOptions.optionMountOutput),
 		OEM:         ledger.GetString(initOptions.optionOem),
 		Version:     ledger.GetString(initOptions.optionVersion),
-	}
-}
-
-func newOptionConfigType(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:       "SF." + cmd + ".ConfigType",
-			Param:     "configType",
-			Usage:     "sets the format of the configuration file created. Supported values are \"yaml\", \"toml\", \"json\" or \"none\"",
-			Validator: config.Optionally(config.AnyOfEnumerated(shared.ConfigTypes)),
-		},
-	}
-}
-
-func newOptionInteractive() *config.BoolOption {
-	return &config.BoolOption{
-		Option: config.Option{
-			Param:        "it",
-			Usage:        "specify smart function value through STDIN questionnaire",
-			DefaultValue: "false",
-		},
 	}
 }

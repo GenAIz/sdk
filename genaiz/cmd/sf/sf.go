@@ -12,6 +12,9 @@ import (
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type BaseExecutor struct {
@@ -22,10 +25,44 @@ type BaseExecutor struct {
 
 type Cli struct {
 	cli.BaseCli
+
 	optionDockerContext *config.StringOption
 	optionDockerFile    *config.StringOption
 	optionDockerTag     *config.StringOption
 	optionDockerVersion *config.StringOption
+
+	parentConfigType *shared.ConfigType
+	parentSolution   *broker.Solution
+}
+
+func (c *Cli) ParentConfigType(parentOption *config.StringOption) func(*config.Ledger) any {
+	return func(ledger *config.Ledger) any {
+		if c.parentConfigType == nil {
+			c.parentSolution = c.parseParentSolution(ledger, parentOption)
+		}
+
+		return c.parentConfigType
+	}
+}
+
+func (c *Cli) ParentOem(parentOption *config.StringOption) func(*config.Ledger) any {
+	return func(ledger *config.Ledger) any {
+		if c.parentSolution == nil {
+			c.parentSolution = c.parseParentSolution(ledger, parentOption)
+		}
+
+		return c.parentSolution.Oem
+	}
+}
+
+func (c *Cli) ParentVersion(parentOption *config.StringOption) func(*config.Ledger) any {
+	return func(ledger *config.Ledger) any {
+		if c.parentSolution == nil {
+			c.parentSolution = c.parseParentSolution(ledger, parentOption)
+		}
+
+		return c.parentSolution.Version
+	}
 }
 
 func (c *Cli) SfOptions() []*config.Option {
@@ -44,6 +81,22 @@ func (c *Cli) allDefiners() []config.Definer {
 		c.optionDockerTag,
 		c.optionDockerVersion,
 	}
+}
+
+func (c *Cli) parseParentSolution(ledger *config.Ledger, parentOption *config.StringOption) *broker.Solution {
+	var solutionPath = ledger.GetString(parentOption)
+	var solutionReader = config.NewSolutionReader(ledger).
+		WithConfigPath(solutionPath)
+
+	if result, err := solutionReader.ReadName(ledger.ConfigName); err == nil {
+		c.parentConfigType = lang.Ref(solutionReader.GetConfigType())
+		return result
+	} else {
+		ledger.LogDebug("could not read a solution under path [%s]", solutionPath)
+		c.parentConfigType = lang.Ref(shared.ConfigTypeNone)
+	}
+
+	return &broker.Solution{Version: "0.1.0"}
 }
 
 func NewSf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Decisive) *cobra.Command {
