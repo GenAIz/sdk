@@ -21,10 +21,10 @@ import (
 func TestRunExecutor_Display(t *testing.T) {
 	var testOutput = new(bytes.Buffer)
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
@@ -91,10 +91,10 @@ func TestRunExecutor_PretendRebuildImage(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &RunExecutor{
 		BaseExecutor: BaseExecutor{
@@ -133,10 +133,10 @@ func TestRunExecutor_Proceed(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &RunExecutor{
 		BaseExecutor: BaseExecutor{
@@ -218,10 +218,10 @@ func TestNewRun(t *testing.T) {
 				return true
 			},
 		},
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testRun = NewRun(testLedger, testCli)
 	var expectedTag = "dockerTag"

@@ -20,10 +20,10 @@ import (
 func TestStopExecutor_Display(t *testing.T) {
 	var testOutput = new(bytes.Buffer)
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
@@ -82,10 +82,10 @@ func TestStopExecutor_Pretend(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &StopExecutor{
 		BaseExecutor: BaseExecutor{
@@ -124,10 +124,10 @@ func TestStopExecutor_PretendDispose(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &StopExecutor{
 		BaseExecutor: BaseExecutor{
@@ -164,10 +164,10 @@ func TestStopExecutor_Proceed(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &StopExecutor{
 		BaseExecutor: BaseExecutor{
@@ -241,10 +241,10 @@ func TestNewStop(t *testing.T) {
 				return true
 			},
 		},
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testStop = NewStop(testLedger, testCli)
 	var testCmdImageOption = newOptionCmdImage("Stop")

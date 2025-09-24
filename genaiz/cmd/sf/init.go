@@ -327,8 +327,8 @@ func makeInitBuilder(sfCli *Cli) *InitWriter {
 	return &InitWriter{
 		PublishOptions: NewPublishOptions(sfCli),
 		RunOptions:     NewRunOptions(sfCli),
-		baseTag:        newOptionDockerTag(),
-		baseVersion:    newOptionDockerVersion(),
+		baseTag:        cli.Options.Docker.Tag().BuildStringOption(),
+		baseVersion:    cli.Options.Docker.Version().BuildStringOption(),
 		vp:             viper.New(),
 	}
 }

@@ -19,10 +19,10 @@ import (
 func TestDebugExecutor_Display(t *testing.T) {
 	var testOutput = new(bytes.Buffer)
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
@@ -75,10 +75,10 @@ func TestDebugExecutor_Pretend(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testMountOptions = newOptionMountOutput("_test", false)
 	var testExecutor = &DebugExecutor{
@@ -117,10 +117,10 @@ func TestDebugExecutor_Proceed(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testMountOptions = newOptionMountOutput("_test", false)
 	var testExecutor = &DebugExecutor{
@@ -177,10 +177,10 @@ func TestNewDebug(t *testing.T) {
 				return true
 			},
 		},
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testDebug = NewDebug(testLedger, testCli)
 	var testCmdImageOption = newOptionCmdImage("Debug")

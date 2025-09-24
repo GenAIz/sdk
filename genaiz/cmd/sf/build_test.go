@@ -27,13 +27,13 @@ func TestBuildExecutor_Display(t *testing.T) {
 		WithOutput(io.Writer(testOutput)).
 		Build()
 	var expectedDockerContext = "context"
-	var testDockerContext = newOptionDockerContext()
+	var testDockerContext = cli.Options.Docker.ContextPath().BuildStringOption()
 	var expectedDockerFile = "file"
-	var testDockerFile = newOptionDockerFile()
+	var testDockerFile = cli.Options.Docker.FilePath().BuildStringOption()
 	var expectedDockerTag = "tag"
-	var testDockerTag = newOptionDockerTag()
+	var testDockerTag = cli.Options.Docker.Tag().BuildStringOption()
 	var expectedDockerVersion = "version"
-	var testDockerVersion = newOptionDockerVersion()
+	var testDockerVersion = cli.Options.Docker.Version().BuildStringOption()
 	var testExecutor = &BuildExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -60,6 +60,7 @@ func TestBuildExecutor_Display(t *testing.T) {
 }
 
 func TestBuildExecutor_Pretend(t *testing.T) {
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var calledBuild = false
@@ -68,14 +69,18 @@ func TestBuildExecutor_Pretend(t *testing.T) {
 			Ledger: testLedger,
 			Cli:    NewSfCli(nil, nil, nil),
 		},
+		BuildOptions: &BuildOptions{
+			optionLabelling: cli.Options.Docker.Label().BuildBoolOption(),
+			optionPruning:   cli.Options.Docker.Prune().BuildBoolOption(),
+		},
 
 		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.CloseSilently(tmpFile)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testExecutor.Pretend()
@@ -86,6 +91,7 @@ func TestBuildExecutor_Pretend(t *testing.T) {
 }
 
 func TestBuildExecutor_Proceed(t *testing.T) {
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var calledBuild = false
@@ -94,14 +100,18 @@ func TestBuildExecutor_Proceed(t *testing.T) {
 			Ledger: testLedger,
 			Cli:    NewSfCli(nil, nil, nil),
 		},
+		BuildOptions: &BuildOptions{
+			optionLabelling: cli.Options.Docker.Label().BuildBoolOption(),
+			optionPruning:   cli.Options.Docker.Prune().BuildBoolOption(),
+		},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 	}
 
-	if tmpFile, err := filez.CreateRecursiveTemp("/tmp/.genaiz", "GDockerfile"); err == nil {
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
-		defer filez.RemoveSilently("/tmp/.genaiz")
+		defer filez.CloseSilently(tmpFile)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testLedger.Logger = logrus.New()
@@ -123,10 +133,10 @@ func TestNewBuild(t *testing.T) {
 				return true
 			},
 		},
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testBuild = NewBuild(testLedger, testCli)
 
@@ -139,29 +149,24 @@ func TestNewBuild(t *testing.T) {
 }
 
 func Test_makeBuildParamsCwdContext(t *testing.T) {
-	var expectedFolder = "/tmp/.genaiz"
-	var cwd, _ = os.Getwd()
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &BaseExecutor{
 		Cli: &Cli{
-			optionDockerContext: newOptionDockerContext(),
-			optionDockerFile:    newOptionDockerFile(),
-			optionDockerTag:     newOptionDockerTag(),
-			optionDockerVersion: newOptionDockerVersion(),
+			optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+			optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+			optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+			optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 		},
 		Ledger: testLedger,
 	}
 
-	if fd, err := filez.CreateRecursive(expectedFolder, "Dockerfile"); err == nil {
-		_ = os.Chdir(expectedFolder)
-		defer func() {
-			_ = os.Chdir(cwd)
-			_ = os.Remove(fd.Name())
-		}()
-
-		testViper.Set(testExecutor.Cli.optionDockerContext.Key, expectedFolder)
-		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(expectedFolder, "Dockerfile"))
+	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+		t.Chdir(testDir)
+		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
+		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(testDir, "Dockerfile"))
 		testParam := makeBuildParams(testExecutor)
 		assert.EqualValues(t, ".", testParam.DockerContext)
 		assert.Empty(t, testParam.Dockerfile)
@@ -169,30 +174,25 @@ func Test_makeBuildParamsCwdContext(t *testing.T) {
 }
 
 func Test_makeBuildParamsCwdModule(t *testing.T) {
-	var cwd, _ = os.Getwd()
-	var expectedContext = "/tmp/.genaiz"
+	var testDir = t.TempDir()
 	var expectedModule = "ModuleA"
 	var expectedFile = "Dockerfile2"
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &BaseExecutor{
 		Cli: &Cli{
-			optionDockerContext: newOptionDockerContext(),
-			optionDockerFile:    newOptionDockerFile(),
-			optionDockerTag:     newOptionDockerTag(),
-			optionDockerVersion: newOptionDockerVersion(),
+			optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+			optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+			optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+			optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 		},
 		Ledger: testLedger,
 	}
 
-	if fd, err := filez.CreateRecursive(filepath.Join(expectedContext, expectedModule), expectedFile); err == nil {
-		_ = os.Chdir(expectedContext)
-		defer func() {
-			_ = os.Chdir(cwd)
-			_ = os.Remove(fd.Name())
-		}()
-
-		testViper.Set(testExecutor.Cli.optionDockerContext.Key, expectedContext)
+	if fd, err := filez.CreateRecursive(filepath.Join(testDir, expectedModule), expectedFile); err == nil {
+		defer filez.CloseSilently(fd)
+		t.Chdir(testDir)
+		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fd.Name())
 		testParam := makeBuildParams(testExecutor)
 		assert.EqualValues(t, ".", testParam.DockerContext)
@@ -201,30 +201,25 @@ func Test_makeBuildParamsCwdModule(t *testing.T) {
 }
 
 func Test_makeBuildParamsCwdNotStandard(t *testing.T) {
-	var expectedFolder = "/tmp/.genaiz"
+	var testDir = t.TempDir()
 	var expectedFile = "Dockerfile3"
-	var cwd, _ = os.Getwd()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &BaseExecutor{
 		Cli: &Cli{
-			optionDockerContext: newOptionDockerContext(),
-			optionDockerFile:    newOptionDockerFile(),
-			optionDockerTag:     newOptionDockerTag(),
-			optionDockerVersion: newOptionDockerVersion(),
+			optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+			optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+			optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+			optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 		},
 		Ledger: testLedger,
 	}
 
-	if fd, err := filez.CreateRecursive(expectedFolder, expectedFile); err == nil {
-		_ = os.Chdir(expectedFolder)
-		defer func() {
-			_ = os.Chdir(cwd)
-			_ = os.Remove(fd.Name())
-		}()
-
-		testViper.Set(testExecutor.Cli.optionDockerContext.Key, expectedFolder)
-		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(expectedFolder, expectedFile))
+	if fd, err := filez.CreateRecursive(testDir, expectedFile); err == nil {
+		defer filez.CloseSilently(fd)
+		t.Chdir(testDir)
+		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
+		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(testDir, expectedFile))
 		testParam := makeBuildParams(testExecutor)
 		assert.EqualValues(t, ".", testParam.DockerContext)
 		assert.EqualValues(t, expectedFile, testParam.Dockerfile)
@@ -232,26 +227,25 @@ func Test_makeBuildParamsCwdNotStandard(t *testing.T) {
 }
 
 func Test_makeBuildParamsExternalContext(t *testing.T) {
-	var expectedContext = "/tmp/.genaiz"
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &BaseExecutor{
 		Cli: &Cli{
-			optionDockerContext: newOptionDockerContext(),
-			optionDockerFile:    newOptionDockerFile(),
-			optionDockerTag:     newOptionDockerTag(),
-			optionDockerVersion: newOptionDockerVersion(),
+			optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+			optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+			optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+			optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 		},
 		Ledger: testLedger,
 	}
 
-	if fd, err := filez.CreateRecursive(expectedContext, "Dockerfile2"); err == nil {
-		defer filez.RemoveSilently(expectedContext)
-
-		testViper.Set(testExecutor.Cli.optionDockerContext.Key, expectedContext)
+	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile2")); err == nil {
+		defer filez.CloseSilently(fd)
+		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fd.Name())
 		testParam := makeBuildParams(testExecutor)
-		assert.EqualValues(t, expectedContext, testParam.DockerContext)
+		assert.EqualValues(t, testDir, testParam.DockerContext)
 		assert.EqualValues(t, fd.Name(), testParam.Dockerfile)
 	}
 }
