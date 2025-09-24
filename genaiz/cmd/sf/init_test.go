@@ -60,7 +60,7 @@ func TestInitWriter_BuildHandle(t *testing.T) {
 			optionHandle: testInitOptionHandle,
 		},
 		vp:      testViper,
-		baseTag: newOptionDockerTag(),
+		baseTag: cli.Options.Docker.Tag().BuildStringOption(),
 	}
 	var actualKey, actualValue = testWriter.WithHandle(expectedHandle).BuildHandle()
 
@@ -117,7 +117,7 @@ func TestInitWriter_BuildOem(t *testing.T) {
 			optionOem:    testInitOptionOem,
 		},
 		vp:      viper.New(),
-		baseTag: newOptionDockerTag(),
+		baseTag: cli.Options.Docker.Tag().BuildStringOption(),
 	}
 	var actualKey, actualValue = testWriter.WithOem(expectedOem).BuildOem()
 
@@ -178,7 +178,7 @@ func TestInitWriter_BuildVersion(t *testing.T) {
 			optionVersion: testInitOptionVersion,
 		},
 		vp:          testViper,
-		baseVersion: newOptionDockerVersion(),
+		baseVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var actualKey, actualValue = testWriter.WithVersion(expectedVersion).BuildVersion()
 
@@ -204,8 +204,8 @@ func TestInitWriter_Write(t *testing.T) {
 			optionVersion: testInitOptionVersion,
 		},
 		vp:          testViper,
-		baseTag:     newOptionDockerTag(),
-		baseVersion: newOptionDockerVersion(),
+		baseTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		baseVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testFolder = filepath.Dir(expectedFile)
 
@@ -235,8 +235,8 @@ func TestInitWriter_WriteInvalidFile(t *testing.T) {
 			optionVersion: testInitOptionVersion,
 		},
 		vp:          viper.New(),
-		baseTag:     newOptionDockerTag(),
-		baseVersion: newOptionDockerVersion(),
+		baseTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		baseVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 
 	assert.Panics(t, func() { testWriter.WithConfigFile(invalidFile) })
@@ -386,10 +386,10 @@ func TestNewInit(t *testing.T) {
 				return true
 			},
 		},
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testInit = NewInit(testLedger, testCli)
 	var expectedHandle = "init-handle"

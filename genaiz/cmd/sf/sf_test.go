@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
@@ -123,8 +124,8 @@ func TestNewSf(t *testing.T) {
 
 		},
 	}
-	var testDockerContextOption = newOptionDockerContext()
-	var testDockerFileOption = newOptionDockerFile()
+	var testDockerContextOption = cli.Options.Docker.ContextPath().BuildStringOption()
+	var testDockerFileOption = cli.Options.Docker.FilePath().BuildStringOption()
 	var expectedFile = "dockerFile"
 
 	assert.NotEmpty(t, testSf.Commands())
@@ -135,14 +136,4 @@ func TestNewSf(t *testing.T) {
 	testSf.PersistentPreRun(testSubCommand, []string{})
 	assert.EqualValues(t, testLedger.WorkDir, testSf.PersistentFlags().Lookup(testDockerContextOption.Param).Value.String())
 	assert.EqualValues(t, testLedger.WorkDir+"/dockerFile", testSf.PersistentFlags().Lookup(testDockerFileOption.Param).Value.String())
-}
-
-func Test_newOptionDockerTag_DefaultSetter(t *testing.T) {
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = newOptionDockerTag()
-	var expectedTag = "test"
-
-	testLedger.WorkDir = filepath.Join(os.TempDir(), "genaiz", expectedTag)
-	assert.EqualValues(t, expectedTag, testOptions.DefaultSetter(testLedger))
 }

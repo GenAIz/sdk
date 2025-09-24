@@ -96,6 +96,8 @@ type responseBridge interface {
 }
 
 func protocolGateChecker(client *resty.Client, req *resty.Request) error {
+	_ = client
+
 	if env.IsAllowedProtocol(req.URL) {
 		return nil
 	}

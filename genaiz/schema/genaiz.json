@@ -10,11 +10,17 @@
       "properties": {
         "build": {
           "type": "object",
-          "properties": {
-            "tag": {
+          "patternProperties": {
+            "^context$": {
               "type": "string"
             },
-            "version": {
+            "^file$": {
+              "type": "string"
+            },
+            "^tag$": {
+              "type": "string"
+            },
+            "^version$": {
               "type": "string"
             }
           }

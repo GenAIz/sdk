@@ -8,8 +8,12 @@ var (
 type Document struct {
 	Function struct {
 		Build struct {
-			Tag     string
-			Version string
+			Context Keys
+			File    Keys
+			Label   Keys
+			Prune   Keys
+			Tag     Keys
+			Version Keys
 		}
 		Create struct {
 			Arches       Keys
@@ -58,7 +62,12 @@ type Keys struct {
 }
 
 func init() {
-	Genaiz.Function.Build.Tag = "Sf.Build.Tag"
+	Genaiz.Function.Build.Context = newKeys("Sf.Build.Context", "SF_BUILD_CONTEXT")
+	Genaiz.Function.Build.File = newKeys("Sf.Build.File", "SF_BUILD_FILE")
+	Genaiz.Function.Build.Label = newKeys("Sf.Build.Label", "SF_BUILD_LABEL")
+	Genaiz.Function.Build.Prune = newKeys("Sf.Build.Prune", "SF_BUILD_PRUNE")
+	Genaiz.Function.Build.Tag = newKeys("Sf.Build.Tag", "SF_BUILD_TAG")
+	Genaiz.Function.Build.Version = newKeys("Sf.Build.Version", "SF_BUILD_VERSION")
 	Genaiz.Function.Create.Arches = newKeys("Sf.Create.Arches", "SF_CREATE_ARCHES")
 	Genaiz.Function.Create.ConfigType = newKeys("Sf.Create.ConfigType", "SF_CREATE_CONFIG_TYPE")
 	Genaiz.Function.Create.Handle = newKeys("Sf.Create.Handle", "SF_CREATE_HANDLE")

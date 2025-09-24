@@ -6,7 +6,6 @@ package sf
 
 import (
 	"context"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -139,65 +138,9 @@ func NewSfCli(confirm cli.Interactive, dry, pretend cli.Decisive) *Cli {
 			Pretend: pretend,
 		},
 
-		optionDockerContext: newOptionDockerContext(),
-		optionDockerFile:    newOptionDockerFile(),
-		optionDockerTag:     newOptionDockerTag(),
-		optionDockerVersion: newOptionDockerVersion(),
-	}
-}
-
-func newOptionDockerContext() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "SF.DockerContext",
-			Param:        "context",
-			Short:        "c",
-			Usage:        "Docker build context path",
-			DefaultValue: "$PWD",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.WorkDir
-			},
-			Validator: config.Validation.DirExists,
-		},
-	}
-}
-
-func newOptionDockerFile() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "SF.Dockerfile",
-			Param:        "file",
-			Short:        "f",
-			Usage:        "Dockerfile path",
-			DefaultValue: "$PWD/Dockerfile",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return filepath.Join(ledger.WorkDir, "Dockerfile")
-			},
-			Validator: config.Validation.FileExists,
-		},
-	}
-}
-
-func newOptionDockerTag() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF.Build.Tag",
-			Param: "tag",
-			Usage: "tag the smart function image, defaults to the context dir name",
-			DefaultSetter: func(ledger *config.Ledger) any {
-				return filepath.Base(ledger.WorkDir)
-			},
-		},
-	}
-}
-
-func newOptionDockerVersion() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "SF.Build.Version",
-			Param:        "version",
-			Usage:        "version of the smart image",
-			DefaultValue: "latest",
-		},
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 }

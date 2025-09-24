@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/layout"
@@ -40,6 +42,88 @@ func Test_OptionsConfigsType(t *testing.T) {
 	assert.True(t, testOption.Validator(shared.ConfigTypeToml))
 	assert.True(t, testOption.Validator(shared.ConfigTypeYaml))
 	assert.False(t, testOption.Validator("invalid"))
+}
+
+func Test_OptionsDockerContextPath(t *testing.T) {
+	var expectedDir = t.TempDir()
+	var testOption = Options.Docker.ContextPath().BuildStringOption()
+	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
+
+	assert.Equal(t, schema.Genaiz.Function.Build.Context.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Function.Build.Context.Env, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	testLedger.WorkDir = expectedDir
+	assert.Equal(t, expectedDir, testOption.DefaultGetter(testLedger))
+	assert.True(t, testOption.Validator(expectedDir))
+	assert.False(t, testOption.Validator(filepath.Join(expectedDir, "_not_exist")))
+}
+
+func Test_OptionsDockerFilePath(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedFile = filepath.Join(testDir, "Dockerfile")
+	var testOption = Options.Docker.FilePath().BuildStringOption()
+	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
+
+	if fd, err := os.Create(expectedFile); err == nil {
+		defer filez.CloseSilently(fd)
+		assert.Equal(t, schema.Genaiz.Function.Build.File.Doc, testOption.Key)
+		assert.Equal(t, schema.Genaiz.Function.Build.File.Env, testOption.Env)
+		assert.NotEmpty(t, testOption.Param)
+		assert.NotEmpty(t, testOption.Short)
+		assert.NotEmpty(t, testOption.Usage)
+		testLedger.WorkDir = testDir
+		assert.Equal(t, expectedFile, testOption.DefaultGetter(testLedger))
+		assert.True(t, testOption.Validator(expectedFile))
+		assert.False(t, testOption.Validator(filepath.Join(testDir, "_not_exist")))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_OptionDockerLabel(t *testing.T) {
+	var testOption = Options.Docker.Label().BuildStringOption()
+
+	assert.Equal(t, schema.Genaiz.Function.Build.Label.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Function.Build.Label.Env, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionDockerPrune(t *testing.T) {
+	var testOption = Options.Docker.Prune().BuildStringOption()
+
+	assert.Equal(t, schema.Genaiz.Function.Build.Prune.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Function.Build.Prune.Env, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionDockerTag(t *testing.T) {
+	var testDir = t.TempDir()
+	var testOption = Options.Docker.Tag().BuildStringOption()
+	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
+
+	assert.Equal(t, schema.Genaiz.Function.Build.Tag.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Function.Build.Tag.Env, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	testLedger.WorkDir = testDir
+	assert.Equal(t, filepath.Base(testDir), testOption.DefaultSetter(testLedger))
+}
+
+func Test_OptionDockerVersion(t *testing.T) {
+	var testOption = Options.Docker.Version().BuildStringOption()
+
+	assert.Equal(t, schema.Genaiz.Function.Build.Version.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Function.Build.Version.Env, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, testOption.DefaultValue)
 }
 
 func Test_OptionFunctionsArches(t *testing.T) {

@@ -47,6 +47,7 @@ type BuildParams struct {
 	DockerContext string
 	DockerTag     string
 	DockerVersion string
+	Label         bool
 	Prune         bool
 }
 
@@ -167,8 +168,12 @@ func handleBuildCreate(params *BuildParams, state *task.State) error {
 	var options = build.ImageBuildOptions{
 		Dockerfile: params.Dockerfile,
 		Tags:       []string{reference},
-		Labels:     map[string]string{"sf": params.DockerTag},
+		Remove:     true,
 		PullParent: true,
+	}
+
+	if params.Label {
+		options.Labels = map[string]string{"sf": params.DockerTag}
 	}
 
 	state.Logger.Debugf("Building a docker image tagged [%s]", reference)
@@ -230,8 +235,6 @@ func handleBuildPrune(params *BuildParams, state *task.State) error {
 			for _, deleted := range report.ImagesDeleted {
 				state.Logger.Debugf("Removed dangling image id [%s], no longer in use", deleted.Deleted)
 			}
-		} else {
-			state.Logger.Warningf("Could not prune on [%s] with error: %s", params.DockerTag, err)
 		}
 	} else {
 		state.Logger.Debugf("Pruning disabled, skipping")

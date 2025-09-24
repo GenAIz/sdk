@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"path/filepath"
 	"strings"
 
 	"genaiz.com/genaiz/config"
@@ -28,6 +29,61 @@ var (
 					WithParam("config-type").
 					WithUsage("sets the format of the configuration file created. Supported values are \"yaml\", \"toml\", \"json\" and \"none\"").
 					WithValidator(config.AnyOfEnumerated(shared.ConfigTypes))
+			},
+		},
+		Docker: dockerOptions{
+			ContextPath: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.Context).
+					WithParam("context").
+					WithShort("c").
+					WithUsage("Docker build context path, defaults to the work dir if not specified").
+					WithDefaultGetter(func(ledger *config.Ledger) any {
+						return ledger.WorkDir
+					}).
+					WithValidator(config.Validation.DirExists)
+			},
+			FilePath: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.File).
+					WithParam("file").
+					WithShort("f").
+					WithUsage("Docker file used to build, defaults to Dockerfile in the current work dir").
+					WithDefaultGetter(func(ledger *config.Ledger) any {
+						return filepath.Join(ledger.WorkDir, "Dockerfile")
+					}).
+					WithValidator(config.Validation.FileExists)
+			},
+			Label: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.Label).
+					WithParam("label").
+					WithUsage("enables labelling, creating a supplementary image layer to hold metadata used with --prune to remove dangling images").
+					WithDefaultValue("false")
+			},
+			Prune: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.Prune).
+					WithParam("prune").
+					WithUsage("enables pruning, removing dangling images for the same repository built, this requires --label to work").
+					WithDefaultValue("false")
+			},
+			Tag: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.Tag).
+					WithParam("tag").
+					WithUsage("tag the smart function image, defaults to the work dir name").
+					WithDefaultSetter(func(ledger *config.Ledger) any {
+						return filepath.Base(ledger.WorkDir)
+					})
+			},
+			Version: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.Version).
+					WithParam("version").
+					WithShort("v").
+					WithUsage("build version of the smart image").
+					WithDefaultValue("latest")
 			},
 		},
 		Functions: functionOptions{
@@ -111,6 +167,7 @@ var (
 
 type cliOptions struct {
 	Configs   configOptions
+	Docker    dockerOptions
 	Functions functionOptions
 	Modes     modeOptions
 }
@@ -119,6 +176,15 @@ type configOptions struct {
 	NoUpdate     func() OptionBuilder
 	SolutionPath func() OptionBuilder
 	Type         func() OptionBuilder
+}
+
+type dockerOptions struct {
+	ContextPath func() OptionBuilder
+	FilePath    func() OptionBuilder
+	Label       func() OptionBuilder
+	Prune       func() OptionBuilder
+	Tag         func() OptionBuilder
+	Version     func() OptionBuilder
 }
 
 type functionOptions struct {
@@ -175,8 +241,8 @@ type optionBuilder struct {
 	param         string
 	short         string
 	usages        []string
-	validator     config.Validates
 	validated     bool
+	validator     config.Validates
 }
 
 func (ob *optionBuilder) buildOption() *config.Option {
