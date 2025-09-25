@@ -282,19 +282,20 @@ func TestClient_ProvisionFunction(t *testing.T) {
 		Arches:      []string{"arch1", "arch2"},
 	}
 	var actual, err = testClient.ProvisionFunction(testFunction)
+	var actualModel *functionModel
 
 	assert.NoError(t, err)
 	assert.Equal(t, cast.ToString(expectedId), actual.Id)
 	assert.Equal(t, expectedAuth, actual.Auth)
 	assert.NotEmpty(t, testBridge.cookie)
 	assert.Equal(t, expectedToken, testBridge.cookie.Value)
-	assert.Equal(t, testFunction.Name, testBridge.params["name"])
-	assert.Equal(t, testFunction.Description, testBridge.params["description"])
-	assert.Equal(t, testFunction.Oem, testBridge.params["oem"])
-	assert.Equal(t, testFunction.Handle, testBridge.params["handle"])
-	assert.Equal(t, testFunction.Type, testBridge.params["type"])
-	assert.Equal(t, testFunction.Version, testBridge.params["version"])
-	assert.Equal(t, strings.Join(testFunction.Arches, ","), testBridge.params["arches"])
+	assert.NoError(t, json.Unmarshal([]byte(testBridge.params["model"]), &actualModel))
+	assert.Equal(t, testFunction.Name, actualModel.Name)
+	assert.Equal(t, testFunction.Description, actualModel.Description)
+	assert.Equal(t, testFunction.Oem, actualModel.Oem)
+	assert.Equal(t, testFunction.Handle, actualModel.Handle)
+	assert.Equal(t, testFunction.Type, actualModel.Type)
+	assert.Equal(t, testFunction.Version, actualModel.Version)
 }
 
 func TestClient_ProvisionFunction_InvalidUrl(t *testing.T) {

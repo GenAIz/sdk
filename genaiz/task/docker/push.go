@@ -65,6 +65,11 @@ func handlePushContext(params *PushParams, state *task.State) error {
 			state.Logger.Debugf("Function [%s] can not be pushed at this time", current.Hash)
 			return errorSkipPush
 		}
+
+		if current.Auth == "" {
+			state.Logger.Debugf("Function [%s] is already provisioned", current.Hash)
+			return errorSkipPush
+		}
 	}
 
 	if state.Output == "" {

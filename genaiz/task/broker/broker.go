@@ -54,10 +54,33 @@ func (f Function) asIdentity() *shared.Identity {
 	}
 }
 
+func (f Function) toModel() *functionModel {
+	return &functionModel{
+		Description: f.Description,
+		Handle:      f.Handle,
+		ImgDigest:   f.ImgDigest,
+		Name:        f.Name,
+		Oem:         f.Oem,
+		Type:        f.Type,
+		Version:     f.Version,
+	}
+}
+
 type functionFlags struct {
 	Active       int
 	Released     int
 	Provisioning int
+}
+
+// functionModel provides a transport definition for provisioning smart functions
+type functionModel struct {
+	Description string `json:"description"`
+	Handle      string `json:"handle"`
+	ImgDigest   string `json:"imgDigest"`
+	Name        string `json:"name"`
+	Oem         string `json:"oem"`
+	Type        string `json:"type"`
+	Version     string `json:"version"`
 }
 
 type Provision struct {
