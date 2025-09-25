@@ -223,6 +223,7 @@ func (c *client) ProvisionFunction(function *Function) (*shared.Identity, error)
 		var err error
 
 		if url, err = c.makeUrl(apiVersion1, pathFunction, "provision"); err == nil {
+			var modelBytes, _ = json.Marshal(function.toModel())
 			var rb = c.requestBridge()
 			var resp responseBridge
 
@@ -231,14 +232,7 @@ func (c *client) ProvisionFunction(function *Function) (*shared.Identity, error)
 				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
 				Resulting(&clientPayload[Provision]{}).
 				Params(map[string]string{
-					"name":        function.Name,
-					"description": function.Description,
-					"oem":         function.Oem,
-					"handle":      function.Handle,
-					"imgDigest":   function.ImgDigest,
-					"type":        function.Type,
-					"version":     function.Version,
-					"arches":      strings.Join(function.Arches, ","),
+					"model": string(modelBytes),
 				}).
 				Post(url)
 
