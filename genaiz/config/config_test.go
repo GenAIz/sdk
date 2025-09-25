@@ -588,6 +588,54 @@ func TestLedger_InitValue(t *testing.T) {
 	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
 }
 
+func TestLedger_InitValueDefault(t *testing.T) {
+	var expectedKey = "key"
+	var expectedValue = "value"
+	var _, testLedger = newTestConfigs()
+	var testOption = &StringOption{
+		Option{
+			Key:          expectedKey,
+			DefaultValue: "defValue",
+		},
+	}
+
+	testLedger.InitValue(testOption, expectedValue)
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
+}
+
+func TestLedger_InitValueSetNoDefault(t *testing.T) {
+	var expectedKey = "key"
+	var expectedValue = "value"
+	var notExpectedValue = "notExpected"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &StringOption{
+		Option{
+			Key: expectedKey,
+		},
+	}
+
+	testViper.Set(expectedKey, expectedValue)
+	testLedger.InitValue(testOption, notExpectedValue)
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
+}
+
+func TestLedger_InitValueSetWithDefault(t *testing.T) {
+	var expectedKey = "key"
+	var expectedValue = "value"
+	var notExpectedValue = "notExpected"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &StringOption{
+		Option{
+			Key:          expectedKey,
+			DefaultValue: "defValue",
+		},
+	}
+
+	testViper.Set(expectedKey, expectedValue)
+	testLedger.InitValue(testOption, notExpectedValue)
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
+}
+
 func TestLedger_InitValueAlreadySet(t *testing.T) {
 	var expectedKey = "key"
 	var expectedValue = "other"
