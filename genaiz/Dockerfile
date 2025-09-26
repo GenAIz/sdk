@@ -14,7 +14,7 @@ COPY genaiz-lib/ .
 
 WORKDIR /var/tmp/build/genaiz
 COPY genaiz/ .
-RUN go build
+RUN go build -tags prod
 
 FROM alpine:3.21 AS runtime
 

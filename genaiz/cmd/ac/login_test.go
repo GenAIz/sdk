@@ -9,12 +9,15 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/mock"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
@@ -25,11 +28,10 @@ func TestLoginExecutor_LoginExistingSession(t *testing.T) {
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testRefreshOption = newOptionRefresh()
 	var testExecutor = &LoginExecutor{
 		Ledger: testLedger,
 
-		optionRefresh: testRefreshOption,
+		optionRefresh: cli.Options.Accounts.Refresh().BuildBoolOption(),
 		sessionTaskFactory: func() *task.Task[broker.Broker] {
 			return &task.Task[broker.Broker]{
 				Name: "test-session",
@@ -48,7 +50,7 @@ func TestLoginExecutor_LoginExistingSession(t *testing.T) {
 	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Login(expectedHost)
 	assert.NotEmpty(t, patch.CalledWith)
-	assert.Contains(t, patch.CalledWith, expectedSession)
+	assert.Contains(t, cast.ToStringSlice(patch.CalledWith)[0], "logged in")
 }
 
 func TestLoginExecutor_LoginExpiredSession(t *testing.T) {
@@ -57,9 +59,11 @@ func TestLoginExecutor_LoginExpiredSession(t *testing.T) {
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testPasswordOption = newOptionPassword()
-	var testRefreshOption = newOptionRefresh()
-	var testUsernameOption = newOptionUsername("test")
+	var testPasswordOption = cli.Options.Accounts.Password().BuildStringOption()
+	var testRefreshOption = cli.Options.Accounts.Refresh().BuildBoolOption()
+	var testUsernameOption = cli.Options.Accounts.Username().
+		WithKeys(&schema.Genaiz.Account.Login.Username).
+		BuildStringOption()
 	var testExecutor = &LoginExecutor{
 		Ledger: testLedger,
 
@@ -95,7 +99,7 @@ func TestLoginExecutor_LoginExpiredSession(t *testing.T) {
 	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Login(expectedHost)
 	assert.NotEmpty(t, patch.CalledWith)
-	assert.Contains(t, patch.CalledWith, expectedSession)
+	assert.Contains(t, strings.ToLower(cast.ToStringSlice(patch.CalledWith)[0]), "logged in")
 }
 
 func TestLoginExecutor_LoginRefresh(t *testing.T) {
@@ -104,9 +108,11 @@ func TestLoginExecutor_LoginRefresh(t *testing.T) {
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testPasswordOption = newOptionPassword()
-	var testRefreshOption = newOptionRefresh()
-	var testUsernameOption = newOptionUsername("test")
+	var testPasswordOption = cli.Options.Accounts.Password().BuildStringOption()
+	var testRefreshOption = cli.Options.Accounts.Refresh().BuildBoolOption()
+	var testUsernameOption = cli.Options.Accounts.Username().
+		WithKeys(&schema.Genaiz.Account.Login.Username).
+		BuildStringOption()
 	var testExecutor = &LoginExecutor{
 		Ledger: testLedger,
 
@@ -135,12 +141,12 @@ func TestLoginExecutor_LoginRefresh(t *testing.T) {
 	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Login(expectedHost)
 	assert.NotEmpty(t, patch.CalledWith)
-	assert.Contains(t, patch.CalledWith, expectedSession)
+	assert.Contains(t, strings.ToLower(cast.ToStringSlice(patch.CalledWith)[0]), "logged in")
 }
 
 func TestLoginExecutor_queryPassword(t *testing.T) {
 	var buff bytes.Buffer
-	var testPasswordOption = newOptionPassword()
+	var testPasswordOption = cli.Options.Accounts.Password().BuildStringOption()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithInput(os.Stdin).
@@ -159,7 +165,7 @@ func TestLoginExecutor_queryPassword(t *testing.T) {
 func TestLoginExecutor_queryUsername(t *testing.T) {
 	var buff bytes.Buffer
 	var expectedUsername = "username"
-	var testUsernameOption = newOptionUsername("test")
+	var testUsernameOption = cli.Options.Accounts.Username().BuildStringOption()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithInput(strings.NewReader(expectedUsername)).
@@ -194,9 +200,11 @@ func TestNewLogin_InvalidBrokerAddr(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testLogin = NewLogin(testLedger)
-	var testPasswordOption = newOptionPassword()
-	var testRefreshOption = newOptionRefresh()
-	var testUsernameOption = newOptionUsername("Login")
+	var testPasswordOption = cli.Options.Accounts.Password().BuildStringOption()
+	var testRefreshOption = cli.Options.Accounts.Refresh().BuildBoolOption()
+	var testUsernameOption = cli.Options.Accounts.Username().
+		WithKeys(&schema.Genaiz.Account.Login.Username).
+		BuildStringOption()
 
 	defer patch.Unpatch()
 	testViper.Set(testRefreshOption.Key, true)

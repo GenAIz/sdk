@@ -6,6 +6,17 @@ var (
 )
 
 type Document struct {
+	Account struct {
+		Login struct {
+			Password Keys
+			Refresh  Keys
+			Username Keys
+		}
+		Logout struct {
+			Host     Keys
+			Username Keys
+		}
+	}
 	Function struct {
 		Build struct {
 			Context Keys
@@ -62,6 +73,11 @@ type Keys struct {
 }
 
 func init() {
+	Genaiz.Account.Login.Password = newKeys("p", "GENAIZ_PASSWORD")
+	Genaiz.Account.Login.Refresh = newKeys("Account.Login.Refresh", "AC_LOGIN_REFRESH")
+	Genaiz.Account.Login.Username = newKeys("Account.Login.Username", "GENAIZ_USERNAME")
+	Genaiz.Account.Logout.Host = newKeys("Account.Logout.Host", "AC_LOGOUT_HOST")
+	Genaiz.Account.Logout.Username = newKeys("Account.Logout.Username", "GENAIZ_USERNAME")
 	Genaiz.Function.Build.Context = newKeys("Sf.Build.Context", "SF_BUILD_CONTEXT")
 	Genaiz.Function.Build.File = newKeys("Sf.Build.File", "SF_BUILD_FILE")
 	Genaiz.Function.Build.Label = newKeys("Sf.Build.Label", "SF_BUILD_LABEL")

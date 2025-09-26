@@ -552,6 +552,36 @@ func Test_handleLogoutContext_NoForHostUser(t *testing.T) {
 	}
 }
 
+func Test_handleLogoutContext_SingleLogin(t *testing.T) {
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
+		var expectedSessionId = int64(37)
+		var testSession = &AuthSession{
+			Token:     "token",
+			SessionId: expectedSessionId,
+		}
+		var testState = &task.State{
+			Logger: logrus.New(),
+		}
+		var testParams = &LoginParams{
+			Broker: &Broker{
+				AuthFile: fd.Name(),
+			},
+		}
+		var testAuth = NewAuthData().
+			Push("hostAddr2", testSession)
+
+		// Intentionally set an invalid active account
+		testAuth.Active = 1
+		panicz.PanicIfError(testAuth.Write(fd.Name()))
+		assert.NoError(t, handleLogoutContext(testParams, testState))
+		assert.Equal(t, cast.ToString(expectedSessionId), testState.Output)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
 func Test_handleLogoutContext_TooManyLogins(t *testing.T) {
 	var dir = t.TempDir()
 
@@ -567,12 +597,14 @@ func Test_handleLogoutContext_TooManyLogins(t *testing.T) {
 				AuthFile: fd.Name(),
 			},
 		}
-
-		panicz.PanicIfError(NewAuthData().
+		var testAuth = NewAuthData().
 			Push("hostAddr2", testSession).
-			Push("hostAddr3", testSession).
-			Write(fd.Name()))
-		assert.ErrorIs(t, ErrorSessionConflict, handleLogoutContext(testParams, testState))
+			Push("hostAddr3", testSession)
+
+		// Intentionally set an invalid active account
+		testAuth.Active = 2
+		panicz.PanicIfError(testAuth.Write(fd.Name()))
+		assert.ErrorIs(t, handleLogoutContext(testParams, testState), ErrorSessionConflict)
 	} else {
 		assert.Fail(t, err.Error())
 	}

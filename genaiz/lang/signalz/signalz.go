@@ -10,22 +10,20 @@ import (
 
 var (
 	terminations = map[syscall.Signal]string{
-		syscall.SIGABRT:   "ABRT",
-		syscall.SIGBUS:    "BUS",
-		syscall.SIGFPE:    "FPE",
-		syscall.SIGHUP:    "HUP",
-		syscall.SIGILL:    "ILL",
-		syscall.SIGINT:    "INT",
-		syscall.SIGKILL:   "KILL",
-		syscall.SIGPIPE:   "PIPE",
-		syscall.SIGPWR:    "PWR",
-		syscall.SIGQUIT:   "QUIT",
-		syscall.SIGSEGV:   "SEGV",
-		syscall.SIGSYS:    "SYS",
-		syscall.SIGSTKFLT: "STKFLT",
-		syscall.SIGTERM:   "TERM",
-		syscall.SIGXCPU:   "XCPU",
-		syscall.SIGXFSZ:   "XFSZ",
+		syscall.SIGABRT: "ABRT",
+		syscall.SIGBUS:  "BUS",
+		syscall.SIGFPE:  "FPE",
+		syscall.SIGHUP:  "HUP",
+		syscall.SIGILL:  "ILL",
+		syscall.SIGINT:  "INT",
+		syscall.SIGKILL: "KILL",
+		syscall.SIGPIPE: "PIPE",
+		syscall.SIGQUIT: "QUIT",
+		syscall.SIGSEGV: "SEGV",
+		syscall.SIGSYS:  "SYS",
+		syscall.SIGTERM: "TERM",
+		syscall.SIGXCPU: "XCPU",
+		syscall.SIGXFSZ: "XFSZ",
 	}
 )
 

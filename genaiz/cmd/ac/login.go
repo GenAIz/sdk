@@ -7,7 +7,9 @@ import (
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
@@ -46,13 +48,17 @@ func (le *LoginExecutor) Login(brokerAddr string) {
 		task.Attempt(sessionPlan, brokerParam, le.sessionTaskFactory())
 
 		if currentSession != "" {
-			fmt.Printf("%s\n", currentSession)
+			fmt.Printf("Already logged in to %s\n", brokerParam.HostAddr)
 		}
 	}
 
 	if refresh {
 		var params = le.makeLoginParams(brokerParam)
 		var loginPlan = task.NewPlan("Login", le.Ledger.Logger)
+
+		loginPlan.OnSuccess = func(i interface{}) {
+			fmt.Printf("Logged in to %s\n", brokerParam.HostAddr)
+		}
 
 		task.Single(loginPlan, params, le.loginTaskFactory())
 	}
@@ -100,9 +106,9 @@ func NewLogin(ledger *config.Ledger) *cobra.Command {
 	var exec = NewLoginExecutor(ledger)
 	var login = &cobra.Command{
 		Use:     "login HOST",
-		Short:   "Authenticates an account with a Genaiz broker",
-		Long:    "Authenticates a username and password with a Genaiz broker provided a url as argument",
-		Example: "genaiz ac login www.genaiz.com",
+		Short:   "Authenticates an account with a GenAIz Broker",
+		Long:    "Authenticates an account with a GenAIz Broker provided a host url as argument",
+		Example: "genaiz account login broker.genaiz.com --username=myUser --refresh",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			exec.Login(args[0])
@@ -117,42 +123,13 @@ func NewLoginExecutor(ledger *config.Ledger) *LoginExecutor {
 	return &LoginExecutor{
 		Ledger: ledger,
 
-		optionPassword: newOptionPassword(),
-		optionRefresh:  newOptionRefresh(),
-		optionUsername: newOptionUsername("Login"),
+		optionPassword: cli.Options.Accounts.Password().BuildStringOption(),
+		optionRefresh:  cli.Options.Accounts.Refresh().BuildBoolOption(),
+		optionUsername: cli.Options.Accounts.Username().
+			WithKeys(&schema.Genaiz.Account.Login.Username).
+			BuildStringOption(),
 
 		loginTaskFactory:   broker.NewLoginTask,
 		sessionTaskFactory: broker.NewSessionTask,
-	}
-}
-
-func newOptionPassword() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key: "password",
-			Env: "GENAIZ_PASSWORD",
-		},
-	}
-}
-
-func newOptionRefresh() *config.BoolOption {
-	return &config.BoolOption{
-		Option: config.Option{
-			Key:          "AC.Refresh",
-			Param:        "refresh",
-			Short:        "r",
-			DefaultValue: "false",
-		},
-	}
-}
-
-func newOptionUsername(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "AC." + cmd + ".Username",
-			Param: "username",
-			Short: "u",
-			Env:   "GENAIZ_USERNAME",
-		},
 	}
 }

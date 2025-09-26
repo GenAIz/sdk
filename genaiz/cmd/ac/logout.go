@@ -5,7 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
@@ -47,6 +49,7 @@ func NewLogout(ledger *config.Ledger) *cobra.Command {
 		Use:     "logout",
 		Short:   "Removes any previously acquired session",
 		Long:    "Removes any previously acquired session tokens held for the current user",
+		Args:    cobra.ExactArgs(0),
 		Example: "genaiz ac logout",
 		Run: func(cmd *cobra.Command, args []string) {
 			exec.Logout()
@@ -61,18 +64,13 @@ func NewLogoutExecutor(ledger *config.Ledger) *LogoutExecutor {
 	return &LogoutExecutor{
 		Ledger: ledger,
 
-		optionHost:     newOptionHost(),
-		optionUsername: newOptionUsername("Logout"),
+		optionHost: cli.Options.Accounts.Host().
+			WithKeys(&schema.Genaiz.Account.Logout.Host).
+			BuildStringOption(),
+		optionUsername: cli.Options.Accounts.Username().
+			WithKeys(&schema.Genaiz.Account.Logout.Username).
+			BuildStringOption(),
 
 		logoutTaskFactory: broker.NewLogoutTask,
-	}
-}
-
-func newOptionHost() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "AC.Host",
-			Param: "host",
-		},
 	}
 }

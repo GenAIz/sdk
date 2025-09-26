@@ -261,11 +261,12 @@ func handleLoginDelete(params *LoginParams, state *task.State) error {
 		for _, a := range auth.Accounts {
 			if state.Output != fmt.Sprintf("%d", a.SessionId) {
 				accounts = append(accounts, a)
+			} else {
+				state.Output = fmt.Sprintf("%s:%s", a.Username, a.HostAddr)
 			}
 		}
 
 		auth.Accounts = accounts
-		state.Output = params.Username
 		return auth.Write(params.AuthFile)
 	}
 
@@ -301,6 +302,8 @@ func handleLogoutContext(params *LoginParams, state *task.State) error {
 
 		if params.Username != "" {
 			account, err = auth.ForHostUser(params.HostAddr, params.Username)
+		} else if auth.Active < size {
+			account = auth.Accounts[auth.Active]
 		} else if size == 1 {
 			account = auth.Accounts[0]
 		}
