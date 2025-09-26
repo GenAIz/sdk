@@ -5,6 +5,30 @@
   "description": "A configuration file for the GenAIz SDK",
   "type": "object",
   "patternProperties": {
+    "^(?:ac|account)$": {
+      "type": "object",
+      "properties": {
+        "login": {
+          "type": "object",
+          "patternProperties": {
+            "^refresh$": {
+              "type": "string"
+            },
+            "^username$": {
+              "type": "string"
+            }
+          }
+        },
+        "logout": {
+          "type": "object",
+          "patternProperties": {
+            "^username$": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
     "^(?:sf|function)$": {
       "type": "object",
       "properties": {

@@ -17,6 +17,40 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
+func Test_OptionsAccountsHost(t *testing.T) {
+	var testOption = Options.Accounts.Host().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.Empty(t, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+}
+
+func Test_OptionAccountsPassword(t *testing.T) {
+	var testOption = Options.Accounts.Password().BuildStringOption()
+
+	assert.Equal(t, schema.Genaiz.Account.Login.Password.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Account.Login.Password.Env, testOption.Env)
+}
+
+func Test_OptionAccountsRefresh(t *testing.T) {
+	var testOption = Options.Accounts.Refresh().BuildBoolOption()
+
+	assert.Equal(t, schema.Genaiz.Account.Login.Refresh.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Account.Login.Refresh.Env, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionAccountsUsername(t *testing.T) {
+	var testOption = Options.Accounts.Username().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.Empty(t, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+}
+
 func Test_OptionsConfigsNoUpdate(t *testing.T) {
 	var testOption = Options.Configs.NoUpdate().BuildBoolOption()
 

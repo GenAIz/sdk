@@ -10,7 +10,9 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
@@ -23,8 +25,10 @@ func TestLogoutExecutor_Logout(t *testing.T) {
 	var testExecutor = &LogoutExecutor{
 		Ledger: testLedger,
 
-		optionHost:     newOptionHost(),
-		optionUsername: newOptionUsername("Test"),
+		optionHost: cli.Options.Accounts.Host().BuildStringOption(),
+		optionUsername: cli.Options.Accounts.Username().
+			WithKeys(&schema.Genaiz.Account.Logout.Username).
+			BuildStringOption(),
 
 		logoutTaskFactory: func() *task.Task[broker.LoginParams] {
 			return &task.Task[broker.LoginParams]{

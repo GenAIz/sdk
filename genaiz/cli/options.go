@@ -12,6 +12,28 @@ import (
 
 var (
 	Options = &cliOptions{
+		Accounts: accountOptions{
+			Host: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("host")
+			},
+			Password: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Account.Login.Password)
+			},
+			Refresh: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Account.Login.Refresh).
+					WithParam("refresh").
+					WithShort("r").
+					WithDefaultValue("false")
+			},
+			Username: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("username").
+					WithShort("u")
+			},
+		},
 		Configs: configOptions{
 			NoUpdate: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -166,10 +188,18 @@ var (
 )
 
 type cliOptions struct {
+	Accounts  accountOptions
 	Configs   configOptions
 	Docker    dockerOptions
 	Functions functionOptions
 	Modes     modeOptions
+}
+
+type accountOptions struct {
+	Host     func() OptionBuilder
+	Password func() OptionBuilder
+	Refresh  func() OptionBuilder
+	Username func() OptionBuilder
 }
 
 type configOptions struct {

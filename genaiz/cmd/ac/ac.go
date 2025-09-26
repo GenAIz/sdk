@@ -14,7 +14,7 @@ func NewAc(ledger *config.Ledger) *cobra.Command {
 	var ac = &cobra.Command{
 		Use:     "account",
 		Aliases: []string{"ac"},
-		Short:   "Genaiz Account Toolkit",
+		Short:   "GenAIz Account Toolkit",
 	}
 
 	ac.AddCommand(
