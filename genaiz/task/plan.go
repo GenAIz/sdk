@@ -25,6 +25,7 @@ type Plan struct {
 	OnSuccess         func(interface{}) // OnSuccess is a function called with the content of State.Output
 	OnFailure         func(interface{}) // OnFailure is a function called with the content of State.Error
 	ContinueOnFailure bool              // ContinueOnFailure will keep calling sequence workers even when a failure is reported
+	PrintReportsOnly  bool              // PrintReportsOnly relies on State.Report for displaying the result of a Plan
 }
 
 // Sequence will execute all workers provided up until a worker's returned State signals an error or until the sequence is over. The state returned by each Worker is always passed to the following Worker in the list.
@@ -36,7 +37,7 @@ func (p Plan) Sequence(workers ...Worker) {
 	var result = &State{Completed: false, Logger: p.Logger}
 
 	for _, work := range workers {
-		if result = work(result); result.Error != nil && !p.ContinueOnFailure {
+		if result = work(result); (result.Error != nil && !p.ContinueOnFailure) || result.Abort {
 			break
 		}
 	}
@@ -50,7 +51,11 @@ func (p Plan) Sequence(workers ...Worker) {
 
 		lang.HandleExit(result.Error)
 	} else if p.OnSuccess != nil {
-		p.OnSuccess(result.Output)
+		if p.PrintReportsOnly {
+			p.OnSuccess(result.Reports)
+		} else {
+			p.OnSuccess(result.Output)
+		}
 	}
 }
 
@@ -70,7 +75,11 @@ func (p Plan) Single(worker Worker, exitHandler func(interface{})) {
 	}
 
 	if p.OnSuccess != nil {
-		p.OnSuccess(result.Output)
+		if p.PrintReportsOnly {
+			p.OnSuccess(result.Reports)
+		} else {
+			p.OnSuccess(result.Output)
+		}
 	}
 }
 
@@ -129,10 +138,18 @@ func newPlan(logger *logrus.Logger, onFailure, onSuccess func(interface{})) *Pla
 	}
 }
 
-func successWriter(msg interface{}) {
-	var out = cast.ToString(msg)
+func successString(msg string) {
+	if msg != "" {
+		_, _ = fmt.Printf("%s\n", msg)
+	}
+}
 
-	if out != "" {
-		_, _ = fmt.Printf("%s\n", out)
+func successWriter(i interface{}) {
+	if messages, ok := i.([]string); ok {
+		for _, msg := range messages {
+			successString(msg)
+		}
+	} else {
+		successString(cast.ToString(i))
 	}
 }

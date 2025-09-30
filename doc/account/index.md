@@ -1,10 +1,19 @@
-## Account Command Specs
+# Account Command Specs
+
+## Test Cases
+
+* [Account login with username](login_username.feature)
+
+## Commands
+
+* [login](#login)
+* [logout](#logout)
 
 ### Login
 
 `genaiz account login HOST --username=USERNAME --refresh`
 
-The command manages an .auth file under the ~/.cache/genaiz folder. It records the token used to make requests to one or several broker services. 
+The command manages an .auth file under the ~/.cache/genaiz folder. It records the token used to make requests to one or several broker services.
 
 #### HOST
 

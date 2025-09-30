@@ -175,7 +175,7 @@ func handleSolutionPublishComplete(params *SolutionPublishParams, state *task.St
 	var brokerClient Client
 	var err error
 
-	if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+	if brokerClient, err = params.GetClient(); err == nil {
 		var solution = params.Solution
 		var identity *shared.Identity
 
@@ -223,7 +223,7 @@ func handleSolutionPublishPretend(params *SolutionPublishParams, state *task.Sta
 		var brokerClient Client
 		var err error
 
-		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+		if brokerClient, err = params.GetClient(); err == nil {
 			var data, _ = json.Marshal(params.Solution)
 
 			state.Logger.Debugf("Pretending to publish solution to [%s]", params.HostAddr)

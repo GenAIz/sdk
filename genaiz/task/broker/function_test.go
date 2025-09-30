@@ -377,6 +377,44 @@ func Test_handleFunctionPublishContext_ProvisioningDuplicate(t *testing.T) {
 }
 
 func Test_handleFunctionPublishComplete(t *testing.T) {
+	var testState = &task.State{
+		Internal: &shared.Identity{
+			Id:   "id",
+			Hash: "hash",
+		},
+		Logger: logrus.New(),
+		Output: "overwriteThis",
+	}
+	var testParams = &PublishParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
+	var expectedFunction = &Function{
+		Oem:     "expectedOem",
+		Handle:  "expectedHandle",
+		Version: "expectedVersion",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() { clientFactory.Get = restoredFactory }()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubFunctionClient{
+			publishFunction: expectedFunction,
+		}, nil
+	}
+
+	assert.NoError(t, handleFunctionPublishComplete(testParams, testState))
+	assert.Equal(t, 1, len(testState.Reports))
+	assert.Contains(t, testState.Reports[0], expectedFunction.Oem)
+	assert.Contains(t, testState.Reports[0], expectedFunction.Handle)
+	assert.Contains(t, testState.Reports[0], expectedFunction.Version)
+	assert.Empty(t, testState.Internal)
+	assert.Empty(t, testState.Output)
+}
+
+func Test_handleFunctionPublishComplete_Error(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testState = &task.State{
 		Internal: &shared.Identity{
@@ -457,6 +495,24 @@ func Test_handleFunctionPublishIncomplete(t *testing.T) {
 	assert.ErrorIs(t, handleFunctionPublishIncomplete(testParams, testState), expectedError)
 	assert.True(t, testState.Completed)
 	assert.NotEmpty(t, testState.Internal)
+}
+
+func Test_handleFunctionPublishIncomplete_Duplicate(t *testing.T) {
+	var expectedPath = "path"
+	var testParams = &PublishParams{}
+	var testState = &task.State{
+		Error: errorDuplicatePublishing,
+		Internal: &shared.Identity{
+			Path: expectedPath,
+		},
+	}
+
+	assert.NoError(t, handleFunctionPublishIncomplete(testParams, testState))
+	assert.True(t, testState.Abort)
+	assert.Equal(t, 1, len(testState.Reports))
+	assert.Contains(t, testState.Reports[0], expectedPath)
+	assert.True(t, testState.Completed)
+	assert.Empty(t, testState.Internal)
 }
 
 func Test_handleFunctionPublishIncomplete_NoSkip(t *testing.T) {

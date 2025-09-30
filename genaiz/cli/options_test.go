@@ -283,6 +283,14 @@ func Test_OptionModesInteractive(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
+func Test_OptionSolutionsBroker(t *testing.T) {
+	var testOption = Options.Solutions.Broker().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
 func TestOptionBuilder_Validated(t *testing.T) {
 	var called bool
 	var expectedValue = "value"

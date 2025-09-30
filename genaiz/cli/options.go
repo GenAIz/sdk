@@ -184,6 +184,13 @@ var (
 					WithDefaultValue("false")
 			},
 		},
+		Solutions: solutionOptions{
+			Broker: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("broker").
+					WithUsage("a publishing broker url")
+			},
+		},
 	}
 )
 
@@ -193,6 +200,7 @@ type cliOptions struct {
 	Docker    dockerOptions
 	Functions functionOptions
 	Modes     modeOptions
+	Solutions solutionOptions
 }
 
 type accountOptions struct {
@@ -232,6 +240,10 @@ type functionOptions struct {
 
 type modeOptions struct {
 	Interactive func() OptionBuilder
+}
+
+type solutionOptions struct {
+	Broker func() OptionBuilder
 }
 
 type OptionBuilder interface {

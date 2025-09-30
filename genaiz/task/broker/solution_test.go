@@ -315,12 +315,12 @@ func Test_handleSolutionPublishComplete(t *testing.T) {
 	var testState = &task.State{
 		Logger: logrus.New(),
 	}
-	var restoredFactory = clientFactory.Get
+	var restoredFactory = clientFactory.Active
 
 	defer func() {
-		clientFactory.Get = restoredFactory
+		clientFactory.Active = restoredFactory
 	}()
-	clientFactory.Get = func(authFile, addr string) (Client, error) {
+	clientFactory.Active = func(authFile string) (Client, error) {
 		return &stubSolutionClient{
 			publishIdentity: &shared.Identity{
 				Path:    "path",
@@ -334,12 +334,12 @@ func Test_handleSolutionPublishComplete(t *testing.T) {
 
 func Test_handleSolutionPublishComplete_Failure(t *testing.T) {
 	var expectedError = errors.New("expected")
-	var restoredFactory = clientFactory.Get
+	var restoredFactory = clientFactory.Active
 
 	defer func() {
-		clientFactory.Get = restoredFactory
+		clientFactory.Active = restoredFactory
 	}()
-	clientFactory.Get = func(authFile, addr string) (Client, error) {
+	clientFactory.Active = func(authFile string) (Client, error) {
 		return &stubSolutionClient{
 			publishError: expectedError,
 		}, nil
@@ -350,12 +350,12 @@ func Test_handleSolutionPublishComplete_Failure(t *testing.T) {
 
 func Test_handleSolutionPublishComplete_NoSession(t *testing.T) {
 	var expectedError = errors.New("expected")
-	var restoredFactory = clientFactory.Get
+	var restoredFactory = clientFactory.Active
 
 	defer func() {
-		clientFactory.Get = restoredFactory
+		clientFactory.Active = restoredFactory
 	}()
-	clientFactory.Get = func(authFile, addr string) (Client, error) {
+	clientFactory.Active = func(authFile string) (Client, error) {
 		return nil, expectedError
 	}
 
@@ -433,7 +433,7 @@ func Test_handleSolutionPublishPretend(t *testing.T) {
 	var testState = &task.State{
 		Logger: logrus.New(),
 	}
-	var restoredFactory = clientFactory.Get
+	var restoredFactory = clientFactory.Active
 	var stdoutRestore = os.Stdout
 	var r, w, _ = os.Pipe()
 
@@ -443,9 +443,9 @@ func Test_handleSolutionPublishPretend(t *testing.T) {
 	}()
 
 	defer func() {
-		clientFactory.Get = restoredFactory
+		clientFactory.Active = restoredFactory
 	}()
-	clientFactory.Get = func(authFile, addr string) (Client, error) {
+	clientFactory.Active = func(authFile string) (Client, error) {
 		return &stubSolutionClient{}, nil
 	}
 
@@ -461,12 +461,12 @@ func Test_handleSolutionPublishPretend(t *testing.T) {
 
 func Test_handleSolutionPublishPretend_NoSession(t *testing.T) {
 	var expectedError = errors.New("expected")
-	var restoredFactory = clientFactory.Get
+	var restoredFactory = clientFactory.Active
 
 	defer func() {
-		clientFactory.Get = restoredFactory
+		clientFactory.Active = restoredFactory
 	}()
-	clientFactory.Get = func(authFile, addr string) (Client, error) {
+	clientFactory.Active = func(authFile string) (Client, error) {
 		return nil, expectedError
 	}
 
