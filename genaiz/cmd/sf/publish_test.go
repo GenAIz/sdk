@@ -43,12 +43,11 @@ func TestPublishExecutor_Display(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PublishOptions: testOptions,
-
-		brokerAddr: expectedBroker,
 	}
 
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testViper.Set(testOptions.optionArches.Key, expectedArches)
+	testViper.Set(testOptions.optionBroker.Key, expectedBroker)
 	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
 	testViper.Set(testOptions.optionName.Key, expectedName)
 	testViper.Set(testOptions.optionOem.Key, expectedOem)
@@ -492,9 +491,10 @@ func TestNewPublish(t *testing.T) {
 	var expectedHandle = "handle"
 	var expectedHost = "host"
 
+	testViper.Set(schema.Genaiz.Solution.Publish.Broker.Doc, expectedHost)
 	testViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedHandle)
 	testViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedVersion)
-	testPublish.SetArgs([]string{expectedHost})
+	testPublish.SetArgs([]string{})
 	testPublish.PostRun = func(cmd *cobra.Command, args []string) {
 		publishCompleted = true
 	}

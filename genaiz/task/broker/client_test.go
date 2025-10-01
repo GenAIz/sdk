@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -262,8 +264,8 @@ func TestClient_ProvisionFunction(t *testing.T) {
 	var testBridge = &stubBridge{
 		response: &stubResponse{
 			success: true,
-			result: &clientPayload[Provision]{
-				Data: Provision{
+			result: &clientPayload[provisionData]{
+				Data: provisionData{
 					Sf: Function{
 						Id: expectedId,
 					},
@@ -337,8 +339,10 @@ func TestClient_PublishFunction(t *testing.T) {
 	var testBridge = &stubBridge{
 		response: &stubResponse{
 			success: true,
-			result: &clientPayload[Function]{
-				Data: *testFunction,
+			result: &clientPayload[publishingData]{
+				Data: publishingData{
+					Sf: *testFunction,
+				},
 			},
 		},
 	}
@@ -514,6 +518,130 @@ func TestClient_SessionUrl(t *testing.T) {
 	assert.Contains(t, testClient.SessionUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
+func TestActiveClient(t *testing.T) {
+
+	var testFile = filepath.Join(t.TempDir(), ".authFile")
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		var expectedHost = "host"
+		var expectedToken = "token"
+		var testAuth = &AuthData{
+			Accounts: []*AuthAccount{
+				{
+					AuthSession: &AuthSession{
+						Expiry: -1,
+						Token:  expectedToken,
+					},
+					HostAddr: expectedHost,
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if err = testAuth.Write(fd.Name()); err == nil {
+			var testClient Client
+
+			testClient, err = ActiveClient(testFile)
+			assert.Empty(t, err)
+			assert.Equal(t, expectedToken, testClient.GetAuthToken())
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestActiveClient_Cached(t *testing.T) {
+	var expectedHost = "host"
+	var testFile = filepath.Join(t.TempDir(), ".authFile")
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		var testAuth = &AuthData{
+			Accounts: []*AuthAccount{
+				{
+					HostAddr: expectedHost,
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if err = testAuth.Write(fd.Name()); err == nil {
+			var expectedClient = NewClient(expectedHost)
+			var actualClient Client
+
+			clientByHost[expectedHost] = expectedClient
+			defer func() { delete(clientByHost, expectedHost) }()
+
+			if actualClient, err = ActiveClient(testFile); err == nil {
+				assert.Same(t, expectedClient, actualClient)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestActiveClient_Expired(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), ".authFile")
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		var expectedHost = "host"
+		var testAuth = &AuthData{
+			Accounts: []*AuthAccount{
+				{
+					AuthSession: &AuthSession{
+						Expiry: 37,
+					},
+					HostAddr: expectedHost,
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if err = testAuth.Write(fd.Name()); err == nil {
+			var testClient Client
+
+			testClient, err = ActiveClient(testFile)
+			assert.Empty(t, testClient)
+			assert.ErrorIs(t, err, errorSessionExpired)
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestActiveClient_NoLogin(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), ".authFile")
+	var testClient, err = ActiveClient(testFile)
+	var fd *os.File
+
+	assert.Empty(t, testClient)
+	assert.ErrorIs(t, err, ErrorNoLogin)
+
+	if fd, err = os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+		var testAuth = &AuthData{Active: -1}
+
+		assert.NoError(t, testAuth.Write(fd.Name()))
+		testClient, err = ActiveClient(testFile)
+		assert.Empty(t, testClient)
+		assert.ErrorIs(t, err, ErrorNoLogin)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
 func TestGetClient(t *testing.T) {
 	var testDir = t.TempDir()
 
@@ -579,10 +707,12 @@ func TestGetClient_NoAccount(t *testing.T) {
 }
 
 func TestNewClientFactory(t *testing.T) {
+	var expectedAddr = "expectedAddr"
 	var testClientFactory = NewClientFactory()
-	var testClient = testClientFactory.New("expectedAddr")
+	var testClient = testClientFactory.New(expectedAddr)
 
 	assert.Equal(t, defaultTimeoutSeconds, testClient.GetTimeout())
+	assert.Equal(t, expectedAddr, testClient.GetHostAddr())
 }
 
 func Test_makeHostUrl(t *testing.T) {
@@ -602,7 +732,7 @@ func Test_makeHostUrl(t *testing.T) {
 }
 
 func Test_resultOrError_BadRequest(t *testing.T) {
-	var emptyProvider = func(body any) *Provision { return nil }
+	var emptyProvider = func(body any) *provisionData { return nil }
 	var payload, err = resultOrError(&resty.Response{
 		Request: &resty.Request{
 			DoNotParseResponse: false,
@@ -617,7 +747,7 @@ func Test_resultOrError_BadRequest(t *testing.T) {
 }
 
 func Test_resultOrError_BadRequestString(t *testing.T) {
-	var emptyProvider = func(body any) *Provision { return nil }
+	var emptyProvider = func(body any) *provisionData { return nil }
 	var expectedResponse = "response"
 	var payload, err = resultOrError(&resty.Response{
 		Body: io.NopCloser(strings.NewReader(expectedResponse)),
@@ -635,7 +765,7 @@ func Test_resultOrError_BadRequestString(t *testing.T) {
 }
 
 func Test_resultOrError_BadRequestJson(t *testing.T) {
-	var emptyProvider = func(body any) *Provision { return nil }
+	var emptyProvider = func(body any) *provisionData { return nil }
 	var expectedResponse = Error{Code: 400, Status: "status", Message: "message"}
 	var data, _ = json.Marshal(expectedResponse)
 	var payload, err = resultOrError(&resty.Response{
@@ -654,7 +784,7 @@ func Test_resultOrError_BadRequestJson(t *testing.T) {
 }
 
 func Test_resultOrError_CustomStatus(t *testing.T) {
-	var emptyProvider = func(body any) *Provision { return nil }
+	var emptyProvider = func(body any) *provisionData { return nil }
 	var expectedCode = 37
 	var expectedStatus = "status"
 	var payload, err = resultOrError(&resty.Response{
@@ -669,7 +799,7 @@ func Test_resultOrError_CustomStatus(t *testing.T) {
 }
 
 func Test_resultOrError(t *testing.T) {
-	var emptyProvider = func(body any) *Provision { return nil }
+	var emptyProvider = func(body any) *provisionData { return nil }
 	var payload, err = resultOrError(nil, emptyProvider)
 	var expectedAuth = "auth"
 
@@ -682,8 +812,8 @@ func Test_resultOrError(t *testing.T) {
 		Request: &resty.Request{
 			Result: "anything",
 		},
-	}, func(body any) *Provision {
-		return &Provision{Auth: expectedAuth}
+	}, func(body any) *provisionData {
+		return &provisionData{Auth: expectedAuth}
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, expectedAuth, payload.Auth)

@@ -140,7 +140,7 @@ func (lo *ListOption) Defined(ledger *Ledger, flags *pflag.FlagSet) {
 	panicz.RequiresNotNil("flags", flags)
 
 	if lo.Param != "" {
-		flags.VarP(newListValue(), lo.Param, lo.Short, "")
+		flags.VarP(newListValue(), lo.Param, lo.Short, lo.Usage)
 	}
 
 	lo.Option.Defined(ledger, flags)
@@ -148,18 +148,18 @@ func (lo *ListOption) Defined(ledger *Ledger, flags *pflag.FlagSet) {
 
 // ListValue is a value adapter for converting multiple pflag.Flag instances on a command line into a list of configurations
 type ListValue struct {
-	values *[]string // values corresponds to the set of string entered on the command line
+	values []string // values corresponds to the set of string entered on the command line
 }
 
 // GetSlice returns a pointer to the values slice untouched
 func (lv *ListValue) GetSlice() []string {
-	return *lv.values
+	return lv.values
 }
 
 // Set adds the provided value to the values of this ListValue
 func (lv *ListValue) Set(value string) error {
 	if value != "" {
-		*lv.values = append(*lv.values, value)
+		lv.values = append(lv.values, value)
 	}
 
 	return nil
@@ -167,16 +167,16 @@ func (lv *ListValue) Set(value string) error {
 
 // String converts the slice of values into a readable string
 func (lv *ListValue) String() string {
-	if len(*lv.values) == 0 {
+	if len(lv.values) == 0 {
 		return ""
 	}
 
-	return strings.Join(*lv.values, " ")
+	return strings.Join(lv.values, ",")
 }
 
 // Type returns the type string for this Value
 func (lv *ListValue) Type() string {
-	return "list"
+	return "stringSlice"
 }
 
 // StringOption treats the value of an option as a string when defining its pflag.Flag and processing its Option.DefaultValue
@@ -234,6 +234,6 @@ func mapOptionsByKeyFunc(ledger *Ledger, toKey func(*Option) string, options ...
 // newListValues builds a new ListValue reference with values set to an empty slice
 func newListValue() *ListValue {
 	return &ListValue{
-		values: &[]string{},
+		values: []string{},
 	}
 }

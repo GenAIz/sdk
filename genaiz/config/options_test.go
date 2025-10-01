@@ -369,7 +369,7 @@ func TestListValue_String(t *testing.T) {
 }
 
 func TestListValue_Type(t *testing.T) {
-	assert.EqualValues(t, "list", newListValue().Type())
+	assert.EqualValues(t, "stringSlice", newListValue().Type())
 }
 
 func TestMapOptionsByParam(t *testing.T) {

@@ -94,10 +94,10 @@ func handleFunctionProvisionComplete(params *ProvisionParams, state *task.State)
 	var brokerClient Client
 	var err error
 
-	if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+	if brokerClient, err = params.GetClient(); err == nil {
+		var provisioned = params.asFunction()
 		var current = state.Internal.(*shared.Identity)
 		var identity *shared.Identity
-		var provisioned = params.asFunction()
 
 		state.Logger.Debugf("Provisioning function on url [%s]", brokerClient.ProvisionFunctionUrl())
 		provisioned.ImgDigest = current.Id
@@ -125,7 +125,7 @@ func handleFunctionProvisionPretend(params *ProvisionParams, state *task.State) 
 		var brokerClient Client
 		var err error
 
-		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+		if brokerClient, err = params.GetClient(); err == nil {
 			var remote = state.Internal.(*shared.Identity)
 
 			state.Logger.Debugf("Pretending to provision to [%s]", params.HostAddr)
@@ -182,9 +182,16 @@ func handleFunctionPublishComplete(params *PublishParams, state *task.State) err
 			var brokerClient Client
 			var err error
 
-			if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
-				state.Logger.Debugf("Publish smart function v%s [%s], %s", current.Version, current.Id, current.Hash)
-				_, err = brokerClient.PublishFunction(current)
+			if brokerClient, err = params.GetClient(); err == nil {
+				var fn *Function
+
+				state.Logger.Debugf("Publishing smart function v%s [%s], %s", current.Version, current.Id, current.Hash)
+
+				if fn, err = brokerClient.PublishFunction(current); err == nil {
+					state.Report(fmt.Sprintf("Published smart function %s/%s, version %s to %s",
+						fn.Oem, fn.Handle, fn.Version, brokerClient.GetHostAddr()))
+				}
+
 				state.Internal = nil
 				state.Output = ""
 			}
@@ -208,8 +215,17 @@ func handleFunctionPublishIncomplete(params *PublishParams, state *task.State) e
 			state.Logger.Warnf("Function publish will be skipped because provisioning rights do not allow it")
 		}
 
+		state.Error = nil
 		state.Internal = nil
-		return nil
+		state.Output = ""
+	} else if errors.Is(state.Error, errorDuplicatePublishing) {
+		var current = state.Internal.(*shared.Identity)
+
+		state.Report(fmt.Sprintf("Smart Function was found under path [%s]", current.Path))
+		state.Abort = true
+		state.Error = nil
+		state.Internal = nil
+		state.Output = ""
 	}
 
 	return state.Error
@@ -223,7 +239,7 @@ func handleFunctionPublishPretend(params *PublishParams, state *task.State) erro
 			var brokerClient Client
 			var err error
 
-			if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+			if brokerClient, err = params.GetClient(); err == nil {
 				state.Logger.Debugf("Pretending to provision to [%s]", params.HostAddr)
 				fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 				fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())

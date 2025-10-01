@@ -261,16 +261,25 @@ func (lr *Ledger) GetConfigType(option *StringOption) (*shared.ConfigType, error
 
 // GetList returns the list value of a ListOption from Get as a slice of strings
 func (lr *Ledger) GetList(option *ListOption) []string {
-	var value = lr.Get(&option.Option)
 	var result []string
-	var err error
 
-	if value == "" || value == nil {
-		return []string{}
+	if option.Key != "" {
+		result = lr.viper.GetStringSlice(option.Key)
+	} else if option.Param != "" {
+		result = lr.viper.GetStringSlice(option.Param)
 	}
 
-	result, err = cast.ToStringSliceE(value)
-	panicz.PanicIfError(err)
+	if len(result) == 0 && option.DefaultGetter != nil {
+		result = cast.ToStringSlice(option.DefaultGetter(lr))
+	}
+
+	for i, r := range result {
+		if option.Validator != nil && !option.Validator(r) {
+			lr.validationHandler(fmt.Errorf("value [%d:%s] for option [%s] is invalid",
+				i, r, strings.ToLower(option.Key)))
+		}
+	}
+
 	return result
 }
 
@@ -279,7 +288,14 @@ func (lr *Ledger) GetString(option *StringOption) string {
 	var result = cast.ToString(lr.Get(&option.Option))
 
 	if option.Validator != nil && !option.Validator(result) {
-		lr.validationHandler(fmt.Errorf("value [%s] for option [%s] is invalid", result, option.Key))
+		var value = result
+
+		if len(value) > 32 {
+			value = value[0:29] + "..."
+		}
+
+		lr.validationHandler(fmt.Errorf("value [%s] for option [%s] is invalid",
+			value, strings.ToLower(option.Key)))
 	}
 
 	return result

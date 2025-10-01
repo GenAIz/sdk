@@ -65,6 +65,11 @@ type Document struct {
 			Version     Keys
 		}
 	}
+	Solution struct {
+		Publish struct {
+			Broker Keys
+		}
+	}
 }
 
 type Keys struct {
@@ -113,6 +118,7 @@ func init() {
 	Genaiz.Function.Publish.Rebuild = newKeys("Sf.Publish.Rebuild", "SF_PUBLISH_REBUILD")
 	Genaiz.Function.Publish.Type = newKeys("Sf.Publish.Type", "SF_PUBLISH_TYPE")
 	Genaiz.Function.Publish.Version = newKeys("Sf.Publish.Version", "SF_PUBLISH_VERSION")
+	Genaiz.Solution.Publish.Broker = newKeys("Solution.Publish.Broker", "SN_PUBLISH_BROKER")
 }
 
 func newKeys(docKey, envKey string) Keys {

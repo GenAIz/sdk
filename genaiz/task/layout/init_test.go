@@ -293,5 +293,5 @@ func Test_handleLayoutInitUpdate(t *testing.T) {
 	assert.Equal(t, testParams.MountOutput, testWriter.output[testParams.MountOutput])
 	assert.Equal(t, testParams.OEM, testWriter.oem)
 	assert.Equal(t, testParams.Version, testWriter.version)
-	assert.Equal(t, testState.Output, testWriter.dest)
+	assert.Empty(t, testState.Output)
 }

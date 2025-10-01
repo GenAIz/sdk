@@ -65,6 +65,8 @@ type Client interface {
 
 	GetExpiry() int
 
+	GetHostAddr() string
+
 	GetTimeout() int
 
 	Login(string, []byte) (*AuthSession, error)
@@ -125,6 +127,10 @@ func (c *client) GetAuthToken() string {
 
 func (c *client) GetExpiry() int {
 	return c.Expiry
+}
+
+func (c *client) GetHostAddr() string {
+	return c.HostAddr
 }
 
 func (c *client) GetTimeout() int {
@@ -230,14 +236,14 @@ func (c *client) ProvisionFunction(function *Function) (*shared.Identity, error)
 			defer c.closeSilently(rb)
 			resp, err = rb.Json().
 				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
-				Resulting(&clientPayload[Provision]{}).
+				Resulting(&clientPayload[provisionData]{}).
 				Params(map[string]string{
 					"model": string(modelBytes),
 				}).
 				Post(url)
 
 			return resultOrError(resp, func(body any) *shared.Identity {
-				var payload = resp.Result().(*clientPayload[Provision])
+				var payload = resp.Result().(*clientPayload[provisionData])
 				var result = payload.Data.Sf.asIdentity()
 
 				result.Auth = payload.Data.Auth
@@ -267,7 +273,7 @@ func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 			defer c.closeSilently(rb)
 			resp, err = rb.Json().
 				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
-				Resulting(&clientPayload[Function]{}).
+				Resulting(&clientPayload[publishingData]{}).
 				Params(map[string]string{
 					"id":     identity.Id,
 					"digest": identity.Hash,
@@ -275,9 +281,9 @@ func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 				Post(url)
 
 			return resultOrError(resp, func(body any) *Function {
-				var payload = resp.Result().(*clientPayload[Function])
+				var payload = resp.Result().(*clientPayload[publishingData])
 
-				return &payload.Data
+				return &payload.Data.Sf
 			})
 		}
 
@@ -399,8 +405,33 @@ func (c *client) makeUrl(version version, path path, rpc ...string) (string, err
 }
 
 type ClientFactory struct {
-	New func(string) Client
-	Get func(string, string) (Client, error)
+	Active func(string) (Client, error)
+	New    func(string) Client
+	Get    func(string, string) (Client, error)
+}
+
+func ActiveClient(authFile string) (Client, error) {
+	var auth = NewAuthData(authFile)
+
+	if auth.Active >= 0 && len(auth.Accounts) > 0 {
+		var account = auth.Accounts[auth.Active]
+		var result Client
+
+		if result = clientByHost[account.HostAddr]; result == nil {
+			var err error
+
+			if result, err = NewClient(account.HostAddr).WithAccount(account); err == nil {
+				clientByHost[account.HostAddr] = result
+				return result, nil
+			}
+
+			return nil, err
+		}
+
+		return result, nil
+	}
+
+	return nil, ErrorNoLogin
 }
 
 func GetClient(authFile string, addr string) (Client, error) {
@@ -440,8 +471,9 @@ func NewClient(addr string) Client {
 
 func NewClientFactory() *ClientFactory {
 	return &ClientFactory{
-		New: NewClient,
-		Get: GetClient,
+		Active: ActiveClient,
+		New:    NewClient,
+		Get:    GetClient,
 	}
 }
 

@@ -2,6 +2,7 @@ package layout
 
 import (
 	"errors"
+	"fmt"
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang"
@@ -140,7 +141,9 @@ func handleLayoutInitUpdate(writer ConfigWriter, params *InitParams, state *task
 		state.Logger.Debugf("Init updating existing [%s]", state.Output)
 
 		if err = handleLayoutInitCreate(writer.WithConfigFile(state.Output), params, state); err == nil {
+			state.Report(fmt.Sprintf("Updated %s successfully", state.Output))
 			state.Completed = true
+			state.Output = ""
 		}
 
 		return err

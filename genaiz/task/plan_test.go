@@ -13,7 +13,7 @@ import (
 	"genaiz.com/genaiz/lang"
 )
 
-func TestPlan_SequenceContinue(t *testing.T) {
+func TestPlan_Sequence_Continue(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var actualCall = false
 	var expectedError = errors.New("expected")
@@ -51,7 +51,7 @@ func TestPlan_SequenceContinue(t *testing.T) {
 	assert.ErrorIs(t, actualError, expectedError)
 }
 
-func TestPlan_SequenceError(t *testing.T) {
+func TestPlan_Sequence_Error(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "param"
@@ -68,7 +68,7 @@ func TestPlan_SequenceError(t *testing.T) {
 	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
-func TestPlan_SequenceNoSuccess(t *testing.T) {
+func TestPlan_Sequence_NoSuccess(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "param"
 	var testPlan = &Plan{Logger: testLogger}
@@ -83,7 +83,7 @@ func TestPlan_SequenceNoSuccess(t *testing.T) {
 	assert.False(t, patch.Called)
 }
 
-func TestPlan_SequenceOnFailure(t *testing.T) {
+func TestPlan_Sequence_OnFailure(t *testing.T) {
 	var actualError interface{}
 	var expectedError = errors.New("error")
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
@@ -108,10 +108,9 @@ func TestPlan_SequenceOnFailure(t *testing.T) {
 	assert.True(t, patch.Called)
 	assert.EqualValues(t, 1, patch.CalledWith)
 	assert.EqualValues(t, expectedError, actualError)
-
 }
 
-func TestPlan_SequenceOnSuccess(t *testing.T) {
+func TestPlan_Sequence_OnSuccess(t *testing.T) {
 	var actualOutput interface{}
 	var expectedOutput = "output"
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
@@ -138,6 +137,38 @@ func TestPlan_SequenceOnSuccess(t *testing.T) {
 	assert.EqualValues(t, expectedOutput, actualOutput)
 }
 
+func TestPlan_Sequence_OnPrintReportsOnly(t *testing.T) {
+	var actualOutput interface{}
+	var expectedOutput = "output"
+	var expectedReport = "report"
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testParam = "param"
+	var testPlan = &Plan{
+		Logger: testLogger,
+		OnSuccess: func(i interface{}) {
+			actualOutput = i
+		},
+		PrintReportsOnly: true,
+	}
+	var testWorker = NewWorker(&testParam, &Task[string]{
+		OnPrepare: func(params *string, state *State) error {
+			return nil
+		},
+		OnComplete: func(params *string, state *State) error {
+			state.Output = expectedOutput
+			state.Report(expectedReport)
+			return nil
+		},
+	})
+
+	defer patch.Unpatch()
+	testPlan.Sequence(testWorker)
+	assert.False(t, patch.Called)
+	assert.NotEqualValues(t, expectedOutput, actualOutput)
+	assert.Equal(t, 1, len(actualOutput.([]string)))
+	assert.Equal(t, expectedReport, actualOutput.([]string)[0])
+}
+
 func TestNewPlan_Failure(t *testing.T) {
 	var output = new(bytes.Buffer)
 	var expectedName = "Failed"
@@ -161,7 +192,7 @@ func TestNewPlan_Success(t *testing.T) {
 	assert.Contains(t, patch.CalledWith, expectedOutput)
 }
 
-func TestAttemptComplete(t *testing.T) {
+func TestAttempt_Complete(t *testing.T) {
 	var expectedError = errors.New("test")
 	var actualError error
 	var testPlan = &Plan{Logger: testLogger, OnFailure: func(i interface{}) {
@@ -177,7 +208,7 @@ func TestAttemptComplete(t *testing.T) {
 	assert.ErrorIs(t, actualError, expectedError)
 }
 
-func TestConditionalOnFailure(t *testing.T) {
+func TestConditional_OnFailure(t *testing.T) {
 	var actualError interface{}
 	var expectedError = errors.New("error")
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
@@ -206,7 +237,7 @@ func TestConditionalOnFailure(t *testing.T) {
 	assert.Same(t, expectedError, actualError)
 }
 
-func TestConditionalOnSuccess(t *testing.T) {
+func TestConditional_OnSuccess(t *testing.T) {
 	var actualOutput interface{}
 	var expectedOutput = "output"
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
@@ -238,7 +269,7 @@ func TestConditionalOnSuccess(t *testing.T) {
 	assert.EqualValues(t, expectedOutput, actualOutput)
 }
 
-func TestSingleComplete(t *testing.T) {
+func TestSingle_Complete(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "param"
 	var testPlan = &Plan{Logger: testLogger}
@@ -250,4 +281,42 @@ func TestSingleComplete(t *testing.T) {
 		},
 	})
 	assert.False(t, patch.Called)
+}
+
+func TestSingle_OnPrintReportsOnly(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var expectedReport = "report"
+	var testParam = "param"
+	var actual interface{}
+	var testPlan = &Plan{
+		Logger: testLogger,
+		OnSuccess: func(i interface{}) {
+			actual = i
+		},
+		PrintReportsOnly: true,
+	}
+
+	defer patch.Unpatch()
+	Single(testPlan, &testParam, &Task[string]{
+		OnPrepare: func(params *string, state *State) error {
+			return nil
+		},
+		OnComplete: func(params *string, state *State) error {
+			state.Report(expectedReport)
+			return nil
+		},
+	})
+	assert.Equal(t, 1, len(actual.([]string)))
+	assert.Equal(t, expectedReport, actual.([]string)[0])
+	assert.False(t, patch.Called)
+}
+
+func Test_successWriter_Slice(t *testing.T) {
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var expectedOutput = "output"
+
+	defer patch.Unpatch()
+	successWriter([]string{expectedOutput})
+	assert.NotEmpty(t, patch.CalledWith)
+	assert.Contains(t, patch.CalledWith, expectedOutput)
 }

@@ -21,6 +21,14 @@ type Broker struct {
 	HostAddr string
 }
 
+func (b Broker) GetClient() (Client, error) {
+	if b.HostAddr == "" {
+		return clientFactory.Active(b.AuthFile)
+	}
+
+	return clientFactory.Get(b.AuthFile, b.HostAddr)
+}
+
 type Error struct {
 	Code    int    `json:"code"`
 	Status  string `json:"status"`
@@ -83,9 +91,13 @@ type functionModel struct {
 	Version     string `json:"version"`
 }
 
-type Provision struct {
+type provisionData struct {
 	Auth string
 	Sf   Function
+}
+
+type publishingData struct {
+	Sf Function
 }
 
 type Session struct {

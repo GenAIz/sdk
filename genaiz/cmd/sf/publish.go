@@ -28,7 +28,6 @@ type PublishExecutor struct {
 	BaseExecutor
 	*PublishOptions
 
-	brokerAddr           string
 	buildTaskFactory     BuildTaskFactory
 	initTaskFactory      InitTaskFactory
 	inspectTaskFactory   InspectTaskFactory
@@ -38,10 +37,9 @@ type PublishExecutor struct {
 }
 
 func (pe *PublishExecutor) Display() {
-	pe.Ledger.DisplayOptionsWithMap(&map[string]string{
-		"broker": pe.brokerAddr,
-	},
+	pe.Ledger.DisplayOptions(
 		&pe.optionArches.Option,
+		&pe.optionBroker.Option,
 		&pe.optionHandle.Option,
 		&pe.optionName.Option,
 		&pe.optionRebuild.Option,
@@ -110,6 +108,7 @@ func (pe *PublishExecutor) Proceed() {
 		workers = append(workers, task.NewWorker(initParams, pe.initTaskFactory(builder)))
 	}
 
+	plan.PrintReportsOnly = true
 	plan.Sequence(workers...)
 }
 
@@ -119,7 +118,7 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 	return &broker.ProvisionParams{
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.brokerAddr,
+			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
 		Arches:      pe.Ledger.GetList(pe.optionArches),
 		Description: nameDesc,
@@ -132,18 +131,13 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 }
 
 func (pe *PublishExecutor) makePublishInitParams() *layout.InitParams {
-	var archTypeStrings = pe.Ledger.GetList(pe.optionArches)
 	var functionTypeString = pe.Ledger.GetString(pe.optionType)
+	var functionType, _ = layout.FunctionTypes.FromString(functionTypeString)
+	var archTypeStrings = pe.Ledger.GetList(pe.optionArches)
 	var archTypes []layout.ArchType
-	var functionType *layout.FunctionType
-	var err error
-
-	functionType, err = layout.FunctionTypes.FromString(functionTypeString)
-	cobra.CheckErr(err)
 
 	if len(archTypeStrings) > 0 {
-		archTypes, err = layout.ArchTypes.AllFromStrings(&archTypeStrings)
-		cobra.CheckErr(err)
+		archTypes, _ = layout.ArchTypes.AllFromStrings(&archTypeStrings)
 	}
 
 	return &layout.InitParams{
@@ -165,7 +159,7 @@ func (pe *PublishExecutor) makePublishParams(provisionParams *broker.ProvisionPa
 	return &broker.PublishParams{
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.brokerAddr,
+			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
 		Handle: provisionParams.Handle,
 		Oem:    provisionParams.Oem,
@@ -182,6 +176,7 @@ func (pe *PublishExecutor) makePushParams() *docker.PushParams {
 
 type PublishOptions struct {
 	optionArches   *config.ListOption
+	optionBroker   *config.StringOption
 	optionHandle   *config.StringOption
 	optionName     *config.StringOption
 	optionRebuild  *config.BoolOption
@@ -194,6 +189,7 @@ type PublishOptions struct {
 func (po *PublishOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		po.optionArches,
+		po.optionBroker,
 		po.optionHandle,
 		po.optionName,
 		po.optionRebuild,
@@ -207,13 +203,13 @@ func (po *PublishOptions) allDefiners() []config.Definer {
 func NewPublish(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var options = NewPublishOptions(cli)
 	var publish = &cobra.Command{
-		Use:     "publish HOST",
+		Use:     "publish",
 		Short:   "Publishes a Smart Function metadata and image to a Broker",
 		Long:    "Publishes a Smart Function metadata and image to a Broker, by provisioning its information and then pushing it the Broker's registry",
-		Example: "genaiz sf publish --handle=my-function --oem=com.genaiz --version=0.1-dev www.genaiz.com",
-		Args:    cobra.ExactArgs(1),
+		Example: "genaiz sf publish --broker=www.genaiz.com --handle=my-function --oem=com.genaiz --version=0.1-dev",
+		Args:    cobra.MaximumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Exec(ledger, NewPublishExecutor(cmd.Context(), ledger, cli, options, args[0]))
+			cli.Exec(ledger, NewPublishExecutor(cmd.Context(), ledger, cli, options))
 		},
 	}
 
@@ -221,7 +217,7 @@ func NewPublish(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	return publish
 }
 
-func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *PublishOptions, brokerAddr string) *PublishExecutor {
+func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *PublishOptions) *PublishExecutor {
 	return &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:     cli,
@@ -230,7 +226,6 @@ func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, op
 		},
 		PublishOptions: options,
 
-		brokerAddr:           brokerAddr,
 		buildTaskFactory:     docker.NewBuildTask,
 		initTaskFactory:      layout.NewInitTask,
 		inspectTaskFactory:   docker.NewInspectTask,
@@ -257,6 +252,9 @@ func NewPublishOptions(sfCli *Cli) *PublishOptions {
 		optionArches: cli.Options.Functions.Arches().
 			WithKeys(&schema.Genaiz.Function.Publish.Arches).
 			BuildListOption(),
+		optionBroker: cli.Options.Solutions.Broker().
+			WithKeys(&schema.Genaiz.Solution.Publish.Broker).
+			BuildStringOption(),
 		optionHandle: handleOpt,
 		optionName: cli.Options.Functions.Name().
 			WithKeys(&schema.Genaiz.Function.Publish.Name).

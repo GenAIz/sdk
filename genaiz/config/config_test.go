@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -420,6 +421,31 @@ func TestLedger_GetListEmptyString(t *testing.T) {
 	assert.Empty(t, testLedger.GetList(testOption))
 }
 
+func TestLedger_GetListInvalidString(t *testing.T) {
+	var expectedValue = "value"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &ListOption{
+		Option: Option{
+			Key: "key",
+			Validator: func(value any) bool {
+				return false
+			},
+		},
+	}
+	var actual interface{}
+	var errorString string
+
+	testLedger.validationHandler = func(i interface{}) {
+		actual = i
+	}
+	testViper.Set(testOption.Key, expectedValue)
+	assert.Contains(t, testLedger.GetList(testOption), expectedValue)
+	errorString = actual.(error).Error()
+	assert.Contains(t, errorString, fmt.Sprintf("[0:%s]", expectedValue))
+	assert.Contains(t, errorString, fmt.Sprintf("[%s]", testOption.Key))
+
+}
+
 func TestLedger_GetListNil(t *testing.T) {
 	var _, testLedger = newTestConfigs()
 	var testOption = &ListOption{
@@ -429,6 +455,23 @@ func TestLedger_GetListNil(t *testing.T) {
 	}
 
 	assert.Empty(t, testLedger.GetList(testOption))
+}
+
+func TestLedger_GetListParam_DefaultGetter(t *testing.T) {
+	var expectedValue = "value"
+	var _, testLedger = newTestConfigs()
+	var testOption = &ListOption{
+		Option: Option{
+			Param: "param",
+			DefaultGetter: func(ledger *Ledger) any {
+				return expectedValue
+			},
+		},
+	}
+
+	actual := testLedger.GetList(testOption)
+	assert.Equal(t, 1, len(actual))
+	assert.Equal(t, expectedValue, actual[0])
 }
 
 func TestLedger_GetListSingle(t *testing.T) {
@@ -467,11 +510,34 @@ func TestLedger_GetStringInvalid(t *testing.T) {
 			},
 		},
 	}
+	var actual interface{}
 
 	testLedger.validationHandler = func(e interface{}) {
-		assert.NotEmpty(t, e)
+		actual = e
 	}
 	testLedger.GetString(testOption)
+	assert.NotEmpty(t, actual)
+}
+
+func TestLedger_GetStringTooLong(t *testing.T) {
+	var expectedTooLong = "this string will be cut this string will be cut"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &StringOption{
+		Option: Option{
+			Key: "key",
+			Validator: func(value any) bool {
+				return false
+			},
+		},
+	}
+	var actual interface{}
+
+	testViper.Set(testOption.Key, expectedTooLong)
+	testLedger.validationHandler = func(e interface{}) {
+		actual = e
+	}
+	testLedger.GetString(testOption)
+	assert.Contains(t, actual.(error).Error(), expectedTooLong[0:29]+"...")
 }
 
 func TestLedger_GetStringValid(t *testing.T) {

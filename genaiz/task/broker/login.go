@@ -250,7 +250,7 @@ func handleLoginDelete(params *LoginParams, state *task.State) error {
 
 		state.Logger.Debugf("Logging out session id [%s]", state.Output)
 
-		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+		if brokerClient, err = params.GetClient(); err == nil {
 			if err = brokerClient.Logout(state.Output); err != nil {
 				state.Logger.Warnf("Could not delete session for host [%s]: %s", params.HostAddr, err)
 			}
@@ -330,7 +330,7 @@ func handleLogoutPretend(params *LoginParams, state *task.State) error {
 		var brokerClient Client
 		var err error
 
-		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+		if brokerClient, err = params.GetClient(); err == nil {
 			state.Logger.Debugf("Pretending to logout from session id [%s]", state.Output)
 			state.Logger.Debugf("For host [%s]", params.HostAddr)
 			state.Logger.Debugf("And username [%s]", params.Username)
@@ -376,7 +376,7 @@ func handleSessionValidate(params *Broker, state *task.State) error {
 		var brokerClient Client
 		var err error
 
-		if brokerClient, err = clientFactory.Get(params.AuthFile, params.HostAddr); err == nil {
+		if brokerClient, err = params.GetClient(); err == nil {
 			var session *Session
 
 			if session, err = brokerClient.Session(); err == nil {
