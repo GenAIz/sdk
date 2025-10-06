@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -83,6 +84,20 @@ var (
 					WithUsage("enables labelling, creating a supplementary image layer to hold metadata used with --prune to remove dangling images").
 					WithDefaultValue("false")
 			},
+			Legacy: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.Legacy).
+					WithParam("legacy-builder").
+					WithUsage("enables legacy building using the Moby library instead of the Docker Buildx plugin").
+					WithDefaultValue("false")
+			},
+			NoCache: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.NoCache).
+					WithParam("no-cache").
+					WithUsage("disables caching of some build layers").
+					WithDefaultValue("false")
+			},
 			Prune: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Build.Prune).
@@ -94,9 +109,13 @@ var (
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Build.Tag).
 					WithParam("tag").
-					WithUsage("tag the smart function image, defaults to the work dir name").
+					WithUsage("tag the smart function image locally, defaults to the work dir name").
+					WithValidator(config.Validation.Repository).
 					WithDefaultSetter(func(ledger *config.Ledger) any {
-						return filepath.Base(ledger.WorkDir)
+						var parent = filepath.Base(filepath.Dir(ledger.WorkDir))
+						var fn = filepath.Base(ledger.WorkDir)
+
+						return fmt.Sprintf("%s/%s", parent, fn)
 					})
 			},
 			Version: func() OptionBuilder {
@@ -190,6 +209,21 @@ var (
 					WithParam("broker").
 					WithUsage("a publishing broker url")
 			},
+			LogFormat: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Solution.Log.Format).
+					WithParam("log-format").
+					WithUsage("log format as supported by Logrus. Also supports \"json\" for structured logging").
+					WithDefaultValue("[%time%|%lvl%] %msg%")
+			},
+			LogLevel: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Solution.Log.Level).
+					WithParam("log-level").
+					WithUsage("log level for controlling logging details").
+					WithUsage("Supported case insensitive values: debug, d, error e, info, i, quiet q, trace t, warning and w").
+					WithDefaultValue("quiet")
+			},
 		},
 	}
 )
@@ -220,6 +254,8 @@ type dockerOptions struct {
 	ContextPath func() OptionBuilder
 	FilePath    func() OptionBuilder
 	Label       func() OptionBuilder
+	Legacy      func() OptionBuilder
+	NoCache     func() OptionBuilder
 	Prune       func() OptionBuilder
 	Tag         func() OptionBuilder
 	Version     func() OptionBuilder
@@ -243,7 +279,9 @@ type modeOptions struct {
 }
 
 type solutionOptions struct {
-	Broker func() OptionBuilder
+	Broker    func() OptionBuilder
+	LogFormat func() OptionBuilder
+	LogLevel  func() OptionBuilder
 }
 
 type OptionBuilder interface {

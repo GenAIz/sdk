@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -126,6 +127,24 @@ func Test_OptionDockerLabel(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
+func Test_OptionDockerLegacy(t *testing.T) {
+	var testOption = Options.Docker.Legacy().BuildBoolOption()
+
+	assert.Equal(t, schema.Genaiz.Function.Build.Legacy.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Function.Build.Legacy.Env, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionDockerNoCache(t *testing.T) {
+	var testOption = Options.Docker.NoCache().BuildBoolOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionDockerPrune(t *testing.T) {
 	var testOption = Options.Docker.Prune().BuildStringOption()
 
@@ -140,13 +159,14 @@ func Test_OptionDockerTag(t *testing.T) {
 	var testDir = t.TempDir()
 	var testOption = Options.Docker.Tag().BuildStringOption()
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
+	var expectedTag = fmt.Sprintf("%s/%s", filepath.Base(filepath.Dir(testDir)), filepath.Base(testDir))
 
 	assert.Equal(t, schema.Genaiz.Function.Build.Tag.Doc, testOption.Key)
 	assert.Equal(t, schema.Genaiz.Function.Build.Tag.Env, testOption.Env)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
 	testLedger.WorkDir = testDir
-	assert.Equal(t, filepath.Base(testDir), testOption.DefaultSetter(testLedger))
+	assert.Equal(t, expectedTag, testOption.DefaultSetter(testLedger))
 }
 
 func Test_OptionDockerVersion(t *testing.T) {
@@ -289,6 +309,26 @@ func Test_OptionSolutionsBroker(t *testing.T) {
 	assert.Empty(t, testOption.Key)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionSolutionsLogFormat(t *testing.T) {
+	var testOption = Options.Solutions.LogFormat().BuildStringOption()
+
+	assert.Equal(t, schema.Genaiz.Solution.Log.Format.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Solution.Log.Format.Env, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, cast.ToString(testOption.DefaultValue))
+}
+
+func Test_OptionSolutionsLogLevel(t *testing.T) {
+	var testOption = Options.Solutions.LogLevel().BuildStringOption()
+
+	assert.Equal(t, schema.Genaiz.Solution.Log.Level.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Solution.Log.Level.Env, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, cast.ToString(testOption.DefaultValue))
 }
 
 func TestOptionBuilder_Validated(t *testing.T) {

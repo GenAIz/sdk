@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -72,6 +73,7 @@ func TestDebugExecutor_Display(t *testing.T) {
 func TestDebugExecutor_Pretend(t *testing.T) {
 	var calledBuild bool
 	var calledDebug int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
@@ -99,8 +101,10 @@ func TestDebugExecutor_Pretend(t *testing.T) {
 		debugTaskFactory: newContainerTaskPretendStub(&calledDebug),
 	}
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -114,6 +118,7 @@ func TestDebugExecutor_Pretend(t *testing.T) {
 func TestDebugExecutor_Proceed(t *testing.T) {
 	var calledBuild bool
 	var calledDebug int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
@@ -142,8 +147,10 @@ func TestDebugExecutor_Proceed(t *testing.T) {
 		debugTaskFactory: newContainerTaskCompleteStub(&calledDebug),
 	}
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()
@@ -190,6 +197,7 @@ func TestNewDebug(t *testing.T) {
 		debugCompleted = true
 	}
 
+	testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 	testViper.Set(testCmdImageOption.Key, expectedImage)
 	assert.NoError(t, testDebug.Execute())
 	assert.True(t, debugCompleted)

@@ -233,6 +233,7 @@ func TestNewCreate_InvalidFolder(t *testing.T) {
 	var testCreate = NewCreate(testLedger, testCli)
 	var expectedFolder = "#invalidtest-folder"
 
+	testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
 		createCompleted = true
 	}

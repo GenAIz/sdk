@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/version"
 )
@@ -185,7 +186,7 @@ func TestNew_ErrorLogFactory(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = New(testLedger)
-	var testLogLevel = newOptionSolutionLogLevel()
+	var testLogLevel = cli.Options.Solutions.LogLevel().BuildStringOption()
 
 	testViper.Set(testLogLevel.Key, "invalid")
 	testLedger.InitLogging()

@@ -2,7 +2,8 @@
 
 ## Test Cases
 
-* [Publish bash sample](publish_bash_sample.feature)
+* [Build bash example](build_bash_example.feature)
+* [Publish bash example](publish_bash_example.feature)
 
 ## Commands
 
@@ -31,9 +32,15 @@
 * A name can have any characters.
 * The length must not exceed 255 characters.
 
+### Repository
+
+* A repository is a combination of [Oem](#handle-and-oem), namespace components and a [Handle](#handle-and-oem).
+* Only lower cases letters are accepted by registries, but the SDK will lower all upper case characters by default.
+* Valid namespace components are in the same format as a handle, separated by a `/` character
+
 ### Type
 
-* Must be either FUNCTION, TRIGGER or CONNECTOR in lower or upper case characters.
+* Must be either **FUNCTION**, **TRIGGER** or **CONNECTOR** in lower or upper case characters.
 
 ### Version
 

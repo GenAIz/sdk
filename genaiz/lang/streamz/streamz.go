@@ -1,5 +1,5 @@
-// Package ioz provides various Streams implementation to help streaming data across channels using various Readers and Writers
-package ioz
+// Package streamz provides various Streams implementation to help streaming data across channels using various Readers and Writers
+package streamz
 
 import (
 	"bufio"

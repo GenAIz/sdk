@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -72,6 +73,7 @@ func TestTestExecutor_Display(t *testing.T) {
 func TestTestExecutor_Pretend(t *testing.T) {
 	var calledBuild bool
 	var calledTest int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
@@ -99,8 +101,10 @@ func TestTestExecutor_Pretend(t *testing.T) {
 		testTaskFactory:  newContainerTaskPretendStub(&calledTest),
 	}
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -114,6 +118,7 @@ func TestTestExecutor_Pretend(t *testing.T) {
 func TestTestExecutor_Proceed(t *testing.T) {
 	var calledBuild bool
 	var calledTest int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
@@ -142,8 +147,10 @@ func TestTestExecutor_Proceed(t *testing.T) {
 		testTaskFactory:  newContainerTaskCompleteStub(&calledTest),
 	}
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()
@@ -190,6 +197,7 @@ func TestNewTest(t *testing.T) {
 		testCompleted = true
 	}
 
+	testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 	testViper.Set(testCmdImageOption.Key, expectedImage)
 	assert.NoError(t, testTest.Execute())
 	assert.True(t, testCompleted)

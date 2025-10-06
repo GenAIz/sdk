@@ -101,6 +101,7 @@ func TestStartExecutor_Display(t *testing.T) {
 func TestStartExecutor_PretendNoDispose(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
@@ -141,8 +142,10 @@ func TestStartExecutor_PretendNoDispose(t *testing.T) {
 
 	testViper.Set(testExecutor.optionContainerPreserve.Key, true)
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -158,6 +161,7 @@ func TestStartExecutor_PretendNoDispose(t *testing.T) {
 func TestStartExecutor_PretendNoPreserve(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
@@ -199,8 +203,10 @@ func TestStartExecutor_PretendNoPreserve(t *testing.T) {
 
 	testViper.Set(testExecutor.optionContainerPreserve.Key, false)
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -217,6 +223,7 @@ func TestStartExecutor_PretendNoPreserve(t *testing.T) {
 func TestStartExecutor_PretendReplace(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
@@ -258,8 +265,10 @@ func TestStartExecutor_PretendReplace(t *testing.T) {
 
 	testViper.Set(testExecutor.optionContainerReplace.Key, true)
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -276,6 +285,7 @@ func TestStartExecutor_PretendReplace(t *testing.T) {
 func TestStartExecutor_ProceedNoDispose(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
@@ -317,8 +327,10 @@ func TestStartExecutor_ProceedNoDispose(t *testing.T) {
 
 	testViper.Set(testExecutor.optionContainerPreserve.Key, true)
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()
@@ -335,6 +347,7 @@ func TestStartExecutor_ProceedNoDispose(t *testing.T) {
 func TestStartExecutor_ProceedNoPreserve(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
@@ -376,8 +389,10 @@ func TestStartExecutor_ProceedNoPreserve(t *testing.T) {
 
 	testViper.Set(testExecutor.optionContainerReplace.Key, false)
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()
@@ -394,6 +409,7 @@ func TestStartExecutor_ProceedNoPreserve(t *testing.T) {
 func TestStartExecutor_ProceedReplace(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
@@ -435,8 +451,10 @@ func TestStartExecutor_ProceedReplace(t *testing.T) {
 
 	testViper.Set(testExecutor.optionContainerReplace.Key, true)
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()

@@ -22,6 +22,8 @@ type Document struct {
 			Context Keys
 			File    Keys
 			Label   Keys
+			Legacy  Keys
+			NoCache Keys
 			Prune   Keys
 			Tag     Keys
 			Version Keys
@@ -66,6 +68,11 @@ type Document struct {
 		}
 	}
 	Solution struct {
+		Log struct {
+			Format Keys
+			Level  Keys
+		}
+
 		Publish struct {
 			Broker Keys
 		}
@@ -86,6 +93,8 @@ func init() {
 	Genaiz.Function.Build.Context = newKeys("Sf.Build.Context", "SF_BUILD_CONTEXT")
 	Genaiz.Function.Build.File = newKeys("Sf.Build.File", "SF_BUILD_FILE")
 	Genaiz.Function.Build.Label = newKeys("Sf.Build.Label", "SF_BUILD_LABEL")
+	Genaiz.Function.Build.Legacy = newKeys("Sf.Build.Legacy", "SF_BUILD_LEGACY")
+	Genaiz.Function.Build.NoCache = newKeys("Sf.Build.NoCache", "SF_BUILD_NOCACHE")
 	Genaiz.Function.Build.Prune = newKeys("Sf.Build.Prune", "SF_BUILD_PRUNE")
 	Genaiz.Function.Build.Tag = newKeys("Sf.Build.Tag", "SF_BUILD_TAG")
 	Genaiz.Function.Build.Version = newKeys("Sf.Build.Version", "SF_BUILD_VERSION")
@@ -118,6 +127,8 @@ func init() {
 	Genaiz.Function.Publish.Rebuild = newKeys("Sf.Publish.Rebuild", "SF_PUBLISH_REBUILD")
 	Genaiz.Function.Publish.Type = newKeys("Sf.Publish.Type", "SF_PUBLISH_TYPE")
 	Genaiz.Function.Publish.Version = newKeys("Sf.Publish.Version", "SF_PUBLISH_VERSION")
+	Genaiz.Solution.Log.Format = newKeys("Solution.Log.Format", "SN_LOG_FORMAT")
+	Genaiz.Solution.Log.Level = newKeys("Solution.Log.Level", "SN_LOG_LEVEL")
 	Genaiz.Solution.Publish.Broker = newKeys("Solution.Publish.Broker", "SN_PUBLISH_BROKER")
 }
 
