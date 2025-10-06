@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 
@@ -79,6 +80,7 @@ func TestStopExecutor_Display(t *testing.T) {
 
 func TestStopExecutor_Pretend(t *testing.T) {
 	var calledDispose, calledStop int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
@@ -107,8 +109,10 @@ func TestStopExecutor_Pretend(t *testing.T) {
 
 	testViper.Set(testExecutor.optionContainerPreserve.Key, true)
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -121,6 +125,7 @@ func TestStopExecutor_Pretend(t *testing.T) {
 
 func TestStopExecutor_PretendDispose(t *testing.T) {
 	var calledDispose, calledStop int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
@@ -147,8 +152,10 @@ func TestStopExecutor_PretendDispose(t *testing.T) {
 		stopTaskFactory:    newContainerTaskPretendStub(&calledStop),
 	}
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -161,6 +168,7 @@ func TestStopExecutor_PretendDispose(t *testing.T) {
 
 func TestStopExecutor_Proceed(t *testing.T) {
 	var calledDispose, calledStop int
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = &Cli{
@@ -187,8 +195,10 @@ func TestStopExecutor_Proceed(t *testing.T) {
 		stopTaskFactory:    newContainerTaskCompleteStub(&calledStop),
 	}
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()
@@ -254,6 +264,7 @@ func TestNewStop(t *testing.T) {
 		stopCompleted = true
 	}
 
+	testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 	testViper.Set(testCmdImageOption.Key, expectedImage)
 	assert.NoError(t, testStop.Execute())
 	assert.True(t, stopCompleted)

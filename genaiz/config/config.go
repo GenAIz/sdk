@@ -289,9 +289,15 @@ func (lr *Ledger) GetString(option *StringOption) string {
 
 	if option.Validator != nil && !option.Validator(result) {
 		var value = result
+		var length = len(value)
 
-		if len(value) > 32 {
-			value = value[0:29] + "..."
+		if length > 32 {
+			if i := strings.LastIndex(value, "/"); i > 0 {
+				// Have a prefix ... for file paths
+				value = "..." + value[length-29:]
+			} else {
+				value = value[0:29] + "..."
+			}
 		}
 
 		lr.validationHandler(fmt.Errorf("value [%s] for option [%s] is invalid",

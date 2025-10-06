@@ -18,7 +18,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -28,16 +28,17 @@ type configStruct struct {
 }
 
 func TestBuilder_WithTemplates(t *testing.T) {
-	var expectedPath = "/tmp"
+	var expectedPath = "path"
 	var testLedger = NewBuilder().WithTemplates(expectedPath).Build()
 
 	assert.Contains(t, testLedger.TemplatePaths, expectedPath)
 }
 
 func TestLedger_backupConfigsInvalidUserPath(t *testing.T) {
+	var testDir = t.TempDir()
 	var _, testLedger = newTestConfigs()
 
-	testLedger.UserPath = "/notValid"
+	testLedger.UserPath = filepath.Join(testDir, "notValid")
 	assert.ErrorIs(t, testLedger.backupConfigs(), os.ErrNotExist)
 }
 
@@ -45,27 +46,26 @@ func TestLedger_backupConfigs(t *testing.T) {
 	var _, testLedger = newTestConfigs()
 	var testStruct = configStruct{Key: "key", Value: "value"}
 
-	testLedger.UserPath = "/tmp"
+	testLedger.UserPath = t.TempDir()
 	_ = testLedger.makeConfigs(&testStruct)
 	assert.NoError(t, testLedger.backupConfigs())
 	assert.NoError(t, testLedger.backupConfigs())
-	assert.NoError(t, os.Remove("/tmp/"+defaultConfigName+".yaml.back"))
 }
 
 func TestLedger_makeConfigsNoOverwriting(t *testing.T) {
 	var _, testLedger = newTestConfigs()
 	var testStruct = configStruct{Key: "key", Value: "value"}
 
-	testLedger.UserPath = "/tmp"
+	testLedger.UserPath = t.TempDir()
 	_ = testLedger.makeConfigs(&testStruct)
 	assert.Error(t, testLedger.makeConfigs(&testStruct))
-	assert.NoError(t, os.Remove("/tmp/"+defaultConfigName+".yaml"))
 }
 
 func TestLedger_rollbackConfigsInvalidUserPath(t *testing.T) {
+	var testDir = t.TempDir()
 	var _, testLedger = newTestConfigs()
 
-	testLedger.UserPath = "/notValid"
+	testLedger.UserPath = filepath.Join(testDir, "/notValid")
 	assert.ErrorIs(t, testLedger.rollbackConfigs(), os.ErrNotExist)
 }
 
@@ -73,38 +73,40 @@ func TestLedger_rollbackConfigs(t *testing.T) {
 	var _, testLedger = newTestConfigs()
 	var testStruct = configStruct{Key: "key", Value: "value"}
 
-	testLedger.UserPath = "/tmp"
+	testLedger.UserPath = t.TempDir()
 	_ = testLedger.makeConfigs(&testStruct)
 	assert.NoError(t, testLedger.backupConfigs())
 	assert.NoError(t, testLedger.rollbackConfigs())
-	assert.NoError(t, os.Remove("/tmp/"+defaultConfigName+".yaml"))
 }
 
 func TestLedger_AddConfigOption(t *testing.T) {
 	var _, testLedger = newTestConfigs()
-	var testPath = "/tmp"
+	var testPath = t.TempDir()
 	var expectedFile = filepath.Join(testPath, testLedger.ConfigName+".yaml")
-	var _, err = os.Create(expectedFile)
-	var testOption = &StringOption{
-		Option{
-			Key: "key",
-			DefaultGetter: func(ledger *Ledger) any {
-				return testPath
-			},
-		},
-	}
 
-	assert.NoError(t, err)
-	testLedger.Init()
-	testLedger.AddConfigOption(testOption)
-	testLedger.InitDefaults()
-	assert.EqualValues(t, expectedFile, testLedger.viper.ConfigFileUsed())
-	assert.NoError(t, os.Remove(expectedFile))
+	if fd, err := os.Create(expectedFile); err == nil {
+		var testOption = &StringOption{
+			Option{
+				Key: "key",
+				DefaultGetter: func(ledger *Ledger) any {
+					return testPath
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+		testLedger.Init()
+		testLedger.AddConfigOption(testOption)
+		testLedger.InitDefaults()
+		assert.EqualValues(t, expectedFile, testLedger.viper.ConfigFileUsed())
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestLedger_AddConfigOptionInvalidFile(t *testing.T) {
 	var _, testLedger = newTestConfigs()
-	var testPath = "/tmp"
+	var testPath = t.TempDir()
 	var testOption = &StringOption{
 		Option{
 			Key: "key",
@@ -140,7 +142,7 @@ func TestLedger_ChangeWorkDirOptionNil(t *testing.T) {
 func TestLedger_ChangeWorkDir(t *testing.T) {
 	var _, testLedger = newTestConfigs()
 	var currentWorkDir = testLedger.WorkDir
-	var expectedWorkDir = "/tmp"
+	var expectedWorkDir = t.TempDir()
 	var testOption = &StringOption{
 		Option: Option{
 			Key:          "TMP",
@@ -148,24 +150,26 @@ func TestLedger_ChangeWorkDir(t *testing.T) {
 		},
 	}
 
+	defer func() { _ = os.Chdir(currentWorkDir) }()
+
 	testLedger.Register(&cobra.Command{}, testOption)
 	testLedger.InitDefaults()
 	testLedger.ChangeWorkDir(testOption)
 	assert.EqualValues(t, expectedWorkDir, testLedger.WorkDir)
-
-	// reset the work dir
-	panicz.PanicIfError(os.Chdir(currentWorkDir))
 }
 
 func TestLedger_DisplayChangeDir(t *testing.T) {
 	var buff, _, testLedger = newTestConfigsWithBuffer()
-	var expectedWorkDir = "/tmp"
+	var currentWorkDir = testLedger.WorkDir
+	var expectedWorkDir = t.TempDir()
 	var testOption = &StringOption{
 		Option{
 			Key:          "TMP",
 			DefaultValue: expectedWorkDir,
 		},
 	}
+
+	defer func() { _ = os.Chdir(currentWorkDir) }()
 
 	testLedger.Register(&cobra.Command{}, testOption)
 	testLedger.InitDefaults()
@@ -288,59 +292,6 @@ func TestLedger_FromWorkDirRelativeValue(t *testing.T) {
 	assert.EqualValues(t, expectedValue, testValue)
 }
 
-func TestLedger_GetKey(t *testing.T) {
-	var expectedValue = "value"
-	var testViper, testLedger = newTestConfigs()
-	var testOption = &Option{Key: "key"}
-
-	testViper.SetDefault(testOption.Key, expectedValue)
-	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
-}
-
-func TestLedger_GetParam(t *testing.T) {
-	var expectedValue = "value"
-	var testViper, testLedger = newTestConfigs()
-	var testOption = &Option{Param: "param"}
-
-	testViper.SetDefault(testOption.Param, expectedValue)
-	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
-}
-
-func TestLedger_GetDefaultValue(t *testing.T) {
-	var expectedValue = "expected"
-	var testViper, testLedger = newTestConfigs()
-	var testOption = &Option{
-		Param:        "param",
-		DefaultValue: "value",
-		DefaultGetter: func(ledger *Ledger) any {
-			return expectedValue
-		},
-	}
-
-	testViper.SetDefault(testOption.Param, "value")
-	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
-}
-
-func TestLedger_GetEnvPlaceholder(t *testing.T) {
-	var expectedValue = "expected"
-	var testViper, testLedger = newTestConfigs()
-	var testOption = &Option{
-		Param:        "param",
-		DefaultValue: "$value",
-	}
-
-	_ = os.Setenv("value", expectedValue)
-	testViper.SetDefault(testOption.Param, "$value")
-	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
-}
-
-func TestLedger_GetBoolNoResult(t *testing.T) {
-	var _, testLedger = newTestConfigs()
-	var testOption = &BoolOption{}
-
-	assert.False(t, testLedger.GetBool(testOption))
-}
-
 func TestLedger_GetBool(t *testing.T) {
 	var testViper, testLedger = newTestConfigs()
 	var testOption = &BoolOption{
@@ -351,6 +302,13 @@ func TestLedger_GetBool(t *testing.T) {
 
 	testViper.Set(testOption.Key, "true")
 	assert.True(t, testLedger.GetBool(testOption))
+}
+
+func TestLedger_GetBoolNoResult(t *testing.T) {
+	var _, testLedger = newTestConfigs()
+	var testOption = &BoolOption{}
+
+	assert.False(t, testLedger.GetBool(testOption))
 }
 
 func TestLedger_GetConfigType(t *testing.T) {
@@ -381,6 +339,43 @@ func TestLedger_GetConfigType_None(t *testing.T) {
 	actual, err := testLedger.GetConfigType(&testOption)
 	assert.NoError(t, err)
 	assert.EqualValues(t, shared.ConfigTypeNone, *actual)
+}
+
+func TestLedger_GetDefaultValue(t *testing.T) {
+	var expectedValue = "expected"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &Option{
+		Param:        "param",
+		DefaultValue: "value",
+		DefaultGetter: func(ledger *Ledger) any {
+			return expectedValue
+		},
+	}
+
+	testViper.SetDefault(testOption.Param, "value")
+	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
+}
+
+func TestLedger_GetEnvPlaceholder(t *testing.T) {
+	var expectedValue = "expected"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &Option{
+		Param:        "param",
+		DefaultValue: "$value",
+	}
+
+	_ = os.Setenv("value", expectedValue)
+	testViper.SetDefault(testOption.Param, "$value")
+	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
+}
+
+func TestLedger_GetKey(t *testing.T) {
+	var expectedValue = "value"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &Option{Key: "key"}
+
+	testViper.SetDefault(testOption.Key, expectedValue)
+	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
 }
 
 func TestLedger_GetList(t *testing.T) {
@@ -487,6 +482,15 @@ func TestLedger_GetListSingle(t *testing.T) {
 	assert.Contains(t, testLedger.GetList(testOption), expectedValue)
 }
 
+func TestLedger_GetParam(t *testing.T) {
+	var expectedValue = "value"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &Option{Param: "param"}
+
+	testViper.SetDefault(testOption.Param, expectedValue)
+	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
+}
+
 func TestLedger_GetString(t *testing.T) {
 	var expectedValue = "value"
 	var testViper, testLedger = newTestConfigs()
@@ -538,6 +542,27 @@ func TestLedger_GetStringTooLong(t *testing.T) {
 	}
 	testLedger.GetString(testOption)
 	assert.Contains(t, actual.(error).Error(), expectedTooLong[0:29]+"...")
+}
+
+func TestLedger_GetStringToolLongFile(t *testing.T) {
+	var expectedTooLong = "/this/path/will/be/cut/this/path/will/only/the/end"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &StringOption{
+		Option: Option{
+			Key: "key",
+			Validator: func(value any) bool {
+				return false
+			},
+		},
+	}
+	var actual interface{}
+
+	testViper.Set(testOption.Key, expectedTooLong)
+	testLedger.validationHandler = func(e interface{}) {
+		actual = e
+	}
+	testLedger.GetString(testOption)
+	assert.Contains(t, actual.(error).Error(), "..."+expectedTooLong[21:])
 }
 
 func TestLedger_GetStringValid(t *testing.T) {
@@ -592,7 +617,7 @@ func TestLedger_InitNoConfig(t *testing.T) {
 	var buff bytes.Buffer
 	var _, testLedger = newTestConfigs()
 
-	testLedger.UserPath = "/tmp"
+	testLedger.UserPath = t.TempDir()
 	testLedger.Init()
 	testLedger.LoggerFactory = func(ledger *Ledger) *logrus.Logger {
 		return &logrus.Logger{
@@ -613,9 +638,8 @@ func TestLedger_Init(t *testing.T) {
 	var _, testLedger = newTestConfigs()
 	var testStruct = configStruct{Key: "key", Value: "value"}
 
-	testLedger.UserPath = "/tmp"
+	testLedger.UserPath = t.TempDir()
 	assert.NoError(t, testLedger.makeConfigs(&testStruct))
-
 	testLedger.Init()
 	testLedger.LoggerFactory = func(ledger *Ledger) *logrus.Logger {
 		return &logrus.Logger{
@@ -629,7 +653,6 @@ func TestLedger_Init(t *testing.T) {
 	}
 	testLedger.InitLogging()
 	assert.Contains(t, buff.String(), "Using")
-	assert.NoError(t, os.Remove("/tmp/"+testLedger.ConfigName+".yaml"))
 }
 
 func TestLedger_InitLogging(t *testing.T) {

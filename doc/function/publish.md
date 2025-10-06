@@ -1,9 +1,9 @@
 ## Function Publish
 
 ```bash
-genaiz function publish --broker=HOST 
+genaiz sf publish --broker=HOST 
 --handle=HANDLE --oem=OEM --version=VERSION --name=NAME --type=TYPE
---arch=x86 --arch=... --no-update --rebuild 
+--arch=x86 --arch=... --no-update --rebuild
  ```
 Publish executes the necessary tasks to provision and publish a new version of a Smart Function, in the current working directory, optionally rebuilding the function and updating its local configurations.
 

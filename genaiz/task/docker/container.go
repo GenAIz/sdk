@@ -16,8 +16,8 @@ import (
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/stringz"
-	"genaiz.com/genaiz/lang/ioz"
 	"genaiz.com/genaiz/lang/signalz"
+	"genaiz.com/genaiz/lang/streamz"
 	"genaiz.com/genaiz/task"
 )
 
@@ -228,7 +228,7 @@ func handleContainerAttach(params *ContainerParams, state *task.State) error {
 			}
 
 			if response, err = dockerClient.ContainerAttach(wait, summary.ID, attachOptions); err == nil {
-				channelReader = ioz.NewHiJackedChannel(wait, ioz.NewHiJackedStreamerStd(response.Reader))
+				channelReader = streamz.NewHiJackedChannel(wait, streamz.NewHiJackedStreamerStd(response.Reader))
 				channelContainer = makeContainerChannel(wait, params, summary.ID)
 				defer response.Close()
 			} else {

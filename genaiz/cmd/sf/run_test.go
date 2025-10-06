@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -87,6 +88,7 @@ func TestRunExecutor_Display(t *testing.T) {
 
 func TestRunExecutor_PretendRebuildImage(t *testing.T) {
 	var calledBuild, calledRun bool
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
@@ -115,8 +117,10 @@ func TestRunExecutor_PretendRebuildImage(t *testing.T) {
 		runTaskFactory:   newRunTaskPretendStub(&calledRun),
 	}
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -129,6 +133,7 @@ func TestRunExecutor_PretendRebuildImage(t *testing.T) {
 
 func TestRunExecutor_Proceed(t *testing.T) {
 	var calledBuild, calledRun bool
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testOptionOutput = newOptionMountOutput("_test", false)
@@ -157,8 +162,10 @@ func TestRunExecutor_Proceed(t *testing.T) {
 		runTaskFactory:   newRunTaskCompleteStub(&calledRun),
 	}
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()

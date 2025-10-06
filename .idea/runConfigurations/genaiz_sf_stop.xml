@@ -3,7 +3,7 @@
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
     <go_parameters value="-tags dev" />
-    <parameters value="sf stop --context=out/samples/myBashExample --logLevel=debug" />
+    <parameters value="sf stop --context=out/samples/myBashExample --log-level=debug" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

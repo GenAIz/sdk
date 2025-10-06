@@ -25,15 +25,17 @@ type validators struct {
 	HandlePort    Validates
 	Oem           Validates
 	Name          Validates
+	Repository    Validates
 	RequiredName  Validates
 	Version       Validates
 	VersionNumber Validates
 }
 
 var (
-	nameStrings   = stringMatches(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9\-._][a-zA-Z0-9]+)*$`)
-	nameMaxSize   = stringMaxLength(255)
-	versionNumber = stringMatches(`^(?:[1-9][0-9]*|0)$`)
+	componentMaxSize = stringMaxLength(128)
+	componentStrings = stringMatches(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9\-._][a-zA-Z0-9]+)*$`)
+	nameMaxSize      = stringMaxLength(255)
+	versionNumber    = stringMatches(`^(?:[1-9][0-9]*|0)$`)
 
 	Validation = validators{
 		Blob:          stringMaxLength(4096),
@@ -42,9 +44,10 @@ var (
 		DomainName:    stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),
 		FileExists:    validateFileExists,
 		FolderName:    stringMatches(`^[a-zA-Z0-9\-._\/]+$`),
-		Handle:        AllOf(nameStrings, stringMaxLength(128)),
-		Oem:           AllOf(nameStrings, stringMaxLength(128)),
+		Handle:        AllOf(componentMaxSize, componentStrings),
+		Oem:           AllOf(componentMaxSize, componentStrings),
 		Name:          nameMaxSize,
+		Repository:    validateRepository,
 		RequiredName:  AllOf(stringMinLength(1), nameMaxSize),
 		Version:       validateVersion,
 		VersionNumber: versionNumber,
@@ -145,6 +148,25 @@ func validateFileExists(path any) bool {
 	var s, _ = os.Stat(path.(string))
 
 	return s != nil && !s.IsDir()
+}
+
+// validateRepository validates that a repository string can be accepted as a local docker <name>/<reference>
+func validateRepository(value any) bool {
+	var stringValue = value.(string)
+
+	if stringValue != "" {
+		var parts = strings.Split(stringValue, "/")
+
+		for _, part := range parts {
+			if !(componentMaxSize(part) && componentStrings(part)) {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return false
 }
 
 // validateVersion validates a string against the SemVer 2.0.0 semantic form, but without any specific additional tags (-RC, -Final, etc..)

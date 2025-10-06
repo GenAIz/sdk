@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/cmd/ac"
 	"genaiz.com/genaiz/cmd/sf"
 	"genaiz.com/genaiz/cmd/sn"
@@ -133,8 +134,8 @@ func New(ledger *config.Ledger) *cobra.Command {
 
 func NewRunnerOptions() *RunnerOptions {
 	return &RunnerOptions{
-		logFormat:  newOptionSolutionLogFormat(),
-		logLevel:   newOptionSolutionLogLevel(),
+		logFormat:  cli.Options.Solutions.LogFormat().BuildStringOption(),
+		logLevel:   cli.Options.Solutions.LogLevel().BuildStringOption(),
 		runConfig:  newOptionRunConfig(),
 		runConfirm: newOptionRunConfirm(),
 		runDry:     newOptionRunDry(),
@@ -223,30 +224,6 @@ func newOptionRunPretend() *config.BoolOption {
 			Param:        "pretend",
 			Usage:        "pretending displays shell commands that would be executed to accomplish the toolkit command, if there are any",
 			DefaultValue: false,
-		},
-	}
-}
-
-func newOptionSolutionLogFormat() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "Solution.LogFormat",
-			Env:          "SN_LOG_FORMAT",
-			Param:        "logFormat",
-			Usage:        "log format as supported by Logrus. Also supports \"json\" for structured logging",
-			DefaultValue: "[%time%|%lvl%] %msg%",
-		},
-	}
-}
-
-func newOptionSolutionLogLevel() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "Solution.LogLevel",
-			Env:          "SN_LOG_LEVEL",
-			Param:        "logLevel",
-			Usage:        "log level for controlling logging details. Supported case insensitive values: debug, d, error e, info, i, quiet q, trace t, warning and w",
-			DefaultValue: "quiet",
 		},
 	}
 }

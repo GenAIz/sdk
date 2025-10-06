@@ -96,6 +96,15 @@ func TestValidateFileExists(t *testing.T) {
 	}
 }
 
+func TestValidateRepository(t *testing.T) {
+	assert.False(t, validateRepository(""))
+	assert.False(t, validateRepository("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"))
+	assert.False(t, validateRepository("namespace/invalid.."))
+	assert.True(t, validateRepository("handle"))
+	assert.True(t, validateRepository("oem/handle"))
+	assert.True(t, validateRepository("oem/namespace/handle"))
+}
+
 func TestValidateVersion(t *testing.T) {
 	assert.False(t, validateVersion(""))
 	assert.False(t, validateVersion("0.1"))

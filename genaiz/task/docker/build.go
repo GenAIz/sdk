@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"regexp"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -15,11 +18,14 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/moby/go-archive"
+	"github.com/sirupsen/logrus"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/ioz"
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz-lib/lang/stringz"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -48,7 +54,15 @@ type BuildParams struct {
 	DockerTag     string
 	DockerVersion string
 	Label         bool
+	NoCache       bool
 	Prune         bool
+	Streams       *BuildStreams
+}
+
+type BuildStreams struct {
+	Err *os.File
+	In  *os.File
+	Out *os.File
 }
 
 func (p *BuildParams) GetFilters() filters.Args {
@@ -98,12 +112,103 @@ func (p *BuildParams) GetVersion() string {
 	return stringz.FirstNonEmpty(p.DockerVersion, "latest")
 }
 
+func (p *BuildParams) getErrorStream() *os.File {
+	if p.Streams != nil && p.Streams.Err != nil {
+		return p.Streams.Err
+	}
+
+	return os.Stderr
+}
+
+func (p *BuildParams) getInputStream() *os.File {
+	if p.Streams != nil && p.Streams.Err != nil {
+		return p.Streams.In
+	}
+
+	return os.Stdin
+}
+
+func (p *BuildParams) getOutputStream() *os.File {
+	if p.Streams != nil && p.Streams.Out != nil {
+		return p.Streams.Out
+	}
+
+	return os.Stdout
+}
+
+func (p *BuildParams) toBuildArgs() []string {
+	var args = []string{"build", "--pull", "-t", p.GetReference()}
+
+	if p.Dockerfile != "" {
+		args = append(args, "-f", p.Dockerfile)
+	}
+
+	if p.Label {
+		args = append(args, "--label")
+	}
+
+	if p.NoCache {
+		args = append(args, "--no-cache")
+	}
+
+	// Needs to be last
+	if p.DockerContext == "" {
+		args = append(args, ".")
+	} else {
+		args = append(args, p.DockerContext)
+	}
+
+	return args
+}
+
+func (p *BuildParams) toPruneArgs() []string {
+	var result = []string{"buildx", "prune", "--force"}
+
+	if !p.NoCache {
+		// We'll keep half a day's worth of cached build artifacts to help the build process
+		result = append(result, "--filter", "until=12h")
+	}
+
+	return result
+}
+
 func NewBuildTask() *task.Task[BuildParams] {
+	if dockerPath, err := exec.LookPath("docker"); err == nil {
+		if !strings.HasPrefix(dockerPath, "/usr/bin") {
+			// Prevent the user from invoking a docker script that isn't the expected binary path
+			// To prevent root kits, we'd need to do more, but that is up to users' recommended security on his platform
+			panic("docker binary is over-shadowed by unknown script or binary")
+		}
+
+		if os.Geteuid() == 0 {
+			// Since we are forking without the ability to validate the identity of the binary, prevent root from using build
+			panic("can not invoke the docker binary as root when building")
+		}
+
+		return NewBuildForkTask(dockerPath)
+	} else {
+		fmt.Println("DEPRECATED: The legacy Moby builder is deprecated and will be removed in a future release.\n" +
+			"You should install the docker-cli with docker-buildx to build images: https://docs.docker.com/go/buildx/")
+		return NewBuildLegacyTask()
+	}
+}
+
+func NewBuildLegacyTask() *task.Task[BuildParams] {
 	return &task.Task[BuildParams]{
-		Name:         "docker-build",
+		Name:         "docker-build-legacy",
 		OnPrepare:    handleBuildContext,
-		OnIncomplete: handleBuildCreate,
+		OnIncomplete: handleBuildLegacyCreate,
 		OnComplete:   handleBuildPrune,
+		OnPretend:    handleBuildPretend,
+	}
+}
+
+func NewBuildForkTask(dockerPath string) *task.Task[BuildParams] {
+	return &task.Task[BuildParams]{
+		Name:         "docker-build-fork",
+		OnPrepare:    handleBuildContext,
+		OnIncomplete: lang.Assists(dockerPath, handleBuildForkCreate),
+		OnComplete:   lang.Assists(dockerPath, handleBuildForkPrune),
 		OnPretend:    handleBuildPretend,
 	}
 }
@@ -162,7 +267,53 @@ func handleBuildContext(params *BuildParams, state *task.State) error {
 	return err
 }
 
-func handleBuildCreate(params *BuildParams, state *task.State) error {
+func handleBuildForkCreate(dockerPath string, params *BuildParams, state *task.State) error {
+	var args = params.toBuildArgs()
+	var cmd = exec.CommandContext(params.Context, dockerPath, args...)
+	var fork = ioz.NewFork(cmd)
+	var err error
+
+	if state.Logger.IsLevelEnabled(logrus.DebugLevel) {
+		fork.WithPipeErr(stateError(state))
+	} else {
+		fork.WithStdErr(params.getErrorStream()).
+			WithStdOut(params.getOutputStream())
+	}
+
+	state.Logger.Debugf("Building a docker image with cmd [%s]", cmd.String())
+
+	if err = fork.Run(params.Context); err == nil {
+		if err = fork.GetWaitError(); err == nil {
+			state.Output = ""
+			return nil
+		}
+	}
+
+	return err
+}
+
+func handleBuildForkPrune(dockerPath string, params *BuildParams, state *task.State) error {
+	if params.Prune {
+		var args = params.toPruneArgs()
+		var cmd = exec.CommandContext(params.Context, dockerPath, args...)
+		var fork = ioz.NewFork(cmd)
+		var err error
+
+		if state.Logger.IsLevelEnabled(logrus.DebugLevel) {
+			fork.WithPipeOut(stateDebug(state))
+		}
+
+		state.Logger.Debugf("Pruning build cache with command [%s]", cmd.String())
+
+		if err = fork.Run(params.Context); err != nil {
+			return err
+		}
+	}
+
+	return handleBuildPrune(params, state)
+}
+
+func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 	var reference = params.GetReference()
 	var buildCtx, _ = archive.TarWithOptions(params.DockerContext, &archive.TarOptions{})
 	var options = build.ImageBuildOptions{
@@ -170,13 +321,14 @@ func handleBuildCreate(params *BuildParams, state *task.State) error {
 		Tags:       []string{reference},
 		Remove:     true,
 		PullParent: true,
+		NoCache:    params.NoCache,
 	}
 
 	if params.Label {
 		options.Labels = map[string]string{"sf": params.DockerTag}
 	}
 
-	state.Logger.Debugf("Building a docker image tagged [%s]", reference)
+	state.Logger.Debugf("Building a docker image tagged [%s] with the legacy builder", reference)
 
 	if resp, err := dockerClient.ImageBuild(params.Context, buildCtx, options); err == nil {
 		var scanner = bufio.NewScanner(resp.Body)
@@ -195,6 +347,7 @@ func handleBuildCreate(params *BuildParams, state *task.State) error {
 			}
 		}
 
+		state.Output = ""
 		return nil
 	} else {
 		return err
@@ -237,7 +390,31 @@ func handleBuildPrune(params *BuildParams, state *task.State) error {
 			}
 		}
 	} else {
-		state.Logger.Debugf("Pruning disabled, skipping")
+		state.Logger.Debugf("Pruning dangling images disabled, skipping")
+	}
+
+	return handleBuildReport(params, state)
+}
+
+func handleBuildReport(params *BuildParams, state *task.State) error {
+	if state.Error == nil {
+		var listFilters = params.GetFilters()
+		var summaries []image.Summary
+		var err error
+
+		if summaries, err = dockerClient.ImageList(params.Context, image.ListOptions{Filters: listFilters}); err == nil {
+			if len(summaries) >= 1 {
+				var img = summaries[0]
+				var prefixLength = len(hashPrefix)
+				var shortId = img.ID[prefixLength : prefixLength+12]
+				var size = fmt.Sprintf("%3.1fMB", float64(img.Size/1024/1024))
+
+				state.Report(fmt.Sprintf("Built image [%s] - [%s] size [%s]", params.GetReference(), shortId, size))
+				return nil
+			}
+		}
+
+		return err
 	}
 
 	return nil
@@ -419,4 +596,27 @@ func listImages(images []image.Summary, output *bytes.Buffer, threshold time.Tim
 	}
 
 	panicz.PanicIfError(writer.Flush())
+}
+
+func stateDebug(state *task.State) func(string) {
+	return func(s string) {
+		state.Logger.Debugf("%s", s)
+	}
+}
+
+func stateError(state *task.State) func(string) {
+	var indiceRegex = regexp.MustCompile(`^#\d+\s+`)
+
+	return func(s string) {
+		if i := strings.Index(strings.ToLower(s), "error: "); i == 0 {
+			state.Logger.Errorf("%s", s[7:])
+		} else if s != "" {
+			// docker build logs everything to STDERR, including debug messages
+			if !strings.HasPrefix(s, "#") {
+				state.Logger.Debugf("%s", s)
+			} else if i = strings.Index(s, " "); i > 0 && indiceRegex.Match([]byte(s)) {
+				state.Logger.Debugf("%s", s[i+1:])
+			}
+		}
+	}
 }

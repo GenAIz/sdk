@@ -2,6 +2,7 @@ package sf
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -81,6 +82,7 @@ func TestBuildExecutor_Pretend(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testExecutor.Pretend()
@@ -112,6 +114,7 @@ func TestBuildExecutor_Proceed(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testLedger.Logger = logrus.New()
@@ -120,6 +123,20 @@ func TestBuildExecutor_Proceed(t *testing.T) {
 	} else {
 		assert.NoError(t, err)
 	}
+}
+
+func TestNewBuildExecutor(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testOptions = NewBuildOptions()
+	var testExecutor = NewBuildExecutor(context.Background(), testLedger, nil, testOptions)
+	var testTask *task.Task[docker.BuildParams]
+
+	testTask = testExecutor.buildTaskFactory()
+	assert.Equal(t, docker.NewBuildForkTask("").Name, testTask.Name)
+	testViper.Set(testOptions.optionLegacy.Key, "true")
+	testTask = testExecutor.buildTaskFactory()
+	assert.Equal(t, docker.NewBuildLegacyTask().Name, testTask.Name)
 }
 
 func TestNewBuild(t *testing.T) {
@@ -165,6 +182,7 @@ func Test_makeBuildParamsCwdContext(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 		t.Chdir(testDir)
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(testDir, "Dockerfile"))
 		testParam := makeBuildParams(testExecutor)
@@ -192,6 +210,7 @@ func Test_makeBuildParamsCwdModule(t *testing.T) {
 	if fd, err := filez.CreateRecursive(filepath.Join(testDir, expectedModule), expectedFile); err == nil {
 		defer filez.CloseSilently(fd)
 		t.Chdir(testDir)
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fd.Name())
 		testParam := makeBuildParams(testExecutor)
@@ -218,6 +237,7 @@ func Test_makeBuildParamsCwdNotStandard(t *testing.T) {
 	if fd, err := filez.CreateRecursive(testDir, expectedFile); err == nil {
 		defer filez.CloseSilently(fd)
 		t.Chdir(testDir)
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(testDir, expectedFile))
 		testParam := makeBuildParams(testExecutor)
@@ -242,6 +262,7 @@ func Test_makeBuildParamsExternalContext(t *testing.T) {
 
 	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile2")); err == nil {
 		defer filez.CloseSilently(fd)
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fd.Name())
 		testParam := makeBuildParams(testExecutor)

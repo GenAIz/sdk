@@ -38,6 +38,7 @@ func (be *BuildExecutor) Proceed() {
 	var params = be.makeBuildParams()
 	var plan = task.NewPlan("Build", be.Ledger.Logger)
 
+	plan.PrintReportsOnly = true
 	task.Single(plan, params, be.buildTaskFactory())
 }
 
@@ -52,12 +53,16 @@ func (be *BuildExecutor) makeBuildParams() *docker.BuildParams {
 
 type BuildOptions struct {
 	optionLabelling *config.BoolOption
+	optionLegacy    *config.BoolOption
+	optionNoCache   *config.BoolOption
 	optionPruning   *config.BoolOption
 }
 
 func (bo BuildOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		bo.optionLabelling,
+		bo.optionLegacy,
+		bo.optionNoCache,
 		bo.optionPruning,
 	}
 }
@@ -68,7 +73,7 @@ func NewBuild(ledger *config.Ledger, cli *Cli) *cobra.Command {
 		Use:     "build",
 		Short:   "Builds a Smart Function",
 		Long:    "Builds a Smart Function image tagging it with tag and version values",
-		Example: "genaiz sf build --file Dockerfile2 --context ../smartfunc --tag genaiz.com/sf/smartfunc --version v1.0",
+		Example: "genaiz sf build --file=Dockerfile2 --context=../smartfunc --tag=genaiz.com/sf/smartfunc --version=v1.0",
 		Run: func(cmd *cobra.Command, args []string) {
 			cli.Exec(ledger, NewBuildExecutor(cmd.Context(), ledger, cli, options))
 		},
@@ -85,14 +90,24 @@ func NewBuildExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 			Cli:     cli,
 			Ledger:  ledger,
 		},
-		BuildOptions:     options,
-		buildTaskFactory: docker.NewBuildTask,
+		BuildOptions: options,
+		buildTaskFactory: func() *task.Task[docker.BuildParams] {
+			var useLegacy = ledger.GetBool(options.optionLegacy)
+
+			if useLegacy {
+				return docker.NewBuildLegacyTask()
+			} else {
+				return docker.NewBuildTask()
+			}
+		},
 	}
 }
 
 func NewBuildOptions() *BuildOptions {
 	return &BuildOptions{
 		optionLabelling: cli.Options.Docker.Label().BuildBoolOption(),
+		optionLegacy:    cli.Options.Docker.Legacy().BuildBoolOption(),
+		optionNoCache:   cli.Options.Docker.NoCache().BuildBoolOption(),
 		optionPruning:   cli.Options.Docker.Prune().BuildBoolOption(),
 	}
 }
@@ -101,6 +116,8 @@ func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
 	var cwd, _ = os.Getwd()
 	var dockerContext = base.Ledger.GetString(base.Cli.optionDockerContext)
 	var dockerFile = base.Ledger.GetString(base.Cli.optionDockerFile)
+	var dockerTag = base.Ledger.GetString(base.Cli.optionDockerTag)
+	var dockerVersion = base.Ledger.GetString(base.Cli.optionDockerVersion)
 
 	if cwd == dockerContext {
 		dockerContext = "."
@@ -122,7 +139,7 @@ func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
 		Env:           task.Env{Context: base.Context},
 		Dockerfile:    dockerFile,
 		DockerContext: dockerContext,
-		DockerTag:     base.Ledger.GetString(base.Cli.optionDockerTag),
-		DockerVersion: base.Ledger.GetString(base.Cli.optionDockerVersion),
+		DockerTag:     strings.ToLower(dockerTag),
+		DockerVersion: strings.ToLower(dockerVersion),
 	}
 }

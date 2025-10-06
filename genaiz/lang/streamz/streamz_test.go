@@ -1,4 +1,4 @@
-package ioz
+package streamz
 
 import (
 	"bufio"

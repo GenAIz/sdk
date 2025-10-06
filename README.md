@@ -1,8 +1,38 @@
 # GenAIz SDK
 
+## Usage
+
+### Single Node Solution Examples
+
+#### Create
+
+The following example creates a solution **solution-1** and a smart function **my-bash-example** using the recipe **bash-example**. It then builds the function with the default version assigned by create, [0.1.0](doc/function/index.md#version), assigns a single node to the **default** workflow, authenticates a user with [broker.genaiz.com](doc/account/index.md#host) and publishes the solution to the broker.
+
+```bash
+genaiz sn create mySolutionDir --name="My Solution" --handle="solution-1" \
+  --oem="com.genaiz.dev" --description="A Description"
+cd mySolutionDir
+genaiz sf create mySolutionDir/mySmartFunction --recipe="bash-example" \
+  --oem="com.genaiz.dev" --handle="my-bash-example" --name="My Bash Example"
+cd mySmartFunction
+genaiz sf build
+cd ..
+genaiz wf nodes add default node1 --name="Single Node" \
+  --description="My Single Node" --sf="com.genaiz.dev/my-bash-example:0.1.0"
+genaiz ac login broker.genaiz.com --username="myUsername"
+genaiz sn publish broker.genaiz.com
+```
+
+## Design
+
+Design was modeled with a behavior driven approach focusing on user's usage studies. The design rules are presented under the [doc](doc/index.md) folder with associated Gherkin files accessible to the documents. The following target the [Genaiz Toolkit](#genaiz-smartfunction-toolkit):
+
+* [Account Scenarios](doc/account/index.md)
+* [Function Scenarios](doc/function/index.md)
+
 ## Modules
 
-### [Genaiz SmartFunction Toolkit](genaiz/README.md)
+### [GenAIz SmartFunction Toolkit](genaiz/README.md)
 
 Handles building, debugging, running, testing and publishing Smart Functions to a GenAIz Broker Platform.
 
@@ -12,7 +42,7 @@ Handles testing of service deployments with the GenAIz SmartFunction Kit. It off
 
 - CNCF Distribution Registry bootstrapping for tests
 - Wiremock deployment to simulate what the SDK expects out of an orchestrator deployment
-- Cucumber Genaiz Feature definitions and their associated step definitions
+- Cucumber-like Genaiz runtime implementation with the step definitions used under Gherkin features 
 
 ### [GenAIz Library](genaiz-lib/README.md)
 
@@ -37,6 +67,9 @@ These facilities should be used to integrate token authentication on  [CNCF Dist
 ### Building All Modules
 
 Individual modules with make files will answer their own targets, but most will have *clean, build* and *test* at a minimum.
+
+> [!TIP]
+> make install on the root Makefile should install all of genaiz, genaiz-it & genaiz-oauth under $HOME/go/bin
 
 #### [GenAIz Makefile](genaiz/README.md#makefile)
 

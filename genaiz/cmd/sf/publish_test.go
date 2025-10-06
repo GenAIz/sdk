@@ -94,6 +94,7 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionNoUpdate.Key, true)
@@ -141,6 +142,7 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
@@ -187,6 +189,7 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -234,6 +237,7 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -286,6 +290,7 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerVersion.Key, expectedVersion)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
@@ -346,6 +351,7 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 			var fileName = tmpFile.Name()
 
 			t.Chdir(testDir)
+			testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 			testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 			testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 			testViper.Set(testOptions.optionArches.Key, expectedArches)
@@ -396,6 +402,7 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionRebuild.Key, true)
@@ -448,6 +455,7 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testOptions.optionArches.Key, expectedArches)
