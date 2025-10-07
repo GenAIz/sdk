@@ -59,8 +59,8 @@ func TestInitWriter_BuildHandle(t *testing.T) {
 			optionOem:    testInitOptionOem,
 			optionHandle: testInitOptionHandle,
 		},
-		vp:      testViper,
-		baseTag: cli.Options.Docker.Tag().BuildStringOption(),
+		vp:           testViper,
+		buildTagKeys: &schema.Genaiz.Function.Build.Tag,
 	}
 	var actualKey, actualValue = testWriter.WithHandle(expectedHandle).BuildHandle()
 
@@ -70,7 +70,7 @@ func TestInitWriter_BuildHandle(t *testing.T) {
 	_, actualValue = testWriter.WithHandle("").BuildHandle()
 
 	assert.EqualValues(t, expectedHandle, actualValue)
-	assert.EqualValues(t, expectedHandle, testViper.GetString(testWriter.baseTag.Key))
+	assert.EqualValues(t, expectedHandle, testViper.GetString(testWriter.buildTagKeys.Doc))
 }
 
 func TestInitWriter_BuildInput(t *testing.T) {
@@ -116,8 +116,8 @@ func TestInitWriter_BuildOem(t *testing.T) {
 			optionHandle: testInitOptionHandle,
 			optionOem:    testInitOptionOem,
 		},
-		vp:      viper.New(),
-		baseTag: cli.Options.Docker.Tag().BuildStringOption(),
+		vp:           viper.New(),
+		buildTagKeys: &schema.Genaiz.Function.Build.Tag,
 	}
 	var actualKey, actualValue = testWriter.WithOem(expectedOem).BuildOem()
 
@@ -177,8 +177,8 @@ func TestInitWriter_BuildVersion(t *testing.T) {
 		PublishOptions: &PublishOptions{
 			optionVersion: testInitOptionVersion,
 		},
-		vp:          testViper,
-		baseVersion: cli.Options.Docker.Version().BuildStringOption(),
+		vp:               testViper,
+		buildVersionKeys: &schema.Genaiz.Function.Build.Version,
 	}
 	var actualKey, actualValue = testWriter.WithVersion(expectedVersion).BuildVersion()
 
@@ -188,7 +188,7 @@ func TestInitWriter_BuildVersion(t *testing.T) {
 	_, actualValue = testWriter.WithVersion("").BuildVersion()
 
 	assert.EqualValues(t, expectedVersion, actualValue)
-	assert.EqualValues(t, "latest", testViper.GetString(testWriter.baseVersion.Key))
+	assert.EqualValues(t, "latest", testViper.GetString(testWriter.buildVersionKeys.Doc))
 }
 
 func TestInitWriter_Write(t *testing.T) {
@@ -203,9 +203,9 @@ func TestInitWriter_Write(t *testing.T) {
 			optionHandle:  testInitOptionHandle,
 			optionVersion: testInitOptionVersion,
 		},
-		vp:          testViper,
-		baseTag:     cli.Options.Docker.Tag().BuildStringOption(),
-		baseVersion: cli.Options.Docker.Version().BuildStringOption(),
+		vp:               testViper,
+		buildTagKeys:     &schema.Genaiz.Function.Build.Tag,
+		buildVersionKeys: &schema.Genaiz.Function.Build.Version,
 	}
 	var testFolder = filepath.Dir(expectedFile)
 
@@ -218,8 +218,8 @@ func TestInitWriter_Write(t *testing.T) {
 
 		assert.NotPanics(t, func() { testWriter.WithConfigFile(expectedFile) })
 
-		assert.EqualValues(t, "latest", testViper.GetString(testWriter.baseVersion.Key))
-		assert.EqualValues(t, expectedOem+"/"+expectedHandle, testViper.GetString(testWriter.baseTag.Key))
+		assert.EqualValues(t, "latest", testViper.GetString(testWriter.buildVersionKeys.Doc))
+		assert.EqualValues(t, expectedOem+"/"+expectedHandle, testViper.GetString(testWriter.buildTagKeys.Doc))
 	} else {
 		assert.NoError(t, err)
 	}
@@ -234,9 +234,9 @@ func TestInitWriter_WriteInvalidFile(t *testing.T) {
 			optionHandle:  testInitOptionHandle,
 			optionVersion: testInitOptionVersion,
 		},
-		vp:          viper.New(),
-		baseTag:     cli.Options.Docker.Tag().BuildStringOption(),
-		baseVersion: cli.Options.Docker.Version().BuildStringOption(),
+		vp:               viper.New(),
+		buildTagKeys:     &schema.Genaiz.Function.Build.Tag,
+		buildVersionKeys: &schema.Genaiz.Function.Build.Version,
 	}
 
 	assert.Panics(t, func() { testWriter.WithConfigFile(invalidFile) })
@@ -280,6 +280,7 @@ func TestInitExecutor_Display(t *testing.T) {
 }
 
 func TestInitExecutor_Pretend(t *testing.T) {
+	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var calledInit = false
@@ -294,14 +295,21 @@ func TestInitExecutor_Pretend(t *testing.T) {
 		initTaskFactory: newInitTaskPretendStub(&calledInit),
 	}
 
-	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
-	testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
-	testViper.Set(testExecutor.optionOem.Key, "oem")
-	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
-	testViper.Set(testInitOptionArches.Key, layout.ArchTypeArm64)
-	testExecutor.Pretend()
-	assert.True(t, calledInit)
+	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
+		filez.CloseSilently(fd)
+		testLedger.WorkDir = testDir
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.optionConfigType.Key, "yaml")
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
+		testViper.Set(testExecutor.optionOem.Key, "oem")
+		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
+		testViper.Set(testInitOptionArches.Key, layout.ArchTypeArm64)
+		testExecutor.Pretend()
+		assert.True(t, calledInit)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestInitExecutor_Proceed(t *testing.T) {
@@ -327,15 +335,21 @@ func TestInitExecutor_Proceed(t *testing.T) {
 	var err error
 
 	if err = os.MkdirAll(testDir, 0750); err == nil {
-		t.Chdir(testDir)
-		testLedger.Logger = logrus.New()
-		testViper.Set(testExecutor.optionArches.Key, expectedArches)
-		testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testExecutor.optionOem.Key, "oem")
-		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
-		testExecutor.Proceed()
-		assert.True(t, calledInit)
+		var fd *os.File
+
+		if fd, err = os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
+			filez.CloseSilently(fd)
+			testLedger.Logger = logrus.New()
+			testLedger.WorkDir = testDir
+			testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+			testViper.Set(testExecutor.optionArches.Key, expectedArches)
+			testViper.Set(testExecutor.optionConfigType.Key, "yaml")
+			testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+			testViper.Set(testExecutor.optionOem.Key, "oem")
+			testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
+			testExecutor.Proceed()
+			assert.True(t, calledInit)
+		}
 	}
 
 	assert.NoError(t, err)

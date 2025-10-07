@@ -70,7 +70,7 @@ func (pe *PublishExecutor) Pretend() {
 	workers = append(workers, task.NewPretender(publishParams, pe.publishTaskFactory()))
 
 	if !noUpdate {
-		var builder = makeInitBuilder(pe.Cli)
+		var builder = makeInitBuilder(pe.Ledger, pe.Cli)
 		var initParams = pe.makePublishInitParams()
 
 		workers = append(workers, task.NewPretender(initParams, pe.initTaskFactory(builder)))
@@ -102,7 +102,7 @@ func (pe *PublishExecutor) Proceed() {
 	)
 
 	if !noUpdate {
-		var builder = makeInitBuilder(pe.Cli)
+		var builder = makeInitBuilder(pe.Ledger, pe.Cli)
 		var initParams = pe.makePublishInitParams()
 
 		workers = append(workers, task.NewWorker(initParams, pe.initTaskFactory(builder)))

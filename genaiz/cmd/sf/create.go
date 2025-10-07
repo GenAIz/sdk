@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz/cli"
@@ -52,7 +53,7 @@ func (ce *CreateExecutor) Pretend() {
 	var initParams = makeInitParams(ce.Ledger, ce.InitOptions)
 	var recipeName = ce.Ledger.GetString(ce.optionRecipe)
 	var plan = task.NewPlan("Create", ce.Ledger.Logger)
-	var builder = makeInitBuilder(ce.Cli)
+	var builder = ce.makeCreateBuilder(ce.Ledger, ce.Cli)
 	var workers []task.Worker
 
 	ce.Ledger.DisplayChangeDir()
@@ -69,7 +70,7 @@ func (ce *CreateExecutor) Pretend() {
 }
 
 func (ce *CreateExecutor) Proceed() {
-	var builder = makeInitBuilder(ce.Cli)
+	var builder = ce.makeCreateBuilder(ce.Ledger, ce.Cli)
 	var createParams = ce.makeCreateParams()
 	var initParams = makeInitParams(ce.Ledger, ce.InitOptions)
 	var recipeName = ce.Ledger.GetString(ce.optionRecipe)
@@ -86,7 +87,21 @@ func (ce *CreateExecutor) Proceed() {
 		workers = append(workers, task.NewWorker(recipeParams, ce.recipeTaskFactory(ce.Ledger.TemplatePaths...)))
 	}
 
+	plan.PrintReportsOnly = true
 	plan.Sequence(workers...)
+}
+
+func (ce *CreateExecutor) makeCreateBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
+	var dockerTag = ledger.GetString(sfCli.optionDockerTag)
+	var result = &InitWriter{
+		PublishOptions:   NewPublishOptions(sfCli),
+		RunOptions:       NewRunOptions(sfCli),
+		buildTagKeys:     &schema.Genaiz.Function.Build.Tag,
+		buildVersionKeys: &schema.Genaiz.Function.Build.Version,
+		vp:               viper.New(),
+	}
+
+	return result.WithTag(dockerTag)
 }
 
 func (ce *CreateExecutor) makeCreateParams() *layout.CreateParams {

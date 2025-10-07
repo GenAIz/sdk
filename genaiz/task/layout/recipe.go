@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"fmt"
 	"maps"
 	"os"
 
@@ -84,9 +85,9 @@ func handleLayoutRecipeCreate(book *recipe.Book, params *RecipeParams, state *ta
 
 			if err = layoutRecipe.WriteFiles(currentFolder, params.InstanceName, allVariables); err == nil {
 				state.Logger.Debugf("Completing recipe instance [%s]", params.InstanceName)
-				err = layoutRecipe.Finish(currentFolder, params.InstanceName, allVariables)
-
-				if err != nil {
+				if err = layoutRecipe.Finish(currentFolder, params.InstanceName, allVariables); err == nil {
+					state.Report(fmt.Sprintf("Constructed recipe [%s]", params.Name))
+				} else {
 					state.Logger.Errorf("Could not complete construction of recipe [%s] : %s", params.Name, err)
 				}
 			} else {

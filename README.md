@@ -64,6 +64,12 @@ These facilities should be used to integrate token authentication on  [CNCF Dist
 
 ## Development Guide
 
+### Prerequisites
+
+* [Golang](https://go.dev/doc/install)
+* [Gnu Make](https://www.gnu.org/software/make/manual/make.html)
+* [Docker](https://docs.docker.com/engine/install/)
+
 ### Building All Modules
 
 Individual modules with make files will answer their own targets, but most will have *clean, build* and *test* at a minimum.

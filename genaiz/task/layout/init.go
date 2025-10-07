@@ -98,8 +98,11 @@ func handleLayoutInitContext(params *InitParams, state *task.State) error {
 
 func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task.State) error {
 	if state.Output != "" {
+		var err error
+
 		state.Logger.Debugf("Init writing to [%s]", state.Output)
-		return writer.WithArches(params.Arches).
+
+		if err = writer.WithArches(params.Arches).
 			WithHandle(params.Handle).
 			WithName(params.Name).
 			WithType(params.Type).
@@ -107,7 +110,12 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 			WithOutput(params.MountOutput).
 			WithOem(params.OEM).
 			WithVersion(params.Version).
-			Write(state.Output)
+			Write(state.Output); err == nil {
+			state.Report(fmt.Sprintf("Initialized function [%s/%s], version [%s]", params.OEM, params.Handle, params.Version))
+			return nil
+		}
+
+		return err
 	}
 
 	return errorNoConfigFile
@@ -144,6 +152,7 @@ func handleLayoutInitUpdate(writer ConfigWriter, params *InitParams, state *task
 			state.Report(fmt.Sprintf("Updated %s successfully", state.Output))
 			state.Completed = true
 			state.Output = ""
+			return nil
 		}
 
 		return err

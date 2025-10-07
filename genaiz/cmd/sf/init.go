@@ -24,9 +24,10 @@ import (
 type InitWriter struct {
 	*PublishOptions
 	*RunOptions
-	baseTag     *config.StringOption
-	baseVersion *config.StringOption
-	vp          *viper.Viper
+	buildFileKeys    *schema.Keys
+	buildTagKeys     *schema.Keys
+	buildVersionKeys *schema.Keys
+	vp               *viper.Viper
 }
 
 func (iw *InitWriter) BuildArches() (string, []string) {
@@ -85,6 +86,14 @@ func (iw *InitWriter) WithConfigFile(file string) layout.ConfigWriter {
 	return iw
 }
 
+func (iw *InitWriter) WithDockerFile(file string) layout.ConfigWriter {
+	if file != "" {
+		iw.vp.Set(iw.buildFileKeys.Doc, file)
+	}
+
+	return iw
+}
+
 func (iw *InitWriter) WithHandle(value string) layout.ConfigWriter {
 	if value != "" {
 		var oem = iw.vp.GetString(iw.optionOem.Key)
@@ -132,6 +141,14 @@ func (iw *InitWriter) WithOutput(value string) layout.ConfigWriter {
 	return iw
 }
 
+func (iw *InitWriter) WithTag(value string) layout.ConfigWriter {
+	if value != "" {
+		iw.vp.Set(iw.buildTagKeys.Doc, value)
+	}
+
+	return iw
+}
+
 func (iw *InitWriter) WithType(value string) layout.ConfigWriter {
 	if value != "" {
 		iw.vp.Set(iw.optionType.Key, value)
@@ -143,7 +160,7 @@ func (iw *InitWriter) WithType(value string) layout.ConfigWriter {
 func (iw *InitWriter) WithVersion(value string) layout.ConfigWriter {
 	if value != "" {
 		iw.vp.Set(iw.optionVersion.Key, value)
-		iw.vp.Set(iw.baseVersion.Key, "latest")
+		iw.vp.Set(iw.buildVersionKeys.Doc, "latest")
 	}
 
 	return iw
@@ -164,7 +181,7 @@ func (iw *InitWriter) setTag(oem string, handle string) {
 		tagTokens = append(tagTokens, handle)
 	}
 
-	iw.vp.Set(iw.baseTag.Key, strings.Join(tagTokens, "/"))
+	iw.vp.Set(iw.buildTagKeys.Doc, strings.Join(tagTokens, "/"))
 }
 
 type InitTaskFactory func(layout.ConfigWriter) *task.Task[layout.InitParams]
@@ -203,11 +220,12 @@ func (ie *InitExecutor) Proceed() {
 	var params = ie.makeInitParams()
 	var plan = task.NewPlan("Init", ie.Ledger.Logger)
 
+	plan.PrintReportsOnly = true
 	task.Single(plan, params, ie.initTaskFactory(builder))
 }
 
-func (ie *InitExecutor) makeInitBuilder() *InitWriter {
-	return makeInitBuilder(ie.Cli)
+func (ie *InitExecutor) makeInitBuilder() layout.ConfigWriter {
+	return makeInitBuilder(ie.Ledger, ie.Cli)
 }
 
 func (ie *InitExecutor) makeInitParams() *layout.InitParams {
@@ -323,14 +341,23 @@ func NewInitOptions(sfCli *Cli) *InitOptions {
 	}
 }
 
-func makeInitBuilder(sfCli *Cli) *InitWriter {
-	return &InitWriter{
-		PublishOptions: NewPublishOptions(sfCli),
-		RunOptions:     NewRunOptions(sfCli),
-		baseTag:        cli.Options.Docker.Tag().BuildStringOption(),
-		baseVersion:    cli.Options.Docker.Version().BuildStringOption(),
-		vp:             viper.New(),
+func makeInitBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
+	var dockerFile = ledger.GetString(sfCli.optionDockerFile)
+	var dockerTag = ledger.GetString(sfCli.optionDockerTag)
+	var result = &InitWriter{
+		PublishOptions:   NewPublishOptions(sfCli),
+		RunOptions:       NewRunOptions(sfCli),
+		buildFileKeys:    &schema.Genaiz.Function.Build.File,
+		buildTagKeys:     &schema.Genaiz.Function.Build.Tag,
+		buildVersionKeys: &schema.Genaiz.Function.Build.Version,
+		vp:               viper.New(),
 	}
+
+	if dockerFile != sfCli.optionDockerFile.DefaultGetter(ledger) {
+		result.WithDockerFile(dockerFile)
+	}
+
+	return result.WithTag(dockerTag)
 }
 
 func makeInitParams(ledger *config.Ledger, initOptions *InitOptions) *layout.InitParams {

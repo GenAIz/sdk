@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
-type StubWriter struct {
+type stubWriter struct {
 	arches     []string
 	configFile string
 	dest       string
@@ -27,76 +28,77 @@ type StubWriter struct {
 	output     map[string]string
 	sfType     string
 	version    string
+	writeErr   error
 }
 
-func (s *StubWriter) Write(dest string) error {
+func (s *stubWriter) Write(dest string) error {
 	s.dest = dest
-	return nil
+	return s.writeErr
 }
 
-func (s *StubWriter) BuildArches() (string, []string) {
+func (s *stubWriter) BuildArches() (string, []string) {
 	return "", s.arches
 }
 
-func (s *StubWriter) BuildHandle() (string, string) {
+func (s *stubWriter) BuildHandle() (string, string) {
 	return "", s.handle
 }
 
-func (s *StubWriter) BuildInput() (string, string) {
+func (s *stubWriter) BuildInput() (string, string) {
 	return "", s.input
 }
 
-func (s *StubWriter) BuildName() (string, string) {
+func (s *stubWriter) BuildName() (string, string) {
 	return "", s.name
 }
 
-func (s *StubWriter) BuildOem() (string, string) {
+func (s *stubWriter) BuildOem() (string, string) {
 	return "", s.oem
 }
 
-func (s *StubWriter) BuildOutput() map[string]string {
+func (s *stubWriter) BuildOutput() map[string]string {
 	return s.output
 }
 
-func (s *StubWriter) BuildType() (string, string) {
+func (s *stubWriter) BuildType() (string, string) {
 	return "", s.sfType
 }
 
-func (s *StubWriter) BuildVersion() (string, string) {
+func (s *stubWriter) BuildVersion() (string, string) {
 	return "", s.version
 }
 
-func (s *StubWriter) WithConfigFile(configFile string) ConfigWriter {
+func (s *stubWriter) WithConfigFile(configFile string) ConfigWriter {
 	s.configFile = configFile
 	return s
 }
 
-func (s *StubWriter) WithArches(arches []string) ConfigWriter {
+func (s *stubWriter) WithArches(arches []string) ConfigWriter {
 	s.arches = arches
 	return s
 }
 
-func (s *StubWriter) WithHandle(handle string) ConfigWriter {
+func (s *stubWriter) WithHandle(handle string) ConfigWriter {
 	s.handle = handle
 	return s
 }
 
-func (s *StubWriter) WithInput(input string) ConfigWriter {
+func (s *stubWriter) WithInput(input string) ConfigWriter {
 	s.input = input
 	return s
 }
 
-func (s *StubWriter) WithName(name string) ConfigWriter {
+func (s *stubWriter) WithName(name string) ConfigWriter {
 	s.name = name
 	return s
 }
 
-func (s *StubWriter) WithOem(oem string) ConfigWriter {
+func (s *stubWriter) WithOem(oem string) ConfigWriter {
 	s.oem = oem
 	return s
 }
 
-func (s *StubWriter) WithOutput(output string) ConfigWriter {
+func (s *stubWriter) WithOutput(output string) ConfigWriter {
 	if s.output == nil {
 		s.output = make(map[string]string)
 	}
@@ -105,12 +107,12 @@ func (s *StubWriter) WithOutput(output string) ConfigWriter {
 	return s
 }
 
-func (s *StubWriter) WithType(sfType string) ConfigWriter {
+func (s *stubWriter) WithType(sfType string) ConfigWriter {
 	s.sfType = sfType
 	return s
 }
 
-func (s *StubWriter) WithVersion(version string) ConfigWriter {
+func (s *stubWriter) WithVersion(version string) ConfigWriter {
 	s.version = version
 	return s
 }
@@ -204,7 +206,7 @@ func Test_handleLayoutInitCreate(t *testing.T) {
 		OEM:         "oem",
 		Version:     "version",
 	}
-	var testWriter = &StubWriter{}
+	var testWriter = &stubWriter{}
 
 	assert.NoError(t, handleLayoutInitCreate(testWriter, testParams, testState))
 	assert.Equal(t, testParams.Arches, testWriter.arches)
@@ -237,7 +239,7 @@ func Test_handleLayoutInitPretend(t *testing.T) {
 		OEM:         "oem",
 		Version:     "version",
 	}
-	var testWriter = &StubWriter{}
+	var testWriter = &stubWriter{}
 	var stdoutRestore = os.Stdout
 	var r, w, _ = os.Pipe()
 
@@ -262,9 +264,19 @@ func Test_handleLayoutInitPretend(t *testing.T) {
 	assert.Contains(t, output, testParams.Version)
 }
 
+func Test_handleLayoutInitUpdate_createError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.json",
+	}
+	var testWriter = &stubWriter{writeErr: expectedError}
+
+	assert.ErrorIs(t, handleLayoutInitUpdate(testWriter, &InitParams{}, testState), expectedError)
+}
+
 func Test_handleLayoutInitUpdate_noConfig(t *testing.T) {
 	assert.NoError(t, handleLayoutInitUpdate(nil, &InitParams{}, &task.State{}))
-
 }
 
 func Test_handleLayoutInitUpdate(t *testing.T) {
@@ -282,7 +294,7 @@ func Test_handleLayoutInitUpdate(t *testing.T) {
 		OEM:         "oem",
 		Version:     "version",
 	}
-	var testWriter = &StubWriter{}
+	var testWriter = &stubWriter{}
 
 	assert.NoError(t, handleLayoutInitUpdate(testWriter, testParams, testState))
 	assert.Equal(t, testParams.Arches, testWriter.arches)

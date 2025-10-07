@@ -11,32 +11,28 @@ Feature: function build with the bash example
     Then I should have a function under "<handle>" named "<name>" with version "<version>"
 
   Scenario: build bash example bad context
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the following parameters
+    Given the following parameters
       | context     | file       | tag                |
       | bad-context | Dockerfile | com.genaiz.dev/tag |
     When I run the command "sf build --context=<context> --file=<file> --tag=<tag>"
     Then I should have an error for field "sf.build.context"
 
   Scenario: build bash example bad file
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the following parameters
+    Given the following parameters
       | context      | file          | tag                |
       | bash-example | badDockerfile | com.genaiz.dev/tag |
     When I run the command "sf build --context=<context> --file=<file> --tag=<tag>"
     Then I should have an error for field "sf.build.file"
 
   Scenario: build bash example bad tag
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the following parameters
+    Given the following parameters
       | context      | file       | tag                     |
       | bash-example | Dockerfile | com.genaiz.dev/bad..tag |
     When I run the command "sf build --context=<context> --file=<file> --tag=<tag>"
     Then I should have an error for field "sf.build.tag"
 
   Scenario: build bash example no context file
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the following parameters
+    Given the following parameters
       | tag                |
       | com.genaiz.dev/tag |
     When I run the command "sf build --tag=<tag>"
