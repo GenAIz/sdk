@@ -78,6 +78,7 @@ func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskPretendStub(&calledRecipe),
 	}
 
+	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
@@ -106,6 +107,7 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskPretendStub(&calledRecipe),
 	}
 
+	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
@@ -137,6 +139,7 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
 	}
 
+	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
@@ -168,6 +171,7 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
 	}
 
+	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")

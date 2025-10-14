@@ -11,54 +11,42 @@ Feature: function publish with the bash example
     Then I should have a function under "<handle>" named "<name>" with version "<version>"
 
   Scenario: publish bash example bad oem
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the registry is running with condition: "service_healthy"
-    And the following parameters
+    Given the following parameters
       | handle          | oem       | version |
       | my-bash-example | --invalid | 0.1.2   |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --oem=<oem> --version=<version>"
     Then I should have an error for field "sf.publish.oem"
 
   Scenario: publish bash example bad handle
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the registry is running with condition: "service_healthy"
-    And the following parameters
+    Given the following parameters
       | handle    | oem            | version |
       | --invalid | com.genaiz.dev | 0.1.2   |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --handle=<handle> --version=<version>"
     Then I should have an error for field "sf.publish.handle"
 
   Scenario: publish bash example bad version
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the registry is running with condition: "service_healthy"
-    And the following parameters
+    Given the following parameters
       | handle          | oem            | version |
       | my-bash-example | com.genaiz.dev | 00.0.1  |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version>"
     Then I should have an error for field "sf.publish.version"
 
   Scenario: publish bash example bad name
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the registry is running with condition: "service_healthy"
-    And the following parameters
+    Given the following parameters
       | handle          | oem            | name                                                                                                                                                                                                                                                                          |
       | my-bash-example | com.genaiz.dev | a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --name='<name>'"
     Then I should have an error for field "sf.publish.name"
 
   Scenario: publish bash example bad type
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the registry is running with condition: "service_healthy"
-    And the following parameters
+    Given the following parameters
       | handle          | oem            | version | type    |
       | my-bash-example | com.genaiz.dev | 0.1.2   | invalid |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version> --type<type>"
     Then I should have an error for field "sf.publish.type"
 
   Scenario: publish bash example bad arch
-    Given the scenario "create bash example" ran with condition "service_completed_successfully"
-    And the registry is running with condition: "service_healthy"
-    And the following parameters
+    Given the following parameters
       | handle          | oem            | version | arch    |
       | my-bash-example | com.genaiz.dev | 0.1.2   | invalid |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version> --arch=<arch>"

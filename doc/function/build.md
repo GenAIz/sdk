@@ -1,7 +1,7 @@
 ## Function Build
 
 ```bash
-genaiz sf build --context=PATH --file=FILE --tag=REPOSITORY --version=VERSION
+genaiz sf build --context=PATH --file=FILE --tag=LOCAL --version=VERSION \
 --label --legacy-builder --no-cache --prune
  ```
 Build executes a single build task which may or may not use the docker-cli executable to complete the command. Build will use the legacy Moby compiled in build instruction, using dockerd if it can not locate a docker command on the user's PATH. Otherwise, it will invoke `docker build` as a child process.
