@@ -135,5 +135,6 @@ func TestNewSf(t *testing.T) {
 	testLedger.WorkDir = os.TempDir()
 	testSf.PersistentPreRun(testSubCommand, []string{})
 	assert.EqualValues(t, testLedger.WorkDir, testSf.PersistentFlags().Lookup(testDockerContextOption.Param).Value.String())
-	assert.EqualValues(t, testLedger.WorkDir+"/dockerFile", testSf.PersistentFlags().Lookup(testDockerFileOption.Param).Value.String())
+	assert.EqualValues(t, filepath.Join(testLedger.WorkDir, "dockerFile"),
+		testSf.PersistentFlags().Lookup(testDockerFileOption.Param).Value.String())
 }

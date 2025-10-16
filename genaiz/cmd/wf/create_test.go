@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -131,43 +132,48 @@ func TestNewCreate(t *testing.T) {
 	}
 }
 
-func TestNewCreateDisappearingWorkingDir(t *testing.T) {
-	var patch = mock.Patches{T: t}.OsExit(func(int) {})
-	var createCompleted = false
-	var testOutput = new(bytes.Buffer)
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).
-		WithViper(testViper).
-		Build()
-	var testCli = &Cli{
-		BaseCli: cli.BaseCli{
-			Dry: func(ledger *config.Ledger) bool {
-				return true
+func TestNewCreate_DisappearingWorkingDir(t *testing.T) {
+	if runtime.GOOS == "linux" {
+		// This only happens on Linux, OSX prevents removing the current working dir with an EBUSY signal on remove
+		var testDir = filepath.Join(t.TempDir(), ".wf_create_test")
+		var patch = mock.Patches{T: t}.OsExit(func(int) {})
+		var createCompleted = false
+		var testOutput = new(bytes.Buffer)
+		var testViper = viper.New()
+		var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).
+			WithViper(testViper).
+			Build()
+		var testCli = &Cli{
+			BaseCli: cli.BaseCli{
+				Dry: func(ledger *config.Ledger) bool {
+					return true
+				},
 			},
-		},
-	}
-	var testCreate = NewCreate(testLedger, testCli)
-	var testFile, err = filez.CreateRecursiveTemp("/tmp/.wf_create_test", "genaiz_wf_create*")
-	var back string
+		}
+		var testCreate = NewCreate(testLedger, testCli)
+		var testFile, err = filez.CreateRecursiveTemp(testDir, "genaiz_wf_create*")
 
-	defer patch.Unpatch()
-	panicz.PanicIfError(err)
-	defer filez.RemoveSilently(filepath.Dir(testFile.Name()))
-	back, err = os.Getwd()
-	panicz.PanicIfError(err)
-	panicz.PanicIfError(os.Chdir(filepath.Dir(testFile.Name())))
-	defer func() { _ = os.Chdir(back) }()
-	filez.RemoveSilently(filepath.Dir(testFile.Name()))
-	testViper.Set(newOptionHandle("create").Key, "create-handle")
-	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
-		createCompleted = true
+		defer patch.Unpatch()
+		defer filez.CloseSilently(testFile)
+		panicz.PanicIfError(err)
+		t.Chdir(testDir)
+
+		if err = os.RemoveAll(testDir); err == nil {
+			testViper.Set(newOptionHandle("create").Key, "create-handle")
+			testCreate.PostRun = func(cmd *cobra.Command, args []string) {
+				createCompleted = true
+			}
+			testCreate.SetArgs([]string{})
+
+			assert.NoError(t, testCreate.Execute())
+			assert.True(t, createCompleted)
+			assert.Empty(t, testOutput.String())
+			assert.True(t, patch.Called)
+			assert.EqualValues(t, 1, patch.CalledWith)
+		} else {
+			assert.Fail(t, err.Error())
+		}
 	}
-	testCreate.SetArgs([]string{})
-	assert.NoError(t, testCreate.Execute())
-	assert.True(t, createCompleted)
-	assert.Empty(t, testOutput.String())
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestNewCreateInvalidArgs(t *testing.T) {
@@ -195,6 +201,7 @@ func TestNewCreateInvalidArgs(t *testing.T) {
 }
 
 func TestNewCreateInvalidWorkingDir(t *testing.T) {
+	var testDir = t.TempDir()
 	var createCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
@@ -207,10 +214,11 @@ func TestNewCreateInvalidWorkingDir(t *testing.T) {
 		},
 	}
 	var testCreate = NewCreate(testLedger, testCli)
-	var testFile, err = filez.CreateRecursiveTemp("/tmp", ".genaiz_wf_create*")
+	var testFile, err = filez.CreateRecursiveTemp(testDir, ".genaiz_wf_create*")
 
+	defer filez.CloseSilently(testFile)
 	panicz.PanicIfError(err)
-	defer filez.RemoveSilently(testFile.Name())
+
 	testViper.Set(newOptionHandle("create").Key, "create-handle")
 	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
 		createCompleted = true

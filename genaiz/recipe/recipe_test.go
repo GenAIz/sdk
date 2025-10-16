@@ -83,6 +83,7 @@ func TestBook_GetRecipeNoFound(t *testing.T) {
 }
 
 func TestRecipe_Finish(t *testing.T) {
+	var testDir = t.TempDir()
 	var expectedInstance = "_will_never_exist"
 	var testRecipe = &Recipe{
 		Name:         "testRecipe_Finish",
@@ -90,12 +91,15 @@ func TestRecipe_Finish(t *testing.T) {
 		PostCommands: []string{"ls {{.InstanceName}}"},
 	}
 
-	err := testRecipe.Finish("/tmp", expectedInstance, map[string]string{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedInstance)
+	if err := testRecipe.Finish(testDir, expectedInstance, map[string]string{}); err != nil {
+		assert.Contains(t, err.Error(), expectedInstance)
+	} else {
+		assert.Fail(t, "expected error")
+	}
 }
 
 func TestRecipe_Init(t *testing.T) {
+	var testDir = t.TempDir()
 	var expectedInstance = "_will_never_exist"
 	var testRecipe = &Recipe{
 		Name:         "testRecipe_Init",
@@ -103,30 +107,37 @@ func TestRecipe_Init(t *testing.T) {
 		InitCommands: []string{"ls {{.InstanceName}}"},
 	}
 
-	err := testRecipe.Init("/tmp", expectedInstance, map[string]string{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedInstance)
+	if err := testRecipe.Init(testDir, expectedInstance, map[string]string{}); err != nil {
+		assert.Contains(t, err.Error(), expectedInstance)
+	} else {
+		assert.Fail(t, "expected error")
+	}
 }
 
 func TestRecipe_WriteFiles(t *testing.T) {
-	var file, _ = os.CreateTemp("/tmp", "genaiz-test-write-riles")
-	var testArtifact = &Artifact{
-		Name: file.Name(),
-	}
-	var testRecipe = &Recipe{
-		Name:      "testRecipe_WriteFilesParseError",
-		Type:      TypeFunction,
-		Artifacts: []*Artifact{testArtifact},
-		parse: func(path string, t *template.Template) (*template.Template, error) {
-			return t.Parse("{{.test}}")
-		},
-	}
+	var testDir = t.TempDir()
 
-	assert.NoError(t, testRecipe.WriteFiles("/tmp", "instanceName", map[string]string{}))
-	assert.NoError(t, os.Remove(file.Name()))
+	if fd, err := os.CreateTemp(testDir, "genaiz-test-write-riles"); err == nil {
+		var testArtifact = &Artifact{
+			Name: fd.Name(),
+		}
+		var testRecipe = &Recipe{
+			Name:      "testRecipe_WriteFilesParseError",
+			Type:      TypeFunction,
+			Artifacts: []*Artifact{testArtifact},
+			parse: func(path string, t *template.Template) (*template.Template, error) {
+				return t.Parse("{{.test}}")
+			},
+		}
+
+		assert.NoError(t, testRecipe.WriteFiles(testDir, "instanceName", map[string]string{}))
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestRecipe_WriteFilesExecuteError(t *testing.T) {
+	var testDir = t.TempDir()
 	var testArtifact = &Artifact{
 		Name: "testArtifact",
 	}
@@ -139,10 +150,11 @@ func TestRecipe_WriteFilesExecuteError(t *testing.T) {
 		},
 	}
 
-	assert.Error(t, testRecipe.WriteFiles("/tmp", "instanceName", map[string]string{}))
+	assert.Error(t, testRecipe.WriteFiles(testDir, "instanceName", map[string]string{}))
 }
 
 func TestRecipe_WriteFilesParseError(t *testing.T) {
+	var testDir = t.TempDir()
 	var expectedError = errors.New("expected")
 	var testArtifact = &Artifact{
 		Name: "testArtifact",
@@ -155,12 +167,13 @@ func TestRecipe_WriteFilesParseError(t *testing.T) {
 			return nil, expectedError
 		},
 	}
-	var err = testRecipe.WriteFiles("/tmp", "instanceName", map[string]string{})
+	var err = testRecipe.WriteFiles(testDir, "instanceName", map[string]string{})
 
 	assert.ErrorIs(t, expectedError, err)
 }
 
 func TestRecipe_WriteFilesPathError(t *testing.T) {
+	var testDir = t.TempDir()
 	var testArtifact = &Artifact{
 		Name: "/_will_never_exist/testArtifact",
 	}
@@ -172,13 +185,13 @@ func TestRecipe_WriteFilesPathError(t *testing.T) {
 			return t.Parse("{{.test}}")
 		},
 	}
-	var err = testRecipe.WriteFiles("/tmp", "instanceName", map[string]string{})
+	var err = testRecipe.WriteFiles(testDir, "instanceName", map[string]string{})
 
 	assert.ErrorContains(t, err, testArtifact.Name)
 }
 
 func TestNewBook(t *testing.T) {
-	var expectedPath = "/tmp"
+	var expectedPath = t.TempDir()
 	var testBook = NewBook(expectedPath)
 	var variations = Variations[TypeFunction].GetVariations("bash-example")
 	var allRecipeKeys = slices.Collect(maps.Keys(testBook.Recipes))
@@ -244,12 +257,12 @@ func Test_embedded_recipes_bash_example_APP_SH(t *testing.T) {
 }
 
 func Test_embedded_recipes_bash_example_DOCKERFILE(t *testing.T) {
+	var expectedBinPath = t.TempDir()
 	var testTemplate = template.New("Dockerfile.tmpl")
 	var err error
 
 	if testTemplate, err = testTemplate.ParseFS(embedded, "embedded_recipes/bash_example/Dockerfile.tmpl"); err == nil {
 		var buffer = new(bytes.Buffer)
-		var expectedBinPath = "/opt/test"
 
 		if err = testTemplate.Execute(io.Writer(buffer), map[string]string{"SF_BIN_PATH": expectedBinPath}); err == nil {
 			var content = buffer.String()

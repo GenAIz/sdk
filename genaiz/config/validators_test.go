@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,28 +70,33 @@ func TestStringMinLength(t *testing.T) {
 }
 
 func TestValidateDirCreated(t *testing.T) {
-	assert.True(t, validateDirCreated("/tmp"))
-	assert.True(t, validateDirCreated("/tmp/genait-a/b"))
-	assert.NoError(t, os.RemoveAll("/tmp/genait-a"))
+	var testDir = t.TempDir()
+
+	assert.True(t, validateDirCreated(testDir))
+	assert.True(t, validateDirCreated(filepath.Join(testDir, "genait-a", "b")))
 }
 
 func TestValidateDirExists(t *testing.T) {
-	if fd, err := os.CreateTemp("/tmp", "genaiz.config*"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
+	var testDir = t.TempDir()
+
+	if fd, err := os.CreateTemp(testDir, "genaiz.config*"); err == nil {
+		defer filez.CloseSilently(fd)
 
 		assert.False(t, validateDirExists(fd.Name()))
-		assert.True(t, validateDirExists("/tmp"))
+		assert.True(t, validateDirExists(testDir))
 	} else {
 		assert.Fail(t, err.Error())
 	}
 }
 
 func TestValidateFileExists(t *testing.T) {
-	if fd, err := os.CreateTemp("/tmp", "genaiz.config*"); err == nil {
+	var testDir = t.TempDir()
+
+	if fd, err := os.CreateTemp(testDir, "genaiz.config*"); err == nil {
 		defer filez.RemoveSilently(fd.Name())
 
 		assert.True(t, validateFileExists(fd.Name()))
-		assert.False(t, validateFileExists("/tmp"))
+		assert.False(t, validateFileExists(testDir))
 	} else {
 		assert.Fail(t, err.Error())
 	}

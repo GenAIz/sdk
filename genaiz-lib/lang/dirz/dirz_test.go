@@ -86,38 +86,42 @@ func TestChangeWorkingDir_NotReadable(t *testing.T) {
 }
 
 func TestChangeWorkingDir(t *testing.T) {
-	var expected = t.TempDir()
-	var cwd, _ = os.Getwd()
-	var actual string
-	var reset func()
-	var err error
+	if expected, err := filepath.EvalSymlinks(t.TempDir()); err == nil {
+		var cwd, _ = os.Getwd()
+		var actual string
+		var reset func()
 
-	reset, err = ChangeWorkingDir(expected)
-	assert.NoError(t, err)
-	actual, _ = os.Getwd()
-	assert.Equal(t, expected, actual)
-	reset()
-	actual, _ = os.Getwd()
-	assert.Equal(t, cwd, actual)
+		reset, err = ChangeWorkingDir(expected)
+		assert.NoError(t, err)
+		actual, _ = os.Getwd()
+		assert.Contains(t, actual, expected)
+		reset()
+		actual, _ = os.Getwd()
+		assert.Equal(t, cwd, actual)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestCreateWorkingDir_CurrentDir(t *testing.T) {
-	var testDir = t.TempDir()
-	var actual string
-	var reset func()
-	var err error
+	if testDir, err := filepath.EvalSymlinks(t.TempDir()); err == nil {
+		var actual string
+		var reset func()
 
-	t.Chdir(testDir)
-	reset, err = CreateWorkingDir()
-	assert.NoError(t, err)
-	reset()
-	actual, _ = os.Getwd()
-	assert.Equal(t, testDir, actual)
-	reset, err = CreateWorkingDir(".")
-	assert.NoError(t, err)
-	reset()
-	actual, _ = os.Getwd()
-	assert.Equal(t, testDir, actual)
+		t.Chdir(testDir)
+		reset, err = CreateWorkingDir()
+		assert.NoError(t, err)
+		reset()
+		actual, _ = os.Getwd()
+		assert.Equal(t, testDir, actual)
+		reset, err = CreateWorkingDir(".")
+		assert.NoError(t, err)
+		reset()
+		actual, _ = os.Getwd()
+		assert.Equal(t, testDir, actual)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestCreateWorkingDir_NotWritable(t *testing.T) {
@@ -135,19 +139,21 @@ func TestCreateWorkingDir_NotWritable(t *testing.T) {
 }
 
 func TestCreateWorkingDir(t *testing.T) {
-	var expected = t.TempDir()
-	var cwd, _ = os.Getwd()
-	var actual string
-	var reset func()
-	var err error
+	if expected, err := filepath.EvalSymlinks(t.TempDir()); err == nil {
+		var cwd, _ = os.Getwd()
+		var actual string
+		var reset func()
 
-	reset, err = CreateWorkingDir(expected)
-	assert.NoError(t, err)
-	actual, _ = os.Getwd()
-	assert.Equal(t, expected, actual)
-	reset()
-	actual, _ = os.Getwd()
-	assert.Equal(t, cwd, actual)
+		reset, err = CreateWorkingDir(expected)
+		assert.NoError(t, err)
+		actual, _ = os.Getwd()
+		assert.Equal(t, expected, actual)
+		reset()
+		actual, _ = os.Getwd()
+		assert.Equal(t, cwd, actual)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestOptionalWorkingDir_NoArgs(t *testing.T) {

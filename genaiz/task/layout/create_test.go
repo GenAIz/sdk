@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
-	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
@@ -26,39 +25,38 @@ func TestNewCreateTask(t *testing.T) {
 }
 
 func Test_handleLayoutCreate(t *testing.T) {
+	var testDir = t.TempDir()
 	var testParams = &CreateParams{
 		ConfigParams: shared.ConfigParams{
 			ConfigType:   lang.Ref(shared.ConfigTypeJson),
 			ConfigName:   "notValid/name",
-			ConfigFolder: "/tmp/.create_layout_test",
+			ConfigFolder: filepath.Join(testDir, ".create_layout_test"),
 		},
 	}
 	var testState = &task.State{Logger: logrus.New()}
-	var cwd, err = os.Getwd()
 
-	panicz.PanicIfError(err)
+	t.Chdir(testDir)
 	assert.Error(t, handleLayoutCreate(testParams, testState))
-	defer func() { _ = os.Chdir(cwd) }()
-	defer filez.RemoveSilently(testParams.ConfigFolder)
 }
 
 func Test_handleLayoutCreate_ConfigTypeNone(t *testing.T) {
-	var testParams = &CreateParams{
-		ConfigParams: shared.ConfigParams{
-			ConfigFolder: "/tmp/.create_layout_test",
-		},
-	}
-	var testState = &task.State{Logger: logrus.New()}
-	var back, err = os.Getwd()
-	var expected string
+	if testDir, err := filepath.EvalSymlinks(t.TempDir()); err == nil {
+		var testParams = &CreateParams{
+			ConfigParams: shared.ConfigParams{
+				ConfigFolder: filepath.Join(testDir, ".create_layout_test"),
+			},
+		}
+		var testState = &task.State{Logger: logrus.New()}
+		var expected string
 
-	panicz.PanicIfError(err)
-	assert.NoError(t, handleLayoutCreate(testParams, testState))
-	expected, err = os.Getwd()
-	assert.NoError(t, err)
-	assert.Equal(t, expected, testParams.ConfigFolder)
-	defer func() { _ = os.Chdir(back) }()
-	defer filez.RemoveSilently(testParams.ConfigFolder)
+		t.Chdir(testDir)
+		assert.NoError(t, handleLayoutCreate(testParams, testState))
+		expected, err = os.Getwd()
+		assert.NoError(t, err)
+		assert.Equal(t, expected, testParams.ConfigFolder)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func Test_handleLayoutCreate_InvalidPath(t *testing.T) {
@@ -73,29 +71,28 @@ func Test_handleLayoutCreate_InvalidPath(t *testing.T) {
 }
 
 func Test_handleLayoutCreate_StateOutput(t *testing.T) {
-	var expectedOutput = "/tmp/.create_layout_test/test.json"
+	var testDir = t.TempDir()
+	var expectedOutput = filepath.Join(testDir, ".create_layout_test", "test.json")
 	var testParams = &CreateParams{}
 	var testState = &task.State{Logger: logrus.New(), Output: expectedOutput}
-	var cwd, err = os.Getwd()
 
-	panicz.PanicIfError(err)
+	t.Chdir(testDir)
 	assert.NoError(t, handleLayoutCreate(testParams, testState))
-	defer func() { _ = os.Chdir(cwd) }()
-	defer filez.RemoveSilently(filepath.Dir(expectedOutput))
 }
 
 func Test_handleLayoutCreateContext(t *testing.T) {
+	var testDir = t.TempDir()
 	var testState = &task.State{Logger: logrus.New()}
 	var testParams = &CreateParams{
 		ConfigParams: shared.ConfigParams{
 			ConfigName:   "name",
 			ConfigType:   lang.Ref(shared.ConfigTypeJson),
-			ConfigFolder: "/tmp",
+			ConfigFolder: testDir,
 		},
 	}
 
 	assert.NoError(t, handleLayoutCreateContext(testParams, testState))
-	assert.Equal(t, "/tmp/name.json", testState.Output)
+	assert.Equal(t, filepath.Join(testDir, "name.json"), testState.Output)
 }
 
 func Test_handleLayoutCreateContext_ConfigTypeNone(t *testing.T) {
@@ -106,17 +103,18 @@ func Test_handleLayoutCreateContext_ConfigTypeNone(t *testing.T) {
 }
 
 func Test_handleLayoutCreateContext_ContextAlreadyExists(t *testing.T) {
+	var testDir = t.TempDir()
 	var testState = &task.State{Logger: logrus.New()}
 	var testParams = &CreateParams{
 		ConfigParams: shared.ConfigParams{
 			ConfigName:   "name",
 			ConfigType:   lang.Ref(shared.ConfigTypeJson),
-			ConfigFolder: "/tmp/.layout_create_test",
+			ConfigFolder: filepath.Join(testDir, ".layout_create_test"),
 		},
 	}
 
-	if _, err := filez.CreateRecursive(testParams.ConfigFolder, testParams.ConfigName+"."+shared.ConfigTypeJson); err == nil {
-		defer filez.RemoveSilently(testParams.ConfigFolder)
+	if fd, err := filez.CreateRecursive(testParams.ConfigFolder, testParams.ConfigName+"."+shared.ConfigTypeJson); err == nil {
+		defer filez.CloseSilently(fd)
 
 		assert.Error(t, handleLayoutCreateContext(testParams, testState))
 	} else {

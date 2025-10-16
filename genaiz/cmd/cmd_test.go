@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"path/filepath"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -297,11 +298,14 @@ func Test_getLevel(t *testing.T) {
 }
 
 func Test_newOptionOverrideConfig_defaultGetter(t *testing.T) {
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = newOptionRunConfig()
-	var expectedDir = "/tmp"
+	if expectedDir, err := filepath.EvalSymlinks(t.TempDir()); err == nil {
+		var testViper = viper.New()
+		var testLedger = config.NewBuilder().WithViper(testViper).Build()
+		var testOption = newOptionRunConfig()
 
-	testLedger.WorkDir = expectedDir
-	assert.EqualValues(t, expectedDir, testOption.DefaultGetter(testLedger))
+		testLedger.WorkDir = expectedDir
+		assert.EqualValues(t, expectedDir, testOption.DefaultGetter(testLedger))
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }

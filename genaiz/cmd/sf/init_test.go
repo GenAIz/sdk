@@ -192,7 +192,7 @@ func TestInitWriter_BuildVersion(t *testing.T) {
 }
 
 func TestInitWriter_Write(t *testing.T) {
-	var expectedFile = "/tmp/.init_test/init_write_test.yaml"
+	var expectedFile = filepath.Join(t.TempDir(), ".init_test", "init_write_test.yaml")
 	var expectedOem = "genaiz.com"
 	var expectedHandle = "test-handle"
 	var expectedVersion = "0.0.0"
@@ -209,7 +209,9 @@ func TestInitWriter_Write(t *testing.T) {
 	}
 	var testFolder = filepath.Dir(expectedFile)
 
-	if _, err := filez.CreateRecursive(testFolder, filepath.Base(expectedFile)); err == nil {
+	if fd, err := filez.CreateRecursive(testFolder, filepath.Base(expectedFile)); err == nil {
+		defer filez.CloseSilently(fd)
+
 		assert.NoError(t, testWriter.
 			WithOem(expectedOem).
 			WithHandle(expectedHandle).
@@ -228,7 +230,7 @@ func TestInitWriter_Write(t *testing.T) {
 }
 
 func TestInitWriter_WriteInvalidFile(t *testing.T) {
-	var invalidFile = "/tmp/.init_test/init_write_invalid.yaml"
+	var invalidFile = filepath.Join(t.TempDir(), ".init_test", "init_write_invalid.yaml")
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{
 			optionHandle:  testInitOptionHandle,

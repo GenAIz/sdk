@@ -14,12 +14,13 @@ import (
 )
 
 func TestNewList(t *testing.T) {
+	var testDir = t.TempDir()
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testList = NewList(testLedger, testCli)
 
-	if fd, err := os.CreateTemp("/tmp", "genaizDockerfile"); err == nil {
+	if fd, err := os.CreateTemp(testDir, "genaizDockerfile"); err == nil {
 		var patch = mock.Patches{T: t}.OsExit(func(int) {})
 
 		defer filez.RemoveSilently(fd.Name())

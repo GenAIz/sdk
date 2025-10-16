@@ -161,7 +161,7 @@ func Test_handleLayoutInitContext_noConfig(t *testing.T) {
 }
 
 func Test_handleLayoutInitContext(t *testing.T) {
-	var expectedDir = "/tmp/genaiz.init"
+	var expectedDir = filepath.Join(t.TempDir(), "genaiz.init")
 	var expectedFile = "test.json"
 	var reset func()
 	var err error
