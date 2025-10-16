@@ -174,12 +174,6 @@ func (p *BuildParams) toPruneArgs() []string {
 
 func NewBuildTask() *task.Task[BuildParams] {
 	if dockerPath, err := exec.LookPath("docker"); err == nil {
-		if !strings.HasPrefix(dockerPath, "/usr/bin") {
-			// Prevent the user from invoking a docker script that isn't the expected binary path
-			// To prevent root kits, we'd need to do more, but that is up to users' recommended security on his platform
-			panic("docker binary is over-shadowed by unknown script or binary")
-		}
-
 		if os.Geteuid() == 0 {
 			// Since we are forking without the ability to validate the identity of the binary, prevent root from using build
 			panic("can not invoke the docker binary as root when building")

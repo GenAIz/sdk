@@ -6,7 +6,7 @@ Feature: function create for the bash example
   Scenario: create bash example bad context
     Given the following parameters
       | handle          | context         |
-      | my-bash-example | /tmp/badContext |
+      | my-bash-example | /_badContext |
     When I run the command "sf create <handle> --context=<context>"
     Then I should have an error for field "sf.build.context"
 

@@ -58,11 +58,12 @@ func TestConfigParams_IsConfigTypeNone(t *testing.T) {
 }
 
 func TestConfigParams_ResolveConfigPath(t *testing.T) {
+	var testDir = t.TempDir()
 	var expectedName = "testName"
 	var testParams = &ConfigParams{
 		ConfigType:   lang.Ref(ConfigTypeYaml),
 		ConfigName:   expectedName,
-		ConfigFolder: "/tmp",
+		ConfigFolder: testDir,
 	}
 	var actual, err = testParams.ResolveConfigPath()
 
@@ -71,16 +72,17 @@ func TestConfigParams_ResolveConfigPath(t *testing.T) {
 }
 
 func TestConfigParams_ResolveConfigPath_ConfigFileExists(t *testing.T) {
+	var testDir = t.TempDir()
 	var configName = "configParams_ResolveConfigPath"
 	var actual string
 
-	if fd, err := os.CreateTemp("", configName+"*."+ConfigTypeYaml); err == nil {
+	if fd, err := os.CreateTemp(testDir, configName+"*."+ConfigTypeYaml); err == nil {
 		defer filez.RemoveSilently(fd.Name())
 		var base = filepath.Base(fd.Name())
 		var testParams = &ConfigParams{
 			ConfigType:   lang.Ref(ConfigTypeYaml),
 			ConfigName:   base[0:strings.Index(base, ".")],
-			ConfigFolder: "/tmp",
+			ConfigFolder: testDir,
 		}
 
 		actual, err = testParams.ResolveConfigPath()
@@ -92,16 +94,16 @@ func TestConfigParams_ResolveConfigPath_ConfigFileExists(t *testing.T) {
 }
 
 func TestConfigParams_ResolveConfigPath_ConfigFileInvalid(t *testing.T) {
-	var invalidPath = "/tmp/configParams.Invalid"
+	var testDir = t.TempDir()
+	var invalidPath = filepath.Join(testDir, "configParams.Invalid")
 	var invalidFile = invalidPath + "." + ConfigTypeYaml
 	var actual string
 
 	if err := os.MkdirAll(invalidFile, 0750); err == nil {
-		defer filez.RemoveSilently(invalidFile)
 		var testParams = &ConfigParams{
 			ConfigType:   lang.Ref(ConfigTypeYaml),
 			ConfigName:   "configParams.Invalid",
-			ConfigFolder: "/tmp",
+			ConfigFolder: testDir,
 		}
 
 		actual, err = testParams.ResolveConfigPath()
@@ -113,17 +115,18 @@ func TestConfigParams_ResolveConfigPath_ConfigFileInvalid(t *testing.T) {
 }
 
 func TestConfigParams_ResolveConfigPath_ConfigTypeNone(t *testing.T) {
+	var testDir = t.TempDir()
 	var actual string
 	var expectedName = "testName"
 	var testParams = &ConfigParams{
 		ConfigName:   expectedName,
-		ConfigFolder: "/tmp",
+		ConfigFolder: testDir,
 	}
 
-	if fd, err := os.Create("/tmp/testName.yaml"); err == nil {
-		defer filez.RemoveSilently(fd.Name())
-		actual, err = testParams.ResolveConfigPath()
+	if fd, err := os.Create(filepath.Join(testDir, "testName.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
 
+		actual, err = testParams.ResolveConfigPath()
 		assert.Error(t, err)
 		assert.Equal(t, fd.Name(), actual)
 	} else {
@@ -132,10 +135,11 @@ func TestConfigParams_ResolveConfigPath_ConfigTypeNone(t *testing.T) {
 }
 
 func TestConfigParams_ResolveConfigPath_ConfigTypeNone_FileNotFound(t *testing.T) {
+	var testDir = t.TempDir()
 	var expectedName = "testName"
 	var testParams = &ConfigParams{
 		ConfigName:   expectedName,
-		ConfigFolder: "/tmp",
+		ConfigFolder: testDir,
 	}
 	var actual, err = testParams.ResolveConfigPath()
 
@@ -144,10 +148,11 @@ func TestConfigParams_ResolveConfigPath_ConfigTypeNone_FileNotFound(t *testing.T
 }
 
 func TestConfigParams_ResolveConfigPath_ConfigTypeNone_FolderNotFound(t *testing.T) {
+	var testDir = filepath.Join(t.TempDir(), "/_not_found")
 	var expectedName = "testName"
 	var testParams = &ConfigParams{
 		ConfigName:   expectedName,
-		ConfigFolder: "/_not_found",
+		ConfigFolder: testDir,
 	}
 	var actual, err = testParams.ResolveConfigPath()
 

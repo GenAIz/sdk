@@ -78,7 +78,7 @@ func (cp ConfigParams) IsConfigTypeNone() bool {
 	return cp.ConfigType == nil || *cp.ConfigType == ConfigTypeNone
 }
 
-// ResolveConfigPath will return the path of an existing config file with a corresponding found error it the file already exists, otherwise it'll return the path without any errors. The method can return errors of invalid paths.
+// ResolveConfigPath will return the path of an existing config file with a corresponding ErrorConfigFileExists if the file already exists, otherwise it'll return the path without any errors. The method can return errors of invalid paths.
 func (cp ConfigParams) ResolveConfigPath() (string, error) {
 	if cp.IsConfigTypeNone() {
 		var reset func()

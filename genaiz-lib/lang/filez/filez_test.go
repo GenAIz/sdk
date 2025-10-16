@@ -9,7 +9,9 @@ import (
 )
 
 func TestCloseSilently(t *testing.T) {
-	if fd, err := os.CreateTemp("/tmp", "genaiz-filez"); err == nil {
+	var testDir = t.TempDir()
+
+	if fd, err := os.CreateTemp(testDir, "genaiz-filez"); err == nil {
 		assert.NotPanics(t, func() { CloseSilently(fd) })
 		assert.NoError(t, os.Remove(fd.Name()))
 	} else {
@@ -27,7 +29,7 @@ func TestCreateRecursive_Err(t *testing.T) {
 }
 
 func TestCreateRecursive(t *testing.T) {
-	var expectedDir = "/tmp/.genaiz"
+	var expectedDir = filepath.Join(t.TempDir(), ".genaiz")
 	var dirHandle, err = CreateRecursive(expectedDir, "FilezTest.txt")
 
 	assert.NoError(t, err)
@@ -36,7 +38,7 @@ func TestCreateRecursive(t *testing.T) {
 }
 
 func TestCreateRecursiveTemp(t *testing.T) {
-	var expectedDir = "/tmp/.genaiz"
+	var expectedDir = filepath.Join(t.TempDir(), ".genaiz")
 	var dirHandle, err = CreateRecursiveTemp(expectedDir, "FilezTest")
 
 	assert.NoError(t, err)
@@ -48,7 +50,7 @@ func TestFirstNamedFile(t *testing.T) {
 	var testName = "name"
 	var expectedContent = "valid"
 	var back, _ = os.Getwd()
-	var dir, _ = os.MkdirTemp("/tmp", "genait")
+	var dir, _ = os.MkdirTemp(t.TempDir(), "genait")
 	var testPath string
 	var testBytes []byte
 	var err error
@@ -72,7 +74,7 @@ func TestFirstNamedFile(t *testing.T) {
 }
 
 func TestFirstNamedFileUnder_InvalidDir(t *testing.T) {
-	var _, err = FirstNamedFileUnder("/invalid", "name")
+	var _, err = FirstNamedFileUnder("/_invalid", "name")
 
 	assert.Error(t, err)
 }
@@ -80,7 +82,7 @@ func TestFirstNamedFileUnder_InvalidDir(t *testing.T) {
 func TestFirstNamedFileUnder_NotFound(t *testing.T) {
 	var testName = "name"
 	var back, _ = os.Getwd()
-	var dir, _ = os.MkdirTemp("/tmp", "genait")
+	var dir, _ = os.MkdirTemp(t.TempDir(), "genait")
 	var err error
 
 	defer RemoveSilently(dir)
@@ -101,7 +103,9 @@ func TestFromWorkDir(t *testing.T) {
 }
 
 func TestFromWorkDir_NotParent(t *testing.T) {
-	assert.EqualValues(t, "/tmp", FromWorkDir("/tmp"))
+	var testDir = t.TempDir()
+
+	assert.EqualValues(t, testDir, FromWorkDir(testDir))
 }
 
 func TestGetFileType(t *testing.T) {
@@ -117,12 +121,12 @@ func TestIsReadable(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	dir, err = os.MkdirTemp("/tmp", "genait")
+	dir, err = os.MkdirTemp(t.TempDir(), "genait")
 	assert.NoError(t, err)
 	fd, err = os.CreateTemp(dir, "testIsReadable")
 	assert.NoError(t, err)
 	defer RemoveSilently(dir)
 
 	assert.NoError(t, IsReadable(fd.Name()))
-	assert.Error(t, IsReadable(fd.Name()+".notexist"))
+	assert.Error(t, IsReadable(fd.Name()+".notExist"))
 }

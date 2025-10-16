@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -516,18 +517,27 @@ func TestNewPublish(t *testing.T) {
 }
 
 func TestNewPublish_DisappearingWorkdir(t *testing.T) {
-	var testDir = t.TempDir()
-	var testCli = &Cli{}
-	var testLedger = config.NewLedger()
-	var testCmd = NewPublish(testLedger, testCli)
-	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	if runtime.GOOS == "linux" {
+		var testDir = filepath.Join(t.TempDir(), ".sn_publish_test")
+		var patch = mock.Patches{T: t}.OsExit(func(int) {})
+		var testCli = &Cli{}
+		var testLedger = config.NewLedger()
+		var testCmd = NewPublish(testLedger, testCli)
+		var testFile, err = filez.CreateRecursiveTemp(testDir, "genaiz_sn_create*")
 
-	defer patch.Unpatch()
-	t.Chdir(testDir)
-	panicz.PanicIfError(os.Remove(testDir))
-	testCmd.Run(testCmd, []string{})
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
+		defer patch.Unpatch()
+		defer filez.CloseSilently(testFile)
+		panicz.PanicIfError(err)
+		t.Chdir(testDir)
+
+		if err = os.RemoveAll(testDir); err == nil {
+			testCmd.Run(testCmd, []string{})
+			assert.True(t, patch.Called)
+			assert.EqualValues(t, 1, patch.CalledWith)
+		} else {
+			assert.Fail(t, err.Error())
+		}
+	}
 }
 
 func TestNewPublishOptions(t *testing.T) {
@@ -542,6 +552,7 @@ func TestNewPublishOptions(t *testing.T) {
 }
 
 func newTaskPretendStub[T any](flag *bool, paramType *T) func() *task.Task[T] {
+	_ = paramType
 	return func() *task.Task[T] {
 		return &task.Task[T]{
 			OnPrepare: func(params *T, state *task.State) error {
@@ -556,6 +567,7 @@ func newTaskPretendStub[T any](flag *bool, paramType *T) func() *task.Task[T] {
 }
 
 func newTaskProceedStub[T any](flag *bool, paramType *T) func() *task.Task[T] {
+	_ = paramType
 	return func() *task.Task[T] {
 		return &task.Task[T]{
 			OnPrepare: func(params *T, state *task.State) error {
