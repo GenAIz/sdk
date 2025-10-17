@@ -18,6 +18,7 @@ import (
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
@@ -30,18 +31,36 @@ func TestCreateExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testDefaultOption = &config.StringOption{}
 	var testOptions = &CreateOptions{
 		PublishOptions: PublishOptions{
-			optionConfigType:  newOptionConfigType("test"),
-			optionDescription: newOptionDescription(testDefaultOption, "test"),
-			optionHandle:      newOptionHandle("test"),
-			optionName:        newOptionName(testDefaultOption, "test"),
-			optionOem:         newOptionOem("test"),
-			optionVersion:     newOptionVersion("test"),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Solution.Create.ConfigType).
+				BuildStringOption(),
+			optionDescription: cli.Options.Solutions.Description().
+				WithKeys(&schema.Genaiz.Solution.Create.Description).
+				BuildStringOption(),
+			optionHandle: cli.Options.Solutions.Handle().
+				WithKeys(&schema.Genaiz.Solution.Create.Handle).
+				BuildStringOption(),
+			optionName: cli.Options.Solutions.Name().
+				WithKeys(&schema.Genaiz.Solution.Create.Name).
+				BuildStringOption(),
+			optionOem: cli.Options.Solutions.Oem().
+				WithKeys(&schema.Genaiz.Solution.Create.Oem).
+				BuildStringOption(),
+			optionVersion: cli.Options.Solutions.Version().
+				WithKeys(&schema.Genaiz.Solution.Create.Version).
+				BuildStringOption(),
 		},
-		optionWorkflowHandle: newOptionWorkflowHandle(),
-		optionWorkflowName:   newOptionWorkflowName(testDefaultOption),
+		optionWorkflowDesc: cli.Options.Solutions.WorkflowDesc().
+			WithKeys(&schema.Genaiz.Solution.Create.Workflow.Description).
+			BuildStringOption(),
+		optionWorkflowHandle: cli.Options.Solutions.WorkflowHandle().
+			WithKeys(&schema.Genaiz.Solution.Create.Workflow.Handle).
+			BuildStringOption(),
+		optionWorkflowName: cli.Options.Solutions.WorkflowName().
+			WithKeys(&schema.Genaiz.Solution.Create.Workflow.Name).
+			BuildStringOption(),
 	}
 	var expectedDescription = "description"
 	var expectedFolder = "folder"
@@ -49,6 +68,7 @@ func TestCreateExecutor_Display(t *testing.T) {
 	var expectedName = "name"
 	var expectedOem = "oem"
 	var expectedVersion = "version"
+	var expectedWorkflowDesc = "workflowDesc"
 	var expectedWorkflowHandle = "workflowHandle"
 	var expectedWorkflowName = "workflowName"
 	var testExecutor = &CreateExecutor{
@@ -66,6 +86,7 @@ func TestCreateExecutor_Display(t *testing.T) {
 	testViper.Set(testOptions.optionName.Key, expectedName)
 	testViper.Set(testOptions.optionOem.Key, expectedOem)
 	testViper.Set(testOptions.optionVersion.Key, expectedVersion)
+	testViper.Set(testOptions.optionWorkflowDesc.Key, expectedWorkflowDesc)
 	testViper.Set(testOptions.optionWorkflowHandle.Key, expectedWorkflowHandle)
 	testViper.Set(testOptions.optionWorkflowName.Key, expectedWorkflowName)
 	testExecutor.Display()
@@ -77,6 +98,7 @@ func TestCreateExecutor_Display(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionVersion.Param+`:[\s\t]*`+expectedVersion), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionWorkflowDesc.Param+`:[\s\t]*`+expectedWorkflowDesc), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionWorkflowHandle.Param+`:[\s\t]*`+expectedWorkflowHandle), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionWorkflowName.Param+`:[\s\t]*`+expectedWorkflowName), actual)
 }
@@ -196,7 +218,7 @@ func TestNewCreate_DisappearingWorkingDir(t *testing.T) {
 		t.Chdir(testDir)
 
 		if err = os.RemoveAll(testDir); err == nil {
-			testViper.Set(newOptionHandle("create").Key, "create-handle")
+			testViper.Set(schema.Genaiz.Solution.Create.Handle.Doc, "create-handle")
 			testCreate.PostRun = func(cmd *cobra.Command, args []string) {
 				createCompleted = true
 			}

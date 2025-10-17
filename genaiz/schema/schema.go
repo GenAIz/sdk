@@ -68,13 +68,32 @@ type Document struct {
 		}
 	}
 	Solution struct {
+		Create struct {
+			ConfigType  Keys
+			Description Keys
+			Handle      Keys
+			Name        Keys
+			Oem         Keys
+			Version     Keys
+
+			Workflow struct {
+				Handle      Keys
+				Name        Keys
+				Description Keys
+			}
+		}
 		Log struct {
 			Format Keys
 			Level  Keys
 		}
-
 		Publish struct {
-			Broker Keys
+			Broker      Keys
+			ConfigType  Keys
+			Description Keys
+			Handle      Keys
+			Name        Keys
+			Oem         Keys
+			Version     Keys
 		}
 	}
 }
@@ -120,6 +139,7 @@ func init() {
 	Genaiz.Function.Init.Type = newKeys("Sf.Init.Type", "SF_INIT_TYPE")
 	Genaiz.Function.Init.Version = newKeys("Sf.Init.Version", "SF_INIT_VERSION")
 	Genaiz.Function.Publish.Arches = newKeys("Sf.Publish.Arches", "SF_PUBLISH_ARCHES")
+	Genaiz.Function.Publish.Description = newKeys("Sf.Publish.Description", "SF_PUBLISH_DESCRIPTION")
 	Genaiz.Function.Publish.Handle = newKeys("Sf.Publish.Handle", "SF_PUBLISH_HANDLE")
 	Genaiz.Function.Publish.Name = newKeys("Sf.Publish.Name", "SF_PUBLISH_NAME")
 	Genaiz.Function.Publish.NoUpdate = newKeys("Sf.Publish.NoUpdate", "SF_PUBLISH_NO_UPDATE")
@@ -127,9 +147,24 @@ func init() {
 	Genaiz.Function.Publish.Rebuild = newKeys("Sf.Publish.Rebuild", "SF_PUBLISH_REBUILD")
 	Genaiz.Function.Publish.Type = newKeys("Sf.Publish.Type", "SF_PUBLISH_TYPE")
 	Genaiz.Function.Publish.Version = newKeys("Sf.Publish.Version", "SF_PUBLISH_VERSION")
+	Genaiz.Solution.Create.ConfigType = newKeys("Solution.Create.ConfigType", "SN_CREATE_CONFIG_TYPE")
+	Genaiz.Solution.Create.Description = newKeys("Solution.Create.Description", "SN_CREATE_DESCRIPTION")
+	Genaiz.Solution.Create.Handle = newKeys("Solution.Create.Handle", "SN_CREATE_HANDLE")
+	Genaiz.Solution.Create.Name = newKeys("Solution.Create.Name", "SN_CREATE_NAME")
+	Genaiz.Solution.Create.Oem = newKeys("Solution.Create.Oem", "SN_CREATE_OEM")
+	Genaiz.Solution.Create.Version = newKeys("Solution.Create.Version", "SN_CREATE_VERSION")
+	Genaiz.Solution.Create.Workflow.Description = newKeys("Solution.Creation.Workflow.Description", "SN_CREATE_WORKFLOW_DESCRIPTION")
+	Genaiz.Solution.Create.Workflow.Handle = newKeys("Solution.Create.Workflow.Handle", "SN_CREATE_WORKFLOW_HANDLE")
+	Genaiz.Solution.Create.Workflow.Name = newKeys("Solution.Create.Workflow.Name", "SN_CREATE_WORKFLOW_NAME")
 	Genaiz.Solution.Log.Format = newKeys("Solution.Log.Format", "SN_LOG_FORMAT")
 	Genaiz.Solution.Log.Level = newKeys("Solution.Log.Level", "SN_LOG_LEVEL")
 	Genaiz.Solution.Publish.Broker = newKeys("Solution.Publish.Broker", "SN_PUBLISH_BROKER")
+	Genaiz.Solution.Publish.ConfigType = newKeys("Solution.Publish.ConfigType", "SN_PUBLISH_CONFIG_TYPE")
+	Genaiz.Solution.Publish.Description = newKeys("Solution.Publish.Description", "SN_PUBLISH_DESCRIPTION")
+	Genaiz.Solution.Publish.Handle = newKeys("Solution.Publish.Handle", "SN_PUBLISH_HANDLE")
+	Genaiz.Solution.Publish.Name = newKeys("Solution.Publish.Name", "SN_PUBLISH_NAME")
+	Genaiz.Solution.Publish.Oem = newKeys("Solution.Publish.Oem", "SN_PUBLISH_OEM")
+	Genaiz.Solution.Publish.Version = newKeys("Solution.Publish.Version", "SN_PUBLISH_VERSION")
 }
 
 func newKeys(docKey, envKey string) Keys {

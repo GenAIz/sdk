@@ -9,13 +9,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/cmd/sf"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
-	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -55,7 +56,6 @@ type PublishExecutor struct {
 	*PublishOptions
 
 	cmd            *cobra.Command
-	brokerAddr     string
 	solutionReader *config.SolutionReader
 
 	inspectTaskFactory         sf.BuildTaskFactory
@@ -93,6 +93,11 @@ func (pe *PublishExecutor) Display() {
 			}
 
 			pe.Ledger.DisplayOptionsWithMap(&layoutKeys,
+				&pe.PublishOptions.optionConfigType.Option,
+				&pe.PublishOptions.optionOem.Option,
+				&pe.PublishOptions.optionHandle.Option,
+				&pe.PublishOptions.optionDescription.Option,
+				&pe.PublishOptions.optionName.Option,
 				&pe.PublishOptions.optionVersion.Option,
 			)
 		}
@@ -134,6 +139,7 @@ func (pe *PublishExecutor) Proceed() {
 		}
 
 		workers = append(workers, task.NewWorker(snParams, pe.solutionPublishTaskFactory()))
+		plan.PrintReportsOnly = true
 		plan.Sequence(workers...)
 	})
 
@@ -224,7 +230,7 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 	return &broker.ProvisionParams{
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.brokerAddr,
+			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
 		Arches:      ledger.GetList(options.optionArches),
 		Description: ledger.GetString(options.optionDescription),
@@ -240,7 +246,7 @@ func (pe *PublishExecutor) makeFunctionPublishParams(provisionParams *broker.Pro
 	return &broker.PublishParams{
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.brokerAddr,
+			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
 		Handle:      provisionParams.Handle,
 		Oem:         provisionParams.Oem,
@@ -272,7 +278,7 @@ func (pe *PublishExecutor) makeSolutionPublishParams(solution *broker.Solution, 
 	return &broker.SolutionPublishParams{
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.brokerAddr,
+			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
 		Solution: &broker.Solution{
 			Description: pe.Ledger.GetString(pe.optionDescription),
@@ -287,6 +293,7 @@ func (pe *PublishExecutor) makeSolutionPublishParams(solution *broker.Solution, 
 }
 
 type PublishOptions struct {
+	optionBroker      *config.StringOption
 	optionConfigType  *config.StringOption
 	optionDescription *config.StringOption
 	optionHandle      *config.StringOption
@@ -297,6 +304,7 @@ type PublishOptions struct {
 
 func (po PublishOptions) allDefiners() []config.Definer {
 	return []config.Definer{
+		po.optionBroker,
 		po.optionConfigType,
 		po.optionDescription,
 		po.optionHandle,
@@ -310,15 +318,15 @@ func NewPublish(ledger *config.Ledger, snCli *Cli) *cobra.Command {
 	var solutionReader = config.NewSolutionReader(ledger)
 	var publishOptions = NewPublishOptions()
 	var publishCmd = &cobra.Command{
-		Use:     "publish HOST",
+		Use:     "publish",
 		Short:   "Publishes a solution",
 		Long:    "Publishes a solution and all smart functions found under the solution path or the current working directory if not specified",
-		Example: "genaiz sn publish solution-1 --version=0.1.1",
-		Args:    cobra.ExactArgs(1),
+		Example: "genaiz sn publish --broker=www.genaiz.com --version=0.1.1",
+		Args:    cobra.MaximumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			if path, err := os.Getwd(); err == nil {
 				snCli.Exec(ledger, NewPublishExecutor(cmd, ledger, snCli, publishOptions,
-					solutionReader, args[0], path))
+					solutionReader, path))
 			} else {
 				lang.HandleExit(err)
 			}
@@ -330,7 +338,7 @@ func NewPublish(ledger *config.Ledger, snCli *Cli) *cobra.Command {
 }
 
 func NewPublishExecutor(cmd *cobra.Command, ledger *config.Ledger, cli *Cli,
-	options *PublishOptions, reader *config.SolutionReader, brokerAddr, folderPath string) *PublishExecutor {
+	options *PublishOptions, reader *config.SolutionReader, folderPath string) *PublishExecutor {
 
 	return &PublishExecutor{
 		BaseExecutor: BaseExecutor{
@@ -342,7 +350,6 @@ func NewPublishExecutor(cmd *cobra.Command, ledger *config.Ledger, cli *Cli,
 		PublishOptions: options,
 
 		cmd:            cmd,
-		brokerAddr:     brokerAddr,
 		solutionReader: reader,
 
 		inspectTaskFactory:         docker.NewInspectTask,
@@ -354,106 +361,69 @@ func NewPublishExecutor(cmd *cobra.Command, ledger *config.Ledger, cli *Cli,
 }
 
 func NewFunctionOptions(solution *broker.Solution) *FunctionOptions {
-	var optionHandle = newFunctionHandleOption()
-	var optionName = newFunctionNameOption(optionHandle)
+	var handleOption = cli.Options.Solutions.FunctionHandle().
+		BuildStringOption()
+	var nameOption = cli.Options.Solutions.FunctionName().
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return ledger.GetString(handleOption)
+		}).BuildStringOption()
 
 	return &FunctionOptions{
-		optionArches:      newFunctionArchesOption(),
-		optionDescription: newFunctionDescriptionOption(optionName),
-		optionHandle:      optionHandle,
-		optionName:        optionName,
-		optionOem:         newFunctionOemOption(solution.Oem),
-		optionVersion:     newFunctionVersionOption(solution.Version),
-		optionType:        newFunctionTypeOption(),
+		optionArches: cli.Options.Solutions.FunctionArches().
+			BuildListOption(),
+		optionDescription: cli.Options.Solutions.FunctionDesc().
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(nameOption)
+			}).BuildStringOption(),
+		optionHandle: handleOption,
+		optionName:   nameOption,
+		optionOem: cli.Options.Solutions.FunctionOem().
+			WithDefaultValue(solution.Oem).
+			BuildStringOption(),
+		optionType: cli.Options.Solutions.FunctionType().
+			BuildStringOption(),
+		optionVersion: cli.Options.Solutions.FunctionVersion().
+			WithDefaultValue(solution.Version).
+			BuildStringOption(),
 	}
 }
 
 func NewPublishOptions() *PublishOptions {
-	var cmd = "Publish"
-	var optionHandle = newOptionHandle(cmd)
-	var optionName = newOptionName(optionHandle, cmd)
-	var optionOem = newOptionOem(cmd)
-	var optionVersion = newOptionVersion(cmd)
+	var handleOption = cli.Options.Solutions.Handle().
+		WithKeys(&schema.Genaiz.Solution.Publish.Handle).
+		BuildStringOption()
+	var nameOption = cli.Options.Solutions.Name().
+		WithKeys(&schema.Genaiz.Solution.Publish.Name).
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return ledger.GetString(handleOption)
+		}).
+		BuildStringOption()
+	var oemOption = cli.Options.Solutions.Oem().
+		WithKeys(&schema.Genaiz.Solution.Publish.Oem).
+		WithValidator(config.Validation.Oem).
+		BuildStringOption()
+	var versionOption = cli.Options.Solutions.Version().
+		WithKeys(&schema.Genaiz.Solution.Publish.Version).
+		WithValidator(config.Validation.Version).
+		BuildStringOption()
 
-	optionOem.Validator = config.Validation.Oem
-	optionVersion.Validator = config.Validation.Version
 	return &PublishOptions{
-		optionConfigType:  newOptionConfigType(cmd),
-		optionDescription: newOptionDescription(optionName, cmd),
-		optionHandle:      optionHandle,
-		optionName:        optionName,
-		optionOem:         optionOem,
-		optionVersion:     optionVersion,
-	}
-}
-
-func newFunctionArchesOption() *config.ListOption {
-	return &config.ListOption{
-		Option: config.Option{
-			Key:       "Sf.Publish.Arches",
-			Validator: config.AllFromEnumerated(layout.ArchTypes),
-		},
-	}
-}
-
-func newFunctionDescriptionOption(defaultOption *config.StringOption) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key: "Sf.Publish.Description",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.GetString(defaultOption)
-			},
-			Validator: config.Validation.Blob,
-		},
-	}
-}
-
-func newFunctionNameOption(defaultOption *config.StringOption) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key: "Sf.Publish.Name",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.GetString(defaultOption)
-			},
-			Validator: config.Validation.Name,
-		},
-	}
-}
-
-func newFunctionHandleOption() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:       "Sf.Publish.Handle",
-			Validator: config.Validation.Handle,
-		},
-	}
-}
-
-func newFunctionOemOption(defaultValue string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "Sf.Publish.Oem",
-			DefaultValue: defaultValue,
-			Validator:    config.Validation.Oem,
-		},
-	}
-}
-
-func newFunctionTypeOption() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:       "Sf.Publish.Type",
-			Validator: config.AnyOfEnumerated(layout.FunctionTypes),
-		},
-	}
-}
-
-func newFunctionVersionOption(defaultValue string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "Sf.Publish.Version",
-			DefaultValue: defaultValue,
-			Validator:    config.Validation.Version,
-		},
+		optionBroker: cli.Options.Solutions.Broker().
+			WithKeys(&schema.Genaiz.Solution.Publish.Broker).
+			BuildStringOption(),
+		optionConfigType: cli.Options.Configs.Type().
+			WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
+			WithDefaultValue("yaml").
+			BuildStringOption(),
+		optionDescription: cli.Options.Solutions.Description().
+			WithKeys(&schema.Genaiz.Solution.Publish.Description).
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(nameOption)
+			}).
+			BuildStringOption(),
+		optionHandle:  handleOption,
+		optionName:    nameOption,
+		optionOem:     oemOption,
+		optionVersion: versionOption,
 	}
 }

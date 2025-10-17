@@ -74,7 +74,7 @@ func handleLayoutCreateFile(path string, params *CreateParams, state *task.State
 
 		if fd, err = os.OpenFile(absPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0660); fd != nil {
 			filez.CloseSilently(fd)
-			state.Report(fmt.Sprintf("Created configuration file [%s]", params.GetConfigFile()))
+			state.Report(fmt.Sprintf("Created configuration file %s", params.GetConfigFile()))
 		}
 	}
 
@@ -94,7 +94,7 @@ func handleLayoutCreatePath(params *CreateParams, state *task.State) (string, er
 	state.Logger.Debugf("Creating path [%s]", path)
 
 	if err = os.MkdirAll(path, 0750); err == nil {
-		state.Report(fmt.Sprintf("Created path [%s]", path))
+		state.Report(fmt.Sprintf("Created path %s", path))
 	}
 
 	return path, err

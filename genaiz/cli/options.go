@@ -209,6 +209,54 @@ var (
 					WithParam("broker").
 					WithUsage("a publishing broker url")
 			},
+			Description: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("description").
+					WithUsage("description of the solution").
+					WithValidator(config.Validation.Blob)
+			},
+			FunctionArches: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.Arches).
+					WithValidator(config.AllFromEnumerated(layout.ArchTypes))
+			},
+			FunctionDesc: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.Description).
+					WithValidator(config.Validation.Blob)
+			},
+			FunctionHandle: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.Handle).
+					WithValidator(config.Validation.Handle)
+			},
+			FunctionName: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.Name).
+					WithValidator(config.Validation.Name)
+			},
+			FunctionOem: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.Oem).
+					WithValidator(config.Validation.Oem)
+			},
+			FunctionType: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.Type).
+					WithDefaultValue(layout.FunctionTypeFunction).
+					WithValidator(config.AnyOfEnumerated(layout.FunctionTypes))
+			},
+			FunctionVersion: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.Version).
+					WithValidator(config.Validation.Version)
+			},
+			Handle: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("handle").
+					WithUsage("handle of the solution").
+					WithValidator(config.Validation.Handle)
+			},
 			LogFormat: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Solution.Log.Format).
@@ -223,6 +271,45 @@ var (
 					WithUsage("log level for controlling logging details").
 					WithUsage("Supported case insensitive values: debug, d, error e, info, i, quiet q, trace t, warning and w").
 					WithDefaultValue("quiet")
+			},
+			Name: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithShort("n").
+					WithUsage("name of the solution").
+					WithValidator(config.Validation.RequiredName)
+			},
+			Oem: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("oem").
+					WithUsage("oem of the solution")
+			},
+			Version: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("version").
+					WithUsage("version of the solution").
+					WithDefaultValue("0.1.0")
+			},
+			WorkflowDesc: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("workflow-desc").
+					WithUsage("description of the default workflow").
+					WithDefaultValue("default workflow").
+					WithValidator(config.Validation.Blob)
+			},
+			WorkflowHandle: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("workflow-handle").
+					WithUsage("handle of the default workflow").
+					WithDefaultValue("default").
+					WithValidator(config.Validation.Handle)
+			},
+			WorkflowName: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("workflow-name").
+					WithUsage("name of the default workflow").
+					WithDefaultValue("Default Workflow").
+					WithValidator(config.Validation.RequiredName)
 			},
 		},
 	}
@@ -279,9 +366,24 @@ type modeOptions struct {
 }
 
 type solutionOptions struct {
-	Broker    func() OptionBuilder
-	LogFormat func() OptionBuilder
-	LogLevel  func() OptionBuilder
+	Broker          func() OptionBuilder
+	Description     func() OptionBuilder
+	FunctionArches  func() OptionBuilder
+	FunctionDesc    func() OptionBuilder
+	FunctionHandle  func() OptionBuilder
+	FunctionName    func() OptionBuilder
+	FunctionOem     func() OptionBuilder
+	FunctionType    func() OptionBuilder
+	FunctionVersion func() OptionBuilder
+	Handle          func() OptionBuilder
+	LogFormat       func() OptionBuilder
+	LogLevel        func() OptionBuilder
+	Name            func() OptionBuilder
+	Oem             func() OptionBuilder
+	Version         func() OptionBuilder
+	WorkflowDesc    func() OptionBuilder
+	WorkflowHandle  func() OptionBuilder
+	WorkflowName    func() OptionBuilder
 }
 
 type OptionBuilder interface {

@@ -3,7 +3,6 @@ package sn
 import (
 	"context"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -11,6 +10,7 @@ import (
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
@@ -38,6 +38,7 @@ func (ce *CreateExecutor) Display() {
 		&ce.optionName.Option,
 		&ce.optionOem.Option,
 		&ce.optionVersion.Option,
+		&ce.optionWorkflowDesc.Option,
 		&ce.optionWorkflowHandle.Option,
 		&ce.optionWorkflowName.Option,
 	)
@@ -67,6 +68,7 @@ func (ce *CreateExecutor) Proceed() {
 	var plan = task.NewPlan("Create", ce.Ledger.Logger)
 
 	plan.ContinueOnFailure = true
+	plan.PrintReportsOnly = true
 	plan.Sequence(
 		task.NewWorker(snParams, ce.solutionTaskFactory(snWriter)),
 		task.NewWorker(wfParams, ce.workflowTaskFactory(wfWriter)),
@@ -90,14 +92,16 @@ func (ce *CreateExecutor) makeWorkflowParams(configParams *shared.ConfigParams) 
 	return &broker.WorkflowParams{
 		ConfigParams: *configParams,
 		Workflow: &broker.Workflow{
-			Handle: ce.Ledger.GetString(ce.optionWorkflowHandle),
-			Name:   ce.Ledger.GetString(ce.optionWorkflowName),
+			Description: ce.Ledger.GetString(ce.optionWorkflowDesc),
+			Handle:      ce.Ledger.GetString(ce.optionWorkflowHandle),
+			Name:        ce.Ledger.GetString(ce.optionWorkflowName),
 		},
 	}
 }
 
 type CreateOptions struct {
 	PublishOptions
+	optionWorkflowDesc   *config.StringOption
 	optionWorkflowHandle *config.StringOption
 	optionWorkflowName   *config.StringOption
 }
@@ -110,6 +114,7 @@ func (co CreateOptions) allDefiners() []config.Definer {
 		co.optionName,
 		co.optionOem,
 		co.optionVersion,
+		co.optionWorkflowDesc,
 		co.optionWorkflowHandle,
 		co.optionWorkflowName,
 	}
@@ -156,130 +161,47 @@ func NewCreateExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opt
 }
 
 func NewCreateOptions() *CreateOptions {
-	var cmd = "Create"
-	var handleOption = newOptionHandle(cmd)
-	var nameOption = newOptionName(handleOption, cmd)
-	var wfHandleOption = newOptionWorkflowHandle()
+	var handleOption = cli.Options.Solutions.Handle().
+		WithKeys(&schema.Genaiz.Solution.Create.Handle).
+		BuildStringOption()
+	var nameOption = cli.Options.Solutions.Name().
+		WithKeys(&schema.Genaiz.Solution.Create.Name).
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return ledger.GetString(handleOption)
+		}).
+		BuildStringOption()
 
 	return &CreateOptions{
 		PublishOptions: PublishOptions{
-			optionConfigType:  newOptionConfigType(cmd),
-			optionDescription: newOptionDescription(nameOption, cmd),
-			optionHandle:      handleOption,
-			optionName:        nameOption,
-			optionOem:         newOptionOem(cmd),
-			optionVersion:     newOptionVersion(cmd),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Solution.Create.ConfigType).
+				WithDefaultValue("yaml").
+				BuildStringOption(),
+			optionDescription: cli.Options.Solutions.Description().
+				WithKeys(&schema.Genaiz.Solution.Create.Description).
+				WithDefaultGetter(func(ledger *config.Ledger) any {
+					return ledger.GetString(nameOption)
+				}).
+				BuildStringOption(),
+			optionHandle: handleOption,
+			optionName:   nameOption,
+			optionOem: cli.Options.Solutions.Oem().
+				WithKeys(&schema.Genaiz.Solution.Create.Oem).
+				WithValidator(config.Optionally(config.Validation.Oem)).
+				BuildStringOption(),
+			optionVersion: cli.Options.Solutions.Version().
+				WithKeys(&schema.Genaiz.Solution.Create.Version).
+				WithValidator(config.Optionally(config.Validation.Version)).
+				BuildStringOption(),
 		},
-		optionWorkflowHandle: wfHandleOption,
-		optionWorkflowName:   newOptionWorkflowName(wfHandleOption),
-	}
-}
-
-func newOptionConfigType(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "Solution." + cmd + ".ConfigType",
-			Env:          "SN_" + strings.ToUpper(cmd) + "_CONFIG_TYPE",
-			Param:        "configType",
-			Usage:        "sets the format of the configuration file to modify. Supported values are \"yaml\", \"toml\", \"json\" or \"none\"",
-			DefaultValue: "yaml",
-			Validator:    config.Optionally(config.AnyOfEnumerated(shared.ConfigTypes)),
-		},
-	}
-}
-
-func newOptionDescription(defaultOption *config.StringOption, cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "Solution." + cmd + ".Description",
-			Env:   "SN_" + strings.ToUpper(cmd) + "_DESCRIPTION",
-			Param: "description",
-			Usage: "description of the solution created",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.GetString(defaultOption)
-			},
-			Validator: config.Validation.Blob,
-		},
-	}
-}
-
-func newOptionHandle(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:       "Solution." + cmd + ".Handle",
-			Env:       "SN_" + strings.ToUpper(cmd) + "_HANDLE",
-			Param:     "handle",
-			Usage:     "handle of the solution to " + strings.ToLower(cmd),
-			Validator: config.Validation.Handle,
-		},
-	}
-}
-
-func newOptionName(defaultOption *config.StringOption, cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "Solution." + cmd + ".Name",
-			Env:   "SN_" + strings.ToUpper(cmd) + "_NAME",
-			Param: "name",
-			Short: "n",
-			Usage: "name of the solution to create",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.GetString(defaultOption)
-			},
-			Validator: config.Validation.RequiredName,
-		},
-	}
-}
-
-func newOptionOem(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:       "Solution." + cmd + ".Oem",
-			Env:       "SN_" + cmd + "_OEM",
-			Param:     "oem",
-			Usage:     "oem of the solution",
-			Validator: config.Optionally(config.Validation.Oem),
-		},
-	}
-}
-
-func newOptionVersion(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "Solution." + cmd + ".Version",
-			Env:          "SOLUTION_" + cmd + "_VERSION",
-			Param:        "version",
-			Usage:        "version of the solution",
-			DefaultValue: "0.1.0",
-			Validator:    config.Optionally(config.Validation.Version),
-		},
-	}
-}
-
-func newOptionWorkflowHandle() *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:          "Solution.Create.Workflow.Handle",
-			Env:          "SOLUTION_CREATE_WORKFLOW_HANDLE",
-			Param:        "wf.handle",
-			Usage:        "handle of the default workflow created with the solution",
-			DefaultValue: "default",
-			Validator:    config.Optionally(config.Validation.Handle),
-		},
-	}
-}
-
-func newOptionWorkflowName(defaultOption *config.StringOption) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "Solution.Create.Workflow.Name",
-			Env:   "SOLUTION_CREATE_WORKFLOW_NAME",
-			Param: "wf.name",
-			Usage: "name of the default workflow created with the solution",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.GetString(defaultOption)
-			},
-			Validator: config.Optionally(config.Validation.RequiredName),
-		},
+		optionWorkflowDesc: cli.Options.Solutions.WorkflowDesc().
+			WithKeys(&schema.Genaiz.Solution.Create.Workflow.Description).
+			BuildStringOption(),
+		optionWorkflowHandle: cli.Options.Solutions.WorkflowHandle().
+			WithKeys(&schema.Genaiz.Solution.Create.Workflow.Handle).
+			BuildStringOption(),
+		optionWorkflowName: cli.Options.Solutions.WorkflowName().
+			WithKeys(&schema.Genaiz.Solution.Create.Workflow.Name).
+			BuildStringOption(),
 	}
 }

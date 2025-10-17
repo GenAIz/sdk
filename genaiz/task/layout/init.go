@@ -111,7 +111,7 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 			WithOem(params.OEM).
 			WithVersion(params.Version).
 			Write(state.Output); err == nil {
-			state.Report(fmt.Sprintf("Initialized function [%s/%s], version [%s]", params.OEM, params.Handle, params.Version))
+			state.Report(fmt.Sprintf("Initialized function %s/%s, version %s", params.OEM, params.Handle, params.Version))
 			return nil
 		}
 

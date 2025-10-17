@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -131,8 +132,13 @@ func (mww *mockWorkflowWriter) Write(testOutput string) error {
 
 type stubSolutionClient struct {
 	client
+	brokerAddr      string
 	publishError    error
 	publishIdentity *shared.Identity
+}
+
+func (ssc stubSolutionClient) GetHostAddr() string {
+	return ssc.brokerAddr
 }
 
 func (ssc stubSolutionClient) PublishSolution(*Solution) (*shared.Identity, error) {
@@ -253,6 +259,33 @@ func TestNewWorkflowUpdateTask(t *testing.T) {
 }
 
 func Test_handleSolutionCreateConfig(t *testing.T) {
+	var expectedOutput = "output"
+	var mockWriter = &mockSolutionWriter{}
+	var testParams = &SolutionParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigFolder: "folder",
+			ConfigName:   "name",
+		},
+		Solution: &Solution{
+			Handle: "handle",
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: expectedOutput,
+	}
+
+	assert.NoError(t, handleSolutionCreateConfig(mockWriter, testParams, testState))
+	assert.Same(t, testParams.Solution, mockWriter.testSolution)
+	actual := strings.Join(testState.Reports, "\n")
+	assert.Contains(t, actual, testParams.Handle)
+	assert.Contains(t, actual, testParams.ConfigFolder)
+	assert.NotContains(t, actual, testParams.ConfigName)
+	assert.NotContains(t, actual, shared.ConfigTypeJson)
+}
+
+func Test_handleSolutionCreateConfig_Error(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var expectedOutput = "output"
 	var mockWriter = &mockSolutionWriter{writeError: expectedError}
@@ -316,25 +349,37 @@ func Test_handleSolutionPublishComplete(t *testing.T) {
 		Logger: logrus.New(),
 	}
 	var restoredFactory = clientFactory.Active
+	var expectedPath = "solutionPath"
+	var expectedAddr = "mockAddr"
 
 	defer func() {
 		clientFactory.Active = restoredFactory
 	}()
 	clientFactory.Active = func(authFile string) (Client, error) {
 		return &stubSolutionClient{
+			brokerAddr: expectedAddr,
 			publishIdentity: &shared.Identity{
-				Path:    "path",
+				Path:    expectedPath,
 				Version: "version",
 			},
 		}, nil
 	}
 
 	assert.NoError(t, handleSolutionPublishComplete(testParams, testState))
+	actual := strings.Join(testState.Reports, "\n")
+	assert.Contains(t, actual, expectedPath)
+	assert.Contains(t, actual, expectedAddr)
 }
 
 func Test_handleSolutionPublishComplete_Failure(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var restoredFactory = clientFactory.Active
+	var testParams = &SolutionPublishParams{
+		Solution: &Solution{},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
 
 	defer func() {
 		clientFactory.Active = restoredFactory
@@ -345,12 +390,18 @@ func Test_handleSolutionPublishComplete_Failure(t *testing.T) {
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleSolutionPublishComplete(&SolutionPublishParams{}, &task.State{}), expectedError)
+	assert.ErrorIs(t, handleSolutionPublishComplete(testParams, testState), expectedError)
 }
 
 func Test_handleSolutionPublishComplete_NoSession(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var restoredFactory = clientFactory.Active
+	var testParams = &SolutionPublishParams{
+		Solution: &Solution{},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
 
 	defer func() {
 		clientFactory.Active = restoredFactory
@@ -359,7 +410,7 @@ func Test_handleSolutionPublishComplete_NoSession(t *testing.T) {
 		return nil, expectedError
 	}
 
-	assert.ErrorIs(t, handleSolutionPublishComplete(&SolutionPublishParams{}, &task.State{}), expectedError)
+	assert.ErrorIs(t, handleSolutionPublishComplete(testParams, testState), expectedError)
 }
 
 func Test_handleSolutionPublishContext(t *testing.T) {
@@ -779,6 +830,8 @@ func Test_handleWorkflowUpdateConfig(t *testing.T) {
 	assert.Equal(t, 1, len(mockWriter.resultWorkflows))
 	assert.NotEqual(t, expectedDescription, mockWriter.resultWorkflows[0].Description)
 	assert.Equal(t, expectedName, mockWriter.resultWorkflows[0].Name)
+	mockWriter.writeError = errors.New("expected")
+	assert.ErrorIs(t, handleWorkflowUpdateConfig(mockWriter, testParams, testState), mockWriter.writeError)
 }
 
 func Test_handleWorkflowUpdateConfig_NewWorkflow(t *testing.T) {
@@ -901,6 +954,78 @@ func Test_handleWorkflowUpdatePretend(t *testing.T) {
 	assert.Contains(t, output, testWorkflow.Nodes[0].Sf.Oem)
 	assert.Contains(t, output, testWorkflow.Nodes[0].Sf.Version)
 	assert.Contains(t, output, cast.ToString(testWorkflow.Nodes[0].Sf.Seq))
+}
+
+func Test_handleWorkflowUpdatePretend_NewWorkflow(t *testing.T) {
+	var expectedDescription = "testDescription"
+	var expectedName = "testName"
+	var expectedHandle = "expectedHandle"
+	var testWorkflow = &Workflow{
+		Handle:      expectedHandle,
+		Description: "notExpectedDescription",
+		Name:        "expectedName",
+	}
+	var testParams = &WorkflowParams{WorkflowUpdate: true, Workflow: &Workflow{
+		Handle:      expectedHandle,
+		Description: expectedDescription,
+		Name:        expectedName,
+		Links: []WorkflowLink{
+			{
+				LhsNode:     "expectLhsNode",
+				LhsNodePort: "expectLhsNodePort",
+				RhsNode:     "expectRhsNode",
+				RhsNodePort: "expectRhsNodePort",
+			},
+		},
+		Nodes: []WorkflowNode{
+			{
+				Description: "nodeDescription",
+				Handle:      "nodeHandle",
+				Name:        "nodeName",
+				Sf: &WorkflowNodeFunction{
+					Handle:  "sfHandle",
+					Oem:     "sfOem",
+					Version: "sfVersion",
+					Seq:     37,
+				},
+			},
+		},
+	}}
+	var testState = &task.State{
+		Error:  errors.New("exist"),
+		Logger: logrus.New(),
+		Output: "output.yaml",
+	}
+	var mockWriter = &mockWorkflowWriter{
+		testWorkflows: []Workflow{},
+	}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleWorkflowUpdatePretend(mockWriter, testParams, testState))
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+	assert.NotContains(t, output, testWorkflow.Name)
+	assert.NotContains(t, output, testWorkflow.Description)
+	assert.Contains(t, output, expectedDescription)
+	assert.Contains(t, output, expectedName)
+	assert.Contains(t, output, testParams.Links[0].LhsNode)
+	assert.Contains(t, output, testParams.Links[0].LhsNodePort)
+	assert.Contains(t, output, testParams.Links[0].RhsNode)
+	assert.Contains(t, output, testParams.Links[0].RhsNodePort)
+	assert.Contains(t, output, testParams.Nodes[0].Description)
+	assert.Contains(t, output, testParams.Nodes[0].Handle)
+	assert.Contains(t, output, testParams.Nodes[0].Name)
+	assert.Contains(t, output, testParams.Nodes[0].Sf.Handle)
+	assert.Contains(t, output, testParams.Nodes[0].Sf.Oem)
+	assert.Contains(t, output, testParams.Nodes[0].Sf.Version)
+	assert.Contains(t, output, cast.ToString(testParams.Nodes[0].Sf.Seq))
 }
 
 func Test_handleWorkflowUpdatePretend_NoFileOutput(t *testing.T) {

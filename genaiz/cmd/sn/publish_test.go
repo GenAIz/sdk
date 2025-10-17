@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"testing"
 
@@ -19,6 +20,7 @@ import (
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
@@ -30,6 +32,7 @@ var (
 	testSolution = &testSnDoc{
 		Solution: &broker.Solution{
 			Handle: "handle",
+			Name:   "name",
 			Workflows: []broker.Workflow{
 				{
 					Name:   "Test Workflow",
@@ -90,8 +93,27 @@ func TestPublishExecutor_Display(t *testing.T) {
 			folderPath: testDir,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType: newOptionConfigType("test"),
-			optionVersion:    newOptionVersion("test"),
+			optionBroker: cli.Options.Solutions.Broker().
+				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
+				BuildStringOption(),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
+				BuildStringOption(),
+			optionDescription: cli.Options.Solutions.Description().
+				WithKeys(&schema.Genaiz.Solution.Publish.Description).
+				BuildStringOption(),
+			optionHandle: cli.Options.Solutions.Handle().
+				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
+				BuildStringOption(),
+			optionName: cli.Options.Solutions.Name().
+				WithKeys(&schema.Genaiz.Solution.Publish.Name).
+				BuildStringOption(),
+			optionOem: cli.Options.Solutions.Oem().
+				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
+				BuildStringOption(),
+			optionVersion: cli.Options.Solutions.Version().
+				WithKeys(&schema.Genaiz.Solution.Publish.Version).
+				BuildStringOption(),
 		},
 		solutionReader: config.NewSolutionReader(testLedger),
 	}
@@ -159,8 +181,27 @@ func TestPublishExecutor_Display_EmptySolution(t *testing.T) {
 			folderPath: testDir,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType: newOptionConfigType("test"),
-			optionVersion:    newOptionVersion("test"),
+			optionBroker: cli.Options.Solutions.Broker().
+				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
+				BuildStringOption(),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
+				BuildStringOption(),
+			optionDescription: cli.Options.Solutions.Description().
+				WithKeys(&schema.Genaiz.Solution.Publish.Description).
+				BuildStringOption(),
+			optionHandle: cli.Options.Solutions.Handle().
+				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
+				BuildStringOption(),
+			optionName: cli.Options.Solutions.Name().
+				WithKeys(&schema.Genaiz.Solution.Publish.Name).
+				BuildStringOption(),
+			optionOem: cli.Options.Solutions.Oem().
+				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
+				BuildStringOption(),
+			optionVersion: cli.Options.Solutions.Version().
+				WithKeys(&schema.Genaiz.Solution.Publish.Version).
+				BuildStringOption(),
 		},
 		solutionReader: config.NewSolutionReader(testLedger),
 	}
@@ -195,7 +236,9 @@ func TestPublishExecutor_Display_invalidConfigType(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType: newOptionConfigType("test"),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
+				BuildStringOption(),
 		},
 	}
 
@@ -220,7 +263,7 @@ func TestPublishExecutor_Display_invalidFile(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType: newOptionConfigType("test"),
+			optionConfigType: cli.Options.Configs.Type().BuildStringOption(),
 		},
 		solutionReader: config.NewSolutionReader(testLedger),
 	}
@@ -239,19 +282,33 @@ func TestPublishExecutor_Pretend(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testHandleOption = newOptionHandle("test")
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger:     testLedger,
 			folderPath: testDir,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType:  newOptionConfigType("test"),
-			optionDescription: newOptionDescription(testHandleOption, "test"),
-			optionHandle:      testHandleOption,
-			optionName:        newOptionName(testHandleOption, "test"),
-			optionOem:         newOptionOem("test"),
-			optionVersion:     newOptionVersion("test"),
+			optionBroker: cli.Options.Solutions.Broker().
+				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
+				BuildStringOption(),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
+				BuildStringOption(),
+			optionDescription: cli.Options.Solutions.Description().
+				WithKeys(&schema.Genaiz.Solution.Publish.Description).
+				BuildStringOption(),
+			optionHandle: cli.Options.Solutions.Handle().
+				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
+				BuildStringOption(),
+			optionName: cli.Options.Solutions.Name().
+				WithKeys(&schema.Genaiz.Solution.Publish.Name).
+				BuildStringOption(),
+			optionOem: cli.Options.Solutions.Oem().
+				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
+				BuildStringOption(),
+			optionVersion: cli.Options.Solutions.Version().
+				WithKeys(&schema.Genaiz.Solution.Publish.Version).
+				BuildStringOption(),
 		},
 		cmd:                        &cobra.Command{},
 		solutionReader:             config.NewSolutionReader(testLedger),
@@ -306,8 +363,8 @@ func TestPublishExecutor_Pretend_FileNotFound(t *testing.T) {
 			folderPath: testDir,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType: newOptionConfigType("test"),
-			optionVersion:    newOptionVersion("test"),
+			optionConfigType: cli.Options.Configs.Type().BuildStringOption(),
+			optionVersion:    cli.Options.Solutions.Version().BuildStringOption(),
 		},
 		solutionReader:             config.NewSolutionReader(testLedger),
 		solutionPublishTaskFactory: newTaskPretendStub(&calledSolutionPublish, &broker.SolutionPublishParams{}),
@@ -333,8 +390,8 @@ func TestPublishExecutor_Pretend_SolutionNotFound(t *testing.T) {
 			folderPath: testDir,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType: newOptionConfigType("test"),
-			optionVersion:    newOptionVersion("test"),
+			optionConfigType: cli.Options.Configs.Type().BuildStringOption(),
+			optionVersion:    cli.Options.Solutions.Version().BuildStringOption(),
 		},
 		solutionReader:             config.NewSolutionReader(testLedger),
 		solutionPublishTaskFactory: newTaskPretendStub(&calledSolutionPublish, &broker.SolutionPublishParams{}),
@@ -358,19 +415,33 @@ func TestPublishExecutor_Proceed(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testHandleOption = newOptionHandle("test")
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger:     testLedger,
 			folderPath: testDir,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType:  newOptionConfigType("test"),
-			optionDescription: newOptionDescription(testHandleOption, "test"),
-			optionHandle:      testHandleOption,
-			optionName:        newOptionName(testHandleOption, "test"),
-			optionOem:         newOptionOem("test"),
-			optionVersion:     newOptionVersion("test"),
+			optionBroker: cli.Options.Solutions.Broker().
+				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
+				BuildStringOption(),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
+				BuildStringOption(),
+			optionDescription: cli.Options.Solutions.Description().
+				WithKeys(&schema.Genaiz.Solution.Publish.Description).
+				BuildStringOption(),
+			optionHandle: cli.Options.Solutions.Handle().
+				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
+				BuildStringOption(),
+			optionName: cli.Options.Solutions.Name().
+				WithKeys(&schema.Genaiz.Solution.Publish.Name).
+				BuildStringOption(),
+			optionOem: cli.Options.Solutions.Oem().
+				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
+				BuildStringOption(),
+			optionVersion: cli.Options.Solutions.Version().
+				WithKeys(&schema.Genaiz.Solution.Publish.Version).
+				BuildStringOption(),
 		},
 		cmd:                        &cobra.Command{},
 		solutionReader:             config.NewSolutionReader(testLedger),
@@ -426,8 +497,8 @@ func TestPublishExecutor_Proceed_FileNotFound(t *testing.T) {
 			folderPath: testDir,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType: newOptionConfigType("test"),
-			optionVersion:    newOptionVersion("test"),
+			optionConfigType: cli.Options.Configs.Type().BuildStringOption(),
+			optionVersion:    cli.Options.Solutions.Version().BuildStringOption(),
 		},
 		solutionReader:             config.NewSolutionReader(testLedger),
 		solutionPublishTaskFactory: newTaskPretendStub(&calledSolutionPublish, &broker.SolutionPublishParams{}),
@@ -453,8 +524,12 @@ func TestPublishExecutor_Proceed_SolutionNotFound(t *testing.T) {
 			folderPath: testDir,
 		},
 		PublishOptions: &PublishOptions{
-			optionConfigType: newOptionConfigType("test"),
-			optionVersion:    newOptionVersion("test"),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
+				BuildStringOption(),
+			optionVersion: cli.Options.Solutions.Version().
+				WithKeys(&schema.Genaiz.Solution.Publish.Version).
+				BuildStringOption(),
 		},
 		solutionReader:             config.NewSolutionReader(testLedger),
 		solutionPublishTaskFactory: newTaskPretendStub(&calledSolutionPublish, &broker.SolutionPublishParams{}),
@@ -464,6 +539,7 @@ func TestPublishExecutor_Proceed_SolutionNotFound(t *testing.T) {
 
 	if fd, err := os.Create(filepath.Join(testDir, testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
 		defer filez.CloseSilently(fd)
+
 		testViper.Set(testExecutor.optionConfigType.Key, shared.ConfigTypeYaml)
 		testExecutor.Proceed()
 		assert.False(t, calledSolutionPublish)
@@ -501,18 +577,33 @@ func TestNewPublish(t *testing.T) {
 		WithViper(testViper).
 		Build()
 	var testCmd = NewPublish(testLedger, testCli)
+	var testOptions = NewPublishOptions()
+	var expectedHandle = "publishHandle"
+	var expectedOem = "publishOem"
+	var expectedVersion = "publishVersion"
 
 	if fd, err := os.Create(filepath.Join(testDir, testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(newOptionConfigType("publish").Key, shared.ConfigTypeYaml)
+		testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeYaml)
+		testViper.Set(testOptions.optionOem.Key, expectedOem)
+		testViper.Set(testOptions.optionHandle.Key, expectedHandle)
+		testViper.Set(testOptions.optionVersion.Key, expectedVersion)
+		testCmd.Args = nil
 		testCmd.PostRun = func(cmd *cobra.Command, args []string) {
 			createCompleted = true
 		}
-		testCmd.SetArgs([]string{"host"})
 		t.Chdir(testDir)
 		assert.NoError(t, testCmd.Execute())
 		assert.True(t, createCompleted)
+		actual := testOutput.String()
+		assert.Contains(t, actual, expectedHandle)
+		assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeYaml), actual)
+		assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
+		assert.Regexp(t, regexp.MustCompile(testOptions.optionHandle.Param+`:[\s\t]*`+expectedHandle), actual)
+		assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedHandle), actual)
+		assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedHandle), actual)
+		assert.Regexp(t, regexp.MustCompile(testOptions.optionVersion.Param+`:[\s\t]*`+expectedVersion), actual)
 	}
 }
 
