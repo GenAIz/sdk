@@ -2,12 +2,12 @@
 package filez
 
 import (
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 )
 
@@ -59,7 +59,7 @@ func FirstNamedFileUnder(path string, name string) (string, error) {
 			}
 		}
 
-		return "", errors.New("not found")
+		return "", errorz.LocalPathError
 	}
 
 	return "", err
