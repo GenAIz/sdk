@@ -3,7 +3,7 @@
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out/eugenia" />
     <go_parameters value="-tags dev" />
-    <parameters value="sn publish localhost:8081 --pretend" />
+    <parameters value="sn publish --pretend" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

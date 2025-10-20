@@ -311,6 +311,119 @@ func Test_OptionSolutionsBroker(t *testing.T) {
 	assert.NotEmpty(t, testOption.Usage)
 }
 
+func Test_OptionSolutionsDescription(t *testing.T) {
+	var testOption = Options.Solutions.Description().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, testOption.Validator)
+}
+
+func Test_OptionSolutionsFunctionArches(t *testing.T) {
+	var testOption = Options.Solutions.FunctionArches().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	// Needs to be empty, there can be several functions, and they would collide on the cmd line
+	assert.Empty(t, testOption.Param)
+	assert.True(t, testOption.Validator(layout.ArchTypeArm))
+	assert.True(t, testOption.Validator(layout.ArchTypeArm64))
+	assert.True(t, testOption.Validator(layout.ArchTypeX86))
+	assert.True(t, testOption.Validator(layout.ArchTypeX86_64))
+	assert.False(t, testOption.Validator("invalid"))
+}
+
+func Test_OptionSolutionsFunctionDesc(t *testing.T) {
+	var testOption = Options.Solutions.FunctionDesc().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	// Needs to be empty, there can be several functions, and they would collide on the cmd line
+	assert.Empty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Validator)
+}
+
+func Test_OptionSolutionsFunctionHandle(t *testing.T) {
+	var testOption = Options.Solutions.FunctionHandle().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	// Needs to be empty, there can be several functions, and they would collide on the cmd line
+	assert.Empty(t, testOption.Param)
+	assert.True(t, testOption.Validator("test-handle_test.2"))
+	assert.False(t, testOption.Validator("-test-handle"))
+	assert.False(t, testOption.Validator("test-handle-"))
+	assert.False(t, testOption.Validator("test-handle."))
+	assert.False(t, testOption.Validator(".test-handle"))
+	assert.False(t, testOption.Validator("_test-handle"))
+	assert.False(t, testOption.Validator("test-handle_"))
+	assert.False(t, testOption.Validator(""))
+}
+
+func TestOptionSolutionsFunctionName(t *testing.T) {
+	var testOption = Options.Solutions.FunctionName().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	// Needs to be empty, there can be several functions, and they would collide on the cmd line
+	assert.Empty(t, testOption.Param)
+	assert.True(t, testOption.Validator("a name"))
+	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
+}
+
+func TestOptionSolutionsFunctionOem(t *testing.T) {
+	var testOption = Options.Solutions.FunctionOem().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	// Needs to be empty, there can be several functions, and they would collide on the cmd line
+	assert.Empty(t, testOption.Param)
+	assert.True(t, testOption.Validator("com.oem.test"))
+	assert.False(t, testOption.Validator("-test-handle"))
+	assert.False(t, testOption.Validator("test-handle-"))
+	assert.False(t, testOption.Validator("test-handle."))
+	assert.False(t, testOption.Validator(".test-handle"))
+	assert.False(t, testOption.Validator("_test-handle"))
+	assert.False(t, testOption.Validator("test-handle_"))
+	assert.False(t, testOption.Validator("test-handle_"))
+	assert.False(t, testOption.Validator(""))
+}
+
+func TestOptionSolutionsFunctionType(t *testing.T) {
+	var testOption = Options.Solutions.FunctionType().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	// Needs to be empty, there can be several functions, and they would collide on the cmd line
+	assert.Empty(t, testOption.Param)
+	assert.Equal(t, layout.FunctionTypeFunction, testOption.DefaultValue)
+	assert.True(t, testOption.Validator(layout.FunctionTypeConnector))
+	assert.True(t, testOption.Validator(layout.FunctionTypeFunction))
+	assert.True(t, testOption.Validator(layout.FunctionTypeTrigger))
+}
+
+func TestOptionSolutionsFunctionVersion(t *testing.T) {
+	var testOption = Options.Solutions.FunctionVersion().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	// Needs to be empty, there can be several functions, and they would collide on the cmd line
+	assert.Empty(t, testOption.Param)
+	assert.True(t, testOption.Validator("0.0.0"))
+	assert.False(t, testOption.Validator("01.0"))
+	assert.False(t, testOption.Validator("1.00"))
+	assert.False(t, testOption.Validator("1.1"))
+}
+
+func TestOptionSolutionsHandle(t *testing.T) {
+	var testOption = Options.Solutions.Handle().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("test-handle_test.2"))
+	assert.False(t, testOption.Validator("-test-handle"))
+	assert.False(t, testOption.Validator("test-handle-"))
+	assert.False(t, testOption.Validator("test-handle."))
+	assert.False(t, testOption.Validator(".test-handle"))
+	assert.False(t, testOption.Validator("_test-handle"))
+	assert.False(t, testOption.Validator("test-handle_"))
+	assert.False(t, testOption.Validator(""))
+}
+
 func Test_OptionSolutionsLogFormat(t *testing.T) {
 	var testOption = Options.Solutions.LogFormat().BuildStringOption()
 
@@ -329,6 +442,70 @@ func Test_OptionSolutionsLogLevel(t *testing.T) {
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
 	assert.NotEmpty(t, cast.ToString(testOption.DefaultValue))
+}
+
+func TestOptionSolutionsName(t *testing.T) {
+	var testOption = Options.Solutions.Name().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("a name"))
+	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
+}
+
+func TestOptionSolutionsOem(t *testing.T) {
+	var testOption = Options.Solutions.Oem().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.Empty(t, testOption.Validator)
+}
+
+func TestOptionSolutionsVersion(t *testing.T) {
+	var testOption = Options.Solutions.Version().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, testOption.DefaultValue)
+}
+
+func TestOptionSolutionsWorkflowDesc(t *testing.T) {
+	var testOption = Options.Solutions.WorkflowDesc().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, testOption.DefaultValue)
+	assert.NotEmpty(t, testOption.Validator)
+}
+
+func TestOptionSolutionsWorkflowHandle(t *testing.T) {
+	var testOption = Options.Solutions.WorkflowHandle().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, testOption.DefaultValue)
+	assert.True(t, testOption.Validator(testOption.DefaultValue))
+	assert.False(t, testOption.Validator("-test-handle"))
+	assert.False(t, testOption.Validator("test-handle-"))
+	assert.False(t, testOption.Validator("test-handle."))
+	assert.False(t, testOption.Validator(".test-handle"))
+	assert.False(t, testOption.Validator("_test-handle"))
+	assert.False(t, testOption.Validator("test-handle_"))
+	assert.False(t, testOption.Validator(""))
+}
+
+func TestOptionSolutionsWorkflowName(t *testing.T) {
+	var testOption = Options.Solutions.WorkflowName().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, testOption.DefaultValue)
+	assert.True(t, testOption.Validator(testOption.DefaultValue))
+	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
 }
 
 func TestOptionBuilder_Validated(t *testing.T) {

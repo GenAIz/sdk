@@ -221,7 +221,7 @@ func handleFunctionPublishIncomplete(params *PublishParams, state *task.State) e
 	} else if errors.Is(state.Error, errorDuplicatePublishing) {
 		var current = state.Internal.(*shared.Identity)
 
-		state.Report(fmt.Sprintf("Smart Function was found under path [%s]", current.Path))
+		state.Report(fmt.Sprintf("Smart Function was found under path %s", current.Path))
 		state.Abort = true
 		state.Error = nil
 		state.Internal = nil

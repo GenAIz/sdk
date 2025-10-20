@@ -403,7 +403,7 @@ func handleBuildReport(params *BuildParams, state *task.State) error {
 				var shortId = img.ID[prefixLength : prefixLength+12]
 				var size = fmt.Sprintf("%3.1fMB", float64(img.Size/1024/1024))
 
-				state.Report(fmt.Sprintf("Built image [%s] - [%s] size [%s]", params.GetReference(), shortId, size))
+				state.Report(fmt.Sprintf("Built image %s - %s size %s", params.GetReference(), shortId, size))
 				return nil
 			}
 		}

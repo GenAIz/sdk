@@ -22,15 +22,11 @@
 
 ### Handle and OEM
 
-* Can only have letters (upper or lower case), digits, dots, dashes and underscores.
-* Can only start with a letter (upper or lower case) or a digit.
-* Can not have 2 consecutive characters of type dots, dashes and underscores.
-* Can not end with a character of type dot, dash or underscore.
+See [Global Validation](../index.md#handle-and-oem)
 
 ### Name
 
-* A name can have any characters.
-* The length must not exceed 255 characters.
+See [Global Validation](../index.md#name)
 
 ### Repository
 
@@ -44,5 +40,4 @@
 
 ### Version
 
-* Must be a valid [Semantic Version](https://semver.org/) string.
-* Can not contain pre-release version identifiers as those are reserved by the broker.
+See [Global Validation](../index.md#version)

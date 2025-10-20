@@ -149,9 +149,18 @@ func NewWorkflowUpdateTask(writer WorkflowWriter) *task.Task[WorkflowParams] {
 
 func handleSolutionCreateConfig(writer SolutionWriter, params *SolutionParams, state *task.State) error {
 	if state.Output != "" {
+		var err error
+
 		state.Logger.Debugf("Solution writing to [%s]", state.Output)
-		return writer.WithSolution(params.Solution).
-			Write(state.Output)
+
+		if err = writer.WithSolution(params.Solution).Write(state.Output); err == nil {
+			var configDir = filepath.Dir(params.GetConfigPath())
+
+			state.Report(fmt.Sprintf("Created solution %s under folder %s", params.Handle, configDir))
+			return nil
+		}
+
+		return err
 	}
 
 	return errorSolutionFileInvalid
@@ -179,10 +188,14 @@ func handleSolutionPublishComplete(params *SolutionPublishParams, state *task.St
 		var solution = params.Solution
 		var identity *shared.Identity
 
+		state.Logger.Infof("Publishing solution [%s], version [%s]", params.Handle, params.Version)
+
 		if identity, err = brokerClient.PublishSolution(solution); err == nil {
-			state.Logger.Infof("Published solution %s:%s", identity.Path, identity.Version)
+			state.Report(fmt.Sprintf("Published solution %s, version %s to %s", identity.Path, identity.Version, brokerClient.GetHostAddr()))
 			return nil
 		}
+
+		return err
 	}
 
 	return err
@@ -242,17 +255,28 @@ func handleSolutionPublishPretend(params *SolutionPublishParams, state *task.Sta
 
 func handleSolutionUpdateConfig(writer SolutionWriter, params *SolutionParams, state *task.State) error {
 	if state.Output != "" {
+		var err error
+
 		if params.HasWorkflows() {
 			// Remove existing workflows from createConfig, we can not overwrite them with solution update
 			slices.DeleteFunc(params.Workflows, func(wf Workflow) bool {
-				var _, err = writer.GetWorkflowByHandle(wf.Handle)
+				var _, err2 = writer.GetWorkflowByHandle(wf.Handle)
 
-				return err == nil
+				return err2 == nil
 			})
 		}
 
+		state.Logger.Debugf("Solution updating to [%s]", state.Output)
 		state.Completed = true
-		return handleSolutionCreateConfig(writer, params, state)
+
+		if err = writer.WithSolution(params.Solution).Write(state.Output); err == nil {
+			var configDir = filepath.Dir(params.GetConfigPath())
+
+			state.Report(fmt.Sprintf("Updated solution %s under folder %s", params.Handle, configDir))
+			return nil
+		}
+
+		return err
 	}
 
 	return errorSolutionFileInvalid
@@ -263,6 +287,13 @@ func handleSolutionUpdatePretend(writer SolutionWriter, params *SolutionParams, 
 		var pretender = shared.NewConfigPretender(state.Output)
 		var rootKey, solution = writer.WithSolution(params.Solution).
 			BuildSolution()
+
+		if state.Error == nil {
+			var confPath = filepath.Dir(state.Output)
+
+			fmt.Printf("mkdir -p %s && cd %s\n", confPath, confPath)
+			fmt.Printf("touch %s\n", state.Output)
+		}
 
 		state.Logger.Debugf("Pretending to update solution %s", params.Name)
 		shared.PretendValue(pretender, func() (string, string) {
@@ -288,9 +319,18 @@ func handleSolutionUpdatePretend(writer SolutionWriter, params *SolutionParams, 
 
 func handleWorkflowCreateConfig(writer WorkflowWriter, params *WorkflowParams, state *task.State) error {
 	if state.Output != "" {
+		var err error
+
 		state.Logger.Debugf("Workflow writing to [%s]", state.Output)
-		return writer.WithWorkflow(params.Workflow).
-			Write(state.Output)
+
+		if err = writer.WithWorkflow(params.Workflow).Write(state.Output); err == nil {
+			var configDir = filepath.Dir(params.GetConfigPath())
+
+			state.Report(fmt.Sprintf("Created workflow %s under folder %s", params.Handle, configDir))
+			return nil
+		}
+
+		return err
 	}
 
 	return errorWorkflowFileInvalid
@@ -388,11 +428,17 @@ func handleWorkflowUpdateConfig(writer WorkflowWriter, params *WorkflowParams, s
 						update.Name = params.Name
 					}
 
-					err = writer.WithWorkflows(writer.GetWorkflows()).
+					if err = writer.WithWorkflows(writer.GetWorkflows()).
 						WithWorkflowLinks(update.Handle, params.Links).
 						WithWorkflowNodes(update.Handle, params.Nodes).
-						Write(state.Output)
-					return nil
+						Write(state.Output); err == nil {
+						var configDir = filepath.Dir(params.GetConfigPath())
+
+						state.Report(fmt.Sprintf("Updated workflow %s under folder %s", params.Handle, configDir))
+						return nil
+					}
+
+					return err
 				} else {
 					state.Logger.Errorf("Workflow [%s] already exist", params.Name)
 					return errorWorkflowConflict
@@ -418,13 +464,6 @@ func handleWorkflowUpdatePretend(writer WorkflowWriter, params *WorkflowParams, 
 
 		state.Logger.Debugf("Pretending to writing workflow [%s] to [%s]", params.Name, state.Output)
 
-		if state.Error == nil {
-			var confPath = filepath.Dir(state.Output)
-
-			fmt.Printf("mkdir -p %s && cd %s\n", confPath, confPath)
-			fmt.Printf("touch %s\n", state.Output)
-		}
-
 		if i := slices.IndexFunc(workflows, comparison); i >= 0 {
 			var wf = workflows[i]
 
@@ -440,63 +479,92 @@ func handleWorkflowUpdatePretend(writer WorkflowWriter, params *WorkflowParams, 
 				})
 			}
 
-			if params.WorkflowUpdate {
-				shared.PretendDelete(pretender, func() string {
-					return fmt.Sprintf("%s[%d].links", rootKey, i)
+			pretendWorkflowLinksUpdate(&wf, pretender, rootKey, i, params.WorkflowUpdate)
+			pretendWorkflowNodesUpdate(&wf, pretender, rootKey, i, params.WorkflowUpdate)
+		} else {
+			if params.Workflow.Handle != "" {
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].handle", rootKey, 0), params.Handle
 				})
 			}
 
-			for j, link := range wf.Links {
+			if params.Workflow.Name != "" {
 				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].links[%d].lhsNode", rootKey, i, j), link.LhsNode
-				})
-				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].links[%d].lhsNodePort", rootKey, i, j), link.LhsNodePort
-				})
-				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].links[%d].rhsNode", rootKey, i, j), link.RhsNode
-				})
-				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].links[%d].rhsNodePort", rootKey, i, j), link.RhsNodePort
+					return fmt.Sprintf("%s[%d].name", rootKey, 0), params.Name
 				})
 			}
 
-			if params.WorkflowUpdate {
-				shared.PretendDelete(pretender, func() string {
-					return fmt.Sprintf("%s[%d].nodes", rootKey, i)
+			if params.Workflow.Description != "" {
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].description", rootKey, 0), params.Description
 				})
 			}
 
-			for j, node := range wf.Nodes {
-				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].nodes[%d].name", rootKey, i, j), node.Name
-				})
-				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].nodes[%d].description", rootKey, i, j), node.Description
-				})
-				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].nodes[%d].handle", rootKey, i, j), node.Handle
-				})
-
-				if node.Sf != nil {
-					shared.PretendValue(pretender, func() (string, string) {
-						return fmt.Sprintf("%s[%d].nodes[%d].sf.oem", rootKey, i, j), node.Sf.Oem
-					})
-					shared.PretendValue(pretender, func() (string, string) {
-						return fmt.Sprintf("%s[%d].nodes[%d].sf.handle", rootKey, i, j), node.Sf.Handle
-					})
-					shared.PretendValue(pretender, func() (string, string) {
-						return fmt.Sprintf("%s[%d].nodes[%d].sf.version", rootKey, i, j), node.Sf.Version
-					})
-					shared.PretendValue(pretender, func() (string, string) {
-						return fmt.Sprintf("%s[%d].nodes[%d].sf.seq", rootKey, i, j), cast.ToString(node.Sf.Seq)
-					})
-				}
-			}
+			pretendWorkflowLinksUpdate(params.Workflow, pretender, rootKey, 0, false)
+			pretendWorkflowNodesUpdate(params.Workflow, pretender, rootKey, 0, false)
 		}
 
+		state.Output = ""
 		return nil
 	}
 
 	return errorWorkflowFileInvalid
+}
+
+func pretendWorkflowLinksUpdate(wf *Workflow, pretender shared.ConfigPretender, rootKey string, index int, update bool) {
+	if update {
+		shared.PretendDelete(pretender, func() string {
+			return fmt.Sprintf("%s[%d].links", rootKey, index)
+		})
+	}
+
+	for j, link := range wf.Links {
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s[%d].links[%d].lhsNode", rootKey, index, j), link.LhsNode
+		})
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s[%d].links[%d].lhsNodePort", rootKey, index, j), link.LhsNodePort
+		})
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s[%d].links[%d].rhsNode", rootKey, index, j), link.RhsNode
+		})
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s[%d].links[%d].rhsNodePort", rootKey, index, j), link.RhsNodePort
+		})
+	}
+}
+
+func pretendWorkflowNodesUpdate(wf *Workflow, pretender shared.ConfigPretender, rootKey string, index int, update bool) {
+	if update {
+		shared.PretendDelete(pretender, func() string {
+			return fmt.Sprintf("%s[%d].nodes", rootKey, index)
+		})
+	}
+
+	for j, node := range wf.Nodes {
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s[%d].nodes[%d].name", rootKey, index, j), node.Name
+		})
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s[%d].nodes[%d].description", rootKey, index, j), node.Description
+		})
+		shared.PretendValue(pretender, func() (string, string) {
+			return fmt.Sprintf("%s[%d].nodes[%d].handle", rootKey, index, j), node.Handle
+		})
+
+		if node.Sf != nil {
+			shared.PretendValue(pretender, func() (string, string) {
+				return fmt.Sprintf("%s[%d].nodes[%d].sf.oem", rootKey, index, j), node.Sf.Oem
+			})
+			shared.PretendValue(pretender, func() (string, string) {
+				return fmt.Sprintf("%s[%d].nodes[%d].sf.handle", rootKey, index, j), node.Sf.Handle
+			})
+			shared.PretendValue(pretender, func() (string, string) {
+				return fmt.Sprintf("%s[%d].nodes[%d].sf.version", rootKey, index, j), node.Sf.Version
+			})
+			shared.PretendValue(pretender, func() (string, string) {
+				return fmt.Sprintf("%s[%d].nodes[%d].sf.seq", rootKey, index, j), cast.ToString(node.Sf.Seq)
+			})
+		}
+	}
 }

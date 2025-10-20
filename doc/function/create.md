@@ -7,7 +7,7 @@ genaiz sf create FOLDER --context=PATH --file=FILE --config-type=TYPE \
   --mount-in=/PATH-IN --mount-out=/PATH-OUT --arch=x86 --arch=...
 ```
 
-### context & FOLDER
+### context & folder
 
 The context option on the create command is used to change the working dir before creating the folder that will hold the smart function. This matters, if the solution file is in a different location than the folder where we want to create the function.
 
@@ -89,21 +89,21 @@ The name option of the create command is used to initialize the key `sf.publish.
 ### mount-in
 
 > [!WARNING]
-> The value of mount-in will be copied under the Genai.yaml file, but any recipe selected may or may not respect its creation. 
+> The value of mount-in will be copied under the Genaiz.yaml file, but any recipe selected may or may not respect its creation. 
 
 The mount-in option of the create command is used to initialize the key `sf.run.input`.
 
-* There is no validation applied to the string passed here, since the folder may not have been created and is only used the [run](run.md) command.
+* There is no validation applied to the string passed here, since the folder may not have been created and is only used by the [run](run.md) command.
 * It is expected that the value will eventually map to existing folder
 
 ### mount-out
 
 > [!WARNING]
-> The value of mount-out will be copied under the Genai.yaml file, but any recipe selected may or may not respect its creation.
+> The value of mount-out will be copied under the Genaiz.yaml file, but any recipe selected may or may not respect its creation.
 
 The mount-out option of the create command is used to initialize the keys `sf.run.ouput`, `sf.run.log` and `sf.run.var`.
 
-* There is no validation applied to the string passed here, since the folder may not have been created and is only used the [run](run.md) command.
+* There is no validation applied to the string passed here, since the folder may not have been created and is only used by the [run](run.md) command.
 * It is expected that the value will eventually map to existing folder.
 * The values of `sf.run.log` and `sf.run.var` will be made sub-folders of `sf.run.output` on `OUTPUT/log` and `OUTPUT/var` respectively
 
