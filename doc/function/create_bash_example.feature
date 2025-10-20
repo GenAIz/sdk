@@ -17,14 +17,6 @@ Feature: function create for the bash example
     When I run the command "sf create <handle> --config-type=<configType>"
     Then I should have an error for field "sf.create.configtype"
 
-  Scenario: create bash example no solution config-type
-    # This case is failing atm, it'll print Error: no config file, which is misleading
-    Given the following parameters
-      | handle          |
-      | my-bash-example |
-    When I run the command "sf create <handle>"
-    Then I should have an error for field "sf.create.configtype"
-
   Scenario: create bash example bad tag
     Given the following parameters
       | handle          | tag                     |

@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"genaiz.com/genaiz-lib/lang/errorz"
 )
 
 func TestCloseSilently(t *testing.T) {
@@ -93,7 +95,7 @@ func TestFirstNamedFileUnder_NotFound(t *testing.T) {
 
 	_, err = FirstNamedFile(testName)
 	assert.Error(t, err)
-	assert.Equal(t, "not found", err.Error())
+	assert.ErrorIs(t, err, errorz.LocalPathError)
 }
 
 func TestFromWorkDir(t *testing.T) {

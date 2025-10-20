@@ -4,11 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"genaiz.com/genaiz-lib/mock"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
+	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"genaiz.com/genaiz-lib/mock"
 )
 
 func TestDeferOnExit_AllNil(t *testing.T) {
@@ -59,4 +62,16 @@ func TestDeferOnExit(t *testing.T) {
 
 	assert.True(t, patch.Called)
 	assert.Contains(t, string(b), expected)
+}
+
+func TestIsPathError(t *testing.T) {
+	var notAPathError = errors.New("not a path error")
+	var fakePathError = &os.PathError{
+		Op:  "open",
+		Err: syscall.ENOENT,
+	}
+
+	assert.False(t, IsPathError(notAPathError))
+	assert.True(t, IsPathError(fakePathError))
+	assert.True(t, IsPathError(LocalPathError))
 }

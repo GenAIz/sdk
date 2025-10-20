@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
@@ -40,7 +41,12 @@ func (c *Cli) ParentConfigType(parentOption *config.StringOption) func(*config.L
 			c.parentSolution = c.parseParentSolution(ledger, parentOption)
 		}
 
-		return c.parentConfigType
+		if c.parentConfigType == nil {
+			// Kludge: Event though we have no default definition under cli/options, defaulting to yaml because the command definitions all default to it
+			c.parentConfigType = lang.Ref(shared.ConfigTypeYaml)
+		}
+
+		return *c.parentConfigType
 	}
 }
 
@@ -90,9 +96,8 @@ func (c *Cli) parseParentSolution(ledger *config.Ledger, parentOption *config.St
 	if result, err := solutionReader.ReadName(ledger.ConfigName); err == nil {
 		c.parentConfigType = lang.Ref(solutionReader.GetConfigType())
 		return result
-	} else {
-		ledger.LogDebug("could not read a solution under path [%s]", solutionPath)
-		c.parentConfigType = lang.Ref(shared.ConfigTypeNone)
+	} else if !errorz.IsPathError(err) {
+		lang.HandleExit(err)
 	}
 
 	return &broker.Solution{Version: "0.1.0"}
