@@ -26,14 +26,14 @@ func Test_OptionsAccountsHost(t *testing.T) {
 	assert.NotEmpty(t, testOption.Param)
 }
 
-func Test_OptionAccountsPassword(t *testing.T) {
+func Test_OptionsAccountsPassword(t *testing.T) {
 	var testOption = Options.Accounts.Password().BuildStringOption()
 
 	assert.Equal(t, schema.Genaiz.Account.Login.Password.Doc, testOption.Key)
 	assert.Equal(t, schema.Genaiz.Account.Login.Password.Env, testOption.Env)
 }
 
-func Test_OptionAccountsRefresh(t *testing.T) {
+func Test_OptionsAccountsRefresh(t *testing.T) {
 	var testOption = Options.Accounts.Refresh().BuildBoolOption()
 
 	assert.Equal(t, schema.Genaiz.Account.Login.Refresh.Doc, testOption.Key)
@@ -43,7 +43,7 @@ func Test_OptionAccountsRefresh(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
-func Test_OptionAccountsUsername(t *testing.T) {
+func Test_OptionsAccountsUsername(t *testing.T) {
 	var testOption = Options.Accounts.Username().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
@@ -77,6 +77,24 @@ func Test_OptionsConfigsType(t *testing.T) {
 	assert.True(t, testOption.Validator(shared.ConfigTypeToml))
 	assert.True(t, testOption.Validator(shared.ConfigTypeYaml))
 	assert.False(t, testOption.Validator("invalid"))
+}
+
+func Test_OptionsDockerContainerName(t *testing.T) {
+	var testOption = Options.Docker.ContainerName().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsDockerContainerPrefix(t *testing.T) {
+	var testOption = Options.Docker.ContainerPrefix().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
 }
 
 func Test_OptionsDockerContextPath(t *testing.T) {
@@ -117,7 +135,15 @@ func Test_OptionsDockerFilePath(t *testing.T) {
 	}
 }
 
-func Test_OptionDockerLabel(t *testing.T) {
+func Test_OptionsDockerImage(t *testing.T) {
+	var testOption = Options.Docker.Image().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsDockerLabel(t *testing.T) {
 	var testOption = Options.Docker.Label().BuildStringOption()
 
 	assert.Equal(t, schema.Genaiz.Function.Build.Label.Doc, testOption.Key)
@@ -127,7 +153,7 @@ func Test_OptionDockerLabel(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
-func Test_OptionDockerLegacy(t *testing.T) {
+func Test_OptionsDockerLegacy(t *testing.T) {
 	var testOption = Options.Docker.Legacy().BuildBoolOption()
 
 	assert.Equal(t, schema.Genaiz.Function.Build.Legacy.Doc, testOption.Key)
@@ -137,7 +163,7 @@ func Test_OptionDockerLegacy(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
-func Test_OptionDockerNoCache(t *testing.T) {
+func Test_OptionsDockerNoCache(t *testing.T) {
 	var testOption = Options.Docker.NoCache().BuildBoolOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -145,7 +171,16 @@ func Test_OptionDockerNoCache(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
-func Test_OptionDockerPrune(t *testing.T) {
+func Test_OptionsDockerPreserve(t *testing.T) {
+	var testOption = Options.Docker.Preserve().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsDockerPrune(t *testing.T) {
 	var testOption = Options.Docker.Prune().BuildStringOption()
 
 	assert.Equal(t, schema.Genaiz.Function.Build.Prune.Doc, testOption.Key)
@@ -155,7 +190,17 @@ func Test_OptionDockerPrune(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
-func Test_OptionDockerTag(t *testing.T) {
+func Test_OptionsDockerReplace(t *testing.T) {
+	var testOption = Options.Docker.Replace().BuildBoolOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsDockerTag(t *testing.T) {
 	var testDir = t.TempDir()
 	var testOption = Options.Docker.Tag().BuildStringOption()
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
@@ -169,7 +214,7 @@ func Test_OptionDockerTag(t *testing.T) {
 	assert.Equal(t, expectedTag, testOption.DefaultSetter(testLedger))
 }
 
-func Test_OptionDockerVersion(t *testing.T) {
+func Test_OptionsDockerVersion(t *testing.T) {
 	var testOption = Options.Docker.Version().BuildStringOption()
 
 	assert.Equal(t, schema.Genaiz.Function.Build.Version.Doc, testOption.Key)
@@ -180,7 +225,7 @@ func Test_OptionDockerVersion(t *testing.T) {
 	assert.NotEmpty(t, testOption.DefaultValue)
 }
 
-func Test_OptionFunctionsArches(t *testing.T) {
+func Test_OptionsFunctionsArches(t *testing.T) {
 	var testOption = Options.Functions.Arches().BuildListOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -192,7 +237,7 @@ func Test_OptionFunctionsArches(t *testing.T) {
 	assert.False(t, testOption.Validator("invalid"))
 }
 
-func Test_OptionFunctionsHandle(t *testing.T) {
+func Test_OptionsFunctionsHandle(t *testing.T) {
 	var testOption = Options.Functions.Handle().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -207,7 +252,18 @@ func Test_OptionFunctionsHandle(t *testing.T) {
 	assert.False(t, testOption.Validator(""))
 }
 
-func Test_OptionFunctionsMountInput(t *testing.T) {
+func Test_OptionsFunctionsMountLog(t *testing.T) {
+	var testOption = Options.Functions.MountLog().BuildStringOption()
+	var testDir = t.TempDir()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator(""))
+	assert.True(t, testOption.Validator(testDir))
+	assert.True(t, testOption.Validator(filepath.Join(testDir, "created")))
+}
+
+func Test_OptionsFunctionsMountInput(t *testing.T) {
 	var testOption = Options.Functions.MountInput().BuildStringOption()
 	var testDir = t.TempDir()
 
@@ -218,7 +274,7 @@ func Test_OptionFunctionsMountInput(t *testing.T) {
 	assert.False(t, testOption.Validator(filepath.Join(testDir, "_not_exist")))
 }
 
-func Test_OptionFunctionsMountOutput(t *testing.T) {
+func Test_OptionsFunctionsMountOutput(t *testing.T) {
 	var testOption = Options.Functions.MountOutput().BuildStringOption()
 	var testDir = t.TempDir()
 
@@ -226,10 +282,21 @@ func Test_OptionFunctionsMountOutput(t *testing.T) {
 	assert.NotEmpty(t, testOption.Usage)
 	assert.True(t, testOption.Validator(""))
 	assert.True(t, testOption.Validator(testDir))
-	assert.False(t, testOption.Validator(filepath.Join(testDir, "_not_exist")))
+	assert.True(t, testOption.Validator(filepath.Join(testDir, "created")))
 }
 
-func Test_OptionFunctionsName(t *testing.T) {
+func Test_OptionsFunctionsMountVar(t *testing.T) {
+	var testOption = Options.Functions.MountVar().BuildStringOption()
+	var testDir = t.TempDir()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator(""))
+	assert.True(t, testOption.Validator(testDir))
+	assert.True(t, testOption.Validator(filepath.Join(testDir, "created")))
+}
+
+func Test_OptionsFunctionsName(t *testing.T) {
 	var testOption = Options.Functions.Name().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -239,7 +306,7 @@ func Test_OptionFunctionsName(t *testing.T) {
 	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
 }
 
-func Test_OptionFunctionsOem(t *testing.T) {
+func Test_OptionsFunctionsOem(t *testing.T) {
 	var testOption = Options.Functions.Oem().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -255,7 +322,7 @@ func Test_OptionFunctionsOem(t *testing.T) {
 	assert.False(t, testOption.Validator(""))
 }
 
-func Test_OptionFunctionsRebuild(t *testing.T) {
+func Test_OptionsFunctionsRebuild(t *testing.T) {
 	var testOption = Options.Functions.Rebuild().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -263,7 +330,7 @@ func Test_OptionFunctionsRebuild(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
-func Test_OptionFunctionsRecipe(t *testing.T) {
+func Test_OptionsFunctionsRecipe(t *testing.T) {
 	var testOption = Options.Functions.Recipe().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -271,7 +338,7 @@ func Test_OptionFunctionsRecipe(t *testing.T) {
 	assert.NotEmpty(t, testOption.Usage)
 }
 
-func Test_OptionFunctionsType(t *testing.T) {
+func Test_OptionsFunctionsType(t *testing.T) {
 	var testOption = Options.Functions.Type().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -283,7 +350,7 @@ func Test_OptionFunctionsType(t *testing.T) {
 	assert.True(t, testOption.Validator(layout.FunctionTypeTrigger))
 }
 
-func Test_OptionFunctionsVersion(t *testing.T) {
+func Test_OptionsFunctionsVersion(t *testing.T) {
 	var testOption = Options.Functions.Version().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -295,7 +362,7 @@ func Test_OptionFunctionsVersion(t *testing.T) {
 	assert.False(t, testOption.Validator("1.1"))
 }
 
-func Test_OptionModesInteractive(t *testing.T) {
+func Test_OptionsModesInteractive(t *testing.T) {
 	var testOption = Options.Modes.Interactive().BuildBoolOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -303,7 +370,7 @@ func Test_OptionModesInteractive(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
-func Test_OptionSolutionsBroker(t *testing.T) {
+func Test_OptionsSolutionsBroker(t *testing.T) {
 	var testOption = Options.Solutions.Broker().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
@@ -311,7 +378,7 @@ func Test_OptionSolutionsBroker(t *testing.T) {
 	assert.NotEmpty(t, testOption.Usage)
 }
 
-func Test_OptionSolutionsDescription(t *testing.T) {
+func Test_OptionsSolutionsDescription(t *testing.T) {
 	var testOption = Options.Solutions.Description().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
@@ -320,7 +387,7 @@ func Test_OptionSolutionsDescription(t *testing.T) {
 	assert.NotEmpty(t, testOption.Validator)
 }
 
-func Test_OptionSolutionsFunctionArches(t *testing.T) {
+func Test_OptionsSolutionsFunctionArches(t *testing.T) {
 	var testOption = Options.Solutions.FunctionArches().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Key)
@@ -333,7 +400,7 @@ func Test_OptionSolutionsFunctionArches(t *testing.T) {
 	assert.False(t, testOption.Validator("invalid"))
 }
 
-func Test_OptionSolutionsFunctionDesc(t *testing.T) {
+func Test_OptionsSolutionsFunctionDesc(t *testing.T) {
 	var testOption = Options.Solutions.FunctionDesc().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Key)
@@ -342,7 +409,7 @@ func Test_OptionSolutionsFunctionDesc(t *testing.T) {
 	assert.NotEmpty(t, testOption.Validator)
 }
 
-func Test_OptionSolutionsFunctionHandle(t *testing.T) {
+func Test_OptionsSolutionsFunctionHandle(t *testing.T) {
 	var testOption = Options.Solutions.FunctionHandle().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Key)
@@ -358,7 +425,7 @@ func Test_OptionSolutionsFunctionHandle(t *testing.T) {
 	assert.False(t, testOption.Validator(""))
 }
 
-func TestOptionSolutionsFunctionName(t *testing.T) {
+func Test_OptionsSolutionsFunctionName(t *testing.T) {
 	var testOption = Options.Solutions.FunctionName().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Key)
@@ -368,7 +435,7 @@ func TestOptionSolutionsFunctionName(t *testing.T) {
 	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
 }
 
-func TestOptionSolutionsFunctionOem(t *testing.T) {
+func Test_OptionsSolutionsFunctionOem(t *testing.T) {
 	var testOption = Options.Solutions.FunctionOem().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Key)
@@ -385,7 +452,7 @@ func TestOptionSolutionsFunctionOem(t *testing.T) {
 	assert.False(t, testOption.Validator(""))
 }
 
-func TestOptionSolutionsFunctionType(t *testing.T) {
+func Test_OptionsSolutionsFunctionType(t *testing.T) {
 	var testOption = Options.Solutions.FunctionType().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Key)
@@ -397,7 +464,7 @@ func TestOptionSolutionsFunctionType(t *testing.T) {
 	assert.True(t, testOption.Validator(layout.FunctionTypeTrigger))
 }
 
-func TestOptionSolutionsFunctionVersion(t *testing.T) {
+func Test_OptionsSolutionsFunctionVersion(t *testing.T) {
 	var testOption = Options.Solutions.FunctionVersion().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Key)
@@ -409,7 +476,7 @@ func TestOptionSolutionsFunctionVersion(t *testing.T) {
 	assert.False(t, testOption.Validator("1.1"))
 }
 
-func TestOptionSolutionsHandle(t *testing.T) {
+func Test_OptionsSolutionsHandle(t *testing.T) {
 	var testOption = Options.Solutions.Handle().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -424,7 +491,7 @@ func TestOptionSolutionsHandle(t *testing.T) {
 	assert.False(t, testOption.Validator(""))
 }
 
-func Test_OptionSolutionsLogFormat(t *testing.T) {
+func Test_OptionsSolutionsLogFormat(t *testing.T) {
 	var testOption = Options.Solutions.LogFormat().BuildStringOption()
 
 	assert.Equal(t, schema.Genaiz.Solution.Log.Format.Doc, testOption.Key)
@@ -434,7 +501,7 @@ func Test_OptionSolutionsLogFormat(t *testing.T) {
 	assert.NotEmpty(t, cast.ToString(testOption.DefaultValue))
 }
 
-func Test_OptionSolutionsLogLevel(t *testing.T) {
+func Test_OptionsSolutionsLogLevel(t *testing.T) {
 	var testOption = Options.Solutions.LogLevel().BuildStringOption()
 
 	assert.Equal(t, schema.Genaiz.Solution.Log.Level.Doc, testOption.Key)
@@ -444,7 +511,7 @@ func Test_OptionSolutionsLogLevel(t *testing.T) {
 	assert.NotEmpty(t, cast.ToString(testOption.DefaultValue))
 }
 
-func TestOptionSolutionsName(t *testing.T) {
+func Test_OptionsSolutionsName(t *testing.T) {
 	var testOption = Options.Solutions.Name().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
@@ -454,14 +521,14 @@ func TestOptionSolutionsName(t *testing.T) {
 	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
 }
 
-func TestOptionSolutionsOem(t *testing.T) {
+func Test_OptionsSolutionsOem(t *testing.T) {
 	var testOption = Options.Solutions.Oem().BuildStringOption()
 
 	assert.NotEmpty(t, testOption.Param)
 	assert.Empty(t, testOption.Validator)
 }
 
-func TestOptionSolutionsVersion(t *testing.T) {
+func Test_OptionsSolutionsVersion(t *testing.T) {
 	var testOption = Options.Solutions.Version().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
@@ -470,7 +537,7 @@ func TestOptionSolutionsVersion(t *testing.T) {
 	assert.NotEmpty(t, testOption.DefaultValue)
 }
 
-func TestOptionSolutionsWorkflowDesc(t *testing.T) {
+func Test_OptionsSolutionsWorkflowDesc(t *testing.T) {
 	var testOption = Options.Solutions.WorkflowDesc().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
@@ -480,7 +547,7 @@ func TestOptionSolutionsWorkflowDesc(t *testing.T) {
 	assert.NotEmpty(t, testOption.Validator)
 }
 
-func TestOptionSolutionsWorkflowHandle(t *testing.T) {
+func Test_OptionsSolutionsWorkflowHandle(t *testing.T) {
 	var testOption = Options.Solutions.WorkflowHandle().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
@@ -497,7 +564,7 @@ func TestOptionSolutionsWorkflowHandle(t *testing.T) {
 	assert.False(t, testOption.Validator(""))
 }
 
-func TestOptionSolutionsWorkflowName(t *testing.T) {
+func Test_OptionsSolutionsWorkflowName(t *testing.T) {
 	var testOption = Options.Solutions.WorkflowName().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)

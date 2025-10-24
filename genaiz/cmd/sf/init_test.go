@@ -77,7 +77,9 @@ func TestInitWriter_BuildInput(t *testing.T) {
 	var expectedInput = "input"
 	var testWriter = &InitWriter{
 		RunOptions: &RunOptions{
-			optionMountInput: newOptionMountInput("_test", false),
+			optionMountInput: cli.Options.Functions.MountInput().
+				WithKeys(&schema.Genaiz.Function.Test.MountInput).
+				BuildStringOption(),
 		},
 		vp: viper.New(),
 	}
@@ -131,12 +133,17 @@ func TestInitWriter_BuildOem(t *testing.T) {
 
 func TestInitWriter_BuildOutput(t *testing.T) {
 	var expectedOutput = "output"
-	var outputOption = newOptionMountOutput("_test", false)
 	var testWriter = &InitWriter{
 		RunOptions: &RunOptions{
-			optionMountOutput: outputOption,
-			optionMountVar:    newOptionMountVar("_test", outputOption),
-			optionMountLog:    newOptionMountLog("_test", outputOption),
+			optionMountOutput: cli.Options.Functions.MountOutput().
+				WithKeys(&schema.Genaiz.Function.Start.MountOutput).
+				BuildStringOption(),
+			optionMountVar: cli.Options.Functions.MountVar().
+				WithKeys(&schema.Genaiz.Function.Start.MountVar).
+				BuildStringOption(),
+			optionMountLog: cli.Options.Functions.MountLog().
+				WithKeys(&schema.Genaiz.Function.Start.MountLog).
+				BuildStringOption(),
 		},
 		vp: viper.New(),
 	}

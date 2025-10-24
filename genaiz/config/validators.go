@@ -16,6 +16,7 @@ type Validates func(value any) bool
 // validators provides Validates for various validation needs
 type validators struct {
 	Blob          Validates
+	Component     Validates
 	DirCreated    Validates
 	DirExists     Validates
 	DomainName    Validates
@@ -39,6 +40,7 @@ var (
 
 	Validation = validators{
 		Blob:          stringMaxLength(4096),
+		Component:     componentStrings,
 		DirCreated:    validateDirCreated,
 		DirExists:     validateDirExists,
 		DomainName:    stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),

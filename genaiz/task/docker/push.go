@@ -81,6 +81,7 @@ func handlePushContext(params *PushParams, state *task.State) error {
 
 func handlePushComplete(params *PushParams, state *task.State) error {
 	if state.Internal != nil && state.Output != "" {
+		var dockerClient = dockerFactory.Get()
 		var remote = state.Internal.(*shared.Identity)
 		var jsonAuth, _ = registry.EncodeAuthConfig(registry.AuthConfig{
 			RegistryToken: remote.Auth,

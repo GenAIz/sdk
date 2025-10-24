@@ -15,6 +15,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 )
 
 func TestTestExecutor_Display(t *testing.T) {
@@ -30,14 +31,25 @@ func TestTestExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testMountOption = newOptionMountOutput("_test", false)
 	var testOptions = &RunOptions{
-		optionMountInput:  newOptionMountInput("_test", false),
-		optionMountOutput: testMountOption,
-		optionMountLog:    newOptionMountLog("_test", testMountOption),
-		optionMountVar:    newOptionMountVar("_test", testMountOption),
-		optionRunImage:    newOptionCmdImage("_test"),
-		optionRunPrefix:   newOptionContainerPrefix("_test", testCli),
+		optionMountInput: cli.Options.Functions.MountInput().
+			WithKeys(&schema.Genaiz.Function.Test.MountInput).
+			BuildStringOption(),
+		optionMountOutput: cli.Options.Functions.MountOutput().
+			WithKeys(&schema.Genaiz.Function.Test.MountOutput).
+			BuildStringOption(),
+		optionMountLog: cli.Options.Functions.MountLog().
+			WithKeys(&schema.Genaiz.Function.Test.MountLog).
+			BuildStringOption(),
+		optionMountVar: cli.Options.Functions.MountVar().
+			WithKeys(&schema.Genaiz.Function.Test.MountVar).
+			BuildStringOption(),
+		optionRunImage: cli.Options.Docker.Image().
+			WithKeys(&schema.Genaiz.Function.Test.Image).
+			BuildStringOption(),
+		optionRunPrefix: cli.Options.Docker.ContainerPrefix().
+			WithKeys(&schema.Genaiz.Function.Test.Prefix).
+			BuildStringOption(),
 	}
 	var testExecutor = &TestExecutor{
 		BaseExecutor: BaseExecutor{
@@ -82,19 +94,30 @@ func TestTestExecutor_Pretend(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
-	var testMountOptions = newOptionMountOutput("_test", false)
 	var testExecutor = &TestExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
 		RunOptions: &RunOptions{
-			optionMountInput:  newOptionMountInput("_test", false),
-			optionMountOutput: testMountOptions,
-			optionMountLog:    newOptionMountLog("_test", testMountOptions),
-			optionMountVar:    newOptionMountVar("_test", testMountOptions),
-			optionRunImage:    newOptionCmdImage("_test"),
-			optionRunPrefix:   newOptionContainerPrefix("_test", testCli),
+			optionMountInput: cli.Options.Functions.MountInput().
+				WithKeys(&schema.Genaiz.Function.Test.MountInput).
+				BuildStringOption(),
+			optionMountOutput: cli.Options.Functions.MountOutput().
+				WithKeys(&schema.Genaiz.Function.Test.MountOutput).
+				BuildStringOption(),
+			optionMountLog: cli.Options.Functions.MountLog().
+				WithKeys(&schema.Genaiz.Function.Test.MountLog).
+				BuildStringOption(),
+			optionMountVar: cli.Options.Functions.MountVar().
+				WithKeys(&schema.Genaiz.Function.Test.MountVar).
+				BuildStringOption(),
+			optionRunImage: cli.Options.Docker.Image().
+				WithKeys(&schema.Genaiz.Function.Test.Image).
+				BuildStringOption(),
+			optionRunPrefix: cli.Options.Docker.ContainerPrefix().
+				WithKeys(&schema.Genaiz.Function.Test.Prefix).
+				BuildStringOption(),
 		},
 
 		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
@@ -115,6 +138,63 @@ func TestTestExecutor_Pretend(t *testing.T) {
 	}
 }
 
+func TestTestExecutor_Pretend_WithBuild(t *testing.T) {
+	var calledBuild bool
+	var calledTest int
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = &Cli{
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
+	}
+	var testExecutor = &TestExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:    testCli,
+			Ledger: testLedger,
+		},
+		RunOptions: &RunOptions{
+			optionMountInput: cli.Options.Functions.MountInput().
+				WithKeys(&schema.Genaiz.Function.Test.MountInput).
+				BuildStringOption(),
+			optionMountOutput: cli.Options.Functions.MountOutput().
+				WithKeys(&schema.Genaiz.Function.Test.MountOutput).
+				BuildStringOption(),
+			optionMountLog: cli.Options.Functions.MountLog().
+				WithKeys(&schema.Genaiz.Function.Test.MountLog).
+				BuildStringOption(),
+			optionMountVar: cli.Options.Functions.MountVar().
+				WithKeys(&schema.Genaiz.Function.Test.MountVar).
+				BuildStringOption(),
+			optionRunImage: cli.Options.Docker.Image().
+				WithKeys(&schema.Genaiz.Function.Test.Image).
+				BuildStringOption(),
+			optionRunPrefix: cli.Options.Docker.ContainerPrefix().
+				WithKeys(&schema.Genaiz.Function.Test.Prefix).
+				BuildStringOption(),
+		},
+
+		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
+		testTaskFactory:  newContainerTaskPretendStub(&calledTest),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
+		testLedger.Logger = logrus.New()
+		testExecutor.rebuildImage = true
+		testExecutor.Pretend()
+		assert.True(t, calledBuild)
+		assert.EqualValues(t, 1, calledTest)
+	} else {
+		assert.NoError(t, err)
+	}
+}
+
 func TestTestExecutor_Proceed(t *testing.T) {
 	var calledBuild bool
 	var calledTest int
@@ -127,20 +207,31 @@ func TestTestExecutor_Proceed(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
-	var testMountOptions = newOptionMountOutput("_test", false)
 	var testExecutor = &TestExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
 		RunOptions: &RunOptions{
-			optionMountInput:  newOptionMountInput("_test", false),
-			optionMountOutput: testMountOptions,
-			optionMountLog:    newOptionMountLog("_test", testMountOptions),
-			optionMountVar:    newOptionMountVar("_test", testMountOptions),
-			optionRunImage:    newOptionCmdImage("_test"),
-			optionRunPrefix:   newOptionContainerPrefix("_test", testCli),
-			rebuildImage:      true,
+			optionMountInput: cli.Options.Functions.MountInput().
+				WithKeys(&schema.Genaiz.Function.Test.MountInput).
+				BuildStringOption(),
+			optionMountOutput: cli.Options.Functions.MountOutput().
+				WithKeys(&schema.Genaiz.Function.Test.MountOutput).
+				BuildStringOption(),
+			optionMountLog: cli.Options.Functions.MountLog().
+				WithKeys(&schema.Genaiz.Function.Test.MountLog).
+				BuildStringOption(),
+			optionMountVar: cli.Options.Functions.MountVar().
+				WithKeys(&schema.Genaiz.Function.Test.MountVar).
+				BuildStringOption(),
+			optionRunImage: cli.Options.Docker.Image().
+				WithKeys(&schema.Genaiz.Function.Test.Image).
+				BuildStringOption(),
+			optionRunPrefix: cli.Options.Docker.ContainerPrefix().
+				WithKeys(&schema.Genaiz.Function.Test.Prefix).
+				BuildStringOption(),
+			rebuildImage: true,
 		},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
@@ -190,7 +281,6 @@ func TestNewTest(t *testing.T) {
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testTest = NewTest(testLedger, testCli)
-	var testCmdImageOption = newOptionCmdImage("Test")
 	var expectedImage = "dockerImage"
 
 	testTest.PostRun = func(cmd *cobra.Command, args []string) {
@@ -198,7 +288,7 @@ func TestNewTest(t *testing.T) {
 	}
 
 	testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
-	testViper.Set(testCmdImageOption.Key, expectedImage)
+	testViper.Set(schema.Genaiz.Function.Test.Image.Doc, expectedImage)
 	assert.NoError(t, testTest.Execute())
 	assert.True(t, testCompleted)
 

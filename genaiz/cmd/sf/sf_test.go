@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -18,6 +19,42 @@ import (
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
+
+func TestCli_ContainerPrefix(t *testing.T) {
+	var testSfCli = NewSfCli(nil, nil, nil)
+	var testOption = &config.StringOption{
+		Option: config.Option{Param: "ws"},
+	}
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var expectedDockerTag = "dev/tag"
+	var expectedWorkspace = "workSpace"
+	var actual string
+
+	testLedger.InitWorkspace(testOption)
+	testViper.Set(testOption.Param, expectedWorkspace)
+	testViper.Set(testSfCli.optionDockerTag.Key, expectedDockerTag)
+	actual = cast.ToString(testSfCli.ContainerPrefix(testLedger))
+	assert.Equal(t, "workSpace-dev-tag", actual)
+}
+
+func TestCli_DefaultRunImage(t *testing.T) {
+	var testSfCli = NewSfCli(nil, nil, nil)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var expectedDockerTag = "dev/tag"
+	var expectedDockerVersion = "version"
+	var actual string
+
+	testViper.Set(testSfCli.optionDockerTag.Key, expectedDockerTag)
+	testViper.Set(testSfCli.optionDockerVersion.Key, expectedDockerVersion)
+	actual = cast.ToString(testSfCli.DefaultRunImage(testLedger))
+	assert.Equal(t, "dev/tag:version", actual)
+}
 
 func TestCli_ParentConfigType(t *testing.T) {
 	var testDir = t.TempDir()

@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz sn create --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="genaiz sn create --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz sn create">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out" />
     <go_parameters value="-tags dev" />

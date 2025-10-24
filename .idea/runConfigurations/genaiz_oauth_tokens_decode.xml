@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz-oauth tokens decode" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="genaiz-oauth tokens decode" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz-oauth">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
     <parameters value="tokens decode --in=out/oauth/token.txt out/oauth/" />

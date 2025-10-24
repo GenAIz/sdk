@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"sort"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -16,6 +16,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/stringz"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/lang/signalz"
 	"genaiz.com/genaiz/lang/streamz"
 	"genaiz.com/genaiz/task"
@@ -47,16 +48,6 @@ var (
 	}
 )
 
-type HasNaming interface {
-	GetName(i int) string
-}
-
-type HasMounting interface {
-	GetEnvKeyValuePair() string
-
-	MakeBindMount() (mount.Mount, error)
-}
-
 type ContainerMountBind struct {
 	ContainerMountPoint
 	HostPath string
@@ -68,28 +59,27 @@ type ContainerMountPoint struct {
 	ReadOnly  bool
 }
 
-func (cm *ContainerMountPoint) GetEnvKeyValuePair() string {
+func (cm ContainerMountPoint) GetEnvKeyValuePair() string {
 	return cm.EnvVar + "=" + cm.MountPath
 }
 
-func (cm *ContainerMountPoint) MakeBindMount(hostDir string) (*mount.Mount, error) {
-	if hostDir != "" {
-		if _, err := os.Stat(hostDir); err != nil {
-			return nil, err
-		}
-
-		return &mount.Mount{
-			Type:     mount.TypeBind,
-			Source:   hostDir,
-			Target:   cm.MountPath,
-			ReadOnly: cm.ReadOnly,
-			BindOptions: &mount.BindOptions{
-				CreateMountpoint: true,
-			},
-		}, nil
+func (cm ContainerMountPoint) MakeBind(hostPath string) ContainerMountBind {
+	return ContainerMountBind{
+		ContainerMountPoint: cm,
+		HostPath:            hostPath,
 	}
+}
 
-	return nil, nil
+func (cm ContainerMountPoint) MakeMount(hostDir string) *mount.Mount {
+	return &mount.Mount{
+		Type:     mount.TypeBind,
+		Source:   hostDir,
+		Target:   cm.MountPath,
+		ReadOnly: cm.ReadOnly,
+		BindOptions: &mount.BindOptions{
+			CreateMountpoint: true,
+		},
+	}
 }
 
 type ContainerParams struct {
@@ -104,20 +94,94 @@ type ContainerParams struct {
 	Force       bool
 }
 
-func (c *ContainerParams) GetName(summaries *[]container.Summary) string {
+func (c *ContainerParams) GetName(summaries []container.Summary) (string, error) {
 	if c.Name != "" {
-		return c.Name
+		return c.Name, nil
 	} else if c.Prefix != "" {
-		var i int
-
-		if summaries != nil {
-			i = len(*summaries)
-		}
-
-		return fmt.Sprintf("%s-%d", c.Prefix, i)
+		return fmt.Sprintf("%s-%d", c.Prefix, len(summaries)), nil
 	}
 
-	panic("could not provide container name")
+	return "", errors.New("could not provide container name")
+}
+
+func (c *ContainerParams) GetContainerMountBinds() []ContainerMountBind {
+	var result []ContainerMountBind
+
+	if c.MountInput != "" {
+		result = append(result, InputMount.MakeBind(c.MountInput))
+	}
+
+	if c.MountLog != "" {
+		result = append(result, LogMount.MakeBind(c.MountLog))
+	}
+
+	if c.MountOutput != "" {
+		result = append(result, OutputMount.MakeBind(c.MountOutput))
+	}
+
+	if c.MountVar != "" {
+		result = append(result, VarMount.MakeBind(c.MountVar))
+	}
+
+	return result
+}
+
+func (c *ContainerParams) MakeDisposableName() string {
+	var result = ""
+
+	if c.Name != "" {
+		result = c.Name
+	} else if c.Prefix != "" {
+		if matched, _ := regexp.MatchString("-\\d+$", c.Prefix); matched {
+			var i = strings.LastIndex(c.Prefix, "-")
+
+			result = c.Prefix[:i]
+		} else {
+			result = c.Prefix
+		}
+	} else {
+		result = "container"
+	}
+
+	return result + fmt.Sprintf("-d%d", time.Now().UnixMilli())
+}
+
+func (c *ContainerParams) fmtArgs() string {
+	var stringParams = []string{
+		c.fmtMountBindArg(&InputMount, c.MountInput),
+		c.fmtMountBindArg(&OutputMount, c.MountOutput),
+		c.fmtMountBindArg(&LogMount, c.MountLog),
+		c.fmtMountBindArg(&VarMount, c.MountVar),
+		c.fmtMountEnvArg(&InputMount, c.MountInput),
+		c.fmtMountEnvArg(&OutputMount, c.MountOutput),
+		c.fmtMountEnvArg(&LogMount, c.MountLog),
+		c.fmtMountEnvArg(&VarMount, c.MountVar),
+	}
+
+	return strings.Join(stringz.AllNonEmpty(stringParams...), "   ")
+}
+
+func (c *ContainerParams) fmtMountBindArg(mount *ContainerMountPoint, path string) string {
+	if path != "" {
+		var local = filez.FromWorkDir(path)
+		var readOnly = ""
+
+		if mount.ReadOnly {
+			readOnly = ",ro"
+		}
+
+		return fmt.Sprintf("--mount type=bind,src=%s,dst=%s%s \\\n", local, mount.MountPath, readOnly)
+	}
+
+	return ""
+}
+
+func (c *ContainerParams) fmtMountEnvArg(mount *ContainerMountPoint, path string) string {
+	if path != "" {
+		return fmt.Sprintf("--env %s=%s \\\n", mount.EnvVar, mount.MountPath)
+	}
+
+	return ""
 }
 
 func NewCreateTask() *task.Task[ContainerParams] {
@@ -156,113 +220,72 @@ func NewStopTask() *task.Task[ContainerParams] {
 	}
 }
 
-func fmtParams(params *ContainerParams) string {
-	var stringParams = []string{
-		fmtMountBindParam(&InputMount, params.MountInput),
-		fmtMountBindParam(&OutputMount, params.MountOutput),
-		fmtMountBindParam(&LogMount, params.MountLog),
-		fmtMountBindParam(&VarMount, params.MountVar),
-		fmtMountEnvParam(&InputMount, params.MountInput),
-		fmtMountEnvParam(&OutputMount, params.MountOutput),
-		fmtMountEnvParam(&LogMount, params.MountLog),
-		fmtMountEnvParam(&VarMount, params.MountVar),
-	}
-
-	return strings.Join(stringz.AllNonEmpty(stringParams...), "   ")
-}
-
-func fmtMountBindParam(mount *ContainerMountPoint, path string) string {
-	if path != "" {
-		var local = filez.FromWorkDir(path)
-		var readOnly = ""
-
-		if mount.ReadOnly {
-			readOnly = ",ro"
-		}
-
-		return fmt.Sprintf("--mount type=bind,src=%s,dst=%s%s \\\n", local, mount.MountPath, readOnly)
-	}
-
-	return ""
-}
-
-func fmtMountEnvParam(mount *ContainerMountPoint, path string) string {
-	if path != "" {
-		return fmt.Sprintf("--env %s=%s \\\n", mount.EnvVar, mount.MountPath)
-	}
-
-	return ""
-}
-
-func getContainerDisplayString(summary *container.Summary) string {
-	if len(summary.Names) > 0 {
-		return summary.Names[0][1:]
-	} else {
-		return summary.ID[0:11]
-	}
-}
-
 func handleContainerAttach(params *ContainerParams, state *task.State) error {
-	var summary = selectContainerLatest(state.Containers)
+	var dockerState = NewClientState(state)
 
-	if summary != nil {
-		var wait, cancel = context.WithCancel(params.Context)
-		defer cancel()
+	if count := dockerState.GetContainersSize(); count > 0 {
+		state.Logger.Debugf("Found [%d] summaries for attach", count)
 
-		if inspect, err := dockerClient.ContainerInspect(wait, summary.ID); err == nil {
-			var attachOptions = container.AttachOptions{Stream: true, Stdout: true, Stderr: true}
-			var channelReader chan error
-			var channelContainer chan int
-			var response types.HijackedResponse
+		if summary := dockerState.SelectLatestContainer(); summary != nil {
+			var dockerClient = dockerFactory.Get()
+			var wait, cancel = context.WithCancel(params.Context)
+			defer cancel()
 
-			if !inspect.Config.Tty {
-				var noCancels = context.WithoutCancel(wait)
-				var channelShell = signalz.NewSignalChannel()
+			if inspect, err := dockerClient.ContainerInspect(wait, summary.ID); err == nil {
+				var attachOptions = container.AttachOptions{Stream: true, Stdout: true, Stderr: true}
+				var channelReader chan error
+				var channelContainer chan int
+				var response types.HijackedResponse
 
-				go signalz.ForwardTerminate(noCancels, channelShell, func(code string) {
-					if err = dockerClient.ContainerKill(noCancels, summary.ID, code); err != nil {
-						panic(err)
+				if !inspect.Config.Tty {
+					var noCancels = context.WithoutCancel(wait)
+					var channelShell = signalz.NewSignalChannel()
+
+					go signalz.ForwardTerminate(noCancels, channelShell, func(code string) {
+						if err = dockerClient.ContainerKill(noCancels, summary.ID, code); err != nil {
+							panic(err)
+						}
+					})
+					defer signalz.StopCatch(channelShell)
+				}
+
+				if response, err = dockerClient.ContainerAttach(wait, summary.ID, attachOptions); err == nil {
+					channelReader = streamz.NewHiJackedChannel(wait, streamz.NewHiJackedStreamerStd(response.Reader))
+					channelContainer = makeContainerChannel(wait, params, summary.ID)
+					defer response.Close()
+				} else {
+					return err
+				}
+
+				if err = handleContainerStart(params, state); err != nil {
+					cancel()
+					<-channelReader
+
+					if params.Dispose {
+						<-channelContainer
 					}
-				})
-				defer signalz.StopCatch(channelShell)
-			}
 
-			if response, err = dockerClient.ContainerAttach(wait, summary.ID, attachOptions); err == nil {
-				channelReader = streamz.NewHiJackedChannel(wait, streamz.NewHiJackedStreamerStd(response.Reader))
-				channelContainer = makeContainerChannel(wait, params, summary.ID)
-				defer response.Close()
+					return err
+				}
+
+				if err = <-channelReader; err != nil {
+					var escapeError signalz.EscapeError
+
+					if errors.As(err, &escapeError) {
+						return nil
+					}
+
+					return err
+				}
+
+				if status := <-channelContainer; status != 0 {
+					return fmt.Errorf("received exit status error %d from the container", status)
+				}
+
+				return nil
 			} else {
 				return err
 			}
-
-			if err = handleContainerStart(params, state); err != nil {
-				cancel()
-				<-channelReader
-
-				if params.Dispose {
-					<-channelContainer
-				}
-
-				return err
-			}
-
-			if err = <-channelReader; err != nil {
-				var escapeError signalz.EscapeError
-
-				if errors.As(err, &escapeError) {
-					return nil
-				}
-
-				return err
-			}
-
-			if status := <-channelContainer; status != 0 {
-				return fmt.Errorf("received exit status error %d from the container", status)
-			}
-
-			return nil
-		} else {
-			return err
 		}
 	}
 
@@ -270,7 +293,10 @@ func handleContainerAttach(params *ContainerParams, state *task.State) error {
 }
 
 func handleContainerContext(params *ContainerParams, state *task.State) error {
-	if !state.HasContainers() {
+	var dockerState = NewClientState(state)
+
+	if !dockerState.HasContainers() {
+		var dockerClient = dockerFactory.Get()
 		var listFilters = filters.NewArgs()
 		var listOptions = container.ListOptions{
 			All:     true,
@@ -291,7 +317,7 @@ func handleContainerContext(params *ContainerParams, state *task.State) error {
 			if len(containers) == 0 {
 				return errors.New("container not found")
 			} else {
-				state.Containers = &containers
+				dockerState.AddContainers(containers...)
 			}
 		} else {
 			return err
@@ -302,99 +328,120 @@ func handleContainerContext(params *ContainerParams, state *task.State) error {
 }
 
 func handleContainerCreate(params *ContainerParams, state *task.State) error {
-	var containerName = params.GetName(state.Containers)
-	var dockerImage = stringz.FirstNonEmpty(params.DockerImage, state.Output)
-	var createConfig = &container.Config{
-		Env: []string{
-			InputMount.GetEnvKeyValuePair(),
-			LogMount.GetEnvKeyValuePair(),
-			OutputMount.GetEnvKeyValuePair(),
-			VarMount.GetEnvKeyValuePair(),
-		},
-		Image: dockerImage,
-		Tty:   params.Interactive,
-	}
-	var hostConfig = &container.HostConfig{
-		AutoRemove: params.Dispose,
-	}
-	var containerBinds = makeContainerMountBinds(params)
+	var dockerClient = dockerFactory.Get()
+	var dockerState = NewClientState(state)
+	var dockerImage = stringz.FirstNonEmpty(state.Output, params.DockerImage)
+	var hostConfig = &container.HostConfig{AutoRemove: params.Dispose}
+	var containerBinds = params.GetContainerMountBinds()
+	var containerName string
+	var err error
 
-	state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, dockerImage)
+	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
+		var createConfig = &container.Config{
+			Env: []string{
+				InputMount.GetEnvKeyValuePair(),
+				LogMount.GetEnvKeyValuePair(),
+				OutputMount.GetEnvKeyValuePair(),
+				VarMount.GetEnvKeyValuePair(),
+			},
+			Image: dockerImage,
+			Tty:   params.Interactive,
+		}
+		var resp container.CreateResponse
+		var mounts []mount.Mount
 
-	for _, bind := range containerBinds {
-		state.Logger.Debugf("Binding %s to %s", bind.HostPath, bind.MountPath)
-	}
+		state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
 
-	if mounts, err := makeContainerMounts(containerBinds); err == nil && mounts != nil && len(*mounts) > 0 {
-		hostConfig.Mounts = *mounts
-	} else if err != nil {
-		return err
-	}
-
-	if resp, err := dockerClient.ContainerCreate(params.Context, createConfig, hostConfig,
-		nil, nil, containerName); err == nil {
-		for _, w := range resp.Warnings {
-			state.Logger.Warningf("%s", w)
+		if params.Dispose {
+			state.Logger.Debugf("Auto-Remove of container after start is enabled")
 		}
 
-		state.Output = resp.ID[0:11]
-	} else {
-		return err
+		if mounts = makeContainerMounts(containerBinds); len(mounts) > 0 {
+			hostConfig.Mounts = mounts
+
+			for _, bind := range hostConfig.Mounts {
+				state.Logger.Debugf("Binding %s to %s", bind.Source, bind.Target)
+			}
+		}
+
+		if resp, err = dockerClient.ContainerCreate(params.Context, createConfig, hostConfig,
+			nil, nil, containerName); err == nil {
+			for _, w := range resp.Warnings {
+				state.Logger.Warningf("%s", w)
+			}
+
+			state.Output = resp.ID[0:12]
+			state.Logger.Debugf("Created docker container Id [%s]", state.Output)
+			return nil
+		}
 	}
 
-	return nil
+	return err
 }
 
 func handleContainerCreatePretend(params *ContainerParams, state *task.State) error {
-	var containerName = params.GetName(state.Containers)
+	var dockerState = NewClientState(state)
 	var envInputMount = InputMount.GetEnvKeyValuePair()
 	var envOutputMount = OutputMount.GetEnvKeyValuePair()
-	var mountDefs = makeContainerMountBinds(params)
+	var mountDefs = params.GetContainerMountBinds()
 	var mountValues []string
+	var containerName string
+	var err error
 
 	state.Logger.Debugf("Pretending to create a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
 
-	if mountBinds, err := makeContainerMounts(mountDefs); err == nil && mountBinds != nil {
-		for _, bind := range *mountBinds {
-			var readonly = ""
+	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
+		var mounts []mount.Mount
 
-			if bind.ReadOnly {
-				readonly = "ro=true"
+		if mounts = makeContainerMounts(mountDefs); len(mounts) > 0 {
+			for _, bind := range mounts {
+				var readonly = ""
+
+				if bind.ReadOnly {
+					readonly = "ro=true"
+				}
+
+				mountValues = append(mountValues, fmt.Sprintf("--mount src=%s,dst=%s,type=%s%s",
+					bind.Source, bind.Target, bind.Type, readonly))
 			}
-
-			mountValues = append(mountValues, fmt.Sprintf("--mount src=%s,dst=%s,type=%s%s",
-				bind.Source, bind.Target, bind.Type, readonly))
 		}
 	}
 
-	fmt.Printf("docker create -e %s -e %s %s --name %s %s", envInputMount, envOutputMount,
-		strings.Join(mountValues, " "), containerName, params.DockerImage)
-	return nil
+	if err == nil {
+		fmt.Printf("docker create -e %s -e %s %s --name %s %s", envInputMount, envOutputMount,
+			strings.Join(mountValues, " "), containerName, params.DockerImage)
+	}
+
+	return err
 }
 
 func handleContainerDisposal(params *ContainerParams, state *task.State) error {
-	var count = state.GetContainersSize()
+	var dockerState = NewClientState(state)
+	var count = dockerState.GetContainersSize()
 	var err error
 
 	if count > 0 {
+		var dockerClient = dockerFactory.Get()
 		// Removed volumes and links as we'll just re-create them if needed on Create
 		var removeOptions = container.RemoveOptions{
 			RemoveVolumes: true,
 			Force:         params.Force,
 		}
 
-		for _, ct := range *state.Containers {
-			var name = getContainerDisplayString(&ct)
+		for _, ct := range dockerState.containers {
+			var name = dockerState.DisplayString(&ct)
 
 			state.Logger.Debugf("Removing container [%s]", name)
 
-			if err = dockerClient.ContainerRemove(params.Context, ct.ID, removeOptions); err != nil {
+			if err = dockerClient.ContainerRemove(params.Context, ct.ID, removeOptions); err == nil {
+				state.Reportf("Disposed of container %s with status %s", name, ct.Status)
+			} else {
 				state.Logger.Debugf("Could not remove container [%s] with error [%s]", name, err)
 				break
 			}
 		}
 
-		state.Containers = nil
+		dockerState.Reset()
 	} else {
 		state.Logger.Debugf("No containers selected for disposal")
 	}
@@ -403,7 +450,8 @@ func handleContainerDisposal(params *ContainerParams, state *task.State) error {
 }
 
 func handleContainerDisposalPretend(params *ContainerParams, state *task.State) error {
-	var count = state.GetContainersSize()
+	var dockerState = NewClientState(state)
+	var count = dockerState.GetContainersSize()
 
 	if count > 0 {
 		var forceString = ""
@@ -414,7 +462,7 @@ func handleContainerDisposalPretend(params *ContainerParams, state *task.State) 
 			forceString = "-f"
 		}
 
-		for _, ct := range *state.Containers {
+		for _, ct := range dockerState.GetContainers() {
 			fmt.Printf("docker rm -l -v %s %s", forceString, ct.ID)
 		}
 	}
@@ -423,51 +471,66 @@ func handleContainerDisposalPretend(params *ContainerParams, state *task.State) 
 }
 
 func handleContainerStart(params *ContainerParams, state *task.State) error {
-	var summary = selectContainerLatest(state.Containers)
+	var dockerState = NewClientState(state)
 
-	if summary != nil {
-		var name = getContainerDisplayString(summary)
+	if count := dockerState.GetContainersSize(); count > 0 {
+		state.Logger.Debugf("Found [%d] summaries for start", count)
 
-		state.Logger.Debugf("Starting docker container [%s]", name)
+		if summary := dockerState.SelectLatestContainer(); summary != nil {
+			var dockerClient = dockerFactory.Get()
+			var name = dockerState.DisplayString(summary)
 
-		if err := dockerClient.ContainerStart(params.Context, summary.ID, container.StartOptions{}); err != nil {
-			return err
+			state.Logger.Debugf("Starting docker container [%s]", name)
+
+			if err := dockerClient.ContainerStart(params.Context, summary.ID, container.StartOptions{}); err != nil {
+				return err
+			}
+
+			state.Reportf("Started container %s for image %s", name, params.DockerImage)
+			state.Output = summary.ID
+			return nil
 		}
-
-		state.Output = summary.ID[:12]
-		return nil
 	}
 
 	return errors.New("no containers selected")
 }
 
 func handleContainerStartPretend(params *ContainerParams, state *task.State) error {
-	if state.HasContainers() {
-		var summary = selectContainerLatest(state.Containers)
-		var attached, interactive string
+	var dockerState = NewClientState(state)
 
-		state.Logger.Debugf("Pretending starting docker container [%s]", summary.ID)
+	if dockerState.HasContainers() {
+		var summary = dockerState.SelectLatestContainer()
 
-		if params.RunParams.Attached {
-			attached = "--attach "
+		if summary != nil {
+			var attached, interactive string
+
+			state.Logger.Debugf("Pretending starting docker container [%s]", summary.ID)
+
+			if params.RunParams.Attached {
+				attached = "--attach "
+			}
+
+			if params.RunParams.Interactive {
+				interactive = "--interactive "
+			}
+
+			fmt.Printf("docker start %s%s%s\n", attached, interactive, summary.ID)
+			state.Completed = true
 		}
 
-		if params.RunParams.Interactive {
-			interactive = "--interactive "
-		}
-
-		fmt.Printf("docker start %s%s%s\n", attached, interactive, summary.ID)
-		state.Completed = true
+		return errors.New("could not select a container to start")
 	}
 
 	return nil
 }
 
 func handleContainerStop(params *ContainerParams, state *task.State) error {
-	var count = state.GetContainersSize()
-	var result error
+	var dockerState = NewClientState(state)
+	var count = dockerState.GetContainersSize()
+	var err error
 
 	if count > 0 {
+		var dockerClient = dockerFactory.Get()
 		var stopOptions = container.StopOptions{}
 
 		if count > 1 {
@@ -475,27 +538,31 @@ func handleContainerStop(params *ContainerParams, state *task.State) error {
 		}
 
 		if !params.Force {
-			var timeout = -1
-
-			stopOptions.Timeout = &timeout
+			stopOptions.Timeout = lang.Ref(-1)
 		}
 
-		for _, ct := range *state.Containers {
-			state.Logger.Debugf("Stopping container [%s]", ct.ID)
+		for _, ct := range dockerState.GetContainers() {
+			var name = dockerState.DisplayString(&ct)
 
-			if err := dockerClient.ContainerStop(params.Context, ct.ID, stopOptions); err != nil {
+			state.Logger.Debugf("Stopping container [%s]", name)
+
+			if err = dockerClient.ContainerStop(params.Context, ct.ID, stopOptions); err == nil {
+				state.Reportf("Stopped container %s with status %s", name, ct.Status)
+			} else {
 				state.Logger.Debugf("Could not stop container [%s] with error [%s]", ct.ID, err)
-				result = err
+				break
 			}
 		}
 	}
 
-	return result
+	return err
 }
 
 func handleContainerStopPretend(params *ContainerParams, state *task.State) error {
-	if state.HasContainers() {
-		for _, summary := range *state.Containers {
+	var dockerState = NewClientState(state)
+
+	if dockerState.HasContainers() {
+		for _, summary := range dockerState.GetContainers() {
 			var timeoutStr = ""
 
 			if !params.Force {
@@ -510,6 +577,7 @@ func handleContainerStopPretend(params *ContainerParams, state *task.State) erro
 }
 
 func makeContainerChannel(ctx context.Context, params *ContainerParams, containerId string) chan int {
+	var dockerClient = dockerFactory.Get()
 	var channel, channelErr = dockerClient.ContainerWait(ctx, containerId, params.WaitCondition())
 	var channelStatus = make(chan int)
 
@@ -535,68 +603,15 @@ func makeContainerChannel(ctx context.Context, params *ContainerParams, containe
 	return channelStatus
 }
 
-func makeContainerMounts(definitions []*ContainerMountBind) (*[]mount.Mount, error) {
+func makeContainerMounts(definitions []ContainerMountBind) []mount.Mount {
 	var result []mount.Mount
-	var err error
 
 	for _, def := range definitions {
-		if err = dirz.DoIfPathExist(def.HostPath, func() error {
-			if bind, errB := def.MakeBindMount(def.HostPath); bind != nil && errB == nil {
-				result = append(result, *bind)
-			} else if errB != nil {
-				return errB
-			}
-
+		_ = dirz.DoIfPathExist(def.HostPath, func() error {
+			result = append(result, *def.MakeMount(def.HostPath))
 			return nil
-		}); err != nil {
-			break
-		}
-	}
-
-	return &result, err
-}
-
-func makeContainerMountBinds(params *ContainerParams) []*ContainerMountBind {
-	var result []*ContainerMountBind
-
-	if params.MountInput != "" {
-		result = append(result, &ContainerMountBind{
-			ContainerMountPoint: InputMount,
-			HostPath:            params.MountInput,
-		})
-	}
-
-	if params.MountLog != "" {
-		result = append(result, &ContainerMountBind{
-			ContainerMountPoint: LogMount,
-			HostPath:            params.MountLog,
-		})
-	}
-
-	if params.MountOutput != "" {
-		result = append(result, &ContainerMountBind{
-			ContainerMountPoint: OutputMount,
-			HostPath:            params.MountOutput,
-		})
-	}
-
-	if params.MountVar != "" {
-		result = append(result, &ContainerMountBind{
-			ContainerMountPoint: VarMount,
-			HostPath:            params.MountVar,
 		})
 	}
 
 	return result
-}
-
-func selectContainerLatest(summaries *[]container.Summary) *container.Summary {
-	if summaries != nil && len(*summaries) > 0 {
-		sort.SliceStable(*summaries, func(i, j int) bool {
-			return (*summaries)[i].Created > (*summaries)[j].Created
-		})
-		return &(*summaries)[0]
-	}
-
-	return nil
 }

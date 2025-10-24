@@ -66,6 +66,39 @@ type Document struct {
 			Type        Keys
 			Version     Keys
 		}
+		Run struct {
+			Image       Keys
+			MountInput  Keys
+			MountLog    Keys
+			MountOutput Keys
+			MountVar    Keys
+			Prefix      Keys
+		}
+		Start struct {
+			Image       Keys
+			MountInput  Keys
+			MountLog    Keys
+			MountOutput Keys
+			MountVar    Keys
+			Name        Keys
+			Prefix      Keys
+			Preserve    Keys
+			Replace     Keys
+		}
+		Stop struct {
+			Image    Keys
+			Name     Keys
+			Prefix   Keys
+			Preserve Keys
+		}
+		Test struct {
+			Image       Keys
+			MountInput  Keys
+			MountLog    Keys
+			MountOutput Keys
+			MountVar    Keys
+			Prefix      Keys
+		}
 	}
 	Solution struct {
 		Create struct {
@@ -147,6 +180,31 @@ func init() {
 	Genaiz.Function.Publish.Rebuild = newKeys("Sf.Publish.Rebuild", "SF_PUBLISH_REBUILD")
 	Genaiz.Function.Publish.Type = newKeys("Sf.Publish.Type", "SF_PUBLISH_TYPE")
 	Genaiz.Function.Publish.Version = newKeys("Sf.Publish.Version", "SF_PUBLISH_VERSION")
+	Genaiz.Function.Run.Image = newKeys("Sf.Run.Image", "SF_RUN_IMAGE")
+	Genaiz.Function.Run.MountInput = newKeys("Sf.Run.Input", "SF_RUN_MOUNT_INPUT")
+	Genaiz.Function.Run.MountOutput = newKeys("Sf.Run.Output", "SF_RUN_MOUNT_OUTPUT")
+	Genaiz.Function.Run.MountLog = newKeys("Sf.Run.Log", "SF_RUN_MOUNT_LOG")
+	Genaiz.Function.Run.MountVar = newKeys("Sf.Run.Var", "SF_RUN_MOUNT_VAR")
+	Genaiz.Function.Run.Prefix = newKeys("Sf.Run.Prefix", "SF_RUN_CONTAINER_PREFIX")
+	Genaiz.Function.Start.Image = newKeys("Sf.Start.Image", "SF_RUN_IMAGE")
+	Genaiz.Function.Start.MountInput = newKeys("Sf.Start.Input", "SF_RUN_MOUNT_INPUT")
+	Genaiz.Function.Start.MountOutput = newKeys("Sf.Start.Output", "SF_RUN_MOUNT_OUTPUT")
+	Genaiz.Function.Start.MountLog = newKeys("Sf.Start.Log", "SF_RUN_MOUNT_LOG")
+	Genaiz.Function.Start.MountVar = newKeys("Sf.Start.Var", "SF_RUN_MOUNT_VAR")
+	Genaiz.Function.Start.Name = newKeys("Sf.Start.Name", "SF_RUN_CONTAINER_NAME")
+	Genaiz.Function.Start.Prefix = newKeys("Sf.Start.Prefix", "SF_RUN_CONTAINER_PREFIX")
+	Genaiz.Function.Start.Preserve = newKeys("Sf.Start.Preserve", "Sf_RUN_CONTAINER_PRESERVE")
+	Genaiz.Function.Start.Replace = newKeys("Sf.Start.Replace", "SF_RUN_REPLACE")
+	Genaiz.Function.Stop.Image = newKeys("Sf.Stop.Image", "SF_RUN_IMAGE")
+	Genaiz.Function.Stop.Name = newKeys("Sf.Stop.Name", "SF_RUN_CONTAINER_NAME")
+	Genaiz.Function.Stop.Prefix = newKeys("Sf.Stop.Prefix", "Sf_RUN_CONTAINER_PREFIX")
+	Genaiz.Function.Stop.Preserve = newKeys("Sf.Stop.Preserve", "Sf_RUN_CONTAINER_PRESERVE")
+	Genaiz.Function.Test.Image = newKeys("Sf.Test.Image", "SF_RUN_IMAGE")
+	Genaiz.Function.Test.MountInput = newKeys("Sf.Test.Input", "SF_RUN_MOUNT_INPUT")
+	Genaiz.Function.Test.MountOutput = newKeys("Sf.Test.Output", "SF_RUN_MOUNT_OUTPUT")
+	Genaiz.Function.Test.MountLog = newKeys("Sf.Test.Log", "SF_RUN_MOUNT_LOG")
+	Genaiz.Function.Test.MountVar = newKeys("Sf.Test.Var", "SF_RUN_MOUNT_VAR")
+	Genaiz.Function.Test.Prefix = newKeys("Sf.Test.Prefix", "SF_RUN_CONTAINER_PREFIX")
 	Genaiz.Solution.Create.ConfigType = newKeys("Solution.Create.ConfigType", "SN_CREATE_CONFIG_TYPE")
 	Genaiz.Solution.Create.Description = newKeys("Solution.Create.Description", "SN_CREATE_DESCRIPTION")
 	Genaiz.Solution.Create.Handle = newKeys("Solution.Create.Handle", "SN_CREATE_HANDLE")

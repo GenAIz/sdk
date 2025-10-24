@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz-it feature start publish_bash_example" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="genaiz-it feature start publish_bash_example" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz-it">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
     <parameters value="feature start --test=function_publish:publish_bash_example out/it" />

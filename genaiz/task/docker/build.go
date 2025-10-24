@@ -59,6 +59,10 @@ type BuildParams struct {
 	Streams       *BuildStreams
 }
 
+type BuildOutput struct {
+	Stream string
+}
+
 type BuildStreams struct {
 	Err *os.File
 	In  *os.File
@@ -235,6 +239,7 @@ func formatCreated(created int64, threshold time.Time) string {
 }
 
 func handleBuildContext(params *BuildParams, state *task.State) error {
+	var dockerClient = dockerFactory.Get()
 	var version = params.GetVersion()
 	var reference = params.GetReference()
 	var listFilters = params.GetFilters()
@@ -308,6 +313,7 @@ func handleBuildForkPrune(dockerPath string, params *BuildParams, state *task.St
 }
 
 func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
+	var dockerClient = dockerFactory.Get()
 	var reference = params.GetReference()
 	var buildCtx, _ = archive.TarWithOptions(params.DockerContext, &archive.TarOptions{})
 	var options = build.ImageBuildOptions{
@@ -329,7 +335,7 @@ func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 		defer filez.CloseSilently(resp.Body)
 
 		for scanner.Scan() {
-			var output Output
+			var output BuildOutput
 
 			if err = json.Unmarshal(scanner.Bytes(), &output); err == nil {
 				if output.Stream != "" {
@@ -374,6 +380,7 @@ func handleBuildPretend(params *BuildParams, state *task.State) error {
 
 func handleBuildPrune(params *BuildParams, state *task.State) error {
 	if params.Prune {
+		var dockerClient = dockerFactory.Get()
 		var pruneFilters = filters.NewArgs(
 			filters.Arg("label", "sf="+params.DockerTag),
 		)
@@ -392,6 +399,7 @@ func handleBuildPrune(params *BuildParams, state *task.State) error {
 
 func handleBuildReport(params *BuildParams, state *task.State) error {
 	if state.Error == nil {
+		var dockerClient = dockerFactory.Get()
 		var listFilters = params.GetFilters()
 		var summaries []image.Summary
 		var err error
@@ -403,7 +411,7 @@ func handleBuildReport(params *BuildParams, state *task.State) error {
 				var shortId = img.ID[prefixLength : prefixLength+12]
 				var size = fmt.Sprintf("%3.1fMB", float64(img.Size/1024/1024))
 
-				state.Report(fmt.Sprintf("Built image %s - %s size %s", params.GetReference(), shortId, size))
+				state.Reportf("Built image %s - %s size %s", params.GetReference(), shortId, size)
 				return nil
 			}
 		}
@@ -415,16 +423,19 @@ func handleBuildReport(params *BuildParams, state *task.State) error {
 }
 
 func handleListContext(params *BuildParams, state *task.State) error {
+	var dockerClient = dockerFactory.Get()
 	var imageFilters = params.GetFiltersByVersion()
-	var summaries []image.Summary
+	var images []image.Summary
 	var err error
 
-	if summaries, err = dockerClient.ImageList(params.Context, image.ListOptions{Filters: imageFilters}); err == nil {
-		if len(summaries) == 0 {
+	if images, err = dockerClient.ImageList(params.Context, image.ListOptions{Filters: imageFilters}); err == nil {
+		var dockerState = NewClientState(state)
+
+		if len(images) == 0 {
 			state.Logger.Debugf("Could not list images for the provided filter")
 			return ErrorNoBuild
 		} else {
-			state.Internal = summaries
+			dockerState.AddImages(images...)
 		}
 
 		if params.DockerTag != "" {
@@ -435,7 +446,7 @@ func handleListContext(params *BuildParams, state *task.State) error {
 			}
 
 			if containers, err = dockerClient.ContainerList(params.Context, containerOptions); err == nil {
-				state.Containers = &containers
+				dockerState.AddContainers(containers...)
 				return nil
 			}
 		}
@@ -445,25 +456,26 @@ func handleListContext(params *BuildParams, state *task.State) error {
 }
 
 func handleListComplete(params *BuildParams, state *task.State) error {
-	var year, month, day = time.Now().In(time.Local).Date()
-	var today = time.Date(year, month, day, 0, 0, 0, 0, time.Local)
-	var output bytes.Buffer
+	var dockerState = NewClientState(state)
 
-	if state.Internal != nil {
-		var imgList = state.Internal.([]image.Summary)
+	if dockerState.HasImages() {
+		var year, month, day = time.Now().In(time.Local).Date()
+		var today = time.Date(year, month, day, 0, 0, 0, 0, time.Local)
+		var imgList = dockerState.GetImages()
+		var output bytes.Buffer
 
 		state.Logger.Debugf("Listing Docker Images for Smart Function [%s], Version [%s]", params.DockerTag, params.DockerVersion)
 		listImages(imgList, &output, today)
 		state.Output = output.String()
 		output.Reset()
 
-		if state.HasContainers() {
+		if dockerState.HasContainers() {
 			var imagesById = mapz.Mapped(imgList, func(summary image.Summary) string {
 				return summary.ID
 			})
 
 			state.Logger.Debugf("Listing Docker Containers for Smart Function [%s], Version [%s]", params.DockerTag, params.DockerVersion)
-			listContainers(*state.Containers, imagesById, &output, today)
+			listContainers(dockerState.GetContainers(), imagesById, &output, today)
 			state.Output += "\n" + output.String()
 		} else {
 			state.Output += "\nNo containers associated with the listed images\n"
@@ -472,14 +484,15 @@ func handleListComplete(params *BuildParams, state *task.State) error {
 		state.Output = fmt.Sprintf("No images associated with Smart Function [%s]\n", params.DockerTag)
 	}
 
-	state.Internal = nil
+	dockerState.Reset()
 	return nil
 }
 
 func handleInspectComplete(params *BuildParams, state *task.State) error {
 	if state.Output != "" {
-		var err error
+		var dockerClient = dockerFactory.Get()
 		var resp image.InspectResponse
+		var err error
 
 		state.Logger.Debugf("Inspecting docker image [%s]", state.Output)
 
@@ -550,11 +563,10 @@ func listContainers(containers []container.Summary, imageMap map[string]image.Su
 			var created = formatCreated(ct.Created, threshold)
 			var imageRepoTag, name string
 
-			for _, tag := range img.RepoTags {
-				if !strings.HasSuffix(tag, "latest") {
-					imageRepoTag = tag
-					break
-				}
+			if len(img.RepoTags) >= 1 {
+				imageRepoTag = img.RepoTags[0]
+			} else {
+				imageRepoTag = img.ID[7:19]
 			}
 
 			if len(ct.Names) > 0 {
