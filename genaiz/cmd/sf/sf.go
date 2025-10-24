@@ -6,6 +6,7 @@ package sf
 
 import (
 	"context"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -33,6 +34,33 @@ type Cli struct {
 
 	parentConfigType *shared.ConfigType
 	parentSolution   *broker.Solution
+}
+
+func (c *Cli) ContainerPrefix(ledger *config.Ledger) any {
+	var tag = strings.ReplaceAll(ledger.GetString(c.optionDockerTag), "/", "-")
+	var workspace = ledger.GetWorkspace()
+
+	if workspace != "" {
+		return workspace + "-" + tag
+	}
+
+	return tag
+}
+
+func (c *Cli) DefaultRunImage(ledger *config.Ledger) any {
+	var tag = ledger.GetString(c.optionDockerTag)
+	var version = ledger.GetString(c.optionDockerVersion)
+	var parts []string
+
+	if tag != "" {
+		parts = append(parts, tag)
+	}
+
+	if version != "" {
+		parts = append(parts, version)
+	}
+
+	return strings.Join(parts, ":")
 }
 
 func (c *Cli) ParentConfigType(parentOption *config.StringOption) func(*config.Ledger) any {
@@ -124,7 +152,6 @@ func NewSf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 		NewInit(ledger, sfCli),
 		NewList(ledger, sfCli),
 		NewRun(ledger, sfCli),
-		NewDebug(ledger, sfCli),
 		NewTest(ledger, sfCli),
 		NewStop(ledger, sfCli),
 		NewStart(ledger, sfCli),

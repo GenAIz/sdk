@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/mock"
@@ -15,26 +15,21 @@ var (
 	testLogger = &logrus.Logger{}
 )
 
-func TestState_GetContainersSize(t *testing.T) {
-	var testState = &State{Containers: &[]container.Summary{}}
+func TestState_Report(t *testing.T) {
+	var testState = &State{}
+	var expectedReport = "report"
 
-	assert.EqualValues(t, 0, testState.GetContainersSize())
+	testState.Report(expectedReport)
+	assert.Contains(t, testState.Reports, expectedReport)
 }
 
-func TestState_GetContainersSizeUninitialized(t *testing.T) {
-	var testState = &State{Containers: nil}
+func TestState_Reportf(t *testing.T) {
+	var testState = &State{}
+	var expectedReport = "report"
+	var expectedParam = 37
 
-	assert.EqualValues(t, 0, testState.GetContainersSize())
-}
-
-func TestState_HasContainers(t *testing.T) {
-	var testState = &State{Containers: &[]container.Summary{
-		{
-			ID: "Test",
-		},
-	}}
-
-	assert.True(t, testState.HasContainers())
+	testState.Reportf("%s %d", expectedReport, expectedParam)
+	assert.Contains(t, testState.Reports, expectedReport+" "+cast.ToString(expectedParam))
 }
 
 func TestTask_ExecuteOnPrepareFailure(t *testing.T) {

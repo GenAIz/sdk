@@ -5,7 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
@@ -47,8 +49,10 @@ func (se *StartExecutor) Pretend() {
 	var buildParams = makeBuildParams(&se.BaseExecutor)
 	var params = se.makeStartParams(replace)
 	var plan = task.NewPlan("Start", se.Ledger.Logger)
-	var workers = []task.Worker{
-		task.NewPretender(buildParams, se.buildTaskFactory()),
+	var workers []task.Worker
+
+	if se.rebuildImage {
+		workers = append(workers, task.NewPretender(buildParams, se.buildTaskFactory()))
 	}
 
 	if replace {
@@ -75,8 +79,10 @@ func (se *StartExecutor) Proceed() {
 	var buildParams = makeBuildParams(&se.BaseExecutor)
 	var params = se.makeStartParams(replace)
 	var plan = task.NewPlan("Start", se.Ledger.Logger)
-	var workers = []task.Worker{
-		task.NewWorker(buildParams, se.buildTaskFactory()),
+	var workers []task.Worker
+
+	if se.rebuildImage {
+		workers = append(workers, task.NewWorker(buildParams, se.buildTaskFactory()))
 	}
 
 	if replace {
@@ -94,14 +100,17 @@ func (se *StartExecutor) Proceed() {
 		workers = append(workers, task.NewWorker(disposeParams, se.disposeTaskFactory()))
 	}
 
+	plan.PrintReportsOnly = true
 	plan.Sequence(workers...)
 }
 
 func (se *StartExecutor) makeStartParams(force bool) *docker.ContainerParams {
 	var result = makeContainerParams(se.BaseExecutor, se.StartOptions.StopOptions, se.StartOptions.RunOptions)
 
-	result.MountOutput = se.Ledger.GetString(se.optionMountOutput)
 	result.MountInput = se.Ledger.GetString(se.optionMountInput)
+	result.MountOutput = se.Ledger.GetString(se.optionMountOutput)
+	result.MountLog = se.Ledger.GetString(se.optionMountLog)
+	result.MountVar = se.Ledger.GetString(se.optionMountVar)
 	result.Force = force
 	return result
 }
@@ -133,7 +142,7 @@ func NewStart(ledger *config.Ledger, cli *Cli) *cobra.Command {
 		Use:     "start",
 		Short:   "Starts the Smart Function, creating a container if necessary",
 		Long:    "Starts the Smart Function, building it first if necessary, and creating a container matching the name and version of its context if it doesn't exist",
-		Example: "genaiz sf start --image myproject/myfunc:latest --name mycontainer-myfunc --replace",
+		Example: "genaiz sf start --image=my-project/my-func:latest --name=my-container-my-func --replace",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			ledger.FromWorkDir(options.optionMountInput, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountLog, cmd.Flags())
@@ -141,7 +150,9 @@ func NewStart(ledger *config.Ledger, cli *Cli) *cobra.Command {
 			ledger.FromWorkDir(options.optionMountVar, cmd.Flags())
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			options.rebuildImage = needsRebuildingImage(cmd, options.RunOptions.optionRunImage)
+			var imageFlag = cmd.Flags().Lookup(options.optionRunImage.Param)
+
+			options.rebuildImage = imageFlag.Value.String() == ""
 			cli.Exec(ledger, NewStartExecutor(cmd.Context(), ledger, cli, options))
 		},
 	}
@@ -167,27 +178,40 @@ func NewStartExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 	}
 }
 
-func NewStartOptions(cli *Cli) *StartOptions {
-	var startCmd = "Start"
-	var runOptions = newRunOptions(cli, startCmd)
-	var stopOptions = newStopOptions(cli, runOptions, startCmd, true)
-
+func NewStartOptions(sfCli *Cli) *StartOptions {
 	return &StartOptions{
-		RunOptions:  runOptions,
-		StopOptions: stopOptions,
-
-		optionContainerReplace: newOptionContainerReplace(),
-	}
-}
-
-func newOptionContainerReplace() *config.BoolOption {
-	return &config.BoolOption{
-		Option: config.Option{
-			Key:          "SF.Start.Replace",
-			Param:        "replace",
-			Short:        "r",
-			Usage:        "removes any previous containers before creating a new one",
-			DefaultValue: "false",
+		RunOptions: &RunOptions{
+			optionMountInput: cli.Options.Functions.MountInput().
+				WithKeys(&schema.Genaiz.Function.Start.MountInput).
+				BuildStringOption(),
+			optionMountLog: cli.Options.Functions.MountLog().
+				WithKeys(&schema.Genaiz.Function.Start.MountLog).
+				BuildStringOption(),
+			optionMountOutput: cli.Options.Functions.MountOutput().
+				WithKeys(&schema.Genaiz.Function.Start.MountOutput).
+				BuildStringOption(),
+			optionMountVar: cli.Options.Functions.MountVar().
+				WithKeys(&schema.Genaiz.Function.Start.MountVar).
+				BuildStringOption(),
+			optionRunImage: cli.Options.Docker.Image().
+				WithKeys(&schema.Genaiz.Function.Start.Image).
+				WithDefaultGetter(sfCli.DefaultRunImage).
+				BuildStringOption(),
 		},
+		StopOptions: &StopOptions{
+			optionContainerName: cli.Options.Docker.ContainerName().
+				WithKeys(&schema.Genaiz.Function.Start.Name).
+				BuildStringOption(),
+			optionContainerPrefix: cli.Options.Docker.ContainerPrefix().
+				WithKeys(&schema.Genaiz.Function.Start.Prefix).
+				WithDefaultGetter(sfCli.ContainerPrefix).
+				BuildStringOption(),
+			optionContainerPreserve: cli.Options.Docker.Preserve().
+				WithKeys(&schema.Genaiz.Function.Start.Preserve).
+				BuildBoolOption(),
+		},
+
+		optionContainerReplace: cli.Options.Docker.Replace().
+			BuildBoolOption(),
 	}
 }

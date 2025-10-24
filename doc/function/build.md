@@ -10,6 +10,8 @@ A successful command should print a summary of the image, created with its tag, 
 
 ### context
 
+Context is used in a very broad manner by sf commands that will seek to establish the **build context** for `Docker` API calls. It is also used to infer where the `Genaiz.yaml` would be, which can lead to some confusion. (see the --config option, to split both paths)
+
 * if there is no context specified the build command assumes it is established as the current working dir.
 * the context is passed to the docker build command or the dockerd build endpoint to match the Dockerfile's build context, it doesn't necessarily imply the same folder as the [file](#file) param.
 * if the resolved context does not correspond to an existing folder, the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [sf.build.context] is invalid`

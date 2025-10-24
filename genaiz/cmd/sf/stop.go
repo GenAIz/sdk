@@ -2,11 +2,12 @@ package sf
 
 import (
 	"context"
-	"strings"
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
@@ -54,6 +55,7 @@ func (se *StopExecutor) Proceed() {
 	var plan = task.NewPlan("Stop", se.Ledger.Logger)
 
 	params.Force = !preserve
+	plan.PrintReportsOnly = true
 	task.Conditional(plan, preserve, params, se.stopTaskFactory, se.disposeTaskFactory)
 }
 
@@ -63,6 +65,7 @@ func (se *StopExecutor) makeContainerParams() *docker.ContainerParams {
 
 type StopOptions struct {
 	*RunOptions
+
 	optionContainerName     *config.StringOption
 	optionContainerPrefix   *config.StringOption
 	optionContainerPreserve *config.BoolOption
@@ -70,7 +73,7 @@ type StopOptions struct {
 
 func (so *StopOptions) allDefiners() []config.Definer {
 	return []config.Definer{
-		so.RunOptions.optionRunImage,
+		so.optionRunImage,
 		so.optionContainerName,
 		so.optionContainerPrefix,
 		so.optionContainerPreserve,
@@ -107,13 +110,26 @@ func NewStopExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, optio
 	}
 }
 
-func NewStopOptions(cli *Cli) *StopOptions {
-	var stopCmd = "Stop"
-	var runOptions = &RunOptions{
-		optionRunImage: newOptionCmdImage(stopCmd),
-	}
+func NewStopOptions(sfCli *Cli) *StopOptions {
+	return &StopOptions{
+		RunOptions: &RunOptions{
+			optionRunImage: cli.Options.Docker.Image().
+				WithKeys(&schema.Genaiz.Function.Stop.Image).
+				WithDefaultGetter(sfCli.DefaultRunImage).
+				BuildStringOption(),
+		},
 
-	return newStopOptions(cli, runOptions, stopCmd, false)
+		optionContainerName: cli.Options.Docker.ContainerName().
+			WithKeys(&schema.Genaiz.Function.Stop.Name).
+			BuildStringOption(),
+		optionContainerPrefix: cli.Options.Docker.ContainerPrefix().
+			WithKeys(&schema.Genaiz.Function.Stop.Prefix).
+			WithDefaultGetter(sfCli.ContainerPrefix).
+			BuildStringOption(),
+		optionContainerPreserve: cli.Options.Docker.Preserve().
+			WithKeys(&schema.Genaiz.Function.Stop.Preserve).
+			BuildBoolOption(),
+	}
 }
 
 func makeContainerParams(be BaseExecutor, so *StopOptions, ro *RunOptions) *docker.ContainerParams {
@@ -126,58 +142,5 @@ func makeContainerParams(be BaseExecutor, so *StopOptions, ro *RunOptions) *dock
 		DockerImage: be.Ledger.GetString(ro.optionRunImage),
 		Name:        be.Ledger.GetString(so.optionContainerName),
 		Prefix:      be.Ledger.GetString(so.optionContainerPrefix),
-	}
-}
-
-func newStopOptions(cli *Cli, runOptions *RunOptions, cmd string, preserve bool) *StopOptions {
-	return &StopOptions{
-		RunOptions: runOptions,
-
-		optionContainerName:     newOptionContainerName(cmd),
-		optionContainerPrefix:   newOptionContainerPrefix(cmd, cli),
-		optionContainerPreserve: newOptionContainerPreserve(preserve),
-	}
-}
-
-func newOptionContainerName(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF.Container." + cmd + "Name",
-			Param: "name",
-			Short: "n",
-			Usage: "name of the container to start/stop",
-		},
-	}
-}
-
-func newOptionContainerPrefix(cmd string, cli *Cli) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "SF.Container." + cmd + "Prefix",
-			Param: "prefix",
-			Short: "p",
-			Usage: "prefix to use for creating new containers",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				var tag = strings.ReplaceAll(ledger.GetString(cli.optionDockerTag), "/", "-")
-				var workspace = ledger.GetWorkspace()
-
-				if workspace != "" {
-					return workspace + "-" + tag
-				}
-
-				return tag
-			},
-		},
-	}
-}
-
-func newOptionContainerPreserve(defaultValue bool) *config.BoolOption {
-	return &config.BoolOption{
-		Option: config.Option{
-			Key:          "SF.Container.Preserve",
-			Param:        "preserve",
-			Usage:        "preserves the container after it exits",
-			DefaultValue: defaultValue,
-		},
 	}
 }

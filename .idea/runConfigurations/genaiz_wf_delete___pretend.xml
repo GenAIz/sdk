@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz wf delete --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="genaiz wf delete --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz wf delete">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out/myBashSolution" />
     <go_parameters value="-tags dev" />

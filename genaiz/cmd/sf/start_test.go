@@ -16,6 +16,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
 )
@@ -33,20 +34,7 @@ func TestStartExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = &StartOptions{
-		RunOptions: &RunOptions{
-			optionMountInput:  newOptionMountInput("_test", false),
-			optionMountOutput: newOptionMountOutput("_test", false),
-			optionMountLog:    newOptionMountLog("_test", nil),
-			optionMountVar:    newOptionMountVar("_test", nil),
-			optionRunImage:    newOptionCmdImage("_test"),
-		},
-		StopOptions: &StopOptions{
-			optionContainerName:   newOptionContainerName("_test"),
-			optionContainerPrefix: newOptionContainerPrefix("_test", testCli),
-		},
-		optionContainerReplace: newOptionContainerReplace(),
-	}
+	var testOptions = newStartTestOptions()
 	var testExecutor = &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
@@ -63,7 +51,7 @@ func TestStartExecutor_Display(t *testing.T) {
 	var expectedMountLog = "TestMountLog"
 	var expectedMountVar = "TestMountVar"
 	var expectedRunImage = "TestRunImage"
-	var expectedRunPrefix = "TestRunPrefix"
+	var expectedContainerPrefix = "TestContainerPrefix"
 	var expectedContainerName = "TestContainerName"
 
 	testViper.Set(testCli.optionDockerContext.Key, expectedDockerContext)
@@ -77,7 +65,7 @@ func TestStartExecutor_Display(t *testing.T) {
 	testViper.Set(testOptions.optionRunImage.Key, expectedRunImage)
 	testViper.Set(testOptions.optionContainerReplace.Key, true)
 	testViper.Set(testOptions.optionContainerName.Key, expectedContainerName)
-	testViper.Set(testOptions.optionContainerPrefix.Key, expectedRunPrefix)
+	testViper.Set(testOptions.optionContainerPrefix.Key, expectedContainerPrefix)
 	testExecutor.Display()
 
 	if actual := testOutput.String(); actual != "" {
@@ -90,7 +78,7 @@ func TestStartExecutor_Display(t *testing.T) {
 		assert.Contains(t, actual, expectedMountLog)
 		assert.Contains(t, actual, expectedMountVar)
 		assert.Contains(t, actual, expectedRunImage)
-		assert.Contains(t, actual, expectedRunPrefix)
+		assert.Contains(t, actual, expectedContainerPrefix)
 		assert.Contains(t, actual, expectedContainerName)
 		assert.Regexp(t, regexp.MustCompile(testOptions.optionContainerReplace.Param+`:[\s\t]*true`), actual)
 	} else {
@@ -104,7 +92,6 @@ func TestStartExecutor_PretendNoDispose(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptionOutput = newOptionMountOutput("_test", false)
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
@@ -116,23 +103,7 @@ func TestStartExecutor_PretendNoDispose(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		StartOptions: &StartOptions{
-			RunOptions: &RunOptions{
-				optionMountInput:  newOptionMountInput("_test", false),
-				optionMountOutput: testOptionOutput,
-				optionMountLog:    newOptionMountLog("_test", testOptionOutput),
-				optionMountVar:    newOptionMountVar("_test", testOptionOutput),
-				optionRunImage:    newOptionCmdImage("_test"),
-				optionRunPrefix:   newOptionContainerPrefix("test", testCli),
-				rebuildImage:      true,
-			},
-			StopOptions: &StopOptions{
-				optionContainerName:     newOptionContainerName("_test"),
-				optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-				optionContainerPreserve: newOptionContainerPreserve(true),
-			},
-			optionContainerReplace: newOptionContainerReplace(),
-		},
+		StartOptions: newStartTestOptions(),
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		containerTaskFactory: newContainerTaskPretendStub(&calledCreate),
@@ -149,7 +120,7 @@ func TestStartExecutor_PretendNoDispose(t *testing.T) {
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
-		assert.True(t, calledBuild)
+		assert.False(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 0, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
@@ -164,7 +135,6 @@ func TestStartExecutor_PretendNoPreserve(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptionOutput = newOptionMountOutput("_test", false)
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
@@ -176,23 +146,7 @@ func TestStartExecutor_PretendNoPreserve(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		StartOptions: &StartOptions{
-			RunOptions: &RunOptions{
-				optionMountInput:  newOptionMountInput("_test", false),
-				optionMountOutput: testOptionOutput,
-				optionMountLog:    newOptionMountLog("_test", testOptionOutput),
-				optionMountVar:    newOptionMountVar("_test", testOptionOutput),
-				optionRunImage:    newOptionCmdImage("_test"),
-				optionRunPrefix:   newOptionContainerPrefix("test", testCli),
-				rebuildImage:      true,
-			},
-			StopOptions: &StopOptions{
-				optionContainerName:     newOptionContainerName("_test"),
-				optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-				optionContainerPreserve: newOptionContainerPreserve(true),
-			},
-			optionContainerReplace: newOptionContainerReplace(),
-		},
+		StartOptions: newStartTestOptions(),
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		containerTaskFactory: newContainerTaskPretendStub(&calledCreate),
@@ -209,6 +163,7 @@ func TestStartExecutor_PretendNoPreserve(t *testing.T) {
 		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
+		testExecutor.rebuildImage = true
 		testExecutor.Pretend()
 		assert.True(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
@@ -226,7 +181,6 @@ func TestStartExecutor_PretendReplace(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptionOutput = newOptionMountOutput("_test", false)
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
@@ -238,23 +192,7 @@ func TestStartExecutor_PretendReplace(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		StartOptions: &StartOptions{
-			RunOptions: &RunOptions{
-				optionMountInput:  newOptionMountInput("_test", false),
-				optionMountOutput: testOptionOutput,
-				optionMountLog:    newOptionMountLog("_test", testOptionOutput),
-				optionMountVar:    newOptionMountVar("_test", testOptionOutput),
-				optionRunImage:    newOptionCmdImage("_test"),
-				optionRunPrefix:   newOptionContainerPrefix("test", testCli),
-				rebuildImage:      true,
-			},
-			StopOptions: &StopOptions{
-				optionContainerName:     newOptionContainerName("_test"),
-				optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-				optionContainerPreserve: newOptionContainerPreserve(true),
-			},
-			optionContainerReplace: newOptionContainerReplace(),
-		},
+		StartOptions: newStartTestOptions(),
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		containerTaskFactory: newContainerTaskPretendStub(&calledCreate),
@@ -272,7 +210,7 @@ func TestStartExecutor_PretendReplace(t *testing.T) {
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
-		assert.True(t, calledBuild)
+		assert.False(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 2, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
@@ -288,7 +226,6 @@ func TestStartExecutor_ProceedNoDispose(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptionOutput = newOptionMountOutput("_test", false)
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
@@ -300,23 +237,7 @@ func TestStartExecutor_ProceedNoDispose(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		StartOptions: &StartOptions{
-			RunOptions: &RunOptions{
-				optionMountInput:  newOptionMountInput("_test", false),
-				optionMountOutput: testOptionOutput,
-				optionMountLog:    newOptionMountLog("_test", testOptionOutput),
-				optionMountVar:    newOptionMountVar("_test", testOptionOutput),
-				optionRunImage:    newOptionCmdImage("_test"),
-				optionRunPrefix:   newOptionContainerPrefix("test", testCli),
-				rebuildImage:      true,
-			},
-			StopOptions: &StopOptions{
-				optionContainerName:     newOptionContainerName("_test"),
-				optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-				optionContainerPreserve: newOptionContainerPreserve(true),
-			},
-			optionContainerReplace: newOptionContainerReplace(),
-		},
+		StartOptions: newStartTestOptions(),
 
 		buildTaskFactory:     newBuildTaskCompleteStub(&calledBuild),
 		containerTaskFactory: newContainerTaskCompleteStub(&calledCreate),
@@ -334,7 +255,7 @@ func TestStartExecutor_ProceedNoDispose(t *testing.T) {
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()
-		assert.True(t, calledBuild)
+		assert.False(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 0, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
@@ -350,7 +271,6 @@ func TestStartExecutor_ProceedNoPreserve(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptionOutput = newOptionMountOutput("_test", false)
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
@@ -362,23 +282,7 @@ func TestStartExecutor_ProceedNoPreserve(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		StartOptions: &StartOptions{
-			RunOptions: &RunOptions{
-				optionMountInput:  newOptionMountInput("_test", false),
-				optionMountOutput: testOptionOutput,
-				optionMountLog:    newOptionMountLog("_test", testOptionOutput),
-				optionMountVar:    newOptionMountVar("_test", testOptionOutput),
-				optionRunImage:    newOptionCmdImage("_test"),
-				optionRunPrefix:   newOptionContainerPrefix("test", testCli),
-				rebuildImage:      true,
-			},
-			StopOptions: &StopOptions{
-				optionContainerName:     newOptionContainerName("_test"),
-				optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-				optionContainerPreserve: newOptionContainerPreserve(true),
-			},
-			optionContainerReplace: newOptionContainerReplace(),
-		},
+		StartOptions: newStartTestOptions(),
 
 		buildTaskFactory:     newBuildTaskCompleteStub(&calledBuild),
 		containerTaskFactory: newContainerTaskCompleteStub(&calledCreate),
@@ -395,6 +299,7 @@ func TestStartExecutor_ProceedNoPreserve(t *testing.T) {
 		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
+		testExecutor.rebuildImage = true
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
@@ -412,7 +317,6 @@ func TestStartExecutor_ProceedReplace(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptionOutput = newOptionMountOutput("_test", false)
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
@@ -424,23 +328,7 @@ func TestStartExecutor_ProceedReplace(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		StartOptions: &StartOptions{
-			RunOptions: &RunOptions{
-				optionMountInput:  newOptionMountInput("_test", false),
-				optionMountOutput: testOptionOutput,
-				optionMountLog:    newOptionMountLog("_test", testOptionOutput),
-				optionMountVar:    newOptionMountVar("_test", testOptionOutput),
-				optionRunImage:    newOptionCmdImage("_test"),
-				optionRunPrefix:   newOptionContainerPrefix("test", testCli),
-				rebuildImage:      true,
-			},
-			StopOptions: &StopOptions{
-				optionContainerName:     newOptionContainerName("_test"),
-				optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-				optionContainerPreserve: newOptionContainerPreserve(true),
-			},
-			optionContainerReplace: newOptionContainerReplace(),
-		},
+		StartOptions: newStartTestOptions(),
 
 		buildTaskFactory:     newBuildTaskCompleteStub(&calledBuild),
 		containerTaskFactory: newContainerTaskCompleteStub(&calledCreate),
@@ -458,7 +346,7 @@ func TestStartExecutor_ProceedReplace(t *testing.T) {
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()
-		assert.True(t, calledBuild)
+		assert.False(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 2, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
@@ -469,38 +357,18 @@ func TestStartExecutor_ProceedReplace(t *testing.T) {
 }
 
 func TestStartOptions_allDefiners(t *testing.T) {
-	var expectedOptionMountInput = newOptionMountInput("_test", false)
-	var expectedOptionMountOutput = newOptionMountOutput("_test", false)
-	var expectedOptionMountLog = newOptionMountLog("_test", expectedOptionMountOutput)
-	var expectedOptionMountVar = newOptionMountVar("_test", expectedOptionMountOutput)
-	var expectedOptionRunImage = newOptionCmdImage("_test")
-	var expectedOptionContainerName = newOptionContainerName("_test")
-	var expectedOptionContainerPrefix = newOptionContainerPrefix("_test", NewSfCli(nil, nil, nil))
-	var expectedOptionContainerReplace = newOptionContainerReplace()
-	var testOptions = &StartOptions{
-		RunOptions: &RunOptions{
-			optionMountInput:  expectedOptionMountInput,
-			optionMountOutput: expectedOptionMountOutput,
-			optionMountLog:    expectedOptionMountLog,
-			optionMountVar:    expectedOptionMountVar,
-			optionRunImage:    expectedOptionRunImage,
-		},
-		StopOptions: &StopOptions{
-			optionContainerName:   expectedOptionContainerName,
-			optionContainerPrefix: expectedOptionContainerPrefix,
-		},
-		optionContainerReplace: expectedOptionContainerReplace,
-	}
+	var testOptions = newStartTestOptions()
 	var definers = testOptions.allDefiners()
 
-	assert.Contains(t, definers, expectedOptionMountInput)
-	assert.Contains(t, definers, expectedOptionMountOutput)
-	assert.Contains(t, definers, expectedOptionMountLog)
-	assert.Contains(t, definers, expectedOptionMountVar)
-	assert.Contains(t, definers, expectedOptionRunImage)
-	assert.Contains(t, definers, expectedOptionContainerName)
-	assert.Contains(t, definers, expectedOptionContainerPrefix)
-	assert.Contains(t, definers, expectedOptionContainerReplace)
+	assert.Contains(t, definers, testOptions.optionMountInput)
+	assert.Contains(t, definers, testOptions.optionMountOutput)
+	assert.Contains(t, definers, testOptions.optionMountLog)
+	assert.Contains(t, definers, testOptions.optionMountVar)
+	assert.Contains(t, definers, testOptions.optionRunImage)
+	assert.Contains(t, definers, testOptions.optionContainerPreserve)
+	assert.Contains(t, definers, testOptions.optionContainerPrefix)
+	assert.Contains(t, definers, testOptions.optionContainerName)
+	assert.Contains(t, definers, testOptions.optionContainerReplace)
 }
 
 func TestNewStartOptions(t *testing.T) {
@@ -536,7 +404,7 @@ func TestNewStart(t *testing.T) {
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testStart = NewStart(testLedger, testCli)
-	var testParam = newOptionMountInput("_test", false).Param
+	var testParam = cli.Options.Functions.MountInput().BuildStringOption().Param
 	var expectedTag = "dockerTag"
 	var expectedFolder = "folder"
 	var expectedWorkDir = "work"
@@ -585,5 +453,40 @@ func newContainerTaskCompleteStub(counter *int) func() *task.Task[docker.Contain
 				return nil
 			},
 		}
+	}
+}
+
+func newStartTestOptions() *StartOptions {
+	return &StartOptions{
+		RunOptions: &RunOptions{
+			optionMountInput: cli.Options.Functions.MountInput().
+				WithKeys(&schema.Genaiz.Function.Test.MountInput).
+				BuildStringOption(),
+			optionMountOutput: cli.Options.Functions.MountOutput().
+				WithKeys(&schema.Genaiz.Function.Test.MountOutput).
+				BuildStringOption(),
+			optionMountLog: cli.Options.Functions.MountLog().
+				WithKeys(&schema.Genaiz.Function.Test.MountLog).
+				BuildStringOption(),
+			optionMountVar: cli.Options.Functions.MountVar().
+				WithKeys(&schema.Genaiz.Function.Test.MountVar).
+				BuildStringOption(),
+			optionRunImage: cli.Options.Docker.Image().
+				WithKeys(&schema.Genaiz.Function.Test.Image).
+				BuildStringOption(),
+		},
+		StopOptions: &StopOptions{
+			optionContainerName: cli.Options.Docker.ContainerName().
+				WithKeys(&schema.Genaiz.Function.Start.Name).
+				BuildStringOption(),
+			optionContainerPrefix: cli.Options.Docker.ContainerPrefix().
+				WithKeys(&schema.Genaiz.Function.Start.Prefix).
+				BuildStringOption(),
+			optionContainerPreserve: cli.Options.Docker.Preserve().
+				WithKeys(&schema.Genaiz.Function.Start.Preserve).
+				BuildBoolOption(),
+		},
+		optionContainerReplace: cli.Options.Docker.Replace().
+			BuildBoolOption(),
 	}
 }

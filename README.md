@@ -44,6 +44,22 @@ genaiz ac login broker.genaiz.com --username="myUsername"
 genaiz sn publish
 ```
 
+#### Running a simple function
+
+The following example creates a smart function **function-1**, without a parent solution. It then proceeds to build it out of context. We can then list and run the smart function on a local **Docker** installation within the folder created or out of it.
+
+```bash
+genaiz sf create function-1 --oem="com.genaiz.dev" \
+  --recipe="bash-example"
+genaiz sf build --context=function-1/
+cd function-1
+genaiz sf list
+genaiz sf run
+```
+
+> [!NOTE]
+> Run disposes of any container created for the operation
+
 ## Development Guide
 
 ### Prerequisites
@@ -51,7 +67,7 @@ genaiz sn publish
 To be able to build the project you will need to install the following tools for your platform. You can find more information at the links provided here:
 
 * [Golang](https://go.dev/doc/install) - All tools and the SDK are written in Go
-* [Gnu Make](https://www.gnu.org/software/make/manual/make.html) - Not strictly required, but all build scripts are driven through Makefiles
+* [GNU Make](https://www.gnu.org/software/make/manual/make.html) - Not strictly required, but all build scripts are driven through Makefiles
 * [Docker](https://docs.docker.com/engine/install/) - The local execution and build runtime requires a local Docker installation
 
 ### Building from Source
@@ -82,7 +98,7 @@ Individual modules with make files will answer their own targets, but most will 
 
 #### [GenAIz SmartFunction Toolkit](genaiz/README.md)
 
-Handles building, debugging, running, testing and publishing Smart Functions to a GenAIz Broker Platform.
+Handles building, running, testing and publishing Smart Functions to a GenAIz Broker Platform.
 
 #### [GenAIz Integration Test Toolkit](genaiz-it/README.md)
 
@@ -145,6 +161,19 @@ export GOTMPDIR="var/tmp"
 ```
 
 to your `$HOME/.bashrc` or `$HOME/.bash_profile` file. Note that `/var/tmp` is just another one of those "locations" that is usually the target for temporary files while compiling projects. You could very well just use `$HOME/go/tmp`, depending on how your partition layout was created, if /var/tmp is also "secured".
+
+#### Tests are failing will nil panic traces
+
+We use a flavour of **Monk Patching** to capture calls to various core methods like os.Exit and fmt.Printf. These require the source to be compiled without function inlining enabled:
+
+`-gcflags=-l`
+
+The option is set in the `Makefile` requiring it for the `test` and `report` targets, but if you use an IDE Run configuration you will have to configure it manually. Under **Intellij**, this is configured under 
+
+* `Run/Debug Configurations`
+  * `Edit configuration templates`
+    * `Go Test`
+      * `Go tool arguments`
 
 ### Docker
 

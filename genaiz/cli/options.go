@@ -55,6 +55,21 @@ var (
 			},
 		},
 		Docker: dockerOptions{
+			ContainerName: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithShort("n").
+					WithUsage("name of the container")
+			},
+			ContainerPrefix: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("prefix").
+					WithShort("p").
+					WithUsage("prefix used in container naming").
+					WithUsage("container names will be suffixed with an increasing counter, based on the existing container list").
+					WithValidator(config.Validation.Component).
+					Optional(true)
+			},
 			ContextPath: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Build.Context).
@@ -77,6 +92,12 @@ var (
 					}).
 					WithValidator(config.Validation.FileExists)
 			},
+			Image: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("image").
+					WithUsage("reference to an image by repository, tag or no tag").
+					WithUsage("by default the smart function built will be used, and there is no need to specify the image")
+			},
 			Label: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Build.Label).
@@ -98,11 +119,25 @@ var (
 					WithUsage("disables caching of some build layers").
 					WithDefaultValue("false")
 			},
+			Preserve: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("preserve").
+					WithUsage("preserves the container after it exits").
+					WithDefaultValue("false")
+			},
 			Prune: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Build.Prune).
 					WithParam("prune").
 					WithUsage("enables pruning, removing dangling images for the same repository built, this requires --label to work").
+					WithDefaultValue("false")
+			},
+			Replace: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Start.Replace).
+					WithParam("replace").
+					WithShort("r").
+					WithUsage("removes any previous containers before creating a new one").
 					WithDefaultValue("false")
 			},
 			Tag: func() OptionBuilder {
@@ -147,11 +182,25 @@ var (
 					WithValidator(config.Validation.DirExists).
 					Optional(true)
 			},
+			MountLog: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("mount-log").
+					WithUsage("path of the log files folder").
+					WithValidator(config.Validation.DirCreated).
+					Optional(true)
+			},
 			MountOutput: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("mount-out").
 					WithUsage("path of the output files folder").
-					WithValidator(config.Validation.DirExists).
+					WithValidator(config.Validation.DirCreated).
+					Optional(true)
+			},
+			MountVar: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("mount-var").
+					WithUsage("path of the var files folder").
+					WithValidator(config.Validation.DirCreated).
 					Optional(true)
 			},
 			Name: func() OptionBuilder {
@@ -338,21 +387,28 @@ type configOptions struct {
 }
 
 type dockerOptions struct {
-	ContextPath func() OptionBuilder
-	FilePath    func() OptionBuilder
-	Label       func() OptionBuilder
-	Legacy      func() OptionBuilder
-	NoCache     func() OptionBuilder
-	Prune       func() OptionBuilder
-	Tag         func() OptionBuilder
-	Version     func() OptionBuilder
+	ContainerName   func() OptionBuilder
+	ContainerPrefix func() OptionBuilder
+	ContextPath     func() OptionBuilder
+	FilePath        func() OptionBuilder
+	Image           func() OptionBuilder
+	Label           func() OptionBuilder
+	Legacy          func() OptionBuilder
+	NoCache         func() OptionBuilder
+	Replace         func() OptionBuilder
+	Preserve        func() OptionBuilder
+	Prune           func() OptionBuilder
+	Tag             func() OptionBuilder
+	Version         func() OptionBuilder
 }
 
 type functionOptions struct {
 	Arches      func() OptionBuilder
 	Handle      func() OptionBuilder
 	MountInput  func() OptionBuilder
+	MountLog    func() OptionBuilder
 	MountOutput func() OptionBuilder
+	MountVar    func() OptionBuilder
 	Name        func() OptionBuilder
 	Oem         func() OptionBuilder
 	Rebuild     func() OptionBuilder

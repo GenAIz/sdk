@@ -1,8 +1,13 @@
-FROM bash:latest
+FROM alpine:3.22.2
 
 {{- $bin_path := or .SF_BIN_PATH "/opt/genaiz/bash-example/bin"}}
 
-ADD app.sh {{$bin_path}}/
-RUN chmod +x {{$bin_path}}/app.sh
+RUN apk add --no-cache bash
+RUN mkdir -p /mnt/in  \
+    && mkdir -p /mnt/out \
+    && mkdir -p /mnt/log \
+    && mkdir -p /mnt/var
+ADD app.sh /opt/genaiz/bash-example/bin/
+RUN chmod +x /opt/genaiz/bash-example/bin/app.sh
 
 CMD ["{{$bin_path}}/app.sh"]

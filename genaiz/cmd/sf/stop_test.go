@@ -16,6 +16,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 )
 
 func TestStopExecutor_Display(t *testing.T) {
@@ -33,11 +34,19 @@ func TestStopExecutor_Display(t *testing.T) {
 		Build()
 	var testOptions = &StopOptions{
 		RunOptions: &RunOptions{
-			optionRunImage: newOptionCmdImage("_test"),
+			optionRunImage: cli.Options.Docker.Image().
+				WithKeys(&schema.Genaiz.Function.Run.Image).
+				BuildStringOption(),
 		},
-		optionContainerName:     newOptionContainerName("_test"),
-		optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-		optionContainerPreserve: newOptionContainerPreserve(false),
+		optionContainerName: cli.Options.Docker.ContainerName().
+			WithKeys(&schema.Genaiz.Function.Stop.Name).
+			BuildStringOption(),
+		optionContainerPrefix: cli.Options.Docker.ContainerPrefix().
+			WithKeys(&schema.Genaiz.Function.Stop.Prefix).
+			BuildStringOption(),
+		optionContainerPreserve: cli.Options.Docker.Preserve().
+			WithKeys(&schema.Genaiz.Function.Stop.Preserve).
+			BuildBoolOption(),
 	}
 	var testExecutor = &StopExecutor{
 		BaseExecutor: BaseExecutor{
@@ -51,7 +60,7 @@ func TestStopExecutor_Display(t *testing.T) {
 	var expectedDockerTag = "TestDockerTag"
 	var expectedDockerVersion = "TestDockerVersion"
 	var expectedRunImage = "TestRunImage"
-	var expectedRunPrefix = "TestRunPrefix"
+	var expectedContainerPrefix = "TestContainerPrefix"
 	var expectedContainerName = "TestContainerName"
 
 	testViper.Set(testCli.optionDockerContext.Key, expectedDockerContext)
@@ -60,7 +69,7 @@ func TestStopExecutor_Display(t *testing.T) {
 	testViper.Set(testCli.optionDockerVersion.Key, expectedDockerVersion)
 	testViper.Set(testOptions.optionRunImage.Key, expectedRunImage)
 	testViper.Set(testOptions.optionContainerName.Key, expectedContainerName)
-	testViper.Set(testOptions.optionContainerPrefix.Key, expectedRunPrefix)
+	testViper.Set(testOptions.optionContainerPrefix.Key, expectedContainerPrefix)
 	testViper.Set(testOptions.optionContainerPreserve.Key, true)
 	testExecutor.Display()
 
@@ -70,7 +79,7 @@ func TestStopExecutor_Display(t *testing.T) {
 		assert.Contains(t, actual, expectedDockerTag)
 		assert.Contains(t, actual, expectedDockerVersion)
 		assert.Contains(t, actual, expectedRunImage)
-		assert.Contains(t, actual, expectedRunPrefix)
+		assert.Contains(t, actual, expectedContainerPrefix)
 		assert.Contains(t, actual, expectedContainerName)
 		assert.Regexp(t, regexp.MustCompile(testOptions.optionContainerPreserve.Param+`:[\s\t]*true`), actual)
 	} else {
@@ -96,11 +105,19 @@ func TestStopExecutor_Pretend(t *testing.T) {
 		},
 		StopOptions: &StopOptions{
 			RunOptions: &RunOptions{
-				optionRunImage: newOptionCmdImage("_test"),
+				optionRunImage: cli.Options.Docker.Image().
+					WithKeys(&schema.Genaiz.Function.Run.Image).
+					BuildStringOption(),
 			},
-			optionContainerName:     newOptionContainerName("_test"),
-			optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-			optionContainerPreserve: newOptionContainerPreserve(false),
+			optionContainerName: cli.Options.Docker.ContainerName().
+				WithKeys(&schema.Genaiz.Function.Stop.Name).
+				BuildStringOption(),
+			optionContainerPrefix: cli.Options.Docker.ContainerPrefix().
+				WithKeys(&schema.Genaiz.Function.Stop.Prefix).
+				BuildStringOption(),
+			optionContainerPreserve: cli.Options.Docker.Preserve().
+				WithKeys(&schema.Genaiz.Function.Stop.Preserve).
+				BuildBoolOption(),
 		},
 
 		disposeTaskFactory: newContainerTaskPretendStub(&calledDispose),
@@ -141,11 +158,19 @@ func TestStopExecutor_PretendDispose(t *testing.T) {
 		},
 		StopOptions: &StopOptions{
 			RunOptions: &RunOptions{
-				optionRunImage: newOptionCmdImage("_test"),
+				optionRunImage: cli.Options.Docker.Image().
+					WithKeys(&schema.Genaiz.Function.Run.Image).
+					BuildStringOption(),
 			},
-			optionContainerName:     newOptionContainerName("_test"),
-			optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-			optionContainerPreserve: newOptionContainerPreserve(false),
+			optionContainerName: cli.Options.Docker.ContainerName().
+				WithKeys(&schema.Genaiz.Function.Stop.Name).
+				BuildStringOption(),
+			optionContainerPrefix: cli.Options.Docker.ContainerPrefix().
+				WithKeys(&schema.Genaiz.Function.Stop.Prefix).
+				BuildStringOption(),
+			optionContainerPreserve: cli.Options.Docker.Preserve().
+				WithKeys(&schema.Genaiz.Function.Stop.Preserve).
+				BuildBoolOption(),
 		},
 
 		disposeTaskFactory: newContainerTaskPretendStub(&calledDispose),
@@ -184,11 +209,19 @@ func TestStopExecutor_Proceed(t *testing.T) {
 		},
 		StopOptions: &StopOptions{
 			RunOptions: &RunOptions{
-				optionRunImage: newOptionCmdImage("_test"),
+				optionRunImage: cli.Options.Docker.Image().
+					WithKeys(&schema.Genaiz.Function.Run.Image).
+					BuildStringOption(),
 			},
-			optionContainerName:     newOptionContainerName("_test"),
-			optionContainerPrefix:   newOptionContainerPrefix("_test", testCli),
-			optionContainerPreserve: newOptionContainerPreserve(false),
+			optionContainerName: cli.Options.Docker.ContainerName().
+				WithKeys(&schema.Genaiz.Function.Stop.Name).
+				BuildStringOption(),
+			optionContainerPrefix: cli.Options.Docker.ContainerPrefix().
+				WithKeys(&schema.Genaiz.Function.Stop.Prefix).
+				BuildStringOption(),
+			optionContainerPreserve: cli.Options.Docker.Preserve().
+				WithKeys(&schema.Genaiz.Function.Stop.Preserve).
+				BuildBoolOption(),
 		},
 
 		disposeTaskFactory: newContainerTaskCompleteStub(&calledDispose),
@@ -210,24 +243,28 @@ func TestStopExecutor_Proceed(t *testing.T) {
 }
 
 func TestStopExecutor_allDefiners(t *testing.T) {
-	var expectedOptionRunImage = newOptionCmdImage("_test")
-	var expectedOptionContainerName = newOptionContainerName("_test")
-	var expectedOptionContainerPrefix = newOptionContainerPrefix("_test", NewSfCli(nil, nil, nil))
-	var expectedOptionContainerPreserve = newOptionContainerPreserve(false)
 	var testOptions = &StopOptions{
 		RunOptions: &RunOptions{
-			optionRunImage: expectedOptionRunImage,
+			optionRunImage: cli.Options.Docker.Image().
+				WithKeys(&schema.Genaiz.Function.Run.Image).
+				BuildStringOption(),
 		},
-		optionContainerName:     expectedOptionContainerName,
-		optionContainerPrefix:   expectedOptionContainerPrefix,
-		optionContainerPreserve: expectedOptionContainerPreserve,
+		optionContainerName: cli.Options.Docker.ContainerName().
+			WithKeys(&schema.Genaiz.Function.Stop.Name).
+			BuildStringOption(),
+		optionContainerPrefix: cli.Options.Docker.ContainerPrefix().
+			WithKeys(&schema.Genaiz.Function.Stop.Prefix).
+			BuildStringOption(),
+		optionContainerPreserve: cli.Options.Docker.Preserve().
+			WithKeys(&schema.Genaiz.Function.Stop.Preserve).
+			BuildBoolOption(),
 	}
 	var definers = testOptions.allDefiners()
 
-	assert.Contains(t, definers, expectedOptionRunImage)
-	assert.Contains(t, definers, expectedOptionContainerName)
-	assert.Contains(t, definers, expectedOptionContainerPrefix)
-	assert.Contains(t, definers, expectedOptionContainerPreserve)
+	assert.Contains(t, definers, testOptions.optionRunImage)
+	assert.Contains(t, definers, testOptions.optionContainerName)
+	assert.Contains(t, definers, testOptions.optionContainerPrefix)
+	assert.Contains(t, definers, testOptions.optionContainerPreserve)
 }
 
 func TestNewStopOptions(t *testing.T) {
@@ -244,7 +281,10 @@ func TestNewStop(t *testing.T) {
 	var stopCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithOutput(io.Writer(testOutput)).WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithOutput(io.Writer(testOutput)).
+		WithViper(testViper).
+		Build()
 	var testCli = &Cli{
 		BaseCli: cli.BaseCli{
 			Dry: func(ledger *config.Ledger) bool {
@@ -257,7 +297,9 @@ func TestNewStop(t *testing.T) {
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testStop = NewStop(testLedger, testCli)
-	var testCmdImageOption = newOptionCmdImage("Stop")
+	var testCmdImageOption = cli.Options.Docker.Image().
+		WithKeys(&schema.Genaiz.Function.Stop.Image).
+		BuildStringOption()
 	var expectedImage = "dockerImage"
 
 	testStop.PostRun = func(cmd *cobra.Command, args []string) {
@@ -274,23 +316,4 @@ func TestNewStop(t *testing.T) {
 	} else {
 		assert.Fail(t, "no --dry content")
 	}
-}
-
-func Test_newOptionContainerPrefix_DefaultWorkSpace(t *testing.T) {
-	var testCli = NewSfCli(nil, nil, nil)
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = newOptionContainerPrefix("_test", testCli)
-	var testWorkspace = &config.StringOption{
-		Option: config.Option{
-			Param: "workspace",
-		},
-	}
-	var expectedTag = "tag"
-	var expectedWorkspace = "workspace"
-
-	testViper.Set(testCli.optionDockerTag.Key, expectedTag)
-	testViper.Set(testWorkspace.Param, expectedWorkspace)
-	testLedger.InitWorkspace(testWorkspace)
-	assert.EqualValues(t, expectedWorkspace+"-"+expectedTag, testOption.DefaultGetter(testLedger))
 }

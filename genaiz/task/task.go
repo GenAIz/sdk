@@ -2,8 +2,8 @@ package task
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/sirupsen/logrus"
 
 	"genaiz.com/genaiz/lang"
@@ -23,32 +23,21 @@ type Env struct {
 
 // State tracks the result(s) and state values of Task(s)' execution
 type State struct {
-	Abort      bool                 // Abort indicates that any executing plan should exit without completing the rest of the tasks, usually done without an Error
-	Completed  bool                 // Indicates whether a Task completed, this could be completed with error, incomplete tasks may invalidate Plan execution or not
-	Containers *[]container.Summary // Containers contains the docker container summaries handled by tasks in a Plan
-	Error      error                // If a Task completed with an error it will be in this field, it should be mutually exclusive with Output
-	Internal   interface{}          // Internal is meant to allow tracking of structured task data
-	Logger     *logrus.Logger       // A reference to the Logger used by the Task and its associated Plan if any
-	Output     string               // If a Task completed successfully, it may have stored a value in this field, it should be mutually exclusive with Error
-	Reports    []string             // reports can be used by a Task to print warnings or other user-bound information to STDOUT once all tasks are completed
-}
-
-// GetContainersSize returns the amount of containers held under Containers, or 0 if it was never initialized
-func (s *State) GetContainersSize() int {
-	if s.Containers == nil {
-		return 0
-	}
-
-	return len(*s.Containers)
-}
-
-// HasContainers indicates whether the Containers have any member container.Summary
-func (s *State) HasContainers() bool {
-	return s.GetContainersSize() > 0
+	Abort     bool           // Abort indicates that any executing plan should exit without completing the rest of the tasks, usually done without an Error
+	Completed bool           // Indicates whether a Task completed, this could be completed with error, incomplete tasks may invalidate Plan execution or not
+	Error     error          // If a Task completed with an error it will be in this field, it should be mutually exclusive with Output
+	Internal  interface{}    // Internal is meant to allow tracking of structured task data
+	Logger    *logrus.Logger // A reference to the Logger used by the Task and its associated Plan if any
+	Output    string         // If a Task completed successfully, it may have stored a value in this field, it should be mutually exclusive with Error
+	Reports   []string       // reports can be used by a Task to print warnings or other user-bound information to STDOUT once all tasks are completed
 }
 
 func (s *State) Report(message string) {
 	s.Reports = append(s.Reports, message)
+}
+
+func (s *State) Reportf(message string, a ...any) {
+	s.Report(fmt.Sprintf(message, a...))
 }
 
 // Task is a representation of something to accomplish, referred to by Name. Tasks can either be Completed, Not Completed or Pretended. In all cases there needs to be a Preparation method specified to dictate the course of execution.

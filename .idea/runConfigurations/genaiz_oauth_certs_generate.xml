@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz-oauth certs generate" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="genaiz-oauth certs generate" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz-oauth">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
     <parameters value="certs generate --genBundle --svCert=out/oauth/server.cert --svKey=out/oauth/server.key --svCN=dev.genaiz.com out/oauth" />

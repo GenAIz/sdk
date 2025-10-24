@@ -76,6 +76,7 @@ func handleLoginContext(params *LoginParams, state *task.State) error {
 
 func handleLoginComplete(params *LoginParams, state *task.State) error {
 	if state.Output == "" {
+		var dockerClient = dockerFactory.Get()
 		var registryAuth = registry.AuthConfig{
 			Username:      params.Username,
 			Password:      string(*params.Password),

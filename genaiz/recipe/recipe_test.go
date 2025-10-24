@@ -243,13 +243,12 @@ func Test_embedded_recipes_bash_example_APP_SH(t *testing.T) {
 		var buffer = new(bytes.Buffer)
 		var expectedValues = map[string]string{
 			"InstanceName": "testInstance",
-			"version":      "testVersion",
 		}
 
 		if err = testTemplate.Execute(io.Writer(buffer), expectedValues); err == nil {
 			var content = buffer.String()
 
-			assert.Contains(t, content, "Smart Function "+expectedValues["InstanceName"]+" version "+expectedValues["version"])
+			assert.Contains(t, content, "GenAIz Smart Function "+expectedValues["InstanceName"]+" is starting up")
 		}
 	}
 

@@ -60,17 +60,6 @@ The command creates a new Smart Function folder with a typical layout. By defaul
 genaiz sf create --help
 ```
 
-#### debug
-
-This should start the image with a disposable container in interactive mode.
-
-```shell
-genaiz sf debug --help
-```
-
-> [!CAUTION]
-> The debug command is planned, not yet implemented
-
 #### init
 
 The command initiates a new Smart Function under an existing folder. By default, the command will ask the user interactively to confirm what it found under the folder, creating the genaiz.yaml file for the Smart Function.
