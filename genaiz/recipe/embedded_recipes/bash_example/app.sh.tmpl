@@ -31,12 +31,6 @@ if [ -n "$SF_INPUT_PATH" ]; then
 	echo "Input Files"
 	ls -l "$SF_INPUT_PATH"
 
-	echo
-	echo "Next step, deleting files from the input directory, not recursively"
-	for x in "$SF_INPUT_PATH"/*; do
-	  [ -f "$x" ] && rm "$x"
-	done
-
 	if [ -n "$SF_OUTPUT_PATH" ]; then
 		echo
 		echo "Copying all files to the output directory"
