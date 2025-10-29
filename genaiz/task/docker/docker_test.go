@@ -21,48 +21,94 @@ import (
 )
 
 type stubDockerClient struct {
-	containerCreate       *container.Summary
-	containerCreateError  error
-	containerInspect      *container.Summary
-	containerInspectError error
-	containerList         []container.Summary
-	containerListError    error
-	containerKillError    error
-	containerRemoveError  error
-	containerStartError   error
-	containerStopError    error
-	imageList             []image.Summary
-	imageListError        error
-	imageTagError         error
+	containerAttachError    error
+	containerAttachId       string
+	containerAttachOptions  *container.AttachOptions
+	containerAttachResponse *types.HijackedResponse
+	containerCreate         *container.Summary
+	containerCreateConfig   *container.Config
+	containerCreateName     string
+	containerCreatePlatform *ocispec.Platform
+	containerCreateWarnings []string
+	containerHostConfig     *container.HostConfig
+	containerNetworkConfig  *network.NetworkingConfig
+	containerCreateError    error
+	containerInspect        *container.Summary
+	containerInspectConfig  *container.Config
+	containerInspectError   error
+	containerInspectId      string
+	containerList           []container.Summary
+	containerListFilter     filters.Args
+	containerListError      error
+	containerKillError      error
+	containerRemoveError    error
+	containerRemoveId       string
+	containerRemoveOptions  *container.RemoveOptions
+	containerStartError     error
+	containerStartId        string
+	containerStartOptions   *container.StartOptions
+	containerStopError      error
+	containerStopId         []string
+	containerStopOptions    *container.StopOptions
+	containerWaitResponse   chan container.WaitResponse
+	containerWaitError      chan error
+	imageList               []image.Summary
+	imageListError          error
+	imageTagError           error
 }
 
-func (s stubDockerClient) ContainerAttach(context.Context, string, container.AttachOptions) (types.HijackedResponse, error) {
-	panic("implement me")
+func (s *stubDockerClient) ContainerAttach(ctx context.Context, id string, options container.AttachOptions) (types.HijackedResponse, error) {
+	s.containerAttachOptions = &options
+	s.containerAttachId = id
+	_ = ctx
+
+	if s.containerAttachResponse != nil {
+		return *s.containerAttachResponse, nil
+	}
+
+	return types.HijackedResponse{}, s.containerAttachError
 }
 
-func (s stubDockerClient) ContainerCreate(context.Context, *container.Config, *container.HostConfig, *network.NetworkingConfig, *ocispec.Platform, string) (container.CreateResponse, error) {
+func (s *stubDockerClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkConfig *network.NetworkingConfig, platform *ocispec.Platform, name string) (container.CreateResponse, error) {
+	s.containerCreateConfig = config
+	s.containerHostConfig = hostConfig
+	s.containerNetworkConfig = networkConfig
+	s.containerCreatePlatform = platform
+	s.containerCreateName = name
+	_ = ctx
+
 	if s.containerCreateError == nil && s.containerCreate != nil {
-		return container.CreateResponse{ID: s.containerCreate.ID}, nil
+		return container.CreateResponse{
+			ID:       s.containerCreate.ID,
+			Warnings: s.containerCreateWarnings,
+		}, nil
 	}
 
 	return container.CreateResponse{}, s.containerCreateError
 }
 
-func (s stubDockerClient) ContainerInspect(context.Context, string) (container.InspectResponse, error) {
+func (s *stubDockerClient) ContainerInspect(ctx context.Context, id string) (container.InspectResponse, error) {
+	s.containerInspectId = id
+	_ = ctx
+
 	if s.containerInspectError == nil {
-		return container.InspectResponse{ContainerJSONBase: &container.ContainerJSONBase{
-			ID: s.containerInspect.ID,
-		}}, nil
+		return container.InspectResponse{
+			ContainerJSONBase: &container.ContainerJSONBase{ID: s.containerInspect.ID},
+			Config:            s.containerInspectConfig,
+		}, nil
 	}
 
 	return container.InspectResponse{}, s.containerInspectError
 }
 
-func (s stubDockerClient) ContainerKill(context.Context, string, string) error {
+func (s *stubDockerClient) ContainerKill(context.Context, string, string) error {
 	return s.containerKillError
 }
 
-func (s stubDockerClient) ContainerList(context.Context, container.ListOptions) ([]container.Summary, error) {
+func (s *stubDockerClient) ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error) {
+	_ = ctx
+	s.containerListFilter = options.Filters
+
 	if s.containerListError == nil {
 		return s.containerList, nil
 	}
@@ -70,31 +116,40 @@ func (s stubDockerClient) ContainerList(context.Context, container.ListOptions) 
 	return nil, s.containerListError
 }
 
-func (s stubDockerClient) ContainerRemove(context.Context, string, container.RemoveOptions) error {
+func (s *stubDockerClient) ContainerRemove(ctx context.Context, id string, options container.RemoveOptions) error {
+	s.containerRemoveOptions = &options
+	s.containerRemoveId = id
+	_ = ctx
 	return s.containerRemoveError
 }
 
-func (s stubDockerClient) ContainerStart(context.Context, string, container.StartOptions) error {
+func (s *stubDockerClient) ContainerStart(ctx context.Context, id string, options container.StartOptions) error {
+	s.containerStartId = id
+	s.containerStartOptions = &options
+	_ = ctx
 	return s.containerStartError
 }
 
-func (s stubDockerClient) ContainerStop(context.Context, string, container.StopOptions) error {
+func (s *stubDockerClient) ContainerStop(ctx context.Context, id string, options container.StopOptions) error {
+	s.containerStopId = append(s.containerStopId, id)
+	s.containerStopOptions = &options
+	_ = ctx
 	return s.containerStopError
 }
 
-func (s stubDockerClient) ContainerWait(context.Context, string, container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+func (s *stubDockerClient) ContainerWait(context.Context, string, container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+	return s.containerWaitResponse, s.containerWaitError
+}
+
+func (s *stubDockerClient) ImageBuild(context.Context, io.Reader, build.ImageBuildOptions) (build.ImageBuildResponse, error) {
 	panic("implement me")
 }
 
-func (s stubDockerClient) ImageBuild(context.Context, io.Reader, build.ImageBuildOptions) (build.ImageBuildResponse, error) {
+func (s *stubDockerClient) ImageInspect(context.Context, string, ...client.ImageInspectOption) (image.InspectResponse, error) {
 	panic("implement me")
 }
 
-func (s stubDockerClient) ImageInspect(context.Context, string, ...client.ImageInspectOption) (image.InspectResponse, error) {
-	panic("implement me")
-}
-
-func (s stubDockerClient) ImageList(context.Context, image.ListOptions) ([]image.Summary, error) {
+func (s *stubDockerClient) ImageList(context.Context, image.ListOptions) ([]image.Summary, error) {
 	if s.imageListError == nil {
 		return s.imageList, nil
 	}
@@ -102,19 +157,19 @@ func (s stubDockerClient) ImageList(context.Context, image.ListOptions) ([]image
 	return nil, s.imageListError
 }
 
-func (s stubDockerClient) ImagesPrune(context.Context, filters.Args) (image.PruneReport, error) {
+func (s *stubDockerClient) ImagesPrune(context.Context, filters.Args) (image.PruneReport, error) {
 	panic("implement me")
 }
 
-func (s stubDockerClient) ImagePush(context.Context, string, image.PushOptions) (io.ReadCloser, error) {
+func (s *stubDockerClient) ImagePush(context.Context, string, image.PushOptions) (io.ReadCloser, error) {
 	panic("implement me")
 }
 
-func (s stubDockerClient) ImageTag(context.Context, string, string) error {
+func (s *stubDockerClient) ImageTag(context.Context, string, string) error {
 	return s.imageTagError
 }
 
-func (s stubDockerClient) RegistryLogin(context.Context, registry.AuthConfig) (registry.AuthenticateOKBody, error) {
+func (s *stubDockerClient) RegistryLogin(context.Context, registry.AuthConfig) (registry.AuthenticateOKBody, error) {
 	panic("implement me")
 }
 

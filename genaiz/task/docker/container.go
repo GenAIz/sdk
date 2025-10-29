@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -23,21 +25,32 @@ import (
 )
 
 var (
+	envProgressFile = "SF_PROGRESS_FILE"
+	envResultFile   = "SF_RESULT_FILE"
+	envStatusFile   = "SF_STATUS_FILE"
+	signalProvider  = signalz.NewSignalChannel
+
+	FileMap = map[string]string{
+		envProgressFile: "$SF_VAR_PATH/progress",
+		envResultFile:   "$SF_VAR_PATH/result",
+		envStatusFile:   "$SF_VAR_PATH/status",
+	}
+
 	InputMount = ContainerMountPoint{
 		EnvVar:    "SF_INPUT_PATH",
 		MountPath: "/mnt/in",
 		ReadOnly:  true,
 	}
 
-	OutputMount = ContainerMountPoint{
-		EnvVar:    "SF_OUTPUT_PATH",
-		MountPath: "/mnt/out",
-		ReadOnly:  false,
-	}
-
 	LogMount = ContainerMountPoint{
 		EnvVar:    "SF_LOG_PATH",
 		MountPath: "/mnt/log",
+		ReadOnly:  false,
+	}
+
+	OutputMount = ContainerMountPoint{
+		EnvVar:    "SF_OUTPUT_PATH",
+		MountPath: "/mnt/out",
 		ReadOnly:  false,
 	}
 
@@ -59,8 +72,8 @@ type ContainerMountPoint struct {
 	ReadOnly  bool
 }
 
-func (cm ContainerMountPoint) GetEnvKeyValuePair() string {
-	return cm.EnvVar + "=" + cm.MountPath
+func (cm ContainerMountPoint) GetEnvKeyValue() (string, string) {
+	return cm.EnvVar, cm.MountPath
 }
 
 func (cm ContainerMountPoint) MakeBind(hostPath string) ContainerMountBind {
@@ -85,6 +98,7 @@ func (cm ContainerMountPoint) MakeMount(hostDir string) *mount.Mount {
 type ContainerParams struct {
 	RunParams
 	DockerImage string
+	EnvVars     map[string]string
 	MountInput  string
 	MountOutput string
 	MountLog    string
@@ -92,6 +106,14 @@ type ContainerParams struct {
 	Name        string
 	Prefix      string
 	Force       bool
+}
+
+func (c *ContainerParams) GetEnvironment() map[string]string {
+	if c.EnvVars == nil {
+		c.EnvVars = make(map[string]string)
+	}
+
+	return c.EnvVars
 }
 
 func (c *ContainerParams) GetName(summaries []container.Summary) (string, error) {
@@ -223,70 +245,63 @@ func NewStopTask() *task.Task[ContainerParams] {
 func handleContainerAttach(params *ContainerParams, state *task.State) error {
 	var dockerState = NewClientState(state)
 
-	if count := dockerState.GetContainersSize(); count > 0 {
-		state.Logger.Debugf("Found [%d] summaries for attach", count)
+	if summary := dockerState.SelectLatestContainer(); summary != nil {
+		var dockerClient = dockerFactory.Get()
+		var wait, cancel = context.WithCancel(params.Context)
+		var inspect container.InspectResponse
+		var err error
+		defer cancel()
 
-		if summary := dockerState.SelectLatestContainer(); summary != nil {
-			var dockerClient = dockerFactory.Get()
-			var wait, cancel = context.WithCancel(params.Context)
-			defer cancel()
+		if inspect, err = dockerClient.ContainerInspect(wait, summary.ID); err == nil {
+			var attachOptions = container.AttachOptions{Stream: true, Stdout: true, Stderr: true}
+			var channelReader chan error
+			var channelContainer chan int
+			var response types.HijackedResponse
 
-			if inspect, err := dockerClient.ContainerInspect(wait, summary.ID); err == nil {
-				var attachOptions = container.AttachOptions{Stream: true, Stdout: true, Stderr: true}
-				var channelReader chan error
-				var channelContainer chan int
-				var response types.HijackedResponse
+			if !inspect.Config.Tty {
+				var noCancels = context.WithoutCancel(wait)
+				var channelShell = signalProvider()
 
-				if !inspect.Config.Tty {
-					var noCancels = context.WithoutCancel(wait)
-					var channelShell = signalz.NewSignalChannel()
-
-					go signalz.ForwardTerminate(noCancels, channelShell, func(code string) {
-						if err = dockerClient.ContainerKill(noCancels, summary.ID, code); err != nil {
-							panic(err)
-						}
-					})
-					defer signalz.StopCatch(channelShell)
-				}
-
-				if response, err = dockerClient.ContainerAttach(wait, summary.ID, attachOptions); err == nil {
-					channelReader = streamz.NewHiJackedChannel(wait, streamz.NewHiJackedStreamerStd(response.Reader))
-					channelContainer = makeContainerChannel(wait, params, summary.ID)
-					defer response.Close()
-				} else {
-					return err
-				}
-
-				if err = handleContainerStart(params, state); err != nil {
-					cancel()
-					<-channelReader
-
-					if params.Dispose {
-						<-channelContainer
+				go signalz.ForwardTerminate(noCancels, channelShell, func(code string) {
+					if err = dockerClient.ContainerKill(noCancels, summary.ID, code); err != nil {
+						state.Logger.Errorf("Could not kill container: %s", err)
+						state.Error = err
 					}
+				})
+				defer signalz.StopCatch(channelShell)
+			}
 
-					return err
-				}
-
-				if err = <-channelReader; err != nil {
-					var escapeError signalz.EscapeError
-
-					if errors.As(err, &escapeError) {
-						return nil
-					}
-
-					return err
-				}
-
-				if status := <-channelContainer; status != 0 {
-					return fmt.Errorf("received exit status error %d from the container", status)
-				}
-
-				return nil
+			if response, err = dockerClient.ContainerAttach(wait, summary.ID, attachOptions); err == nil {
+				channelReader = streamz.NewHiJackedChannel(wait, streamz.NewHiJackedStreamerStd(response.Reader))
+				channelContainer = makeContainerChannel(wait, params, summary.ID)
+				defer response.Close()
 			} else {
 				return err
 			}
+
+			if err = handleContainerStart(params, state); err != nil {
+				cancel()
+				<-channelReader
+
+				if params.Dispose {
+					<-channelContainer
+				}
+
+				return err
+			}
+
+			if err = <-channelReader; err != nil {
+				return err
+			}
+
+			if status := <-channelContainer; status != 0 {
+				return fmt.Errorf("received exit status error %d from the container", status)
+			}
+
+			return nil
 		}
+
+		return err
 	}
 
 	return errors.New("no containers to attach")
@@ -338,12 +353,7 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 
 	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
 		var createConfig = &container.Config{
-			Env: []string{
-				InputMount.GetEnvKeyValuePair(),
-				LogMount.GetEnvKeyValuePair(),
-				OutputMount.GetEnvKeyValuePair(),
-				VarMount.GetEnvKeyValuePair(),
-			},
+			Env:   makeEnvironmentValues(params.GetEnvironment()),
 			Image: dockerImage,
 			Tty:   params.Interactive,
 		}
@@ -381,17 +391,16 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 
 func handleContainerCreatePretend(params *ContainerParams, state *task.State) error {
 	var dockerState = NewClientState(state)
-	var envInputMount = InputMount.GetEnvKeyValuePair()
-	var envOutputMount = OutputMount.GetEnvKeyValuePair()
-	var mountDefs = params.GetContainerMountBinds()
-	var mountValues []string
 	var containerName string
+	var mountValues []string
 	var err error
 
-	state.Logger.Debugf("Pretending to create a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
-
 	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
+		var mountDefs = params.GetContainerMountBinds()
+		var envValues = makeEnvironmentValues(params.GetEnvironment())
 		var mounts []mount.Mount
+
+		state.Logger.Debugf("Pretending to create a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
 
 		if mounts = makeContainerMounts(mountDefs); len(mounts) > 0 {
 			for _, bind := range mounts {
@@ -405,10 +414,12 @@ func handleContainerCreatePretend(params *ContainerParams, state *task.State) er
 					bind.Source, bind.Target, bind.Type, readonly))
 			}
 		}
-	}
 
-	if err == nil {
-		fmt.Printf("docker create -e %s -e %s %s --name %s %s", envInputMount, envOutputMount,
+		for i, envVar := range envValues {
+			envValues[i] = "--env " + envVar
+		}
+
+		fmt.Printf("docker create %s %s --name %s %s", strings.Join(envValues, " "),
 			strings.Join(mountValues, " "), containerName, params.DockerImage)
 	}
 
@@ -473,23 +484,19 @@ func handleContainerDisposalPretend(params *ContainerParams, state *task.State) 
 func handleContainerStart(params *ContainerParams, state *task.State) error {
 	var dockerState = NewClientState(state)
 
-	if count := dockerState.GetContainersSize(); count > 0 {
-		state.Logger.Debugf("Found [%d] summaries for start", count)
+	if summary := dockerState.SelectLatestContainer(); summary != nil {
+		var dockerClient = dockerFactory.Get()
+		var name = dockerState.DisplayString(summary)
 
-		if summary := dockerState.SelectLatestContainer(); summary != nil {
-			var dockerClient = dockerFactory.Get()
-			var name = dockerState.DisplayString(summary)
+		state.Logger.Debugf("Starting docker container [%s]", name)
 
-			state.Logger.Debugf("Starting docker container [%s]", name)
-
-			if err := dockerClient.ContainerStart(params.Context, summary.ID, container.StartOptions{}); err != nil {
-				return err
-			}
-
-			state.Reportf("Started container %s for image %s", name, params.DockerImage)
-			state.Output = summary.ID
-			return nil
+		if err := dockerClient.ContainerStart(params.Context, summary.ID, container.StartOptions{}); err != nil {
+			return err
 		}
+
+		state.Reportf("Started container %s for image %s", name, params.DockerImage)
+		state.Output = summary.ID
+		return nil
 	}
 
 	return errors.New("no containers selected")
@@ -498,30 +505,25 @@ func handleContainerStart(params *ContainerParams, state *task.State) error {
 func handleContainerStartPretend(params *ContainerParams, state *task.State) error {
 	var dockerState = NewClientState(state)
 
-	if dockerState.HasContainers() {
-		var summary = dockerState.SelectLatestContainer()
+	if summary := dockerState.SelectLatestContainer(); summary != nil {
+		var attached, interactive string
 
-		if summary != nil {
-			var attached, interactive string
+		state.Logger.Debugf("Pretending starting docker container [%s]", summary.ID)
 
-			state.Logger.Debugf("Pretending starting docker container [%s]", summary.ID)
-
-			if params.RunParams.Attached {
-				attached = "--attach "
-			}
-
-			if params.RunParams.Interactive {
-				interactive = "--interactive "
-			}
-
-			fmt.Printf("docker start %s%s%s\n", attached, interactive, summary.ID)
-			state.Completed = true
+		if params.Attached {
+			attached = "--attach "
 		}
 
-		return errors.New("could not select a container to start")
+		if params.Interactive {
+			interactive = "--interactive "
+		}
+
+		fmt.Printf("docker start %s%s%s\n", attached, interactive, summary.ID)
+		state.Completed = true
+		return nil
 	}
 
-	return nil
+	return errors.New("could not select a container to start")
 }
 
 func handleContainerStop(params *ContainerParams, state *task.State) error {
@@ -562,14 +564,14 @@ func handleContainerStopPretend(params *ContainerParams, state *task.State) erro
 	var dockerState = NewClientState(state)
 
 	if dockerState.HasContainers() {
+		var timeoutStr = ""
+
+		if !params.Force {
+			timeoutStr = "-t -1 "
+		}
+
 		for _, summary := range dockerState.GetContainers() {
-			var timeoutStr = ""
-
-			if !params.Force {
-				timeoutStr = "-t -1"
-			}
-
-			fmt.Printf("docker stop %s %s\n", timeoutStr, summary.ID)
+			fmt.Printf("docker stop %s%s\n", timeoutStr, summary.ID)
 		}
 	}
 
@@ -584,7 +586,7 @@ func makeContainerChannel(ctx context.Context, params *ContainerParams, containe
 	go func() {
 		defer close(channelStatus)
 		select {
-		case <-params.Context.Done():
+		case <-ctx.Done():
 			return
 		case result := <-channel:
 			if result.Error != nil {
@@ -597,6 +599,7 @@ func makeContainerChannel(ctx context.Context, params *ContainerParams, containe
 				return
 			}
 			channelStatus <- 125
+		default:
 		}
 	}()
 
@@ -611,6 +614,43 @@ func makeContainerMounts(definitions []ContainerMountBind) []mount.Mount {
 			result = append(result, *def.MakeMount(def.HostPath))
 			return nil
 		})
+	}
+
+	return result
+}
+
+func makeEnvironmentValues(envMap map[string]string) []string {
+	var result []string
+	var merged = make(map[string]string)
+	var valueFunc = func(key string) string {
+		var value string
+		var ok bool
+
+		if value, ok = merged[key]; !ok {
+			// Forward the variable to the container, if it's not resolved
+			return "$" + key
+		}
+
+		return value
+	}
+
+	maps.Copy(merged, envMap)
+
+	for _, mountPoint := range []ContainerMountPoint{InputMount, OutputMount, LogMount, VarMount} {
+		if _, ok := merged[mountPoint.EnvVar]; !ok {
+			k, v := mountPoint.GetEnvKeyValue()
+			merged[k] = v
+		}
+	}
+
+	for k, v := range FileMap {
+		if _, ok := merged[k]; !ok {
+			merged[k] = v
+		}
+	}
+
+	for k, v := range merged {
+		result = append(result, fmt.Sprintf("%s=%s", k, os.Expand(v, valueFunc)))
 	}
 
 	return result

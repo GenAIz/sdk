@@ -152,15 +152,26 @@ Design was modeled with a behavior driven approach focusing on user's usage stud
 
 ### Golang
 
+#### Go tools tag
+
+We use 2 different environment builds. The `prod` build is the build configured by default under the `Makefile`s of the project. It builds with an HTTP request gate which denies connections on `http` addresses. When this is not practical, for testing reasons, the `dev` tag can be enabled to exempt `localhost` from this restriction.
+
+When using an IDE to run go tests, you will have to configure it manually with `-tags dev`. Under **Intellij**, this is configured under
+
+* `Run/Debug Configurations`
+    * `Edit configuration templates`
+        * `Go Test`
+            * `Go tool arguments`
+
 #### Tests are failing with `permission denied`
 
 Golang's testing tools rely on executing code from the `/tmp` folder. On many modern system /tmp is now mounted to [tmpfs](https://www.kernel.org/doc/html/latest/filesystems/tmpfs.html) with `noexec`. It is a recommendation from [CIS](https://www.cisecurity.org/). You may have to fix GO's toolchain environment adding:
 
 ```bash
-export GOTMPDIR="var/tmp"
+export GOTMPDIR="/var/tmp"
 ```
 
-to your `$HOME/.bashrc` or `$HOME/.bash_profile` file. Note that `/var/tmp` is just another one of those "locations" that is usually the target for temporary files while compiling projects. You could very well just use `$HOME/go/tmp`, depending on how your partition layout was created, if /var/tmp is also "secured".
+to your `$HOME/.bashrc` or `$HOME/.bash_profile` file. Note that `/var/tmp` is just another one of those "locations" that is usually the target for temporary files while compiling projects. You could very well just use `$HOME/go/tmp`, depending on how your partition layout was created, if `/var/tmp` is also "secured".
 
 #### Tests are failing will nil panic traces
 

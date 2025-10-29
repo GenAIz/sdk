@@ -102,6 +102,13 @@ func TestValidateFileExists(t *testing.T) {
 	}
 }
 
+func TestValidateEnvKeyValue(t *testing.T) {
+	assert.False(t, validateEnvKeyValue("invalid"))
+	assert.False(t, validateEnvKeyValue([]string{"key=valid", "invalid"}))
+	assert.True(t, validateEnvKeyValue("key_1=valid"))
+	assert.True(t, validateEnvKeyValue([]string{"key_2=value,value", "MY_KEY=$VALUE"}))
+}
+
 func TestValidateRepository(t *testing.T) {
 	assert.False(t, validateRepository(""))
 	assert.False(t, validateRepository("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"))

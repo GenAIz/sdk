@@ -67,6 +67,8 @@ type Document struct {
 			Version     Keys
 		}
 		Run struct {
+			EnvFile     Keys
+			EnvVars     Keys
 			Image       Keys
 			MountInput  Keys
 			MountLog    Keys
@@ -75,6 +77,8 @@ type Document struct {
 			Prefix      Keys
 		}
 		Start struct {
+			EnvFile     Keys
+			EnvVars     Keys
 			Image       Keys
 			MountInput  Keys
 			MountLog    Keys
@@ -92,6 +96,8 @@ type Document struct {
 			Preserve Keys
 		}
 		Test struct {
+			EnvFile     Keys
+			EnvVars     Keys
 			Image       Keys
 			MountInput  Keys
 			MountLog    Keys
@@ -180,12 +186,16 @@ func init() {
 	Genaiz.Function.Publish.Rebuild = newKeys("Sf.Publish.Rebuild", "SF_PUBLISH_REBUILD")
 	Genaiz.Function.Publish.Type = newKeys("Sf.Publish.Type", "SF_PUBLISH_TYPE")
 	Genaiz.Function.Publish.Version = newKeys("Sf.Publish.Version", "SF_PUBLISH_VERSION")
+	Genaiz.Function.Run.EnvFile = newKeys("Sf.Run.EnvFile", "SF_RUN_ENV_FILE")
+	Genaiz.Function.Run.EnvVars = newKeys("Sf.Run.EnvVar", "SF_RUN_ENV_VAR")
 	Genaiz.Function.Run.Image = newKeys("Sf.Run.Image", "SF_RUN_IMAGE")
 	Genaiz.Function.Run.MountInput = newKeys("Sf.Run.Input", "SF_RUN_MOUNT_INPUT")
 	Genaiz.Function.Run.MountOutput = newKeys("Sf.Run.Output", "SF_RUN_MOUNT_OUTPUT")
 	Genaiz.Function.Run.MountLog = newKeys("Sf.Run.Log", "SF_RUN_MOUNT_LOG")
 	Genaiz.Function.Run.MountVar = newKeys("Sf.Run.Var", "SF_RUN_MOUNT_VAR")
 	Genaiz.Function.Run.Prefix = newKeys("Sf.Run.Prefix", "SF_RUN_CONTAINER_PREFIX")
+	Genaiz.Function.Start.EnvFile = newKeys("Sf.Start.EnvFile", "SF_RUN_ENV_FILE")
+	Genaiz.Function.Start.EnvVars = newKeys("Sf.Start.EnvVar", "SF_RUN_ENV_VAR")
 	Genaiz.Function.Start.Image = newKeys("Sf.Start.Image", "SF_RUN_IMAGE")
 	Genaiz.Function.Start.MountInput = newKeys("Sf.Start.Input", "SF_RUN_MOUNT_INPUT")
 	Genaiz.Function.Start.MountOutput = newKeys("Sf.Start.Output", "SF_RUN_MOUNT_OUTPUT")
@@ -199,6 +209,8 @@ func init() {
 	Genaiz.Function.Stop.Name = newKeys("Sf.Stop.Name", "SF_RUN_CONTAINER_NAME")
 	Genaiz.Function.Stop.Prefix = newKeys("Sf.Stop.Prefix", "Sf_RUN_CONTAINER_PREFIX")
 	Genaiz.Function.Stop.Preserve = newKeys("Sf.Stop.Preserve", "Sf_RUN_CONTAINER_PRESERVE")
+	Genaiz.Function.Test.EnvFile = newKeys("Sf.Test.EnvFile", "SF_RUN_ENV_FILE")
+	Genaiz.Function.Test.EnvVars = newKeys("Sf.Test.EnvVar", "SF_RUN_ENV_VAR")
 	Genaiz.Function.Test.Image = newKeys("Sf.Test.Image", "SF_RUN_IMAGE")
 	Genaiz.Function.Test.MountInput = newKeys("Sf.Test.Input", "SF_RUN_MOUNT_INPUT")
 	Genaiz.Function.Test.MountOutput = newKeys("Sf.Test.Output", "SF_RUN_MOUNT_OUTPUT")

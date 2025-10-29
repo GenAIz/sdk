@@ -1,9 +1,10 @@
 ## Function Run
 
-```bash
-genaiz sf run --context=PATH --file=FILE --tag=LOCAL --version=VERSION \
+```
+genaiz sf run --context|-c=PATH --file|-f=FILE --tag=LOCAL --version|-v=VERSION \
   --mount-in=PATH --mount-out=PATH --mount-log=PATH --mount-var=PATH \
-  --image=IMAGE --prefix|p=PREFIX
+  --env-file=FILEPATH --env|-e VARIABLE=VALUE --env|-e VAR_1=VALUE,VAR_2=VALUE \
+  --image=IMAGE --prefix|-p=PREFIX
 ```
 
 Run executes a build task if the image option is not specified. A fresh image with the tag and version specified under the `Genaiz.yaml` file or from the options on the command line will be built.
@@ -67,6 +68,29 @@ Version can be used to change the local `name/repository:tag` of the built image
 * if mount-out is not specified, the default key `sf.run.var` will be read from the Smart Function `Genaiz.yaml`
 * if mount-var is not specified, no [SF_VAR_PATH](index.md#sf_var_path) host mount point will be provided to the function's container.
 * if mount-var specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.var] is invalid`
+
+### env
+
+The env option allows passing environment variables, defined in the [property specs](props.md), to the running container. The command line option is used to override the contents of [env-file](#env-file), or just to set the values as a one-time invocation.
+
+* if env evaluates to an empty list, then no overrides will be applied on the content of .env-file.
+* if an environment variable was defined in a property spec, and no value was provided in either the env-file or the env, the command will fail with an error.
+* if an environment variable provided is not defined in the property specs, the command will filter it out and run the container with the set of variables that is defined.
+
+> [!CAUTION]
+> Note that without any property specs strict [policies](../account/index.md#policy), the command will simply pass all environment variables to the container.
+
+### env-file
+
+The env-file option allows passing environment variables, defined in the [property specs](props.md), to the running container.
+
+* if no env-file option is passed, the command will resolve $WORKDIR/.env as the path to include if it is present.
+* If no env-file is resolved, the command will try running the container with only the variables provided by [env](#env).
+* if an environment variable was defined in a property spec, and no value was provided in either the env-file or the env, the command will fail with an error.
+* if an environment variable provided is not defined in the property specs, the command will filter it out and run the container with the set of variables that is defined.
+
+> [!CAUTION]
+> Note that without any property specs strict [policies](../account/index.md#policy), the command will simply pass all environment variables to the container.
 
 ### image
 

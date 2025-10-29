@@ -20,6 +20,7 @@ type validators struct {
 	DirCreated    Validates
 	DirExists     Validates
 	DomainName    Validates
+	EnvKeyValue   Validates
 	FileExists    Validates
 	FolderName    Validates
 	Handle        Validates
@@ -33,10 +34,11 @@ type validators struct {
 }
 
 var (
-	componentMaxSize = stringMaxLength(128)
-	componentStrings = stringMatches(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9\-._][a-zA-Z0-9]+)*$`)
-	nameMaxSize      = stringMaxLength(255)
-	versionNumber    = stringMatches(`^(?:[1-9][0-9]*|0)$`)
+	componentMaxSize  = stringMaxLength(128)
+	componentStrings  = stringMatches(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9\-._][a-zA-Z0-9]+)*$`)
+	envKeyValueString = stringMatches(`^[a-zA-Z0-9_]+=.*$`)
+	nameMaxSize       = stringMaxLength(255)
+	versionNumber     = stringMatches(`^(?:[1-9][0-9]*|0)$`)
 
 	Validation = validators{
 		Blob:          stringMaxLength(4096),
@@ -44,6 +46,7 @@ var (
 		DirCreated:    validateDirCreated,
 		DirExists:     validateDirExists,
 		DomainName:    stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),
+		EnvKeyValue:   validateEnvKeyValue,
 		FileExists:    validateFileExists,
 		FolderName:    stringMatches(`^[a-zA-Z0-9\-._\/]+$`),
 		Handle:        AllOf(componentMaxSize, componentStrings),
@@ -150,6 +153,19 @@ func validateFileExists(path any) bool {
 	var s, _ = os.Stat(path.(string))
 
 	return s != nil && !s.IsDir()
+}
+
+// validateEnvKeyValue validates a list of pairs against the envKeyValueString pattern
+func validateEnvKeyValue(pairs any) bool {
+	var list = cast.ToStringSlice(pairs)
+
+	for _, pair := range list {
+		if !envKeyValueString(pair) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // validateRepository validates that a repository string can be accepted as a local docker <name>/<reference>

@@ -7,6 +7,7 @@ import (
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
@@ -27,35 +28,50 @@ func (re *RunExecutor) Display() {
 }
 
 func (re *RunExecutor) Pretend() {
-	var runParams = makeRunParams(re.BaseExecutor, re.RunOptions)
-	var plan = task.NewPlan("Run", re.Ledger.Logger)
-	var workers []task.Worker
+	var runParams *docker.ContainerParams
+	var err error
 
-	re.Ledger.DisplayChangeDir()
+	if runParams, err = makeRunParams(re.BaseExecutor, re.RunOptions); err == nil {
+		var plan = task.NewPlan("Run", re.Ledger.Logger)
+		var workers []task.Worker
 
-	if re.rebuildImage {
-		workers = append(workers, task.NewPretender(makeBuildParams(&re.BaseExecutor), re.buildTaskFactory()))
+		re.Ledger.DisplayChangeDir()
+
+		if re.rebuildImage {
+			workers = append(workers, task.NewPretender(makeBuildParams(&re.BaseExecutor), re.buildTaskFactory()))
+		}
+
+		workers = append(workers, task.NewPretender(runParams, re.runTaskFactory()))
+		plan.Sequence(workers...)
+		return
 	}
 
-	workers = append(workers, task.NewPretender(runParams, re.runTaskFactory()))
-	plan.Sequence(workers...)
+	lang.HandleExit(err)
 }
 
 func (re *RunExecutor) Proceed() {
-	var runParams = makeRunParams(re.BaseExecutor, re.RunOptions)
-	var plan = task.NewPlan("Run", re.Ledger.Logger)
-	var workers []task.Worker
+	var runParams *docker.ContainerParams
+	var err error
 
-	if re.rebuildImage {
-		workers = append(workers, task.NewWorker(makeBuildParams(&re.BaseExecutor), re.buildTaskFactory()))
+	if runParams, err = makeRunParams(re.BaseExecutor, re.RunOptions); err == nil {
+		var plan = task.NewPlan("Run", re.Ledger.Logger)
+		var workers []task.Worker
+
+		if re.rebuildImage {
+			workers = append(workers, task.NewWorker(makeBuildParams(&re.BaseExecutor), re.buildTaskFactory()))
+		}
+
+		workers = append(workers, task.NewWorker(runParams, re.runTaskFactory()))
+		plan.PrintReportsOnly = true
+		plan.Sequence(workers...)
+		return
 	}
 
-	workers = append(workers, task.NewWorker(runParams, re.runTaskFactory()))
-	plan.PrintReportsOnly = true
-	plan.Sequence(workers...)
+	lang.HandleExit(err)
 }
 
 type RunOptions struct {
+	EnvOptions
 	optionMountInput  *config.StringOption
 	optionMountLog    *config.StringOption
 	optionMountOutput *config.StringOption
@@ -67,12 +83,14 @@ type RunOptions struct {
 
 func (ro *RunOptions) allDefiners() []config.Definer {
 	return []config.Definer{
-		ro.optionRunImage,
-		ro.optionRunPrefix,
+		ro.optionEnvFile,
+		ro.optionEnvVars,
 		ro.optionMountInput,
 		ro.optionMountLog,
 		ro.optionMountOutput,
 		ro.optionMountVar,
+		ro.optionRunImage,
+		ro.optionRunPrefix,
 	}
 }
 
@@ -84,6 +102,7 @@ func NewRun(ledger *config.Ledger, cli *Cli) *cobra.Command {
 		Long:    "Runs a Smart Function image detached, building it first if necessary, assigning it a disposable container",
 		Example: "genaiz sf run --image=genaiz.com/sf/smartfunc:latest",
 		PreRun: func(cmd *cobra.Command, args []string) {
+			ledger.FromWorkDir(options.optionEnvFile, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountInput, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountLog, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountOutput, cmd.Flags())
@@ -117,6 +136,14 @@ func NewRunExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, option
 
 func NewRunOptions(sfCli *Cli) *RunOptions {
 	return &RunOptions{
+		EnvOptions: EnvOptions{
+			optionEnvFile: cli.Options.Docker.EnvFile().
+				WithKeys(&schema.Genaiz.Function.Run.EnvFile).
+				BuildStringOption(),
+			optionEnvVars: cli.Options.Docker.EnvVar().
+				WithKeys(&schema.Genaiz.Function.Run.EnvVars).
+				BuildListOption(),
+		},
 		optionMountInput: cli.Options.Functions.MountInput().
 			WithKeys(&schema.Genaiz.Function.Run.MountInput).
 			BuildStringOption(),
@@ -144,6 +171,8 @@ func displayRunOptions(be BaseExecutor, ro *RunOptions) {
 	var options = []*config.Option{
 		&ro.optionRunImage.Option,
 		&ro.optionRunPrefix.Option,
+		&ro.optionEnvFile.Option,
+		&ro.optionEnvVars.Option,
 		&ro.optionMountInput.Option,
 		&ro.optionMountLog.Option,
 		&ro.optionMountOutput.Option,
@@ -154,18 +183,26 @@ func displayRunOptions(be BaseExecutor, ro *RunOptions) {
 	be.Ledger.DisplayOptions(options...)
 }
 
-func makeRunParams(be BaseExecutor, ro *RunOptions) *docker.ContainerParams {
-	return &docker.ContainerParams{
-		RunParams: docker.RunParams{
-			Env:      task.Env{Context: be.Context},
-			Attached: false,
-			Dispose:  true,
-		},
-		DockerImage: be.Ledger.GetString(ro.optionRunImage),
-		MountInput:  be.Ledger.GetString(ro.optionMountInput),
-		MountLog:    be.Ledger.GetString(ro.optionMountLog),
-		MountOutput: be.Ledger.GetString(ro.optionMountOutput),
-		MountVar:    be.Ledger.GetString(ro.optionMountVar),
-		Prefix:      be.Ledger.GetString(ro.optionRunPrefix),
+func makeRunParams(be BaseExecutor, ro *RunOptions) (*docker.ContainerParams, error) {
+	var envVars map[string]string
+	var err error
+
+	if envVars, err = ro.makeEnvMap(be.Ledger); err == nil {
+		return &docker.ContainerParams{
+			RunParams: docker.RunParams{
+				Env:      task.Env{Context: be.Context},
+				Attached: false,
+				Dispose:  true,
+			},
+			DockerImage: be.Ledger.GetString(ro.optionRunImage),
+			EnvVars:     envVars,
+			MountInput:  be.Ledger.GetString(ro.optionMountInput),
+			MountLog:    be.Ledger.GetString(ro.optionMountLog),
+			MountOutput: be.Ledger.GetString(ro.optionMountOutput),
+			MountVar:    be.Ledger.GetString(ro.optionMountVar),
+			Prefix:      be.Ledger.GetString(ro.optionRunPrefix),
+		}, nil
 	}
+
+	return nil, err
 }
