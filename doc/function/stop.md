@@ -1,7 +1,7 @@
 ## Function Stop
 
-```bash
-genaiz sf stop --image=IMAGE --name=NAME --prefix=PREFIX --preserve
+```
+genaiz sf stop --image=IMAGE --name|-n=NAME --prefix|-p=PREFIX --preserve
 ```
 
 Stop instructs the local `containerd` to stop the container associated with the specified image, container name or all the containers associated with the given prefix, disposing of the container(s) or preserving them.

@@ -11,11 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -191,6 +193,116 @@ func TestCli_allDefiners(t *testing.T) {
 	assert.Contains(t, testCliDefiners, testSfCli.optionDockerFile)
 	assert.Contains(t, testCliDefiners, testSfCli.optionDockerTag)
 	assert.Contains(t, testCliDefiners, testSfCli.optionDockerVersion)
+}
+
+func TestEnvOptions_makeEnvMap(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), "not_exist")
+	var testEnvOptions = &EnvOptions{
+		optionEnvFile: cli.Options.Docker.EnvFile().
+			WithKeys(&schema.Keys{Doc: "key"}).
+			BuildStringOption(),
+		optionEnvVars: cli.Options.Docker.EnvVar().
+			WithKeys(&schema.Keys{Doc: "vars"}).
+			BuildListOption(),
+	}
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var expectedKey1 = "KEY_1"
+	var expectedKey2 = "KEY_2"
+	var expectedValue1 = "VALUE.1"
+	var expectedValue2 = "VALUE.2"
+
+	testViper.Set(testEnvOptions.optionEnvFile.Key, testFile)
+	testViper.Set(testEnvOptions.optionEnvVars.Key, []string{
+		expectedKey1 + "=" + expectedValue1,
+		expectedKey2 + "=" + expectedValue2,
+	})
+	result, err := testEnvOptions.makeEnvMap(testLedger)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(result))
+	assert.Equal(t, expectedValue1, result[expectedKey1])
+	assert.Equal(t, expectedValue2, result[expectedKey2])
+}
+
+func TestEnvOptions_makeEnvMap_PermissionDenied(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), "not_exist")
+
+	var fd *os.File
+	var err error
+
+	if fd, err = os.OpenFile(testFile, os.O_CREATE|os.O_TRUNC, 0222); err == nil {
+		defer filez.CloseSilently(fd)
+		var testEnvOptions = &EnvOptions{
+			optionEnvFile: cli.Options.Docker.EnvFile().
+				WithKeys(&schema.Keys{Doc: "key"}).
+				BuildStringOption(),
+		}
+		var testViper = viper.New()
+		var testLedger = config.NewBuilder().
+			WithViper(testViper).
+			Build()
+
+		testViper.Set(testEnvOptions.optionEnvFile.Key, testFile)
+		_, err = testEnvOptions.makeEnvMap(testLedger)
+		assert.Error(t, err)
+		assert.False(t, errorz.IsPathError(err))
+	}
+}
+
+func TestEnvOptions_parseEnvFile(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), "not_exist")
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+		var expectedKey = "expected_key"
+		var expectedValue = "VALUE"
+
+		if _, err = fd.Write([]byte(expectedKey + "=" + expectedValue)); err == nil {
+			var testEnvOption = &EnvOptions{}
+			var result, actual = testEnvOption.parseEnvFile(testFile)
+
+			assert.NoError(t, actual)
+			assert.Equal(t, 1, len(result))
+			assert.Equal(t, expectedValue, result[expectedKey])
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestEnvOptions_parseEnvFile_ParseError(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), "not_exist")
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+
+		if _, err = fd.Write([]byte("not_a_valid_key_pair")); err == nil {
+			var testEnvOption = &EnvOptions{}
+			var result, actual = testEnvOption.parseEnvFile(testFile)
+
+			assert.Empty(t, result)
+			assert.Error(t, actual)
+			assert.False(t, errorz.IsPathError(actual))
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestEnvOptions_parseEnvFile_PathError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testEnvOption = &EnvOptions{}
+	var result, actual = testEnvOption.parseEnvFile(filepath.Join(testDir, "not_exist"))
+
+	assert.Empty(t, result)
+	assert.Error(t, actual)
+	assert.True(t, errorz.IsPathError(actual))
 }
 
 func TestNewSf(t *testing.T) {

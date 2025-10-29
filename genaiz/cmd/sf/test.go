@@ -7,6 +7,7 @@ import (
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
@@ -25,31 +26,45 @@ func (te *TestExecutor) Display() {
 }
 
 func (te *TestExecutor) Pretend() {
-	var testParams = makeRunParams(te.BaseExecutor, te.RunOptions)
-	var plan = task.NewPlan("Test", te.Ledger.Logger)
-	var workers []task.Worker
+	var testParams *docker.ContainerParams
+	var err error
 
-	te.Ledger.DisplayChangeDir()
+	if testParams, err = makeRunParams(te.BaseExecutor, te.RunOptions); err == nil {
+		var plan = task.NewPlan("Test", te.Ledger.Logger)
+		var workers []task.Worker
 
-	if te.rebuildImage {
-		workers = append(workers, task.NewPretender(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
+		te.Ledger.DisplayChangeDir()
+
+		if te.rebuildImage {
+			workers = append(workers, task.NewPretender(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
+		}
+
+		workers = append(workers, task.NewPretender(testParams, te.testTaskFactory()))
+		plan.Sequence(workers...)
+		return
 	}
 
-	workers = append(workers, task.NewPretender(testParams, te.testTaskFactory()))
-	plan.Sequence(workers...)
+	lang.HandleExit(err)
 }
 
 func (te *TestExecutor) Proceed() {
-	var testParams = makeRunParams(te.BaseExecutor, te.RunOptions)
-	var plan = task.NewPlan("Run", te.Ledger.Logger)
-	var workers []task.Worker
+	var testParams *docker.ContainerParams
+	var err error
 
-	if te.RunOptions.rebuildImage {
-		workers = append(workers, task.NewWorker(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
+	if testParams, err = makeRunParams(te.BaseExecutor, te.RunOptions); err == nil {
+		var plan = task.NewPlan("Run", te.Ledger.Logger)
+		var workers []task.Worker
+
+		if te.RunOptions.rebuildImage {
+			workers = append(workers, task.NewWorker(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
+		}
+
+		workers = append(workers, task.NewWorker(testParams, te.testTaskFactory()))
+		plan.Sequence(workers...)
+		return
 	}
 
-	workers = append(workers, task.NewWorker(testParams, te.testTaskFactory()))
-	plan.Sequence(workers...)
+	lang.HandleExit(err)
 }
 
 func NewTest(ledger *config.Ledger, cli *Cli) *cobra.Command {
@@ -60,6 +75,7 @@ func NewTest(ledger *config.Ledger, cli *Cli) *cobra.Command {
 		Long:    "Runs a Smart Function attached, building it first if necessary, assigning it a disposable container",
 		Example: "genaiz sf test --tag my-tag/my-function --version latest",
 		PreRun: func(cmd *cobra.Command, args []string) {
+			ledger.FromWorkDir(options.optionEnvFile, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountInput, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountLog, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountOutput, cmd.Flags())
@@ -93,6 +109,14 @@ func NewTestExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, optio
 
 func NewTestOptions(sfCli *Cli) *RunOptions {
 	return &RunOptions{
+		EnvOptions: EnvOptions{
+			optionEnvFile: cli.Options.Docker.EnvFile().
+				WithKeys(&schema.Genaiz.Function.Test.EnvFile).
+				BuildStringOption(),
+			optionEnvVars: cli.Options.Docker.EnvVar().
+				WithKeys(&schema.Genaiz.Function.Test.EnvVars).
+				BuildListOption(),
+		},
 		optionMountInput: cli.Options.Functions.MountInput().
 			WithKeys(&schema.Genaiz.Function.Test.MountInput).
 			BuildStringOption(),

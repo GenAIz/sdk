@@ -27,12 +27,6 @@ var (
 	}
 )
 
-type EscapeError struct{}
-
-func (EscapeError) Error() string {
-	return "read escape sequence"
-}
-
 func ForwardTerminate(ctx context.Context, channel <-chan os.Signal, terminate func(code string)) {
 	var s os.Signal
 	var ok bool

@@ -3,7 +3,7 @@
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
     <go_parameters value="-tags dev" />
-    <parameters value="sf run --context=out/samples/myBashExample --dry" />
+    <parameters value="sf run --context=out/samples/myBashExample --env=MY_ENV_TEST=TEST --env=MY_ENV_TEST_2=TEST2 --dry" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

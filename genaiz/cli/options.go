@@ -81,6 +81,21 @@ var (
 					}).
 					WithValidator(config.Validation.DirExists)
 			},
+			EnvFile: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("env-file").
+					WithUsage("path of an environment file which will be supplied to the container when running a Smart Function").
+					WithDefaultGetter(func(ledger *config.Ledger) any {
+						return filepath.Join(ledger.WorkDir, ".env")
+					})
+			},
+			EnvVar: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("env").
+					WithShort("e").
+					WithUsage("environment variables can be specified with a KEY=VALUE list or repeated options").
+					WithValidator(config.Validation.EnvKeyValue)
+			},
 			FilePath: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Build.File).
@@ -390,6 +405,8 @@ type dockerOptions struct {
 	ContainerName   func() OptionBuilder
 	ContainerPrefix func() OptionBuilder
 	ContextPath     func() OptionBuilder
+	EnvFile         func() OptionBuilder
+	EnvVar          func() OptionBuilder
 	FilePath        func() OptionBuilder
 	Image           func() OptionBuilder
 	Label           func() OptionBuilder

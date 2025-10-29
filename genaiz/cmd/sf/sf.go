@@ -5,12 +5,16 @@
 package sf
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/errorz"
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
@@ -22,6 +26,53 @@ type BaseExecutor struct {
 	Cli     *Cli
 	Context context.Context
 	Ledger  *config.Ledger
+}
+
+type EnvOptions struct {
+	optionEnvFile *config.StringOption
+	optionEnvVars *config.ListOption
+}
+
+func (eo EnvOptions) makeEnvMap(ledger *config.Ledger) (map[string]string, error) {
+	var envFile = ledger.GetString(eo.optionEnvFile)
+	var result map[string]string
+	var err error
+
+	if result, err = eo.parseEnvFile(envFile); err != nil && !errorz.IsPathError(err) {
+		// ignore files that do not exist
+		return nil, err
+	}
+
+	for _, envPair := range ledger.GetList(eo.optionEnvVars) {
+		parts := strings.SplitN(envPair, "=", 2)
+		result[parts[0]] = parts[1]
+	}
+
+	return result, nil
+}
+
+func (eo EnvOptions) parseEnvFile(filePath string) (map[string]string, error) {
+	var result = make(map[string]string)
+	var err error
+	var fd *os.File
+
+	if fd, err = os.Open(filePath); err == nil {
+		defer filez.CloseSilently(fd)
+		var scanner = bufio.NewScanner(fd)
+
+		for scanner.Scan() {
+			var keyPair = scanner.Text()
+
+			if !config.Validation.EnvKeyValue(keyPair) {
+				return nil, fmt.Errorf("%s, is not a valid key/pair value", keyPair)
+			}
+
+			parts := strings.SplitN(keyPair, "=", 2)
+			result[parts[0]] = parts[1]
+		}
+	}
+
+	return result, err
 }
 
 type Cli struct {

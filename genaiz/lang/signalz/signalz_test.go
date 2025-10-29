@@ -10,12 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestEscapeError_Error(t *testing.T) {
-	var testError = &EscapeError{}
-
-	assert.NotEmpty(t, testError.Error())
-}
-
 func TestForwardTerminate(t *testing.T) {
 	var testChannel = NewSignalChannel()
 

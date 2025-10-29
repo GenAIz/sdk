@@ -113,6 +113,33 @@ func Test_OptionsDockerContextPath(t *testing.T) {
 	assert.False(t, testOption.Validator(filepath.Join(expectedDir, "_not_exist")))
 }
 
+func Test_OptionsDockerEnvFile(t *testing.T) {
+	var expectedDir = t.TempDir()
+	var testOption = Options.Docker.EnvFile().BuildStringOption()
+	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	testLedger.WorkDir = expectedDir
+	assert.Equal(t, filepath.Join(expectedDir, ".env"), testOption.DefaultGetter(testLedger))
+}
+
+func Test_OptionsDockerEnvVar(t *testing.T) {
+	var testOption = Options.Docker.EnvVar().BuildListOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, testOption.Validator("invalid"))
+	assert.True(t, testOption.Validator("CLASSIC_KEY="))
+	assert.True(t, testOption.Validator("CLASSIC_KEY=$CLASSIC_VALUE"))
+	assert.False(t, testOption.Validator(".hidden_key=..."))
+	assert.False(t, testOption.Validator("kebab-key=..."))
+	assert.True(t, testOption.Validator("_escaped_value_=value\\=escaped"))
+}
+
 func Test_OptionsDockerFilePath(t *testing.T) {
 	var testDir = t.TempDir()
 	var expectedFile = filepath.Join(testDir, "Dockerfile")

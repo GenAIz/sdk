@@ -7,6 +7,7 @@ import (
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
@@ -30,6 +31,8 @@ type StartExecutor struct {
 func (se *StartExecutor) Display() {
 	var options = []*config.Option{
 		&se.optionRunImage.Option,
+		&se.optionEnvFile.Option,
+		&se.optionEnvVars.Option,
 		&se.optionContainerName.Option,
 		&se.optionContainerPrefix.Option,
 		&se.optionContainerReplace.Option,
@@ -44,69 +47,86 @@ func (se *StartExecutor) Display() {
 }
 
 func (se *StartExecutor) Pretend() {
-	var replace = se.Ledger.GetBool(se.optionContainerReplace)
-	var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
-	var buildParams = makeBuildParams(&se.BaseExecutor)
-	var params = se.makeStartParams(replace)
-	var plan = task.NewPlan("Start", se.Ledger.Logger)
-	var workers []task.Worker
+	var envMap map[string]string
+	var err error
 
-	if se.rebuildImage {
-		workers = append(workers, task.NewPretender(buildParams, se.buildTaskFactory()))
+	if envMap, err = se.makeEnvMap(se.Ledger); err == nil {
+		var replace = se.Ledger.GetBool(se.optionContainerReplace)
+		var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
+		var buildParams = makeBuildParams(&se.BaseExecutor)
+		var params = se.makeStartParams(replace, envMap)
+		var plan = task.NewPlan("Start", se.Ledger.Logger)
+		var workers []task.Worker
+
+		if se.rebuildImage {
+			workers = append(workers, task.NewPretender(buildParams, se.buildTaskFactory()))
+		}
+
+		if replace {
+			workers = append(workers, task.NewPretender(params, se.disposeTaskFactory()))
+		}
+
+		workers = append(workers,
+			task.NewPretender(params, se.containerTaskFactory()),
+			task.NewPretender(params, se.startTaskFactory()))
+
+		if !preserve {
+			var disposeParams = se.makeStartParams(false, envMap)
+
+			workers = append(workers, task.NewPretender(disposeParams, se.stopTaskFactory()))
+			workers = append(workers, task.NewPretender(disposeParams, se.disposeTaskFactory()))
+		}
+
+		plan.Sequence(workers...)
+		return
 	}
 
-	if replace {
-		workers = append(workers, task.NewPretender(params, se.disposeTaskFactory()))
-	}
-
-	workers = append(workers,
-		task.NewPretender(params, se.containerTaskFactory()),
-		task.NewPretender(params, se.startTaskFactory()))
-
-	if !preserve {
-		var disposeParams = se.makeStartParams(false)
-
-		workers = append(workers, task.NewPretender(disposeParams, se.stopTaskFactory()))
-		workers = append(workers, task.NewPretender(disposeParams, se.disposeTaskFactory()))
-	}
-
-	plan.Sequence(workers...)
+	lang.HandleExit(err)
 }
 
 func (se *StartExecutor) Proceed() {
-	var replace = se.Ledger.GetBool(se.optionContainerReplace)
-	var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
-	var buildParams = makeBuildParams(&se.BaseExecutor)
-	var params = se.makeStartParams(replace)
-	var plan = task.NewPlan("Start", se.Ledger.Logger)
-	var workers []task.Worker
+	var envMap map[string]string
+	var err error
 
-	if se.rebuildImage {
-		workers = append(workers, task.NewWorker(buildParams, se.buildTaskFactory()))
+	if envMap, err = se.makeEnvMap(se.Ledger); err == nil {
+		var replace = se.Ledger.GetBool(se.optionContainerReplace)
+		var params = se.makeStartParams(replace, envMap)
+		var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
+		var buildParams = makeBuildParams(&se.BaseExecutor)
+		var plan = task.NewPlan("Start", se.Ledger.Logger)
+		var workers []task.Worker
+
+		if se.rebuildImage {
+			workers = append(workers, task.NewWorker(buildParams, se.buildTaskFactory()))
+		}
+
+		if replace {
+			workers = append(workers, task.NewWorker(params, se.disposeTaskFactory()))
+		}
+
+		workers = append(workers,
+			task.NewWorker(params, se.containerTaskFactory()),
+			task.NewWorker(params, se.startTaskFactory()))
+
+		if !preserve {
+			var disposeParams = se.makeStartParams(false, envMap)
+
+			workers = append(workers, task.NewWorker(disposeParams, se.stopTaskFactory()))
+			workers = append(workers, task.NewWorker(disposeParams, se.disposeTaskFactory()))
+		}
+
+		plan.PrintReportsOnly = true
+		plan.Sequence(workers...)
+		return
 	}
 
-	if replace {
-		workers = append(workers, task.NewWorker(params, se.disposeTaskFactory()))
-	}
-
-	workers = append(workers,
-		task.NewWorker(params, se.containerTaskFactory()),
-		task.NewWorker(params, se.startTaskFactory()))
-
-	if !preserve {
-		var disposeParams = se.makeStartParams(false)
-
-		workers = append(workers, task.NewWorker(disposeParams, se.stopTaskFactory()))
-		workers = append(workers, task.NewWorker(disposeParams, se.disposeTaskFactory()))
-	}
-
-	plan.PrintReportsOnly = true
-	plan.Sequence(workers...)
+	lang.HandleExit(err)
 }
 
-func (se *StartExecutor) makeStartParams(force bool) *docker.ContainerParams {
+func (se *StartExecutor) makeStartParams(force bool, envMap map[string]string) *docker.ContainerParams {
 	var result = makeContainerParams(se.BaseExecutor, se.StartOptions.StopOptions, se.StartOptions.RunOptions)
 
+	result.EnvVars = envMap
 	result.MountInput = se.Ledger.GetString(se.optionMountInput)
 	result.MountOutput = se.Ledger.GetString(se.optionMountOutput)
 	result.MountLog = se.Ledger.GetString(se.optionMountLog)
@@ -133,6 +153,8 @@ func (so *StartOptions) allDefiners() []config.Definer {
 		so.optionMountOutput,
 		so.optionMountVar,
 		so.optionRunImage,
+		so.optionEnvFile,
+		so.optionEnvVars,
 	}
 }
 
@@ -144,6 +166,7 @@ func NewStart(ledger *config.Ledger, cli *Cli) *cobra.Command {
 		Long:    "Starts the Smart Function, building it first if necessary, and creating a container matching the name and version of its context if it doesn't exist",
 		Example: "genaiz sf start --image=my-project/my-func:latest --name=my-container-my-func --replace",
 		PreRun: func(cmd *cobra.Command, args []string) {
+			ledger.FromWorkDir(options.optionEnvFile, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountInput, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountLog, cmd.Flags())
 			ledger.FromWorkDir(options.optionMountOutput, cmd.Flags())
@@ -181,6 +204,14 @@ func NewStartExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 func NewStartOptions(sfCli *Cli) *StartOptions {
 	return &StartOptions{
 		RunOptions: &RunOptions{
+			EnvOptions: EnvOptions{
+				optionEnvFile: cli.Options.Docker.EnvFile().
+					WithKeys(&schema.Genaiz.Function.Start.EnvFile).
+					BuildStringOption(),
+				optionEnvVars: cli.Options.Docker.EnvVar().
+					WithKeys(&schema.Genaiz.Function.Start.EnvVars).
+					BuildListOption(),
+			},
 			optionMountInput: cli.Options.Functions.MountInput().
 				WithKeys(&schema.Genaiz.Function.Start.MountInput).
 				BuildStringOption(),

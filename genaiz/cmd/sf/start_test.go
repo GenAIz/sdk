@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
@@ -34,38 +35,41 @@ func TestStartExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = newStartTestOptions()
 	var testExecutor = &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		StartOptions: testOptions,
+		StartOptions: newStartTestOptions(),
 	}
-	var expectedDockerContext = "TestDockerContext"
-	var expectedDockerFile = "TestDockerfile"
-	var expectedDockerTag = "TestDockerTag"
-	var expectedDockerVersion = "TestDockerVersion"
-	var expectedMountInput = "TestMountInput"
-	var expectedMountOutput = "TestMountOutput"
-	var expectedMountLog = "TestMountLog"
-	var expectedMountVar = "TestMountVar"
-	var expectedRunImage = "TestRunImage"
-	var expectedContainerPrefix = "TestContainerPrefix"
-	var expectedContainerName = "TestContainerName"
+	var expectedDockerContext = "StartDockerContext"
+	var expectedDockerFile = "StartDockerfile"
+	var expectedDockerTag = "StartDockerTag"
+	var expectedDockerVersion = "StartDockerVersion"
+	var expectedEnvFile = "StartEnvFile"
+	var expectedEnvVars = "StartEnvVars"
+	var expectedMountInput = "StartMountInput"
+	var expectedMountOutput = "StartMountOutput"
+	var expectedMountLog = "StartMountLog"
+	var expectedMountVar = "StartMountVar"
+	var expectedRunImage = "StartRunImage"
+	var expectedContainerPrefix = "StartContainerPrefix"
+	var expectedContainerName = "StartContainerName"
 
 	testViper.Set(testCli.optionDockerContext.Key, expectedDockerContext)
 	testViper.Set(testCli.optionDockerFile.Key, expectedDockerFile)
 	testViper.Set(testCli.optionDockerTag.Key, expectedDockerTag)
 	testViper.Set(testCli.optionDockerVersion.Key, expectedDockerVersion)
-	testViper.Set(testOptions.optionMountInput.Key, expectedMountInput)
-	testViper.Set(testOptions.optionMountOutput.Key, expectedMountOutput)
-	testViper.Set(testOptions.optionMountLog.Key, expectedMountLog)
-	testViper.Set(testOptions.optionMountVar.Key, expectedMountVar)
-	testViper.Set(testOptions.optionRunImage.Key, expectedRunImage)
-	testViper.Set(testOptions.optionContainerReplace.Key, true)
-	testViper.Set(testOptions.optionContainerName.Key, expectedContainerName)
-	testViper.Set(testOptions.optionContainerPrefix.Key, expectedContainerPrefix)
+	testViper.Set(testExecutor.optionMountInput.Key, expectedMountInput)
+	testViper.Set(testExecutor.optionMountOutput.Key, expectedMountOutput)
+	testViper.Set(testExecutor.optionMountLog.Key, expectedMountLog)
+	testViper.Set(testExecutor.optionMountVar.Key, expectedMountVar)
+	testViper.Set(testExecutor.optionRunImage.Key, expectedRunImage)
+	testViper.Set(testExecutor.optionContainerReplace.Key, true)
+	testViper.Set(testExecutor.optionContainerName.Key, expectedContainerName)
+	testViper.Set(testExecutor.optionContainerPrefix.Key, expectedContainerPrefix)
+	testViper.Set(testExecutor.optionEnvFile.Key, expectedEnvFile)
+	testViper.Set(testExecutor.optionEnvVars.Key, expectedEnvVars)
 	testExecutor.Display()
 
 	if actual := testOutput.String(); actual != "" {
@@ -73,6 +77,8 @@ func TestStartExecutor_Display(t *testing.T) {
 		assert.Contains(t, actual, expectedDockerFile)
 		assert.Contains(t, actual, expectedDockerTag)
 		assert.Contains(t, actual, expectedDockerVersion)
+		assert.Contains(t, actual, expectedEnvFile)
+		assert.Contains(t, actual, expectedEnvVars)
 		assert.Contains(t, actual, expectedMountInput)
 		assert.Contains(t, actual, expectedMountOutput)
 		assert.Contains(t, actual, expectedMountLog)
@@ -80,13 +86,56 @@ func TestStartExecutor_Display(t *testing.T) {
 		assert.Contains(t, actual, expectedRunImage)
 		assert.Contains(t, actual, expectedContainerPrefix)
 		assert.Contains(t, actual, expectedContainerName)
-		assert.Regexp(t, regexp.MustCompile(testOptions.optionContainerReplace.Param+`:[\s\t]*true`), actual)
+		assert.Regexp(t, regexp.MustCompile(testExecutor.optionContainerReplace.Param+`:[\s\t]*true`), actual)
 	} else {
 		assert.Fail(t, "output is empty")
 	}
 }
 
-func TestStartExecutor_PretendNoDispose(t *testing.T) {
+func TestStartExecutor_Pretend_EnvMapError(t *testing.T) {
+	var calledBuild bool
+	var calledCreate, calledDispose, calledStart int
+	var testFile = filepath.Join(t.TempDir(), ".env-start")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &StartExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		StartOptions: newStartTestOptions(),
+
+		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
+		containerTaskFactory: newContainerTaskPretendStub(&calledCreate),
+		disposeTaskFactory:   newContainerTaskPretendStub(&calledDispose),
+		startTaskFactory:     newContainerTaskPretendStub(&calledStart),
+	}
+	var fd *os.File
+	var err error
+
+	testViper.Set(testExecutor.optionEnvFile.Key, testFile)
+
+	if fd, err = os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+
+		if _, err = fd.Write([]byte("syntax_error")); err == nil {
+			var patch = mock.Patches{T: t}.OsExit(func(int) {})
+
+			defer patch.Unpatch()
+			testExecutor.Pretend()
+			assert.False(t, calledBuild)
+			assert.EqualValues(t, 0, calledCreate)
+			assert.EqualValues(t, 0, calledDispose)
+			assert.EqualValues(t, 0, calledStart)
+			assert.True(t, patch.Called)
+			assert.EqualValues(t, 1, patch.CalledWith)
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestStartExecutor_Pretend_NoDispose(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart int
 	var testDir = t.TempDir()
@@ -129,7 +178,7 @@ func TestStartExecutor_PretendNoDispose(t *testing.T) {
 	}
 }
 
-func TestStartExecutor_PretendNoPreserve(t *testing.T) {
+func TestStartExecutor_Pretend_NoPreserve(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
 	var testDir = t.TempDir()
@@ -175,7 +224,7 @@ func TestStartExecutor_PretendNoPreserve(t *testing.T) {
 	}
 }
 
-func TestStartExecutor_PretendReplace(t *testing.T) {
+func TestStartExecutor_Pretend_Replace(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
 	var testDir = t.TempDir()
@@ -220,7 +269,50 @@ func TestStartExecutor_PretendReplace(t *testing.T) {
 	}
 }
 
-func TestStartExecutor_ProceedNoDispose(t *testing.T) {
+func TestStartExecutor_Proceed_EnvMapError(t *testing.T) {
+	var calledBuild bool
+	var calledCreate, calledDispose, calledStart int
+	var testFile = filepath.Join(t.TempDir(), ".env-start")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &StartExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		StartOptions: newStartTestOptions(),
+
+		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
+		containerTaskFactory: newContainerTaskPretendStub(&calledCreate),
+		disposeTaskFactory:   newContainerTaskPretendStub(&calledDispose),
+		startTaskFactory:     newContainerTaskPretendStub(&calledStart),
+	}
+	var fd *os.File
+	var err error
+
+	testViper.Set(testExecutor.optionEnvFile.Key, testFile)
+
+	if fd, err = os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+
+		if _, err = fd.Write([]byte("syntax_error")); err == nil {
+			var patch = mock.Patches{T: t}.OsExit(func(int) {})
+
+			defer patch.Unpatch()
+			testExecutor.Proceed()
+			assert.False(t, calledBuild)
+			assert.EqualValues(t, 0, calledCreate)
+			assert.EqualValues(t, 0, calledDispose)
+			assert.EqualValues(t, 0, calledStart)
+			assert.True(t, patch.Called)
+			assert.EqualValues(t, 1, patch.CalledWith)
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestStartExecutor_Proceed_NoDispose(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
 	var testDir = t.TempDir()
@@ -265,7 +357,7 @@ func TestStartExecutor_ProceedNoDispose(t *testing.T) {
 	}
 }
 
-func TestStartExecutor_ProceedNoPreserve(t *testing.T) {
+func TestStartExecutor_Proceed_NoPreserve(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
 	var testDir = t.TempDir()
@@ -311,7 +403,7 @@ func TestStartExecutor_ProceedNoPreserve(t *testing.T) {
 	}
 }
 
-func TestStartExecutor_ProceedReplace(t *testing.T) {
+func TestStartExecutor_Proceed_Replace(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart, calledStop int
 	var testDir = t.TempDir()
@@ -360,6 +452,8 @@ func TestStartOptions_allDefiners(t *testing.T) {
 	var testOptions = newStartTestOptions()
 	var definers = testOptions.allDefiners()
 
+	assert.Contains(t, definers, testOptions.optionEnvFile)
+	assert.Contains(t, definers, testOptions.optionEnvVars)
 	assert.Contains(t, definers, testOptions.optionMountInput)
 	assert.Contains(t, definers, testOptions.optionMountOutput)
 	assert.Contains(t, definers, testOptions.optionMountLog)
@@ -375,6 +469,8 @@ func TestNewStartOptions(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testOptions = NewStartOptions(testCli)
 
+	assert.NotEmpty(t, testOptions.optionEnvFile)
+	assert.NotEmpty(t, testOptions.optionEnvVars)
 	assert.NotEmpty(t, testOptions.optionMountInput)
 	assert.NotEmpty(t, testOptions.optionMountOutput)
 	assert.NotEmpty(t, testOptions.optionMountLog)
@@ -459,20 +555,28 @@ func newContainerTaskCompleteStub(counter *int) func() *task.Task[docker.Contain
 func newStartTestOptions() *StartOptions {
 	return &StartOptions{
 		RunOptions: &RunOptions{
+			EnvOptions: EnvOptions{
+				optionEnvFile: cli.Options.Docker.EnvFile().
+					WithKeys(&schema.Genaiz.Function.Start.EnvFile).
+					BuildStringOption(),
+				optionEnvVars: cli.Options.Docker.EnvVar().
+					WithKeys(&schema.Genaiz.Function.Start.EnvVars).
+					BuildListOption(),
+			},
 			optionMountInput: cli.Options.Functions.MountInput().
-				WithKeys(&schema.Genaiz.Function.Test.MountInput).
+				WithKeys(&schema.Genaiz.Function.Start.MountInput).
 				BuildStringOption(),
 			optionMountOutput: cli.Options.Functions.MountOutput().
-				WithKeys(&schema.Genaiz.Function.Test.MountOutput).
+				WithKeys(&schema.Genaiz.Function.Start.MountOutput).
 				BuildStringOption(),
 			optionMountLog: cli.Options.Functions.MountLog().
-				WithKeys(&schema.Genaiz.Function.Test.MountLog).
+				WithKeys(&schema.Genaiz.Function.Start.MountLog).
 				BuildStringOption(),
 			optionMountVar: cli.Options.Functions.MountVar().
-				WithKeys(&schema.Genaiz.Function.Test.MountVar).
+				WithKeys(&schema.Genaiz.Function.Start.MountVar).
 				BuildStringOption(),
 			optionRunImage: cli.Options.Docker.Image().
-				WithKeys(&schema.Genaiz.Function.Test.Image).
+				WithKeys(&schema.Genaiz.Function.Start.Image).
 				BuildStringOption(),
 		},
 		StopOptions: &StopOptions{

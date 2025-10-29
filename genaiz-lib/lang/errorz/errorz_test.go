@@ -75,3 +75,12 @@ func TestIsPathError(t *testing.T) {
 	assert.True(t, IsPathError(fakePathError))
 	assert.True(t, IsPathError(LocalPathError))
 }
+
+func TestIsPathError_PermissionDenied(t *testing.T) {
+	var permissionError = &os.PathError{
+		Op:  "open",
+		Err: syscall.EACCES,
+	}
+
+	assert.False(t, IsPathError(permissionError))
+}
