@@ -157,6 +157,9 @@
             },
             "^version$": {
               "type": "string"
+            },
+            "^extras$": {
+              "type": "object"
             }
           }
         }

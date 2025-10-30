@@ -264,6 +264,14 @@ func Test_OptionsFunctionsArches(t *testing.T) {
 	assert.False(t, testOption.Validator("invalid"))
 }
 
+func Test_OptionsFunctionsExtras(t *testing.T) {
+	var testOption = Options.Functions.Extras().BuildOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	assert.Empty(t, testOption.Param)
+	assert.Empty(t, testOption.Usage)
+}
+
 func Test_OptionsFunctionsHandle(t *testing.T) {
 	var testOption = Options.Functions.Handle().BuildStringOption()
 

@@ -184,6 +184,10 @@ var (
 					WithUsage("a list of architectures supported by the function. Supported: x86, x86_64, arm and arm64").
 					WithValidator(config.AllFromEnumerated(layout.ArchTypes))
 			},
+			Extras: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.Extras)
+			},
 			Handle: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("handle").
@@ -421,6 +425,7 @@ type dockerOptions struct {
 
 type functionOptions struct {
 	Arches      func() OptionBuilder
+	Extras      func() OptionBuilder
 	Handle      func() OptionBuilder
 	MountInput  func() OptionBuilder
 	MountLog    func() OptionBuilder
@@ -460,6 +465,8 @@ type solutionOptions struct {
 }
 
 type OptionBuilder interface {
+	BuildOption() *config.Option
+
 	BuildBoolOption() *config.BoolOption
 
 	BuildListOption() *config.ListOption
@@ -500,7 +507,7 @@ type optionBuilder struct {
 	validator     config.Validates
 }
 
-func (ob *optionBuilder) buildOption() *config.Option {
+func (ob *optionBuilder) BuildOption() *config.Option {
 	var optionValidator config.Validates
 	var optionKey, optionEnv string
 
@@ -532,19 +539,19 @@ func (ob *optionBuilder) buildOption() *config.Option {
 
 func (ob *optionBuilder) BuildBoolOption() *config.BoolOption {
 	return &config.BoolOption{
-		Option: *ob.buildOption(),
+		Option: *ob.BuildOption(),
 	}
 }
 
 func (ob *optionBuilder) BuildListOption() *config.ListOption {
 	return &config.ListOption{
-		Option: *ob.buildOption(),
+		Option: *ob.BuildOption(),
 	}
 }
 
 func (ob *optionBuilder) BuildStringOption() *config.StringOption {
 	return &config.StringOption{
-		Option: *ob.buildOption(),
+		Option: *ob.BuildOption(),
 	}
 }
 
