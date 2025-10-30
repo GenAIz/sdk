@@ -24,6 +24,7 @@ type SolutionPublishTaskFactory func() *task.Task[broker.SolutionPublishParams]
 
 type FunctionOptions struct {
 	optionArches      *config.ListOption
+	optionExtras      *config.Option
 	optionDescription *config.StringOption
 	optionHandle      *config.StringOption
 	optionName        *config.StringOption
@@ -233,6 +234,7 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
 		Arches:      ledger.GetList(options.optionArches),
+		Extras:      pe.makeProvisionExtras(ledger, options.optionExtras),
 		Description: ledger.GetString(options.optionDescription),
 		Handle:      ledger.GetString(options.optionHandle),
 		Name:        ledger.GetString(options.optionName),
@@ -240,6 +242,16 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 		Type:        ledger.GetString(options.optionType),
 		Version:     ledger.GetString(options.optionVersion),
 	}
+}
+
+func (pe *PublishExecutor) makeProvisionExtras(ledger *config.Ledger, option *config.Option) map[string]any {
+	var raw = ledger.Get(option)
+
+	if result, ok := raw.(map[string]any); ok {
+		return result
+	}
+
+	return make(map[string]any)
 }
 
 func (pe *PublishExecutor) makeFunctionPublishParams(provisionParams *broker.ProvisionParams) *broker.PublishParams {
@@ -375,6 +387,8 @@ func NewFunctionOptions(solution *broker.Solution) *FunctionOptions {
 			WithDefaultGetter(func(ledger *config.Ledger) any {
 				return ledger.GetString(nameOption)
 			}).BuildStringOption(),
+		optionExtras: cli.Options.Functions.Extras().
+			BuildOption(),
 		optionHandle: handleOption,
 		optionName:   nameOption,
 		optionOem: cli.Options.Solutions.FunctionOem().

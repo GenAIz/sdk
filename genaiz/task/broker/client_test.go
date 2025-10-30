@@ -106,6 +106,11 @@ func (s stubResponse) StatusCode() int {
 	return s.statusCode
 }
 
+type testStruct struct {
+	field1 string
+	field2 int
+}
+
 func TestClient_Login(t *testing.T) {
 	var expectedUser = "user"
 	var expectedPassword = "password"
@@ -234,8 +239,11 @@ func TestClient_Logout_NoResponseCustomStatus(t *testing.T) {
 	var testClient = newTestClient(testBridge)
 	var err = testClient.Logout("")
 
-	assert.Error(t, err)
-	assert.Equal(t, err.Error(), expectedStatus)
+	if err == nil {
+		assert.Fail(t, "no error returned")
+	} else {
+		assert.Equal(t, err.Error(), expectedStatus)
+	}
 }
 
 func TestClient_Logout_NoResponseStatus(t *testing.T) {
@@ -245,8 +253,11 @@ func TestClient_Logout_NoResponseStatus(t *testing.T) {
 	var testClient = newTestClient(testBridge)
 	var err = testClient.Logout("")
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), testClient.HostAddr)
+	if err == nil {
+		assert.Fail(t, "no error returned")
+	} else {
+		assert.Contains(t, err.Error(), testClient.HostAddr)
+	}
 }
 
 func TestClient_LogoutUrl(t *testing.T) {
@@ -283,7 +294,7 @@ func TestClient_ProvisionFunction(t *testing.T) {
 		Type:        "type",
 		Arches:      []string{"arch1", "arch2"},
 	}
-	var actual, err = testClient.ProvisionFunction(testFunction)
+	var actual, err = testClient.ProvisionFunction(testFunction, nil)
 	var actualModel *functionModel
 
 	assert.NoError(t, err)
@@ -303,7 +314,7 @@ func TestClient_ProvisionFunction(t *testing.T) {
 func TestClient_ProvisionFunction_InvalidUrl(t *testing.T) {
 	var testClient = &client{AuthToken: "token"}
 	var testFunction = &Function{}
-	var _, err = testClient.ProvisionFunction(testFunction)
+	var _, err = testClient.ProvisionFunction(testFunction, nil)
 
 	assert.ErrorIs(t, err, errorInvalidHost)
 }
@@ -311,7 +322,7 @@ func TestClient_ProvisionFunction_InvalidUrl(t *testing.T) {
 func TestClient_ProvisionFunction_NoAuth(t *testing.T) {
 	var testClient = &client{}
 	var testFunction = &Function{}
-	var _, err = testClient.ProvisionFunction(testFunction)
+	var _, err = testClient.ProvisionFunction(testFunction, nil)
 
 	assert.ErrorIs(t, err, errorNoAuth)
 }
@@ -713,6 +724,35 @@ func TestNewClientFactory(t *testing.T) {
 
 	assert.Equal(t, defaultTimeoutSeconds, testClient.GetTimeout())
 	assert.Equal(t, expectedAddr, testClient.GetHostAddr())
+}
+
+func Test_jsonExpand(t *testing.T) {
+	var testFunction = &Function{Name: "the_right_name"}
+	var testExtras = map[string]any{
+		"Name":            "not_the_right_name",
+		"supplement_int":  89,
+		"supplement_list": []string{"item1", "item2"},
+		"supplement_obj":  testStruct{field1: "field1", field2: 37},
+		"supplement_ref":  &testStruct{field1: "field2", field2: 42},
+	}
+	var tBytes []byte
+	var err error
+
+	if tBytes, err = json.Marshal(testFunction); err == nil {
+		var actual map[string]any
+
+		if actual, err = jsonExpand(tBytes, testExtras); err == nil {
+			assert.Equal(t, testFunction.Name, actual["Name"])
+			assert.Equal(t, testExtras["supplement_int"], actual["supplement_int"])
+			assert.Equal(t, testExtras["supplement_list"], actual["supplement_list"])
+			assert.Equal(t, testExtras["supplement_obj"], actual["supplement_obj"])
+			assert.Equal(t, testExtras["supplement_ref"], actual["supplement_ref"])
+		}
+	}
+
+	assert.NoError(t, err)
+	_, err = jsonExpand([]byte("notValidJson"), nil)
+	assert.Error(t, err)
 }
 
 func Test_makeHostUrl(t *testing.T) {

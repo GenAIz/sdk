@@ -21,6 +21,7 @@ type ProvisionParams struct {
 	Broker
 	Arches      []string
 	Description string
+	Extras      map[string]any
 	Handle      string
 	Name        string
 	Oem         string
@@ -28,11 +29,12 @@ type ProvisionParams struct {
 	Version     string
 }
 
-type PublishParams struct {
-	Broker
-	Handle      string
-	Oem         string
-	SkipUnknown bool
+func (pp ProvisionParams) getExtras() map[string]any {
+	if pp.Extras == nil {
+		pp.Extras = make(map[string]any)
+	}
+
+	return pp.Extras
 }
 
 func (pp ProvisionParams) asFunction() *Function {
@@ -45,6 +47,13 @@ func (pp ProvisionParams) asFunction() *Function {
 		Type:        strings.ToUpper(pp.Type),
 		Version:     pp.Version,
 	}
+}
+
+type PublishParams struct {
+	Broker
+	Handle      string
+	Oem         string
+	SkipUnknown bool
 }
 
 func NewFunctionProvisionTask() *task.Task[ProvisionParams] {
@@ -103,7 +112,7 @@ func handleFunctionProvisionComplete(params *ProvisionParams, state *task.State)
 		provisioned.ImgDigest = current.Id
 		state.Logger.Debugf("Provisioning image digest [%s]", provisioned.ImgDigest)
 
-		if identity, err = brokerClient.ProvisionFunction(provisioned); err == nil {
+		if identity, err = brokerClient.ProvisionFunction(provisioned, params.getExtras()); err == nil {
 			if identity.Hash != "" && identity.Hash != current.Hash {
 				state.Logger.Debugf("Overwriting function [%s/%s]?", params.Oem, params.Handle)
 				identity.Hash = ""

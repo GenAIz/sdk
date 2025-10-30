@@ -58,6 +58,7 @@ type Document struct {
 		Publish struct {
 			Arches      Keys
 			Description Keys
+			Extras      Keys
 			Handle      Keys
 			Name        Keys
 			NoUpdate    Keys
@@ -178,6 +179,7 @@ func init() {
 	Genaiz.Function.Init.Type = newKeys("Sf.Init.Type", "SF_INIT_TYPE")
 	Genaiz.Function.Init.Version = newKeys("Sf.Init.Version", "SF_INIT_VERSION")
 	Genaiz.Function.Publish.Arches = newKeys("Sf.Publish.Arches", "SF_PUBLISH_ARCHES")
+	Genaiz.Function.Publish.Extras = newKeys("Sf.Publish.Extras", "SF_PUBLISH_EXTRAS")
 	Genaiz.Function.Publish.Description = newKeys("Sf.Publish.Description", "SF_PUBLISH_DESCRIPTION")
 	Genaiz.Function.Publish.Handle = newKeys("Sf.Publish.Handle", "SF_PUBLISH_HANDLE")
 	Genaiz.Function.Publish.Name = newKeys("Sf.Publish.Name", "SF_PUBLISH_NAME")

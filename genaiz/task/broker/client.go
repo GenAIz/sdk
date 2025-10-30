@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -77,7 +79,7 @@ type Client interface {
 
 	LogoutUrl() string
 
-	ProvisionFunction(*Function) (*shared.Identity, error)
+	ProvisionFunction(*Function, map[string]any) (*shared.Identity, error)
 
 	ProvisionFunctionUrl() string
 
@@ -223,32 +225,37 @@ func (c *client) LogoutUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "delete")
 }
 
-func (c *client) ProvisionFunction(function *Function) (*shared.Identity, error) {
+func (c *client) ProvisionFunction(function *Function, extras map[string]any) (*shared.Identity, error) {
 	if c.AuthToken != "" {
 		var url string
 		var err error
 
 		if url, err = c.makeUrl(apiVersion1, pathFunction, "provision"); err == nil {
-			var modelBytes, _ = json.Marshal(function.toModel())
-			var rb = c.requestBridge()
-			var resp responseBridge
+			var functionBytes, _ = json.Marshal(function.toModel())
+			var expandedMap map[string]any
 
-			defer c.closeSilently(rb)
-			resp, err = rb.Json().
-				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
-				Resulting(&clientPayload[provisionData]{}).
-				Params(map[string]string{
-					"model": string(modelBytes),
-				}).
-				Post(url)
+			if expandedMap, err = jsonExpand(functionBytes, extras); err == nil {
+				var modelBytes, _ = json.Marshal(expandedMap)
+				var rb = c.requestBridge()
+				var resp responseBridge
 
-			return resultOrError(resp, func(body any) *shared.Identity {
-				var payload = resp.Result().(*clientPayload[provisionData])
-				var result = payload.Data.Sf.asIdentity()
+				defer c.closeSilently(rb)
+				resp, err = rb.Json().
+					Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+					Resulting(&clientPayload[provisionData]{}).
+					Params(map[string]string{
+						"model": string(modelBytes),
+					}).
+					Post(url)
 
-				result.Auth = payload.Data.Auth
-				return result
-			})
+				return resultOrError(resp, func(body any) *shared.Identity {
+					var payload = resp.Result().(*clientPayload[provisionData])
+					var result = payload.Data.Sf.asIdentity()
+
+					result.Auth = payload.Data.Auth
+					return result
+				})
+			}
 		}
 
 		return nil, err
@@ -475,6 +482,27 @@ func NewClientFactory() *ClientFactory {
 		New:    NewClient,
 		Get:    GetClient,
 	}
+}
+
+func jsonExpand(bytes []byte, extras map[string]any) (map[string]any, error) {
+	var expandedMap = map[string]any{}
+	var err error
+
+	if err = json.Unmarshal(bytes, &expandedMap); err == nil {
+		var keys = slices.Collect(maps.Keys(expandedMap))
+
+		for k, v := range extras {
+			if !slices.ContainsFunc(keys, func(s string) bool {
+				return strings.EqualFold(s, k)
+			}) {
+				expandedMap[k] = v
+			}
+		}
+
+		return expandedMap, err
+	}
+
+	return nil, err
 }
 
 func makeHostUrl(host string, apiVersion version, path path, rpc ...string) string {

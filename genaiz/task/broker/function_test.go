@@ -19,11 +19,14 @@ type stubFunctionClient struct {
 	client
 	provisionError    error
 	provisionIdentity *shared.Identity
+	provisionExtras   map[string]any
 	publishError      error
 	publishFunction   *Function
 }
 
-func (sfc stubFunctionClient) ProvisionFunction(function *Function) (*shared.Identity, error) {
+func (sfc *stubFunctionClient) ProvisionFunction(function *Function, extras map[string]any) (*shared.Identity, error) {
+	sfc.provisionExtras = extras
+
 	if sfc.provisionError != nil {
 		return nil, sfc.provisionError
 	}
@@ -35,7 +38,7 @@ func (sfc stubFunctionClient) ProvisionFunction(function *Function) (*shared.Ide
 	return function.asIdentity(), nil
 }
 
-func (sfc stubFunctionClient) PublishFunction(*shared.Identity) (*Function, error) {
+func (sfc *stubFunctionClient) PublishFunction(*shared.Identity) (*Function, error) {
 	if sfc.publishError != nil {
 		return nil, sfc.publishError
 	}

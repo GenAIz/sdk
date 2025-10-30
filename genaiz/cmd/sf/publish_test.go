@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
@@ -75,13 +76,12 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    testCli,
 		},
-		PublishOptions: testOptions,
+		PublishOptions: NewPublishOptions(testCli),
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -93,15 +93,19 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
+		var expectedExtraKey = "extra"
+		var expectedExtraValue = 37
 
+		defer filez.CloseSilently(tmpFile)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testViper.Set(testOptions.optionNoUpdate.Key, true)
-		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionNoUpdate.Key, true)
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
+		testViper.Set(testExecutor.optionExtras.Key, map[string]any{expectedExtraKey: expectedExtraValue})
 		testExecutor.Pretend()
 		assert.False(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -123,13 +127,12 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    testCli,
 		},
-		PublishOptions: testOptions,
+		PublishOptions: NewPublishOptions(testCli),
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -142,11 +145,12 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		defer filez.CloseSilently(tmpFile)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
@@ -170,13 +174,12 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    testCli,
 		},
-		PublishOptions: testOptions,
+		PublishOptions: NewPublishOptions(testCli),
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -189,12 +192,13 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		defer filez.CloseSilently(tmpFile)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testViper.Set(testOptions.optionRebuild.Key, true)
-		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionRebuild.Key, true)
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
@@ -218,13 +222,12 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    testCli,
 		},
-		PublishOptions: testOptions,
+		PublishOptions: NewPublishOptions(testCli),
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -237,13 +240,14 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		defer filez.CloseSilently(tmpFile)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testViper.Set(testOptions.optionRebuild.Key, true)
-		testViper.Set(testOptions.optionNoUpdate.Key, true)
-		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionRebuild.Key, true)
+		testViper.Set(testExecutor.optionNoUpdate.Key, true)
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Pretend()
@@ -268,13 +272,12 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    testCli,
 		},
-		PublishOptions: testOptions,
+		PublishOptions: NewPublishOptions(testCli),
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -290,13 +293,14 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		defer filez.CloseSilently(tmpFile)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerVersion.Key, expectedVersion)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testViper.Set(testOptions.optionNoUpdate.Key, true)
-		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionNoUpdate.Key, true)
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
@@ -323,13 +327,12 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    testCli,
 		},
-		PublishOptions: testOptions,
+		PublishOptions: NewPublishOptions(testCli),
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -350,12 +353,13 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 		if tmpFile, err = os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 			var fileName = tmpFile.Name()
 
+			defer filez.CloseSilently(tmpFile)
 			t.Chdir(testDir)
 			testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 			testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 			testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-			testViper.Set(testOptions.optionArches.Key, expectedArches)
-			testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
+			testViper.Set(testExecutor.optionArches.Key, expectedArches)
+			testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 			testViper.Set(testExecutor.optionOem.Key, "oem")
 			testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 			testLedger.Logger = &logrus.Logger{}
@@ -381,13 +385,12 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    testCli,
 		},
-		PublishOptions: testOptions,
+		PublishOptions: NewPublishOptions(testCli),
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -402,12 +405,13 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		defer filez.CloseSilently(tmpFile)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testViper.Set(testOptions.optionRebuild.Key, true)
-		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionRebuild.Key, true)
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
@@ -433,13 +437,12 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewPublishOptions(testCli)
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    testCli,
 		},
-		PublishOptions: testOptions,
+		PublishOptions: NewPublishOptions(testCli),
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -455,14 +458,15 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
 		var fileName = tmpFile.Name()
 
+		defer filez.CloseSilently(tmpFile)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testViper.Set(testOptions.optionArches.Key, expectedArches)
-		testViper.Set(testOptions.optionRebuild.Key, true)
-		testViper.Set(testOptions.optionNoUpdate.Key, true)
-		testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
-		testViper.Set(testOptions.optionHandle.Key, "test-genaiz")
+		testViper.Set(testExecutor.optionArches.Key, expectedArches)
+		testViper.Set(testExecutor.optionRebuild.Key, true)
+		testViper.Set(testExecutor.optionNoUpdate.Key, true)
+		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testLedger.Logger = &logrus.Logger{}
@@ -476,6 +480,26 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 	} else {
 		assert.NoError(t, err)
 	}
+}
+
+func TestPublishExecutor_makeProvisionExtras(t *testing.T) {
+	var testCli = NewSfCli(nil, nil, nil)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &PublishExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+			Cli:    testCli,
+		},
+		PublishOptions: NewPublishOptions(testCli),
+	}
+	var expectedExtraKey = "extra"
+	var expectedExtraValue = 37
+	var actual map[string]any
+
+	testViper.Set(testExecutor.optionExtras.Key, map[string]any{expectedExtraKey: expectedExtraValue})
+	actual = testExecutor.makeProvisionExtras()
+	assert.Equal(t, expectedExtraValue, actual[expectedExtraKey])
 }
 
 func TestNewPublish(t *testing.T) {

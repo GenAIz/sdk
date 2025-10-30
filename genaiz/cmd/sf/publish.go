@@ -112,8 +112,19 @@ func (pe *PublishExecutor) Proceed() {
 	plan.Sequence(workers...)
 }
 
+func (pe *PublishExecutor) makeProvisionExtras() map[string]any {
+	var raw = pe.Ledger.Get(pe.optionExtras)
+
+	if result, ok := raw.(map[string]any); ok {
+		return result
+	}
+
+	return make(map[string]any)
+}
+
 func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 	var nameDesc = pe.Ledger.GetString(pe.optionName)
+	var extraMap = pe.makeProvisionExtras()
 
 	return &broker.ProvisionParams{
 		Broker: broker.Broker{
@@ -121,6 +132,7 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
 		Arches:      pe.Ledger.GetList(pe.optionArches),
+		Extras:      extraMap,
 		Description: nameDesc,
 		Handle:      pe.Ledger.GetString(pe.optionHandle),
 		Name:        nameDesc,
@@ -176,6 +188,7 @@ func (pe *PublishExecutor) makePushParams() *docker.PushParams {
 
 type PublishOptions struct {
 	optionArches   *config.ListOption
+	optionExtras   *config.Option
 	optionBroker   *config.StringOption
 	optionHandle   *config.StringOption
 	optionName     *config.StringOption
@@ -255,6 +268,9 @@ func NewPublishOptions(sfCli *Cli) *PublishOptions {
 		optionBroker: cli.Options.Solutions.Broker().
 			WithKeys(&schema.Genaiz.Solution.Publish.Broker).
 			BuildStringOption(),
+		// This is a hidden option, only available to the config file
+		optionExtras: cli.Options.Functions.Extras().
+			BuildOption(),
 		optionHandle: handleOpt,
 		optionName: cli.Options.Functions.Name().
 			WithKeys(&schema.Genaiz.Function.Publish.Name).
