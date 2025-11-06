@@ -1,4 +1,0 @@
-# Function Props
-
-> [!NOTE]
-> TODO

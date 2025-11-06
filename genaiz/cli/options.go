@@ -7,6 +7,7 @@ import (
 
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -271,6 +272,49 @@ var (
 					WithDefaultValue("false")
 			},
 		},
+		PropSpecs: propSpecsOptions{
+			DefaultValue: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("default-value").
+					WithUsage("a default value to use when the property is not provided")
+			},
+			Description: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("description").
+					WithUsage("a description of what the property is").
+					WithValidator(config.Validation.Blob)
+			},
+			EnumAddValue: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("add-enum-value").
+					WithUsage("adds an enum value to the existing set of valid values").
+					WithValidator(config.Validation.PropEnum)
+			},
+			EnumRemoveValue: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("rm-enum-value").
+					WithUsage("removes an enum value from the existing set of valid values")
+				// No-need to validate, unsuccessful removals should be Warnings, regardless of validity
+			},
+			EnumValue: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("enum-value").
+					WithUsage("specifies a value for the set of valid values on enum properties").
+					WithValidator(config.Validation.PropEnum)
+			},
+			Name: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithUsage("the name of the property, as human-readable text")
+			},
+			Type: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("type").
+					WithUsage("the type of the property").
+					WithUsage("only string, int, double, boolean and enum are valid").
+					WithValidator(config.AnyOfEnumerated(broker.PropSpecTypes))
+			},
+		},
 		Solutions: solutionOptions{
 			Broker: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -389,6 +433,7 @@ type cliOptions struct {
 	Docker    dockerOptions
 	Functions functionOptions
 	Modes     modeOptions
+	PropSpecs propSpecsOptions
 	Solutions solutionOptions
 }
 
@@ -441,6 +486,16 @@ type functionOptions struct {
 
 type modeOptions struct {
 	Interactive func() OptionBuilder
+}
+
+type propSpecsOptions struct {
+	DefaultValue    func() OptionBuilder
+	Description     func() OptionBuilder
+	EnumAddValue    func() OptionBuilder
+	EnumRemoveValue func() OptionBuilder
+	EnumValue       func() OptionBuilder
+	Name            func() OptionBuilder
+	Type            func() OptionBuilder
 }
 
 type solutionOptions struct {

@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,40 +23,51 @@ import (
 	"genaiz.com/genaiz/lang/signalz"
 	"genaiz.com/genaiz/lang/streamz"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 )
 
-var (
+const (
+	envFunctionType = "SF_TYPE"
+	envInputPath    = "SF_INPUT_PATH"
+	envLogPath      = "SF_LOG_PATH"
+	envOutputPath   = "SF_OUTPUT_PATH"
 	envProgressFile = "SF_PROGRESS_FILE"
 	envResultFile   = "SF_RESULT_FILE"
 	envStatusFile   = "SF_STATUS_FILE"
-	signalProvider  = signalz.NewSignalChannel
+	envVarPath      = "SF_VAR_PATH"
+)
 
-	FileMap = map[string]string{
+var (
+	signalProvider = signalz.NewSignalChannel
+
+	EnvKeys = []string{envFunctionType, envInputPath, envLogPath, envOutputPath,
+		envProgressFile, envResultFile, envStatusFile, envVarPath}
+	EnvFileMap = map[string]string{
 		envProgressFile: "$SF_VAR_PATH/progress",
 		envResultFile:   "$SF_VAR_PATH/result",
 		envStatusFile:   "$SF_VAR_PATH/status",
 	}
 
 	InputMount = ContainerMountPoint{
-		EnvVar:    "SF_INPUT_PATH",
+		EnvVar:    envInputPath,
 		MountPath: "/mnt/in",
 		ReadOnly:  true,
 	}
 
 	LogMount = ContainerMountPoint{
-		EnvVar:    "SF_LOG_PATH",
+		EnvVar:    envLogPath,
 		MountPath: "/mnt/log",
 		ReadOnly:  false,
 	}
 
 	OutputMount = ContainerMountPoint{
-		EnvVar:    "SF_OUTPUT_PATH",
+		EnvVar:    envOutputPath,
 		MountPath: "/mnt/out",
 		ReadOnly:  false,
 	}
 
 	VarMount = ContainerMountPoint{
-		EnvVar:    "SF_VAR_PATH",
+		EnvVar:    envVarPath,
 		MountPath: "/mnt/var",
 		ReadOnly:  false,
 	}
@@ -99,13 +111,14 @@ type ContainerParams struct {
 	RunParams
 	DockerImage string
 	EnvVars     map[string]string
+	Force       bool
 	MountInput  string
 	MountOutput string
 	MountLog    string
 	MountVar    string
 	Name        string
 	Prefix      string
-	Force       bool
+	PropSpecs   []broker.PropSpec
 }
 
 func (c *ContainerParams) GetEnvironment() map[string]string {
@@ -352,37 +365,41 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 	var err error
 
 	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
-		var createConfig = &container.Config{
-			Env:   makeEnvironmentValues(params.GetEnvironment()),
-			Image: dockerImage,
-			Tty:   params.Interactive,
-		}
-		var resp container.CreateResponse
-		var mounts []mount.Mount
+		var envValues = makeEnvironmentValues(params.GetEnvironment(), params.PropSpecs)
 
-		state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
-
-		if params.Dispose {
-			state.Logger.Debugf("Auto-Remove of container after start is enabled")
-		}
-
-		if mounts = makeContainerMounts(containerBinds); len(mounts) > 0 {
-			hostConfig.Mounts = mounts
-
-			for _, bind := range hostConfig.Mounts {
-				state.Logger.Debugf("Binding %s to %s", bind.Source, bind.Target)
+		if err = validateEnvironmentValues(params.PropSpecs, envValues); err == nil {
+			var createConfig = &container.Config{
+				Env:   envValues,
+				Image: dockerImage,
+				Tty:   params.Interactive,
 			}
-		}
+			var resp container.CreateResponse
+			var mounts []mount.Mount
 
-		if resp, err = dockerClient.ContainerCreate(params.Context, createConfig, hostConfig,
-			nil, nil, containerName); err == nil {
-			for _, w := range resp.Warnings {
-				state.Logger.Warningf("%s", w)
+			state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
+
+			if params.Dispose {
+				state.Logger.Debugf("Auto-Remove of container after start is enabled")
 			}
 
-			state.Output = resp.ID[0:12]
-			state.Logger.Debugf("Created docker container Id [%s]", state.Output)
-			return nil
+			if mounts = makeContainerMounts(containerBinds); len(mounts) > 0 {
+				hostConfig.Mounts = mounts
+
+				for _, bind := range hostConfig.Mounts {
+					state.Logger.Debugf("Binding %s to %s", bind.Source, bind.Target)
+				}
+			}
+
+			if resp, err = dockerClient.ContainerCreate(params.Context, createConfig, hostConfig,
+				nil, nil, containerName); err == nil {
+				for _, w := range resp.Warnings {
+					state.Logger.Warningf("%s", w)
+				}
+
+				state.Output = resp.ID[0:12]
+				state.Logger.Debugf("Created docker container Id [%s]", state.Output)
+				return nil
+			}
 		}
 	}
 
@@ -397,30 +414,32 @@ func handleContainerCreatePretend(params *ContainerParams, state *task.State) er
 
 	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
 		var mountDefs = params.GetContainerMountBinds()
-		var envValues = makeEnvironmentValues(params.GetEnvironment())
+		var envValues = makeEnvironmentValues(params.GetEnvironment(), params.PropSpecs)
 		var mounts []mount.Mount
 
 		state.Logger.Debugf("Pretending to create a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
 
-		if mounts = makeContainerMounts(mountDefs); len(mounts) > 0 {
-			for _, bind := range mounts {
-				var readonly = ""
+		if err = validateEnvironmentValues(params.PropSpecs, envValues); err == nil {
+			if mounts = makeContainerMounts(mountDefs); len(mounts) > 0 {
+				for _, bind := range mounts {
+					var readonly = ""
 
-				if bind.ReadOnly {
-					readonly = "ro=true"
+					if bind.ReadOnly {
+						readonly = "ro=true"
+					}
+
+					mountValues = append(mountValues, fmt.Sprintf("--mount src=%s,dst=%s,type=%s%s",
+						bind.Source, bind.Target, bind.Type, readonly))
 				}
-
-				mountValues = append(mountValues, fmt.Sprintf("--mount src=%s,dst=%s,type=%s%s",
-					bind.Source, bind.Target, bind.Type, readonly))
 			}
-		}
 
-		for i, envVar := range envValues {
-			envValues[i] = "--env " + envVar
-		}
+			for i, envVar := range envValues {
+				envValues[i] = "--env " + envVar
+			}
 
-		fmt.Printf("docker create %s %s --name %s %s", strings.Join(envValues, " "),
-			strings.Join(mountValues, " "), containerName, params.DockerImage)
+			fmt.Printf("docker create %s %s --name %s %s", strings.Join(envValues, " "),
+				strings.Join(mountValues, " "), containerName, params.DockerImage)
+		}
 	}
 
 	return err
@@ -619,8 +638,20 @@ func makeContainerMounts(definitions []ContainerMountBind) []mount.Mount {
 	return result
 }
 
-func makeEnvironmentValues(envMap map[string]string) []string {
+func makeEnvironmentSpecs(propSpecs []broker.PropSpec) []string {
 	var result []string
+
+	result = append(result, EnvKeys...)
+
+	for _, spec := range propSpecs {
+		result = append(result, spec.Key)
+	}
+
+	return result
+}
+
+func makeEnvironmentValues(envMap map[string]string, specs []broker.PropSpec) []string {
+	var allowedSpecs = makeEnvironmentSpecs(specs)
 	var merged = make(map[string]string)
 	var valueFunc = func(key string) string {
 		var value string
@@ -633,7 +664,9 @@ func makeEnvironmentValues(envMap map[string]string) []string {
 
 		return value
 	}
+	var result []string
 
+	maps.Copy(merged, EnvFileMap)
 	maps.Copy(merged, envMap)
 
 	for _, mountPoint := range []ContainerMountPoint{InputMount, OutputMount, LogMount, VarMount} {
@@ -643,15 +676,47 @@ func makeEnvironmentValues(envMap map[string]string) []string {
 		}
 	}
 
-	for k, v := range FileMap {
-		if _, ok := merged[k]; !ok {
-			merged[k] = v
+	for k, v := range merged {
+		if slices.Contains(allowedSpecs, k) {
+			result = append(result, fmt.Sprintf("%s=%s", k, os.Expand(v, valueFunc)))
 		}
 	}
 
-	for k, v := range merged {
-		result = append(result, fmt.Sprintf("%s=%s", k, os.Expand(v, valueFunc)))
+	for _, spec := range specs {
+		if !slices.ContainsFunc(result, func(s string) bool {
+			return strings.HasPrefix(s, spec.Key)
+		}) {
+			if spec.Value != "" {
+				result = append(result, fmt.Sprintf("%s=%s", spec.Key, spec.Value))
+			}
+		}
 	}
 
 	return result
+}
+
+func validateEnvironmentValues(propSpecs []broker.PropSpec, envValues []string) error {
+	for _, pair := range envValues {
+		var keyValue = strings.SplitN(pair, "=", 2)
+
+		if len(keyValue) == 2 {
+			if i := slices.IndexFunc(propSpecs, func(spec broker.PropSpec) bool {
+				return spec.Key == keyValue[0]
+			}); i >= 0 {
+				if err := propSpecs[i].Validate(keyValue[1]); err != nil {
+					return fmt.Errorf("env key [%s] is not valid: %s", keyValue[0], err)
+				}
+			}
+		}
+	}
+
+	for _, spec := range propSpecs {
+		if !slices.ContainsFunc(envValues, func(s string) bool {
+			return strings.HasPrefix(s, spec.Key)
+		}) {
+			return fmt.Errorf("property [%s] is not specified and is mandatory", spec.Key)
+		}
+	}
+
+	return nil
 }

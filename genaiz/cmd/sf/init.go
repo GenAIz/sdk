@@ -17,6 +17,7 @@ import (
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -24,10 +25,12 @@ import (
 type InitWriter struct {
 	*PublishOptions
 	*RunOptions
-	buildFileKeys    *schema.Keys
-	buildTagKeys     *schema.Keys
-	buildVersionKeys *schema.Keys
-	vp               *viper.Viper
+	buildFileKeys        *schema.Keys
+	buildTagKeys         *schema.Keys
+	buildVersionKeys     *schema.Keys
+	publishPropSpecsKeys *schema.Keys
+	removedPropSpec      *broker.PropSpec
+	vp                   *viper.Viper
 }
 
 func (iw *InitWriter) BuildArches() (string, []string) {
@@ -56,6 +59,18 @@ func (iw *InitWriter) BuildOutput() map[string]string {
 		iw.optionMountLog.Key:    iw.vp.GetString(iw.optionMountLog.Key),
 		iw.optionMountVar.Key:    iw.vp.GetString(iw.optionMountVar.Key),
 	}
+}
+
+func (iw *InitWriter) BuildPropSpecs() (string, []broker.PropSpec) {
+	if list, ok := iw.vp.Get(iw.publishPropSpecsKeys.Doc).([]broker.PropSpec); ok {
+		return iw.publishPropSpecsKeys.Doc, list
+	}
+
+	return iw.publishPropSpecsKeys.Doc, []broker.PropSpec{}
+}
+
+func (iw *InitWriter) BuildRemovedPropSpec() (string, *broker.PropSpec) {
+	return iw.publishPropSpecsKeys.Doc, iw.removedPropSpec
 }
 
 func (iw *InitWriter) BuildType() (string, string) {
@@ -138,6 +153,19 @@ func (iw *InitWriter) WithOutput(value string) layout.ConfigWriter {
 		iw.vp.Set(iw.optionMountLog.Key, filepath.Join(value, "log"))
 	}
 
+	return iw
+}
+
+func (iw *InitWriter) WithPropSpecs(specs []broker.PropSpec) layout.ConfigWriter {
+	if len(specs) > 0 || iw.removedPropSpec != nil {
+		iw.vp.Set(iw.publishPropSpecsKeys.Doc, specs)
+	}
+
+	return iw
+}
+
+func (iw *InitWriter) WithPropSpecRemoved(spec *broker.PropSpec) layout.ConfigWriter {
+	iw.removedPropSpec = spec
 	return iw
 }
 
@@ -345,12 +373,13 @@ func makeInitBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
 	var dockerFile = ledger.GetString(sfCli.optionDockerFile)
 	var dockerTag = ledger.GetString(sfCli.optionDockerTag)
 	var result = &InitWriter{
-		PublishOptions:   NewPublishOptions(sfCli),
-		RunOptions:       NewRunOptions(sfCli),
-		buildFileKeys:    &schema.Genaiz.Function.Build.File,
-		buildTagKeys:     &schema.Genaiz.Function.Build.Tag,
-		buildVersionKeys: &schema.Genaiz.Function.Build.Version,
-		vp:               viper.New(),
+		PublishOptions:       NewPublishOptions(sfCli),
+		RunOptions:           NewRunOptions(sfCli),
+		buildFileKeys:        &schema.Genaiz.Function.Build.File,
+		buildTagKeys:         &schema.Genaiz.Function.Build.Tag,
+		buildVersionKeys:     &schema.Genaiz.Function.Build.Version,
+		publishPropSpecsKeys: &schema.Genaiz.Function.Publish.PropSpecs,
+		vp:                   viper.New(),
 	}
 
 	if dockerFile != sfCli.optionDockerFile.DefaultGetter(ledger) {

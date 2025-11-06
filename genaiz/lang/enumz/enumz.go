@@ -63,7 +63,7 @@ func (et EnumType[T]) IsValid(label string) bool {
 	var stringValues []string
 
 	for _, t := range et.Values {
-		stringValues = append(stringValues, string(t))
+		stringValues = append(stringValues, strings.ToLower(string(t)))
 	}
 
 	return slices.Contains(stringValues, strings.ToLower(label))

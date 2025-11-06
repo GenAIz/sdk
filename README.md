@@ -3,7 +3,7 @@
 The GenAIz SDK is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestrator platform.
 
 * [Installation](#installation)
-* [Running the GenAiz CLI](#running-the-genaiz-cli)
+* [Running the GenAIz CLI](#running-the-genaiz-cli)
   * [Quickstart Examples](#quickstart-examples)
 * [Development Guide](#development-guide)
   * [Prerequisites](#prerequisites)
@@ -59,6 +59,21 @@ genaiz sf run
 
 > [!NOTE]
 > Run disposes of any container created for the operation
+
+#### Testing a simple function with Properties
+
+The following example creates a smart function **function-2**, without a parent solution. We then proceed to add property specifications to the function. The example completes with building the function in context, and testing it with the console attached using `test`.
+
+```bash
+genaiz sf create function-2 --oem="com.genaiz.dev" \
+  --recipe="bash-example"
+cd function-2
+genaiz sf prop add MY_KEY --name="Key Example" \
+  --default-value=10 --type=int
+genaiz sf prop env MY_KEY 12
+genaiz sf build
+genaiz sf test
+```
 
 ## Development Guide
 
@@ -142,11 +157,17 @@ Design was modeled with a behavior driven approach focusing on user's usage stud
 * [Function Scenarios](doc/function/index.md)
   * [function (sf) build](doc/function/build.md)
   * [function (sf) create](doc/function/create.md)
+  * [function (sf) init](doc/function/init.md)
+  * [function (sf) list](doc/function/list.md)
+  * [function (sf) prop](doc/function/prop.md)
+  * [function (sf) publish](doc/function/publish.md)
+  * [function (sf) run](doc/function/run.md)
+  * [function (sf) start](doc/function/start.md)
+  * [function (sf) stop](doc/function/stop.md)
+  * [function (sf) test](doc/function/test.md)
 * [Solution Scenarios](doc/solution/index.md)
   * [solution (sn) create](doc/solution/create.md)
   * [solution (sn) publish](doc/solution/publish.md)
-* [Workflow Scenarios](doc/workflow/index.md)
-  * [workflow (wf) nodes](doc/workflow/nodes_add.md)
 
 ## Troubleshooting
 

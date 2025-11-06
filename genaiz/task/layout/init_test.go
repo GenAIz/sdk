@@ -14,6 +14,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -26,6 +27,8 @@ type stubWriter struct {
 	name       string
 	oem        string
 	output     map[string]string
+	propSpecs  []broker.PropSpec
+	rmPropSpec *broker.PropSpec
 	sfType     string
 	version    string
 	writeErr   error
@@ -58,6 +61,14 @@ func (s *stubWriter) BuildOem() (string, string) {
 
 func (s *stubWriter) BuildOutput() map[string]string {
 	return s.output
+}
+
+func (s *stubWriter) BuildPropSpecs() (string, []broker.PropSpec) {
+	return "", s.propSpecs
+}
+
+func (s *stubWriter) BuildRemovedPropSpec() (string, *broker.PropSpec) {
+	return "", s.rmPropSpec
 }
 
 func (s *stubWriter) BuildType() (string, string) {
@@ -104,6 +115,16 @@ func (s *stubWriter) WithOutput(output string) ConfigWriter {
 	}
 
 	s.output[output] = output
+	return s
+}
+
+func (s *stubWriter) WithPropSpecs(specs []broker.PropSpec) ConfigWriter {
+	s.propSpecs = specs
+	return s
+}
+
+func (s *stubWriter) WithPropSpecRemoved(spec *broker.PropSpec) ConfigWriter {
+	s.rmPropSpec = spec
 	return s
 }
 
@@ -220,10 +241,6 @@ func Test_handleLayoutInitCreate(t *testing.T) {
 	assert.Equal(t, testState.Output, testWriter.dest)
 }
 
-func Test_handleLayoutInitPretend_noConfig(t *testing.T) {
-	assert.ErrorIs(t, errorNoConfigFile, handleLayoutInitPretend(nil, &InitParams{}, &task.State{}))
-}
-
 func Test_handleLayoutInitPretend(t *testing.T) {
 	var testState = &task.State{
 		Logger: logrus.New(),
@@ -262,6 +279,91 @@ func Test_handleLayoutInitPretend(t *testing.T) {
 	assert.Contains(t, output, testParams.MountOutput)
 	assert.Contains(t, output, testParams.OEM)
 	assert.Contains(t, output, testParams.Version)
+}
+
+func Test_handleLayoutInitPretend_noConfig(t *testing.T) {
+	assert.ErrorIs(t, errorNoConfigFile, handleLayoutInitPretend(nil, &InitParams{}, &task.State{}))
+}
+
+func Test_handleLayoutInitPretend_propSpecs(t *testing.T) {
+	var expectedPropSpec = broker.PropSpec{
+		Key:         "expectedKey",
+		Description: "expectedDescription",
+		Name:        "expectedName",
+		Type:        broker.PropSpecTypeString,
+		Value:       "expectedDefaultValue",
+	}
+	var expectedEnumPropSpec = broker.PropSpec{
+		Key:    "expectedEnumKey",
+		Name:   "expectedEnumName",
+		Type:   broker.PropSpecTypeEnum,
+		Values: []string{"value1"},
+	}
+	var expectedNoValueSpec = broker.PropSpec{
+		Key:  "expectedNoValueKey",
+		Name: "expectedNoValueName",
+		Type: broker.PropSpecTypeBoolean,
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var testParams = &InitParams{
+		PropSpecs: []broker.PropSpec{
+			expectedPropSpec, expectedEnumPropSpec, expectedNoValueSpec,
+		},
+	}
+	var testWriter = &stubWriter{}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedPropSpec.Key)
+	assert.Contains(t, output, expectedPropSpec.Name)
+	assert.Contains(t, output, expectedPropSpec.Type)
+	assert.Contains(t, output, expectedPropSpec.Value)
+	assert.Contains(t, output, expectedEnumPropSpec.Key)
+	assert.Contains(t, output, expectedEnumPropSpec.Name)
+	assert.Contains(t, output, expectedEnumPropSpec.Type)
+	assert.Contains(t, output, expectedEnumPropSpec.Values[0])
+	assert.Contains(t, output, expectedNoValueSpec.Key)
+	assert.Contains(t, output, expectedNoValueSpec.Name)
+	assert.Contains(t, output, expectedNoValueSpec.Type)
+}
+
+func Test_handleLayoutInitPretend_propSpecsRemoval(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var expectedRemoveSpec = &broker.PropSpec{Key: "expectedRemoveKey"}
+	var testParams = &InitParams{}
+	var testWriter = &stubWriter{rmPropSpec: expectedRemoveSpec}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedRemoveSpec.Key)
 }
 
 func Test_handleLayoutInitUpdate_createError(t *testing.T) {

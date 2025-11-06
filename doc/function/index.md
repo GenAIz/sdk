@@ -5,8 +5,13 @@
 * [Build bash example](build_bash_example.feature)
 * [Create bash example](create_bash_example.feature)
 * [Init empty example](init_empty_example.feature)
+* [List bash example](list_bash_example.feature)
+* [Prop bash example](prop_bash_example.feature)
 * [Publish bash example](publish_bash_example.feature)
 * [Run bash example](run_bash_example.feature)
+* [Start bash example](start_bash_example.feature)
+* [Stop bash example](stop_bash_example.feature)
+* [Test bash example](test_bash_example.feature)
 
 ## Commands
 
@@ -14,6 +19,7 @@
 * [create](create.md)
 * [init](init.md)
 * [list](list.md)
+* [prop](prop.md)
 * [publish](publish.md)
 * [run](run.md)
 * [start](start.md)
@@ -23,9 +29,6 @@
 ## Environment:
 
 The [run](run.md), [start](start.md) and [test](test.md) commands should normally honor the following environment variables, forwarding them to the containers they create:
-
-> [!CAUTION]
-> Currently the first four variables are set to their default by the "create" container task. The other variables are not supported (v0.1.28)
 
 There should also be a mechanism for specifying environment variables using a .env file and be able to specify the path of such file if it can not be found under the resolved Docker context.
 
@@ -67,6 +70,7 @@ There should also be a mechanism for specifying environment variables using a .e
 ### SF_TYPE
 
 - the type of smart function (CONNECTOR or FUNCTION or TRIGGER)
+- this should be provided by default by the SDK relying on the type field specified under the function publish configurations
 
 ## Validation
 

@@ -7,6 +7,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -30,6 +31,10 @@ type ConfigWriter interface {
 
 	BuildOutput() map[string]string
 
+	BuildPropSpecs() (string, []broker.PropSpec)
+
+	BuildRemovedPropSpec() (string, *broker.PropSpec)
+
 	BuildType() (string, string)
 
 	BuildVersion() (string, string)
@@ -48,6 +53,10 @@ type ConfigWriter interface {
 
 	WithOutput(string) ConfigWriter
 
+	WithPropSpecs([]broker.PropSpec) ConfigWriter
+
+	WithPropSpecRemoved(spec *broker.PropSpec) ConfigWriter
+
 	WithType(string) ConfigWriter
 
 	WithVersion(string) ConfigWriter
@@ -62,6 +71,7 @@ type InitParams struct {
 	MountInput  string
 	MountOutput string
 	OEM         string
+	PropSpecs   []broker.PropSpec
 	Version     string
 }
 
@@ -109,9 +119,14 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 			WithInput(params.MountInput).
 			WithOutput(params.MountOutput).
 			WithOem(params.OEM).
+			WithPropSpecs(params.PropSpecs).
 			WithVersion(params.Version).
 			Write(state.Output); err == nil {
-			state.Report(fmt.Sprintf("Initialized function %s/%s, version %s", params.OEM, params.Handle, params.Version))
+			var _, oem = writer.BuildOem()
+			var _, handle = writer.BuildHandle()
+			var _, version = writer.BuildVersion()
+
+			state.Report(fmt.Sprintf("Initialized function %s/%s, version %s", oem, handle, version))
 			return nil
 		}
 
@@ -124,9 +139,10 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *task.State) error {
 	if state.Output != "" {
 		var pretender = shared.NewConfigPretender(state.Output)
+		var removedKey, rmPropSpec = writer.BuildRemovedPropSpec()
+		var rootKey, propSpecs = writer.WithPropSpecs(params.PropSpecs).BuildPropSpecs()
 
 		state.Logger.Debugf("Pretending to initialize [%s]", state.Output)
-
 		writer.WithHandle(params.Handle)
 		shared.PretendSlice(pretender, writer.WithArches(params.Arches).BuildArches)
 		shared.PretendValue(pretender, writer.WithName(params.Name).BuildName)
@@ -136,6 +152,43 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 		shared.PretendMap(pretender, writer.WithOutput(params.MountOutput).BuildOutput)
 		shared.PretendValue(pretender, writer.WithOem(params.OEM).BuildOem)
 		shared.PretendValue(pretender, writer.WithVersion(params.Version).BuildVersion)
+
+		if rmPropSpec != nil {
+			shared.PretendDeleteByField(pretender, func() (string, string, string) {
+				return fmt.Sprintf("%s[]", removedKey), "key", rmPropSpec.Key
+			})
+		} else if len(propSpecs) > 0 {
+			pretender.PretendDelete(rootKey)
+
+			for i, spec := range params.PropSpecs {
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].key", rootKey, i), spec.Key
+				})
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].type", rootKey, i), spec.Type
+				})
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].name", rootKey, i), spec.Name
+				})
+
+				if spec.Description != "" {
+					shared.PretendValue(pretender, func() (string, string) {
+						return fmt.Sprintf("%s[%d].description", rootKey, i), spec.Description
+					})
+				}
+
+				if spec.Value != "" {
+					shared.PretendValue(pretender, func() (string, string) {
+						return fmt.Sprintf("%s[%d].value", rootKey, i), spec.Value
+					})
+				} else if len(spec.Values) > 0 {
+					shared.PretendSlice(pretender, func() (string, []string) {
+						return fmt.Sprintf("%s[%d].values", rootKey, i), spec.Values
+					})
+				}
+			}
+		}
+
 		return nil
 	}
 

@@ -28,6 +28,8 @@ type PublishExecutor struct {
 	BaseExecutor
 	*PublishOptions
 
+	innerPropSpecs *config.Option
+
 	buildTaskFactory     BuildTaskFactory
 	initTaskFactory      InitTaskFactory
 	inspectTaskFactory   InspectTaskFactory
@@ -124,6 +126,7 @@ func (pe *PublishExecutor) makeProvisionExtras() map[string]any {
 
 func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 	var nameDesc = pe.Ledger.GetString(pe.optionName)
+	var propSpecs = broker.ListPropSpecs(pe.Ledger.Get(pe.innerPropSpecs))
 	var extraMap = pe.makeProvisionExtras()
 
 	return &broker.ProvisionParams{
@@ -137,6 +140,7 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 		Handle:      pe.Ledger.GetString(pe.optionHandle),
 		Name:        nameDesc,
 		Oem:         pe.Ledger.GetString(pe.optionOem),
+		PropSpecs:   propSpecs,
 		Type:        pe.Ledger.GetString(pe.optionType),
 		Version:     pe.Ledger.GetString(pe.optionVersion),
 	}
@@ -230,14 +234,18 @@ func NewPublish(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	return publish
 }
 
-func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *PublishOptions) *PublishExecutor {
+func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, options *PublishOptions) *PublishExecutor {
 	return &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Cli:     cli,
+			Cli:     sfCli,
 			Context: ctx,
 			Ledger:  ledger,
 		},
 		PublishOptions: options,
+
+		innerPropSpecs: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.PropSpecs).
+			BuildOption(),
 
 		buildTaskFactory:     docker.NewBuildTask,
 		initTaskFactory:      layout.NewInitTask,

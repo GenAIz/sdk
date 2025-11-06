@@ -244,16 +244,6 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 	}
 }
 
-func (pe *PublishExecutor) makeProvisionExtras(ledger *config.Ledger, option *config.Option) map[string]any {
-	var raw = ledger.Get(option)
-
-	if result, ok := raw.(map[string]any); ok {
-		return result
-	}
-
-	return make(map[string]any)
-}
-
 func (pe *PublishExecutor) makeFunctionPublishParams(provisionParams *broker.ProvisionParams) *broker.PublishParams {
 	return &broker.PublishParams{
 		Broker: broker.Broker{
@@ -272,6 +262,16 @@ func (pe *PublishExecutor) makeFunctionPushParams() *docker.PushParams {
 			Context: pe.Context,
 		},
 	}
+}
+
+func (pe *PublishExecutor) makeProvisionExtras(ledger *config.Ledger, option *config.Option) map[string]any {
+	var raw = ledger.Get(option)
+
+	if result, ok := raw.(map[string]any); ok {
+		return result
+	}
+
+	return make(map[string]any)
 }
 
 func (pe *PublishExecutor) makeSolutionPublishParams(solution *broker.Solution, fnParams []FunctionParams) *broker.SolutionPublishParams {

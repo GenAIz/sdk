@@ -23,6 +23,7 @@ import (
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz-lib/mock/net"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 )
 
 func TestContainerMountPoint_MakeMount(t *testing.T) {
@@ -551,6 +552,28 @@ func Test_handleContainerCreate_NamingError(t *testing.T) {
 	assert.Error(t, handleContainerCreate(testParams, testState))
 }
 
+func Test_handleContainerCreate_ValidationError(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &ContainerParams{
+		RunParams: RunParams{
+			Dispose: true,
+		},
+		DockerImage: "expectedImage",
+		Prefix:      "expectedPrefix",
+		EnvVars: map[string]string{
+			"NOT_LEGAL": "value",
+		},
+		PropSpecs: []broker.PropSpec{
+			{
+				Key: "LEGAL",
+			},
+		},
+	}
+
+	assert.Error(t, handleContainerCreate(testParams, testState))
+	assert.Empty(t, testState.Output)
+}
+
 func Test_handleContainerCreatePretend(t *testing.T) {
 	var testDir = t.TempDir()
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
@@ -611,6 +634,29 @@ func Test_handleContainerCreatePretend_NamingError(t *testing.T) {
 	var testState = &task.State{}
 
 	assert.Error(t, handleContainerCreatePretend(testParams, testState))
+}
+
+func Test_handleContainerCreatePretend_ValidationError(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &ContainerParams{
+		RunParams: RunParams{
+			Dispose: true,
+		},
+		DockerImage: "expectedImage",
+		Prefix:      "expectedPrefix",
+		EnvVars: map[string]string{
+			"LEGAL": "value",
+		},
+		PropSpecs: []broker.PropSpec{
+			{
+				Key:  "LEGAL",
+				Type: broker.PropSpecTypeInt,
+			},
+		},
+	}
+
+	assert.Error(t, handleContainerCreate(testParams, testState))
+	assert.Empty(t, testState.Output)
 }
 
 func Test_handleContainerDisposal(t *testing.T) {
@@ -1024,29 +1070,33 @@ func Test_makeContainerChannel_ResultStatusCode(t *testing.T) {
 
 func Test_makeEnvironmentValues(t *testing.T) {
 	var testEnvMap = make(map[string]string)
-	var expectedForeignKey = "FOREIGN_KEY"
 	var expectedForeignValue = "foreign.value"
 	var expectedOutputOverride = "OutputOverride"
 	var expectedProgressOverride = "ProgressOverride"
-	var expectedNotResolvedKey = "RESOLUTION_KEY"
 	var expectedNotResolvedValue = "$VALUE_EXT_DEFINED"
+	var expectedSpec = broker.PropSpec{Key: "SPEC_KEY", Value: "expectedDefault"}
+	var foreignSpec = broker.PropSpec{Key: "FOREIGN_KEY"}
+	var notExpectedSpec = broker.PropSpec{Key: "NOT_KEY"}
+	var notResolvedSpec = broker.PropSpec{Key: "RESOLUTION_KEY"}
 	var actual []string
 
-	testEnvMap[expectedForeignKey] = expectedForeignValue
+	testEnvMap[foreignSpec.Key] = expectedForeignValue
 	testEnvMap[OutputMount.EnvVar] = expectedOutputOverride
 	testEnvMap[envProgressFile] = expectedProgressOverride
-	testEnvMap[expectedNotResolvedKey] = expectedNotResolvedValue
-	actual = makeEnvironmentValues(testEnvMap)
-	assert.Equal(t, 9, len(actual))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s", envResultFile, VarMount.MountPath, filepath.Base(FileMap[envResultFile])))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s", envStatusFile, VarMount.MountPath, filepath.Base(FileMap[envStatusFile])))
+	testEnvMap[notResolvedSpec.Key] = expectedNotResolvedValue
+	actual = makeEnvironmentValues(testEnvMap, []broker.PropSpec{expectedSpec, notExpectedSpec, foreignSpec, notResolvedSpec})
+	assert.Equal(t, 10, len(actual))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s", envResultFile, VarMount.MountPath, filepath.Base(EnvFileMap[envResultFile])))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s", envStatusFile, VarMount.MountPath, filepath.Base(EnvFileMap[envStatusFile])))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s", envProgressFile, expectedProgressOverride))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s", VarMount.EnvVar, VarMount.MountPath))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s", LogMount.EnvVar, LogMount.MountPath))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s", InputMount.EnvVar, InputMount.MountPath))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s", OutputMount.EnvVar, expectedOutputOverride))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s", expectedForeignKey, expectedForeignValue))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s", expectedNotResolvedKey, expectedNotResolvedValue))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s", foreignSpec.Key, expectedForeignValue))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s", notResolvedSpec.Key, expectedNotResolvedValue))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s", expectedSpec.Key, expectedSpec.Value))
+	assert.NotContains(t, actual, notExpectedSpec.Key)
 }
 
 func installSignalProvider(provider func() chan os.Signal) func() {

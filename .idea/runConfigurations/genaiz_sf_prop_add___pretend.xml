@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz sf prop add --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz sf prop">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$/out/samples/myBashExample" />
+    <go_parameters value="-tags dev" />
+    <parameters value="sf prop add MY_KEY --name=&quot;My Name&quot; --description=&quot;My Description&quot; --type=string --default-value=Value0 --pretend" />
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>

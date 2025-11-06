@@ -42,6 +42,10 @@ type Document struct {
 			Type         Keys
 			Version      Keys
 		}
+		Env struct {
+			Context Keys
+			File    Keys
+		}
 		Init struct {
 			Arches       Keys
 			ConfigType   Keys
@@ -56,6 +60,22 @@ type Document struct {
 			Version      Keys
 		}
 		Publish struct {
+			PropSpecAdd struct {
+				DefaultValue Keys
+				Description  Keys
+				EnumValue    Keys
+				Name         Keys
+				Type         Keys
+			}
+			PropSpecEdit struct {
+				DefaultValue    Keys
+				Description     Keys
+				EnumAddValue    Keys
+				EnumRemoveValue Keys
+				EnumValue       Keys
+				Name            Keys
+			}
+
 			Arches      Keys
 			Description Keys
 			Extras      Keys
@@ -63,6 +83,7 @@ type Document struct {
 			Name        Keys
 			NoUpdate    Keys
 			Oem         Keys
+			PropSpecs   Keys
 			Rebuild     Keys
 			Type        Keys
 			Version     Keys
@@ -164,10 +185,12 @@ func init() {
 	Genaiz.Function.Create.MountOutput = newKeys("Sf.Create.Output", "SF_CREATE_MOUNT_OUTPUT")
 	Genaiz.Function.Create.Name = newKeys("Sf.Create.Name", "SF_CREATE_NAME")
 	Genaiz.Function.Create.Oem = newKeys("Sf.Create.Oem", "SF_CREATE_OEM")
-	Genaiz.Function.Create.Recipe = newKeys("SF.Create.Recipe", "SF_CREATE_RECIPE")
-	Genaiz.Function.Create.SolutionPath = newKeys("SF.Create.SolutionPath", "SF_CREATE_SN_PATH")
+	Genaiz.Function.Create.Recipe = newKeys("Sf.Create.Recipe", "SF_CREATE_RECIPE")
+	Genaiz.Function.Create.SolutionPath = newKeys("Sf.Create.SolutionPath", "SF_CREATE_SN_PATH")
 	Genaiz.Function.Create.Type = newKeys("Sf.Create.Type", "SF_CREATE_TYPE")
-	Genaiz.Function.Create.Version = newKeys("SF.Create.Version", "SF_CREATE_VERSION")
+	Genaiz.Function.Create.Version = newKeys("Sf.Create.Version", "SF_CREATE_VERSION")
+	Genaiz.Function.Env.Context = newKeys("Sf.Env.Context", "SF_ENV_CONTEXT")
+	Genaiz.Function.Env.File = newKeys("Sf.Env.File", "SF_ENV_FILE")
 	Genaiz.Function.Init.Arches = newKeys("Sf.Init.Arches", "SF_INIT_ARCHES")
 	Genaiz.Function.Init.ConfigType = newKeys("Sf.Init.ConfigType", "SF_INIT_CONFIG_TYPE")
 	Genaiz.Function.Init.Handle = newKeys("Sf.Init.Handle", "SF_INIT_HANDLE")
@@ -188,6 +211,18 @@ func init() {
 	Genaiz.Function.Publish.Rebuild = newKeys("Sf.Publish.Rebuild", "SF_PUBLISH_REBUILD")
 	Genaiz.Function.Publish.Type = newKeys("Sf.Publish.Type", "SF_PUBLISH_TYPE")
 	Genaiz.Function.Publish.Version = newKeys("Sf.Publish.Version", "SF_PUBLISH_VERSION")
+	Genaiz.Function.Publish.PropSpecAdd.DefaultValue = newKeys("Sf.Publish.PropSpecAdd.DefaultValue", "SF_PUBLISH_PROP_SPEC_ADD_DEFAULT_VALUE")
+	Genaiz.Function.Publish.PropSpecAdd.Description = newKeys("Sf.Publish.PropSpecAdd.Description", "SF_PUBLISH_PROP_SPEC_ADD_DESCRIPTION")
+	Genaiz.Function.Publish.PropSpecAdd.EnumValue = newKeys("Sf.Publish.PropSpecAdd.EnumValue", "SF_PUBLISH_PROP_SPEC_ADD_ENUM_VALUE")
+	Genaiz.Function.Publish.PropSpecAdd.Name = newKeys("Sf.Publish.PropSpecAdd.Name", "SF_PUBLISH_PROP_SPEC_ADD_NAME")
+	Genaiz.Function.Publish.PropSpecAdd.Type = newKeys("Sf.Publish.PropSpecAdd.Type", "SF_PUBLISH_PROP_SPEC_ADD_TYPE")
+	Genaiz.Function.Publish.PropSpecEdit.DefaultValue = newKeys("Sf.Publish.PropSpecEdit.DefaultValue", "SF_PUBLISH_PROP_SPEC_EDIT_DEFAULT_VALUE")
+	Genaiz.Function.Publish.PropSpecEdit.Description = newKeys("Sf.Publish.PropSpecEdit.Description", "SF_PUBLISH_PROP_SPEC_EDIT_DESCRIPTION")
+	Genaiz.Function.Publish.PropSpecEdit.EnumAddValue = newKeys("Sf.Publish.PropSpecEdit.EnumAddValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_ADD_VALUE")
+	Genaiz.Function.Publish.PropSpecEdit.EnumRemoveValue = newKeys("Sf.Publish.PropSpecEdit.EnumRemoveValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_RM_VALUE")
+	Genaiz.Function.Publish.PropSpecEdit.EnumValue = newKeys("Sf.Publish.PropSpecEdit.EnumValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_VALUE")
+	Genaiz.Function.Publish.PropSpecEdit.Name = newKeys("Sf.Publish.PropSpecEdit.Name", "SF_PUBLISH_PROP_SPEC_EDIT_NAME")
+	Genaiz.Function.Publish.PropSpecs = newKeys("Sf.Publish.PropSpecs", "")
 	Genaiz.Function.Run.EnvFile = newKeys("Sf.Run.EnvFile", "SF_RUN_ENV_FILE")
 	Genaiz.Function.Run.EnvVars = newKeys("Sf.Run.EnvVar", "SF_RUN_ENV_VAR")
 	Genaiz.Function.Run.Image = newKeys("Sf.Run.Image", "SF_RUN_IMAGE")
