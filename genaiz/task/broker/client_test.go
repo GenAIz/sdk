@@ -119,7 +119,7 @@ func TestClient_Login(t *testing.T) {
 	var testBridge = &stubBridge{
 		response: &stubResponse{
 			success: true,
-			cookies: []*http.Cookie{{Name: "s", Value: expectedToken}},
+			cookies: []*http.Cookie{{Name: defaultCookieName, Value: expectedToken}},
 			result: &clientPayload[Session]{
 				Data: Session{
 					Id: expectedSessionId,

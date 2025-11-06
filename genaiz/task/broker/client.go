@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	defaultCookieName     = "genaiz_token"
 	defaultExpiryMinutes  = 5 * 24 * 60
 	defaultTimeoutSeconds = 15
 
@@ -162,7 +163,7 @@ func (c *client) Login(username string, password []byte) (*AuthSession, error) {
 
 		if resp != nil {
 			if resp.IsSuccess() {
-				var cookieValue = c.authFromCookie("s", resp.Cookies())
+				var cookieValue = c.authFromCookie(defaultCookieName, resp.Cookies())
 
 				if cookieValue == "" {
 					err = errorNoToken
@@ -200,7 +201,7 @@ func (c *client) Logout(sessionId string) error {
 
 		defer c.closeSilently(rb)
 		resp, err = rb.Json().
-			Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+			Cookie(c.makeCookie()).
 			Resulting(&clientPayload[Session]{}).
 			Params(map[string]string{
 				"id": sessionId,
@@ -241,7 +242,7 @@ func (c *client) ProvisionFunction(function *Function, extras map[string]any) (*
 
 				defer c.closeSilently(rb)
 				resp, err = rb.Json().
-					Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+					Cookie(c.makeCookie()).
 					Resulting(&clientPayload[provisionData]{}).
 					Params(map[string]string{
 						"model": string(modelBytes),
@@ -279,7 +280,7 @@ func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 
 			defer c.closeSilently(rb)
 			resp, err = rb.Json().
-				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+				Cookie(c.makeCookie()).
 				Resulting(&clientPayload[publishingData]{}).
 				Params(map[string]string{
 					"id":     identity.Id,
@@ -316,7 +317,7 @@ func (c *client) PublishSolution(solution *Solution) (*shared.Identity, error) {
 
 			defer c.closeSilently(rb)
 			resp, err = rb.Json().
-				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+				Cookie(c.makeCookie()).
 				Resulting(&clientPayload[solutionSlices]{}).
 				Params(map[string]string{
 					"solution": string(solutionBytes),
@@ -352,7 +353,7 @@ func (c *client) Session() (*Session, error) {
 
 			defer c.closeSilently(rb)
 			resp, err = rb.Json().
-				Cookie(&http.Cookie{Name: "s", Value: c.AuthToken}).
+				Cookie(c.makeCookie()).
 				Resulting(&clientPayload[Session]{}).
 				Get(url)
 
@@ -401,6 +402,10 @@ func (c *client) authFromCookie(name string, cookies []*http.Cookie) string {
 
 func (c *client) closeSilently(client io.Closer) {
 	_ = client.Close()
+}
+
+func (c *client) makeCookie() *http.Cookie {
+	return &http.Cookie{Name: defaultCookieName, Value: c.AuthToken}
 }
 
 func (c *client) makeUrl(version version, path path, rpc ...string) (string, error) {
