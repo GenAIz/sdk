@@ -10,6 +10,7 @@ import (
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
 )
 
@@ -188,6 +189,11 @@ func makeRunParams(be BaseExecutor, ro *RunOptions) (*docker.ContainerParams, er
 	var err error
 
 	if envVars, err = ro.makeEnvMap(be.Ledger); err == nil {
+		var innerPropSpecs = be.Ledger.Get(cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.PropSpecs).
+			BuildOption())
+		var propSpecs = broker.ListPropSpecs(innerPropSpecs)
+
 		return &docker.ContainerParams{
 			RunParams: docker.RunParams{
 				Env:      task.Env{Context: be.Context},
@@ -201,6 +207,7 @@ func makeRunParams(be BaseExecutor, ro *RunOptions) (*docker.ContainerParams, er
 			MountOutput: be.Ledger.GetString(ro.optionMountOutput),
 			MountVar:    be.Ledger.GetString(ro.optionMountVar),
 			Prefix:      be.Ledger.GetString(ro.optionRunPrefix),
+			PropSpecs:   propSpecs,
 		}, nil
 	}
 

@@ -14,6 +14,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -403,6 +404,71 @@ func Test_OptionsModesInteractive(t *testing.T) {
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsPropSpecsDefaultValue(t *testing.T) {
+	var testOption = Options.PropSpecs.DefaultValue().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsPropSpecsDescription(t *testing.T) {
+	var testOption = Options.PropSpecs.Description().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("a simple description"))
+}
+
+func Test_OptionsPropSpecsEnumAddValue(t *testing.T) {
+	var testOption = Options.PropSpecs.EnumAddValue().BuildListOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator(" a value"))
+}
+
+func Test_OptionsPropSpecsEnumRemoveValue(t *testing.T) {
+	var testOption = Options.PropSpecs.EnumRemoveValue().BuildListOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsPropSpecsEnumValue(t *testing.T) {
+	var testOption = Options.PropSpecs.EnumValue().BuildListOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator(" a value"))
+}
+
+func Test_OptionsPropSpecsName(t *testing.T) {
+	var testOption = Options.PropSpecs.Name().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsPropSpecsType(t *testing.T) {
+	var testOption = Options.PropSpecs.Type().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, testOption.Validator("invalid"))
+	assert.True(t, testOption.Validator(broker.PropSpecTypeBoolean))
+	assert.True(t, testOption.Validator(broker.PropSpecTypeDouble))
+	assert.True(t, testOption.Validator(broker.PropSpecTypeEnum))
+	assert.True(t, testOption.Validator(broker.PropSpecTypeInt))
+	assert.True(t, testOption.Validator(broker.PropSpecTypeString))
 }
 
 func Test_OptionsSolutionsBroker(t *testing.T) {

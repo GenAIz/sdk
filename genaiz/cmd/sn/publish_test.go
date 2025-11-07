@@ -642,6 +642,21 @@ func TestNewPublishOptions(t *testing.T) {
 	assert.NotEmpty(t, testOptions.optionVersion)
 }
 
+func TestPublishExecutor_makeFunctionProvisionParams(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testOption = &config.Option{Key: "testKey"}
+	var testExecutor = &PublishExecutor{}
+	var expectedExtras = map[string]any{
+		"inner": "value",
+	}
+	var actualExtras map[string]any
+
+	testViper.Set(testOption.Key, expectedExtras)
+	actualExtras = testExecutor.makeProvisionExtras(testLedger, testOption)
+	assert.Equal(t, expectedExtras, actualExtras)
+}
+
 func newTaskPretendStub[T any](flag *bool, paramType *T) func() *task.Task[T] {
 	_ = paramType
 	return func() *task.Task[T] {

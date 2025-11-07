@@ -20,13 +20,15 @@ type validators struct {
 	DirCreated    Validates
 	DirExists     Validates
 	DomainName    Validates
+	EnvKey        Validates
 	EnvKeyValue   Validates
 	FileExists    Validates
 	FolderName    Validates
 	Handle        Validates
 	HandlePort    Validates
-	Oem           Validates
 	Name          Validates
+	Oem           Validates
+	PropEnum      Validates
 	Repository    Validates
 	RequiredName  Validates
 	Version       Validates
@@ -36,6 +38,7 @@ type validators struct {
 var (
 	componentMaxSize  = stringMaxLength(128)
 	componentStrings  = stringMatches(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9\-._][a-zA-Z0-9]+)*$`)
+	envKey            = stringMatches(`^[A-Z_][A-Z0-9_]*$`)
 	envKeyValueString = stringMatches(`^[a-zA-Z0-9_]+=.*$`)
 	nameMaxSize       = stringMaxLength(255)
 	versionNumber     = stringMatches(`^(?:[1-9][0-9]*|0)$`)
@@ -46,12 +49,14 @@ var (
 		DirCreated:    validateDirCreated,
 		DirExists:     validateDirExists,
 		DomainName:    stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),
+		EnvKey:        envKey,
 		EnvKeyValue:   validateEnvKeyValue,
 		FileExists:    validateFileExists,
 		FolderName:    stringMatches(`^[a-zA-Z0-9\-._\/]+$`),
 		Handle:        AllOf(componentMaxSize, componentStrings),
-		Oem:           AllOf(componentMaxSize, componentStrings),
 		Name:          nameMaxSize,
+		Oem:           AllOf(componentMaxSize, componentStrings),
+		PropEnum:      AllOf(stringMinLength(1), stringMaxLength(512)),
 		Repository:    validateRepository,
 		RequiredName:  AllOf(stringMinLength(1), nameMaxSize),
 		Version:       validateVersion,

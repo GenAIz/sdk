@@ -25,6 +25,25 @@ func TestFunction_asIdentity(t *testing.T) {
 	assert.Equal(t, function.Version, actual.Version)
 }
 
+func TestPropSpec_Validate(t *testing.T) {
+	var booleanSpec = &PropSpec{Type: PropSpecTypeBoolean}
+	var intSpec = &PropSpec{Type: PropSpecTypeInt}
+	var doubleSpec = &PropSpec{Type: PropSpecTypeDouble}
+	var enumSpec = &PropSpec{Type: PropSpecTypeEnum, Values: []string{"value"}}
+
+	assert.ErrorIs(t, booleanSpec.Validate("1"), ErrorPropIllegalBool)
+	assert.ErrorIs(t, booleanSpec.Validate("0"), ErrorPropIllegalBool)
+	assert.NoError(t, booleanSpec.Validate("true"))
+	assert.NoError(t, booleanSpec.Validate("fALse"))
+	assert.ErrorIs(t, intSpec.Validate("notAnInt"), ErrorPropIllegalInt)
+	assert.ErrorIs(t, intSpec.Validate("28.98"), ErrorPropIllegalInt)
+	assert.NoError(t, intSpec.Validate("37"))
+	assert.ErrorIs(t, doubleSpec.Validate("notADouble"), ErrorPropIllegalDouble)
+	assert.NoError(t, doubleSpec.Validate("42.2"))
+	assert.ErrorIs(t, enumSpec.Validate("notListed"), ErrorPropIllegalEnum)
+	assert.NoError(t, enumSpec.Validate("value"))
+}
+
 func TestSolution_asIdentity(t *testing.T) {
 	var actual *shared.Identity
 	var solution = SolutionRemote{
@@ -41,6 +60,53 @@ func TestSolution_asIdentity(t *testing.T) {
 	assert.Equal(t, solution.Digest, actual.Hash)
 	assert.Equal(t, solution.Fqdn, actual.Path)
 	assert.Equal(t, solution.Version, actual.Version)
+}
+
+func TestFindPropSpec(t *testing.T) {
+	var expectedKey = "expectedKey"
+	var expectedSpecMap = map[string]any{
+		"key":         expectedKey,
+		"name":        "expectedName",
+		"description": "expectedDescription",
+		"value":       "expectedValue",
+		"values":      []string{"expected1", "expected2"},
+		"type":        PropSpecTypeInt,
+	}
+
+	assert.Empty(t, FindPropSpec("notAList", expectedKey))
+	if actual := FindPropSpec([]interface{}{expectedSpecMap, "notASpec"}, expectedKey); actual != nil {
+		assert.Equal(t, expectedSpecMap["description"], actual.Description)
+		assert.Equal(t, expectedSpecMap["key"], actual.Key)
+		assert.Equal(t, expectedSpecMap["name"], actual.Name)
+		assert.Equal(t, expectedSpecMap["value"], actual.Value)
+		assert.Equal(t, expectedSpecMap["values"], actual.Values)
+		assert.Equal(t, expectedSpecMap["type"], actual.Type)
+	} else {
+		assert.Fail(t, "propSpec not found")
+	}
+}
+
+func TestListPropSpecs(t *testing.T) {
+	var expectedKey = "expectedKey"
+	var expectedSpecMap = map[string]any{
+		"key":         expectedKey,
+		"name":        "expectedName",
+		"description": "expectedDescription",
+		"value":       "expectedValue",
+		"values":      []string{"expected1", "expected2"},
+		"type":        PropSpecTypeInt,
+	}
+	var actualSpecs []PropSpec
+
+	assert.Empty(t, ListPropSpecs("notAList"))
+	actualSpecs = ListPropSpecs([]interface{}{expectedSpecMap, "notASpec"})
+	assert.Equal(t, 1, len(actualSpecs))
+	assert.Equal(t, expectedSpecMap["description"], actualSpecs[0].Description)
+	assert.Equal(t, expectedSpecMap["key"], actualSpecs[0].Key)
+	assert.Equal(t, expectedSpecMap["name"], actualSpecs[0].Name)
+	assert.Equal(t, expectedSpecMap["value"], actualSpecs[0].Value)
+	assert.Equal(t, expectedSpecMap["values"], actualSpecs[0].Values)
+	assert.Equal(t, expectedSpecMap["type"], actualSpecs[0].Type)
 }
 
 func TestSolution_Merge(t *testing.T) {

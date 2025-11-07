@@ -18,6 +18,7 @@ import (
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -35,6 +36,9 @@ type EnvOptions struct {
 
 func (eo EnvOptions) makeEnvMap(ledger *config.Ledger) (map[string]string, error) {
 	var envFile = ledger.GetString(eo.optionEnvFile)
+	var sfType = ledger.GetString(cli.NewOptionBuilder().
+		WithKeys(&schema.Genaiz.Function.Publish.Type).
+		BuildStringOption())
 	var result map[string]string
 	var err error
 
@@ -48,13 +52,14 @@ func (eo EnvOptions) makeEnvMap(ledger *config.Ledger) (map[string]string, error
 		result[parts[0]] = parts[1]
 	}
 
+	result["SF_TYPE"] = sfType
 	return result, nil
 }
 
 func (eo EnvOptions) parseEnvFile(filePath string) (map[string]string, error) {
 	var result = make(map[string]string)
-	var err error
 	var fd *os.File
+	var err error
 
 	if fd, err = os.Open(filePath); err == nil {
 		defer filez.CloseSilently(fd)
@@ -68,7 +73,7 @@ func (eo EnvOptions) parseEnvFile(filePath string) (map[string]string, error) {
 			}
 
 			parts := strings.SplitN(keyPair, "=", 2)
-			result[parts[0]] = parts[1]
+			result[parts[0]] = strings.Trim(parts[1], "\"")
 		}
 	}
 
@@ -202,6 +207,7 @@ func NewSf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 		NewCreate(ledger, sfCli),
 		NewInit(ledger, sfCli),
 		NewList(ledger, sfCli),
+		NewProp(ledger, sfCli),
 		NewRun(ledger, sfCli),
 		NewTest(ledger, sfCli),
 		NewStop(ledger, sfCli),

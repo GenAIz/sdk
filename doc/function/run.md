@@ -71,21 +71,20 @@ Version can be used to change the local `name/repository:tag` of the built image
 
 ### env
 
-The env option allows passing environment variables, defined in the [property specs](props.md), to the running container. The command line option is used to override the contents of [env-file](#env-file), or just to set the values as a one-time invocation.
+The env option allows passing environment variables, defined in the [property specs](prop.md), to the running container. The command line option is used to override the contents of [env-file](#env-file), or just to set the values as a one-time invocation.
 
 * if env evaluates to an empty list, then no overrides will be applied on the content of .env-file.
+* if an environment variable specified does not validate with its associated property specification's type, the command will return an error: ``
 * if an environment variable was defined in a property spec, and no value was provided in either the env-file or the env, the command will fail with an error.
 * if an environment variable provided is not defined in the property specs, the command will filter it out and run the container with the set of variables that is defined.
 
-> [!CAUTION]
-> Note that without any property specs strict [policies](../account/index.md#policy), the command will simply pass all environment variables to the container.
-
 ### env-file
 
-The env-file option allows passing environment variables, defined in the [property specs](props.md), to the running container.
+The env-file option allows passing environment variables, defined in the [property specs](prop.md), to the running container.
 
 * if no env-file option is passed, the command will resolve $WORKDIR/.env as the path to include if it is present.
 * If no env-file is resolved, the command will try running the container with only the variables provided by [env](#env).
+* if an environment variable specified does not validate with its associated property specification's type, the command will return an error: ``
 * if an environment variable was defined in a property spec, and no value was provided in either the env-file or the env, the command will fail with an error.
 * if an environment variable provided is not defined in the property specs, the command will filter it out and run the container with the set of variables that is defined.
 

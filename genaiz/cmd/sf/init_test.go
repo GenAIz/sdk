@@ -20,6 +20,7 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
 )
 
@@ -158,6 +159,45 @@ func TestInitWriter_BuildOutput(t *testing.T) {
 	assert.EqualValues(t, actualValues[testWriter.optionMountOutput.Key], expectedOutput)
 	assert.EqualValues(t, actualValues[testWriter.optionMountLog.Key], filepath.Join(expectedOutput, "log"))
 	assert.EqualValues(t, actualValues[testWriter.optionMountVar.Key], filepath.Join(expectedOutput, "var"))
+}
+
+func TestInitWriter_BuildPropSpecs(t *testing.T) {
+	var expectedPropSpec = broker.PropSpec{Key: "expectedPropKey"}
+	var testSpecs = []broker.PropSpec{expectedPropSpec}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishPropSpecsKeys: &schema.Genaiz.Function.Publish.PropSpecs,
+		vp:                   testViper,
+	}
+	var actualSpecs []broker.PropSpec
+	var actualKey string
+
+	actualKey, actualSpecs = testWriter.WithPropSpecs(nil).BuildPropSpecs()
+	assert.Equal(t, testWriter.publishPropSpecsKeys.Doc, actualKey)
+	assert.Empty(t, actualSpecs)
+
+	actualKey, actualSpecs = testWriter.WithPropSpecs(testSpecs).BuildPropSpecs()
+	assert.Equal(t, testWriter.publishPropSpecsKeys.Doc, actualKey)
+	assert.Equal(t, testSpecs, actualSpecs)
+}
+
+func TestInitWriter_BuildRemovedPropSpec(t *testing.T) {
+	var expectedPropSpec = broker.PropSpec{Key: "expectedPropKey"}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishPropSpecsKeys: &schema.Genaiz.Function.Publish.PropSpecs,
+		vp:                   testViper,
+	}
+	var actualSpecs *broker.PropSpec
+	var actualKey string
+
+	actualKey, actualSpecs = testWriter.BuildRemovedPropSpec()
+	assert.Equal(t, testWriter.publishPropSpecsKeys.Doc, actualKey)
+	assert.Empty(t, actualSpecs)
+
+	actualKey, actualSpecs = testWriter.WithPropSpecRemoved(&expectedPropSpec).BuildRemovedPropSpec()
+	assert.Equal(t, testWriter.publishPropSpecsKeys.Doc, actualKey)
+	assert.Equal(t, expectedPropSpec, *actualSpecs)
 }
 
 func TestInitWriter_BuildType(t *testing.T) {

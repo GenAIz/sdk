@@ -25,6 +25,7 @@ type ProvisionParams struct {
 	Handle      string
 	Name        string
 	Oem         string
+	PropSpecs   []PropSpec
 	Type        string
 	Version     string
 }
@@ -44,6 +45,7 @@ func (pp ProvisionParams) asFunction() *Function {
 		Handle:      pp.Handle,
 		Name:        pp.Name,
 		Oem:         pp.Oem,
+		PropSpecs:   pp.PropSpecs,
 		Type:        strings.ToUpper(pp.Type),
 		Version:     pp.Version,
 	}

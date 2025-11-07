@@ -1,11 +1,23 @@
 package broker
 
 import (
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/spf13/cast"
+
+	"genaiz.com/genaiz/lang/enumz"
 	"genaiz.com/genaiz/task/shared"
+)
+
+const (
+	PropSpecTypeBoolean PropSpecType = "BOOL"
+	PropSpecTypeDouble  PropSpecType = "DOUBLE"
+	PropSpecTypeEnum    PropSpecType = "ENUM"
+	PropSpecTypeInt     PropSpecType = "INT"
+	PropSpecTypeString  PropSpecType = "STRING"
 )
 
 var (
@@ -14,7 +26,16 @@ var (
 		Released:     1 << 1,
 		Provisioning: 1 << 2,
 	}
+	PropSpecTypes = enumz.NewEnumType(PropSpecTypeBoolean, PropSpecTypeDouble,
+		PropSpecTypeEnum, PropSpecTypeInt, PropSpecTypeString)
+
+	ErrorPropIllegalBool   = errors.New("illegal bool value")
+	ErrorPropIllegalDouble = errors.New("illegal double value")
+	ErrorPropIllegalInt    = errors.New("illegal int value")
+	ErrorPropIllegalEnum   = errors.New("illegal enum value")
 )
+
+type PropSpecType = string
 
 type Broker struct {
 	AuthFile string
@@ -47,6 +68,7 @@ type Function struct {
 	ImgDigest   string
 	Name        string
 	Oem         string
+	PropSpecs   []PropSpec
 	Seq         int
 	Type        string
 	Version     string
@@ -69,6 +91,7 @@ func (f Function) toModel() *functionModel {
 		ImgDigest:   f.ImgDigest,
 		Name:        f.Name,
 		Oem:         f.Oem,
+		PropSpecs:   f.PropSpecs,
 		Type:        f.Type,
 		Version:     f.Version,
 	}
@@ -82,13 +105,100 @@ type functionFlags struct {
 
 // functionModel provides a transport definition for provisioning smart functions
 type functionModel struct {
-	Description string `json:"description"`
-	Handle      string `json:"handle"`
-	ImgDigest   string `json:"imgDigest"`
-	Name        string `json:"name"`
-	Oem         string `json:"oem"`
-	Type        string `json:"type"`
-	Version     string `json:"version"`
+	Description string     `json:"description"`
+	Handle      string     `json:"handle"`
+	ImgDigest   string     `json:"imgDigest"`
+	Name        string     `json:"name"`
+	Oem         string     `json:"oem"`
+	PropSpecs   []PropSpec `json:"propSpecs"`
+	Type        string     `json:"type"`
+	Version     string     `json:"version"`
+}
+
+type PropSpec struct {
+	Key         string       `yaml:"key" json:"key"`
+	Name        string       `yaml:"name" json:"name"`
+	Description string       `yaml:"description" json:"description"`
+	Type        PropSpecType `yaml:"type" json:"type"`
+	Value       string       `yaml:"value" json:"value"`
+	Values      []string     `yaml:"values" json:"values"`
+}
+
+func (ps PropSpec) Validate(value any) error {
+	var err error
+
+	if strings.EqualFold(ps.Type, PropSpecTypeBoolean) {
+		if !slices.Contains([]string{"true", "false"}, strings.ToLower(cast.ToString(value))) {
+			err = ErrorPropIllegalBool
+		}
+	} else if strings.EqualFold(ps.Type, PropSpecTypeDouble) {
+		if _, err = cast.ToFloat32E(value); err != nil {
+			err = ErrorPropIllegalDouble
+		}
+	} else if strings.EqualFold(ps.Type, PropSpecTypeInt) {
+		if _, err = strconv.Atoi(cast.ToString(value)); err != nil {
+			err = ErrorPropIllegalInt
+		}
+	} else if strings.EqualFold(ps.Type, PropSpecTypeEnum) {
+		if !slices.Contains(ps.Values, cast.ToString(value)) {
+			err = ErrorPropIllegalEnum
+		}
+	}
+
+	return err
+}
+
+func FindPropSpec(specs any, key string) *PropSpec {
+	var result *PropSpec
+	var list []interface{}
+	var ok bool
+
+	if list, ok = specs.([]interface{}); ok {
+		var specMap map[string]interface{}
+
+		for _, specInterface := range list {
+			if specMap, ok = specInterface.(map[string]interface{}); ok {
+				if key == specMap["key"] {
+					result = &PropSpec{
+						Key:         cast.ToString(specMap["key"]),
+						Description: cast.ToString(specMap["description"]),
+						Name:        cast.ToString(specMap["name"]),
+						Type:        cast.ToString(specMap["type"]),
+						Value:       cast.ToString(specMap["value"]),
+						Values:      cast.ToStringSlice(specMap["values"]),
+					}
+					break
+				}
+			}
+		}
+	}
+
+	return result
+}
+
+func ListPropSpecs(specs any) []PropSpec {
+	var result []PropSpec
+	var list []interface{}
+	var ok bool
+
+	if list, ok = specs.([]interface{}); ok {
+		var specMap map[string]interface{}
+
+		for _, specInterface := range list {
+			if specMap, ok = specInterface.(map[string]interface{}); ok {
+				result = append(result, PropSpec{
+					Key:         cast.ToString(specMap["key"]),
+					Description: cast.ToString(specMap["description"]),
+					Name:        cast.ToString(specMap["name"]),
+					Type:        cast.ToString(specMap["type"]),
+					Value:       cast.ToString(specMap["value"]),
+					Values:      cast.ToStringSlice(specMap["values"]),
+				})
+			}
+		}
+	}
+
+	return result
 }
 
 type provisionData struct {

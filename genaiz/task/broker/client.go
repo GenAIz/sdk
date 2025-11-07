@@ -23,7 +23,7 @@ import (
 const (
 	defaultCookieName     = "genaiz_token"
 	defaultExpiryMinutes  = 5 * 24 * 60
-	defaultTimeoutSeconds = 15
+	defaultTimeoutSeconds = 30
 
 	apiVersion1  version = "v1"
 	pathFunction path    = "sf"

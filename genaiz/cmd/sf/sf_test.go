@@ -213,7 +213,9 @@ func TestEnvOptions_makeEnvMap(t *testing.T) {
 	var expectedKey2 = "KEY_2"
 	var expectedValue1 = "VALUE.1"
 	var expectedValue2 = "VALUE.2"
+	var expectedType = "type"
 
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, expectedType)
 	testViper.Set(testEnvOptions.optionEnvFile.Key, testFile)
 	testViper.Set(testEnvOptions.optionEnvVars.Key, []string{
 		expectedKey1 + "=" + expectedValue1,
@@ -221,9 +223,10 @@ func TestEnvOptions_makeEnvMap(t *testing.T) {
 	})
 	result, err := testEnvOptions.makeEnvMap(testLedger)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(result))
+	assert.Equal(t, 3, len(result))
 	assert.Equal(t, expectedValue1, result[expectedKey1])
 	assert.Equal(t, expectedValue2, result[expectedKey2])
+	assert.Equal(t, expectedType, result["SF_TYPE"])
 }
 
 func TestEnvOptions_makeEnvMap_PermissionDenied(t *testing.T) {
