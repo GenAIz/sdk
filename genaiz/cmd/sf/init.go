@@ -3,7 +3,6 @@ package sf
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -149,8 +148,6 @@ func (iw *InitWriter) WithOem(value string) layout.ConfigWriter {
 func (iw *InitWriter) WithOutput(value string) layout.ConfigWriter {
 	if value != "" {
 		iw.vp.Set(iw.optionMountOutput.Key, value)
-		iw.vp.Set(iw.optionMountVar.Key, filepath.Join(value, "var"))
-		iw.vp.Set(iw.optionMountLog.Key, filepath.Join(value, "log"))
 	}
 
 	return iw

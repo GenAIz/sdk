@@ -75,10 +75,8 @@ func (ce *CreateExecutor) Proceed() {
 	var initParams = makeInitParams(ce.Ledger, ce.InitOptions)
 	var recipeName = ce.Ledger.GetString(ce.optionRecipe)
 	var plan = task.NewPlan("Create", ce.Ledger.Logger)
-
 	var workers = []task.Worker{
 		task.NewWorker(createParams, ce.createTaskFactory()),
-		task.NewWorker(initParams, ce.initTaskFactory(builder)),
 	}
 
 	if recipeName != "" {
@@ -87,6 +85,7 @@ func (ce *CreateExecutor) Proceed() {
 		workers = append(workers, task.NewWorker(recipeParams, ce.recipeTaskFactory(ce.Ledger.TemplatePaths...)))
 	}
 
+	workers = append(workers, task.NewWorker(initParams, ce.initTaskFactory(builder)))
 	plan.PrintReportsOnly = true
 	plan.Sequence(workers...)
 }

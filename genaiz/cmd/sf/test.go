@@ -108,6 +108,16 @@ func NewTestExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, optio
 }
 
 func NewTestOptions(sfCli *Cli) *RunOptions {
+	var outputMountOption = cli.Options.Functions.MountOutput().
+		WithKeys(&schema.Genaiz.Function.Test.MountOutput).
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return ledger.GetString(cli.Options.Functions.MountOutput().
+				WithKeys(&schema.Genaiz.Function.Run.MountOutput).
+				BuildStringOption())
+		}).
+		Optional(false).
+		BuildStringOption()
+
 	return &RunOptions{
 		EnvOptions: EnvOptions{
 			optionEnvFile: cli.Options.Docker.EnvFile().
@@ -119,15 +129,25 @@ func NewTestOptions(sfCli *Cli) *RunOptions {
 		},
 		optionMountInput: cli.Options.Functions.MountInput().
 			WithKeys(&schema.Genaiz.Function.Test.MountInput).
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(cli.Options.Functions.MountInput().
+					WithKeys(&schema.Genaiz.Function.Run.MountInput).
+					BuildStringOption())
+			}).
+			Optional(false).
 			BuildStringOption(),
 		optionMountLog: cli.Options.Functions.MountLog().
 			WithKeys(&schema.Genaiz.Function.Test.MountLog).
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(outputMountOption)
+			}).
 			BuildStringOption(),
-		optionMountOutput: cli.Options.Functions.MountOutput().
-			WithKeys(&schema.Genaiz.Function.Test.MountOutput).
-			BuildStringOption(),
+		optionMountOutput: outputMountOption,
 		optionMountVar: cli.Options.Functions.MountVar().
 			WithKeys(&schema.Genaiz.Function.Test.MountVar).
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(outputMountOption)
+			}).
 			BuildStringOption(),
 		optionRunImage: cli.Options.Docker.Image().
 			WithKeys(&schema.Genaiz.Function.Test.Image).

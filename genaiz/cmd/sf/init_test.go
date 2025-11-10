@@ -151,14 +151,10 @@ func TestInitWriter_BuildOutput(t *testing.T) {
 	var actualValues = testWriter.WithOutput(expectedOutput).BuildOutput()
 
 	assert.EqualValues(t, actualValues[testWriter.optionMountOutput.Key], expectedOutput)
-	assert.EqualValues(t, actualValues[testWriter.optionMountLog.Key], filepath.Join(expectedOutput, "log"))
-	assert.EqualValues(t, actualValues[testWriter.optionMountVar.Key], filepath.Join(expectedOutput, "var"))
 
 	actualValues = testWriter.WithOutput("").BuildOutput()
 
 	assert.EqualValues(t, actualValues[testWriter.optionMountOutput.Key], expectedOutput)
-	assert.EqualValues(t, actualValues[testWriter.optionMountLog.Key], filepath.Join(expectedOutput, "log"))
-	assert.EqualValues(t, actualValues[testWriter.optionMountVar.Key], filepath.Join(expectedOutput, "var"))
 }
 
 func TestInitWriter_BuildPropSpecs(t *testing.T) {

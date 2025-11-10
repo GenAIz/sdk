@@ -48,25 +48,23 @@ Version can be used to change the local `name/repository:tag` of the built image
 ### mount-in
 
 * if mount-in is not specified, the default key `sf.run.input` will be read from the Smart Function `Genaiz.yaml`
-* if mount-in resolve to an empty value, no [SF_INPUT_PATH](index.md#sf_input_path) host mount point will be provided to the function's container.
 * if mount-in specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.input] is invalid`
 
 ### mount-out
 
 * if mount-out is not specified, the default key `sf.run.output` will be read from the Smart Function `Genaiz.yaml`
-* if mount-out is not specified, no [SF_OUTPUT_PATH](index.md#sf_output_path) host mount point will be provided to the function's container.
 * if mount-out specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.output] is invalid`
 
 ### mount-log
 
-* if mount-out is not specified, the default key `sf.run.log` will be read from the Smart Function `Genaiz.yaml`
-* if mount-log is not specified, no [SF_LOG_PATH](index.md#sf_log_path) host mount point will be provided to the function's container.
+* if mount-log is not specified, the default key `sf.run.log` will be read from the Smart Function `Genaiz.yaml`
+* if mount-log is not specified, the option will default to [mount-out](#mount-out)
 * if mount-log specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.log] is invalid`
 
 ### mount-var
 
-* if mount-out is not specified, the default key `sf.run.var` will be read from the Smart Function `Genaiz.yaml`
-* if mount-var is not specified, no [SF_VAR_PATH](index.md#sf_var_path) host mount point will be provided to the function's container.
+* if mount-var is not specified, the default key `sf.run.var` will be read from the Smart Function `Genaiz.yaml`
+* if mount-var is not specified, the option will default to [mount-out](#mount-out)
 * if mount-var specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.var] is invalid`
 
 ### env

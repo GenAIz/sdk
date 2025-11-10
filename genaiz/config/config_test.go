@@ -491,6 +491,25 @@ func TestLedger_GetParam(t *testing.T) {
 	assert.EqualValues(t, expectedValue, testLedger.Get(testOption))
 }
 
+func TestLedger_GetPath(t *testing.T) {
+	var testDir = t.TempDir()
+	var absDir = t.TempDir()
+	var expectedFile = "file"
+	var testViper = viper.New()
+	var testLedger = NewBuilder().WithViper(testViper).Build()
+	var testOption = &StringOption{
+		Option: Option{
+			Key: "key",
+		},
+	}
+
+	testLedger.WorkDir = testDir
+	testViper.Set(testOption.Key, expectedFile)
+	assert.Equal(t, filepath.Join(testDir, expectedFile), testLedger.GetPath(testOption))
+	testViper.Set(testOption.Key, absDir)
+	assert.Equal(t, absDir, testLedger.GetPath(testOption))
+}
+
 func TestLedger_GetString(t *testing.T) {
 	var expectedValue = "value"
 	var testViper, testLedger = newTestConfigs()

@@ -14,8 +14,11 @@ import (
 	"testing"
 	"text/template"
 
+	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
+
+	"genaiz.com/genaiz-lib/mock"
 )
 
 var (
@@ -24,68 +27,68 @@ var (
 	testRecipesPath = "test_recipes"
 )
 
-func TestBook_FindRecipe(t *testing.T) {
+func TestRegistry_FindRecipe(t *testing.T) {
 	var expectedRecipe = "bash-example"
-	var testBook = NewBook()
-	var testRecipe, err = testBook.FindRecipe(expectedRecipe, TypeFunction)
+	var testRegistry = NewRegistry()
+	var testRecipe, err = testRegistry.FindRecipe(expectedRecipe, TypeFunction)
 
 	assert.NoError(t, err)
-	assert.EqualValues(t, expectedRecipe, testRecipe.Name)
+	assert.EqualValues(t, expectedRecipe, testRecipe.GetName())
 }
 
-func TestBook_FindRecipeRedundant(t *testing.T) {
+func TestRegistry_FindRecipeRedundant(t *testing.T) {
 	var expectedRecipe = "bash-example"
-	var testBook = NewBook()
-	var testRecipe, err = testBook.FindRecipe(folderKey(TypeFunction, expectedRecipe), TypeFunction)
+	var testRegistry = NewRegistry()
+	var testRecipe, err = testRegistry.FindRecipe(folderKey(TypeFunction, expectedRecipe), TypeFunction)
 
 	assert.NoError(t, err)
-	assert.EqualValues(t, expectedRecipe, testRecipe.Name)
+	assert.EqualValues(t, expectedRecipe, testRecipe.GetName())
 }
 
-func TestBook_FindRecipeVariation(t *testing.T) {
+func TestRegistry_FindRecipeVariation(t *testing.T) {
 	var testRecipeName = "varied-example"
 	var expectedRecipeName = testRecipeName + "-func"
-	var testBook = NewBook()
+	var testRegistry = newRegistry()
 
-	testBook.AddRecipe(&Recipe{
+	testRegistry.addRecipe(&recipe{
 		Name: expectedRecipeName,
 		Type: TypeFunction,
 	})
 
-	if testRecipe, err := testBook.FindRecipe(testRecipeName, TypeFunction); err == nil {
-		assert.EqualValues(t, expectedRecipeName, testRecipe.Name)
+	if testRecipe, err := testRegistry.FindRecipe(testRecipeName, TypeFunction); err == nil {
+		assert.EqualValues(t, expectedRecipeName, testRecipe.GetName())
 	} else {
 		assert.Fail(t, err.Error())
 	}
 }
 
-func TestBook_FindVariationNotExisting(t *testing.T) {
-	var testBook = NewBook()
-	var _, err = testBook.FindVariation("project-x", TypeProject)
+func TestRegistry_FindVariationNotExisting(t *testing.T) {
+	var testRegistry = NewRegistry()
+	var _, err = testRegistry.FindVariation("project-x", TypeProject)
 
 	assert.Error(t, err)
 }
 
-func TestBook_GetRecipe(t *testing.T) {
+func TestRegistry_GetRecipe(t *testing.T) {
 	var expectedRecipe = "bash-example"
-	var testBook = NewBook()
-	var testRecipe, err = testBook.GetRecipe(expectedRecipe, TypeFunction)
+	var testRegistry = NewRegistry()
+	var testRecipe, err = testRegistry.GetRecipe(expectedRecipe, TypeFunction)
 
 	assert.NoError(t, err)
-	assert.EqualValues(t, expectedRecipe, testRecipe.Name)
+	assert.EqualValues(t, expectedRecipe, testRecipe.GetName())
 }
 
-func TestBook_GetRecipeNoFound(t *testing.T) {
-	var testBook = NewBook()
+func TestRegistry_GetRecipeNoFound(t *testing.T) {
+	var testRegistry = NewRegistry()
 
-	_, err := testBook.GetRecipe("_will_never_exist", TypeFunction)
+	_, err := testRegistry.GetRecipe("_will_never_exist", TypeFunction)
 	assert.Error(t, err)
 }
 
 func TestRecipe_Finish(t *testing.T) {
 	var testDir = t.TempDir()
 	var expectedInstance = "_will_never_exist"
-	var testRecipe = &Recipe{
+	var testRecipe = &recipe{
 		Name:         "testRecipe_Finish",
 		Type:         TypeFunction,
 		PostCommands: []string{"ls {{.InstanceName}}"},
@@ -101,30 +104,180 @@ func TestRecipe_Finish(t *testing.T) {
 func TestRecipe_Init(t *testing.T) {
 	var testDir = t.TempDir()
 	var expectedInstance = "_will_never_exist"
-	var testRecipe = &Recipe{
+	var testRecipe = &recipe{
+		Name:         "testRecipe_Init",
+		Type:         TypeFunction,
+		InitParams:   map[string]string{"key": "value"},
+		InitCommands: []string{},
+	}
+
+	if actual, err := testRecipe.Init(testDir, expectedInstance, map[string]string{}); err == nil {
+		assert.Equal(t, testRecipe.InitParams, actual)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestRecipe_Init_Error(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedInstance = "_will_never_exist"
+	var testRecipe = &recipe{
 		Name:         "testRecipe_Init",
 		Type:         TypeFunction,
 		InitCommands: []string{"ls {{.InstanceName}}"},
 	}
 
-	if err := testRecipe.Init(testDir, expectedInstance, map[string]string{}); err != nil {
+	if _, err := testRecipe.Init(testDir, expectedInstance, map[string]string{}); err != nil {
 		assert.Contains(t, err.Error(), expectedInstance)
 	} else {
 		assert.Fail(t, "expected error")
 	}
 }
 
+func TestRecipe_PrintFiles(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedName = "name"
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var testRecipe = &recipe{
+		Path: testDir,
+		Artifacts: []Artifact{
+			{
+				Name: expectedName,
+			},
+		},
+	}
+	var testVars = map[string]string{}
+
+	defer patch.Unpatch()
+	testRecipe.PrintFiles("dest", "instance", testVars)
+	assert.NotEmpty(t, patch.CalledWith)
+	params := cast.ToStringSlice(patch.CalledWith)
+	assert.Equal(t, filepath.Join(testDir, expectedName), params[1])
+}
+
+func TestRecipe_PrintFiles_Commands(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedCommand = "command"
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var testRecipe = &recipe{
+		Path: testDir,
+		Artifacts: []Artifact{
+			{
+				Name:     "name",
+				Commands: []string{expectedCommand},
+			},
+		},
+	}
+	var testVars = map[string]string{}
+
+	defer patch.Unpatch()
+	testRecipe.PrintFiles("dest", "instance", testVars)
+	assert.NotEmpty(t, patch.CalledWith)
+	params := cast.ToStringSlice(patch.CalledWith)
+	assert.Equal(t, expectedCommand, params[1])
+}
+
+func TestRecipe_PrintFiles_CommandError(t *testing.T) {
+	var testDir = t.TempDir()
+	var problem = "invalidFunction"
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var testRecipe = &recipe{
+		Path: testDir,
+		Artifacts: []Artifact{
+			{
+				Name:     "name",
+				Commands: []string{"{{" + problem + "}}"},
+			},
+		},
+	}
+	var testVars = map[string]string{}
+
+	defer patch.Unpatch()
+	testRecipe.PrintFiles("dest", "instance", testVars)
+	assert.NotEmpty(t, patch.CalledWith)
+	params := cast.ToStringSlice(patch.CalledWith)
+	assert.Contains(t, params[1], problem)
+}
+
+func TestRecipe_PrintFinish(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedCommand = "command"
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var testRecipe = &recipe{
+		Path:         testDir,
+		PostCommands: []string{expectedCommand},
+	}
+	var testVars = map[string]string{}
+
+	defer patch.Unpatch()
+	testRecipe.PrintFinish("dest", "instance", testVars)
+	assert.NotEmpty(t, patch.CalledWith)
+	params := cast.ToStringSlice(patch.CalledWith)
+	assert.Equal(t, expectedCommand, params[1])
+}
+
+func TestRecipe_PrintFinish_TemplateError(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedCommand = "{{template \"doesNotExist\"}}"
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var testRecipe = &recipe{
+		Path:         testDir,
+		PostCommands: []string{expectedCommand},
+	}
+	var testVars = map[string]string{}
+
+	defer patch.Unpatch()
+	testRecipe.PrintFinish("dest", "instance", testVars)
+	assert.NotEmpty(t, patch.CalledWith)
+	params := cast.ToStringSlice(patch.CalledWith)
+	assert.Contains(t, params[1], expectedCommand)
+}
+
+func TestRecipe_PrintInit(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedCommand = "command"
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var testRecipe = &recipe{
+		Path:         testDir,
+		InitCommands: []string{expectedCommand},
+	}
+	var testVars = map[string]string{}
+
+	defer patch.Unpatch()
+	testRecipe.PrintInit("dest", "instance", testVars)
+	assert.NotEmpty(t, patch.CalledWith)
+	params := cast.ToStringSlice(patch.CalledWith)
+	assert.Equal(t, expectedCommand, params[1])
+}
+
+func TestRecipe_PrintInit_TemplateError(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedCommand = "{{template \"doesNotExist\"}}"
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var testRecipe = &recipe{
+		Path:         testDir,
+		InitCommands: []string{expectedCommand},
+	}
+	var testVars = map[string]string{}
+
+	defer patch.Unpatch()
+	testRecipe.PrintInit("dest", "instance", testVars)
+	assert.NotEmpty(t, patch.CalledWith)
+	params := cast.ToStringSlice(patch.CalledWith)
+	assert.Contains(t, params[1], expectedCommand)
+}
+
 func TestRecipe_WriteFiles(t *testing.T) {
 	var testDir = t.TempDir()
 
 	if fd, err := os.CreateTemp(testDir, "genaiz-test-write-riles"); err == nil {
-		var testArtifact = &Artifact{
+		var testArtifact = Artifact{
 			Name: fd.Name(),
 		}
-		var testRecipe = &Recipe{
+		var testRecipe = &recipe{
 			Name:      "testRecipe_WriteFilesParseError",
 			Type:      TypeFunction,
-			Artifacts: []*Artifact{testArtifact},
+			Artifacts: []Artifact{testArtifact},
 			parse: func(path string, t *template.Template) (*template.Template, error) {
 				return t.Parse("{{.test}}")
 			},
@@ -138,13 +291,13 @@ func TestRecipe_WriteFiles(t *testing.T) {
 
 func TestRecipe_WriteFilesExecuteError(t *testing.T) {
 	var testDir = t.TempDir()
-	var testArtifact = &Artifact{
+	var testArtifact = Artifact{
 		Name: "testArtifact",
 	}
-	var testRecipe = &Recipe{
+	var testRecipe = &recipe{
 		Name:      "testRecipe_WriteFilesParseError",
 		Type:      TypeFunction,
-		Artifacts: []*Artifact{testArtifact},
+		Artifacts: []Artifact{testArtifact},
 		parse: func(path string, t *template.Template) (*template.Template, error) {
 			return t, nil
 		},
@@ -156,13 +309,13 @@ func TestRecipe_WriteFilesExecuteError(t *testing.T) {
 func TestRecipe_WriteFilesParseError(t *testing.T) {
 	var testDir = t.TempDir()
 	var expectedError = errors.New("expected")
-	var testArtifact = &Artifact{
+	var testArtifact = Artifact{
 		Name: "testArtifact",
 	}
-	var testRecipe = &Recipe{
+	var testRecipe = &recipe{
 		Name:      "testRecipe_WriteFilesParseError",
 		Type:      TypeFunction,
-		Artifacts: []*Artifact{testArtifact},
+		Artifacts: []Artifact{testArtifact},
 		parse: func(path string, t *template.Template) (*template.Template, error) {
 			return nil, expectedError
 		},
@@ -174,13 +327,13 @@ func TestRecipe_WriteFilesParseError(t *testing.T) {
 
 func TestRecipe_WriteFilesPathError(t *testing.T) {
 	var testDir = t.TempDir()
-	var testArtifact = &Artifact{
+	var testArtifact = Artifact{
 		Name: "/_will_never_exist/testArtifact",
 	}
-	var testRecipe = &Recipe{
+	var testRecipe = &recipe{
 		Name:      "testRecipe_WriteFilesParseError",
 		Type:      TypeFunction,
-		Artifacts: []*Artifact{testArtifact},
+		Artifacts: []Artifact{testArtifact},
 		parse: func(path string, t *template.Template) (*template.Template, error) {
 			return t.Parse("{{.test}}")
 		},
@@ -190,17 +343,17 @@ func TestRecipe_WriteFilesPathError(t *testing.T) {
 	assert.ErrorContains(t, err, testArtifact.Name)
 }
 
-func TestNewBook(t *testing.T) {
+func TestNewRegistry(t *testing.T) {
 	var expectedPath = t.TempDir()
-	var testBook = NewBook(expectedPath)
+	var testRegistry = newRegistry(expectedPath)
 	var variations = Variations[TypeFunction].GetVariations("bash-example")
-	var allRecipeKeys = slices.Collect(maps.Keys(testBook.Recipes))
+	var allRecipeKeys = slices.Collect(maps.Keys(testRegistry.Recipes))
 
 	for _, key := range variations {
 		assert.Contains(t, allRecipeKeys, folderKey(TypeFunction, key))
 	}
 
-	assert.Contains(t, testBook.Paths, expectedPath)
+	assert.Contains(t, testRegistry.Paths, expectedPath)
 }
 
 func TestNewEmbedded(t *testing.T) {
@@ -210,16 +363,16 @@ func TestNewEmbedded(t *testing.T) {
 	if entries, err = embedded.ReadDir(embeddedPath); err == nil {
 		for _, entry := range entries {
 			if strings.EqualFold("bash_example", entry.Name()) {
-				var testRecipe = NewEmbedded(entry, embeddedPath)
+				var testRecipe = newEmbedded(entry, embeddedPath)
 				var tpl = template.New("Dockerfile.tmpl")
-				var dockerIndex = slices.IndexFunc(testRecipe.Artifacts, func(a *Artifact) bool {
+				var dockerIndex = slices.IndexFunc(testRecipe.Artifacts, func(a Artifact) bool {
 					return strings.EqualFold(a.Name, "Dockerfile.tmpl")
 				})
 				var dockerPath = filepath.Join(embeddedPath, entry.Name(), "Dockerfile.tmpl")
 
 				assert.EqualValues(t, "bash-example", testRecipe.Name)
 				assert.EqualValues(t, len(testRecipe.Artifacts), 2)
-				assert.True(t, slices.ContainsFunc(testRecipe.Artifacts, func(a *Artifact) bool {
+				assert.True(t, slices.ContainsFunc(testRecipe.Artifacts, func(a Artifact) bool {
 					return strings.EqualFold(a.Name, "app.sh.tmpl")
 				}))
 				assert.True(t, dockerIndex > 0)
@@ -290,21 +443,21 @@ func Test_executeCommand(t *testing.T) {
 func Test_executeCommandsEmptyCommand(t *testing.T) {
 	var testMap = map[string]string{}
 
-	assert.Error(t, executeCommands([]string{""}, "test", &testMap))
+	assert.Error(t, executeCommands([]string{""}, "test", testMap))
 }
 
 func Test_executeCommandsInvalidInstruction(t *testing.T) {
 	var testInvalidTemplate = "{{template \"doesNotExist\"}}"
 	var testMap = map[string]string{}
 
-	assert.Error(t, executeCommands([]string{testInvalidTemplate}, "test", &testMap))
+	assert.Error(t, executeCommands([]string{testInvalidTemplate}, "test", testMap))
 }
 
 func Test_executeCommandsInvalidTemplate(t *testing.T) {
 	var testInvalidTemplate = "{{it's so easy to make something invalid}}"
 	var testMap = map[string]string{}
 
-	assert.Error(t, executeCommands([]string{testInvalidTemplate}, "test", &testMap))
+	assert.Error(t, executeCommands([]string{testInvalidTemplate}, "test", testMap))
 }
 
 func Test_executeCommandsNilParams(t *testing.T) {
@@ -382,10 +535,10 @@ func testAllCommands(recipePath string) error {
 	var err error
 
 	if recipeBytes, err = embedded.ReadFile(recipePath); err == nil {
-		var recipe *Recipe
+		var testRecipe *recipe
 
-		if err = yaml.Unmarshal(recipeBytes, &recipe); err == nil {
-			for _, artifact := range recipe.Artifacts {
+		if err = yaml.Unmarshal(recipeBytes, &testRecipe); err == nil {
+			for _, artifact := range testRecipe.GetArtifacts() {
 				for _, command := range artifact.Commands {
 					if _, err = template.New("test").Parse(command); err != nil {
 						return err
@@ -393,13 +546,13 @@ func testAllCommands(recipePath string) error {
 				}
 			}
 
-			for _, command := range recipe.InitCommands {
+			for _, command := range testRecipe.InitCommands {
 				if _, err = template.New("test").Parse(command); err != nil {
 					return err
 				}
 			}
 
-			for _, command := range recipe.PostCommands {
+			for _, command := range testRecipe.PostCommands {
 				if _, err = template.New("test").Parse(command); err != nil {
 					return err
 				}

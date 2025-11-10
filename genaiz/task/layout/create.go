@@ -28,8 +28,12 @@ func handleLayoutCreate(params *CreateParams, state *task.State) error {
 	var err error
 
 	if path, err = handleLayoutCreatePath(params, state); err == nil {
+		var initState = NewInitState(state)
+		var configFile string
+
 		if !params.IsConfigTypeNone() || state.Output != "" {
-			state.Output, err = handleLayoutCreateFile(path, params, state)
+			configFile, err = handleLayoutCreateFile(path, params, state)
+			initState.SetConfigFile(configFile)
 		} else {
 			err = os.Chdir(path)
 		}
@@ -73,7 +77,7 @@ func handleLayoutCreateFile(path string, params *CreateParams, state *task.State
 		var fd *os.File
 
 		if fd, err = os.OpenFile(absPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0660); fd != nil {
-			filez.CloseSilently(fd)
+			defer filez.CloseSilently(fd)
 			state.Report(fmt.Sprintf("Created configuration file %s", params.GetConfigFile()))
 		}
 	}

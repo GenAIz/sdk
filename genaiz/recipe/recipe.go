@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"embed"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"maps"
@@ -26,7 +27,42 @@ type parseFunction func(path string, t *template.Template) (*template.Template, 
 type readFileFunction func(string) ([]byte, error)
 type readDirFunction func(string) ([]os.DirEntry, error)
 
+type Finder = func(registry Registry) (Recipe, error)
 type Type = string
+
+type Recipe interface {
+	// Finish calls any post instructions the Recipe may require before it is completed. Returns an error if the wrapping up fails
+	Finish(string, string, map[string]string) error
+
+	// GetArtifacts provides artifacts initiated by the recipe
+	GetArtifacts() []Artifact
+
+	// GetName returns the name of the recipe
+	GetName() string
+
+	// Init creates the recipe layout using any initialization instructions it may have. Returns an error if the initialization fails
+	Init(string, string, map[string]string) (map[string]string, error)
+
+	// PrintFiles prints the files that would be created to STDOUT that would be created by WriteFiles
+	PrintFiles(string, string, map[string]string)
+
+	// PrintFinish prints the commands to STDOUT that would be executed by Finish, instead of executing them
+	PrintFinish(string, string, map[string]string)
+
+	// PrintInit prints the commands to STDOUT that would be executed by Init, instead of executing them
+	PrintInit(string, string, map[string]string)
+
+	// WriteFiles processes the collection of Artifact under the destination provided. Returns an error if file processing fails
+	WriteFiles(string, string, map[string]string) error
+}
+
+type Registry interface {
+	GetRecipe(string, Type) (Recipe, error)
+
+	FindRecipe(string, Type) (Recipe, error)
+
+	FindVariation(string, Type) (Recipe, error)
+}
 
 type Varies interface {
 	GetVariations(name string) []string
@@ -71,29 +107,16 @@ type Artifact struct {
 	Name     string   // Name of the artifact for the purpose of displaying
 }
 
-// Book represents a list of local paths to search for recipes and a cache of already known recipes
-type Book struct {
-	Paths   []string           // Paths in which to look for finding recipes
-	Recipes map[string]*Recipe // Known embedded Recipe are inscribed into the book, found recipes may be cached as well
-}
-
-// AddRecipe adds a recipe with keyed variations to the Book.Recipes map
-func (b *Book) AddRecipe(recipe *Recipe) {
-	b.Recipes[recipe.GetKey()] = recipe
-
-	for _, key := range recipe.GetKeyVariations() {
-		b.Recipes[key] = recipe
-	}
-
-	for _, key := range recipe.GetKeyAliases() {
-		b.Recipes[key] = recipe
-	}
+// registry represents a list of local paths to search for recipes and a cache of already known recipes
+type registry struct {
+	Paths   []string          // Paths in which to look for finding recipes
+	Recipes map[string]Recipe // Known embedded Recipe are inscribed into the book, found recipes may be cached as well
 }
 
 // GetRecipe returns the recipe for the provided recipeName looking in the recipeType section of the book
-func (b *Book) GetRecipe(recipeName string, recipeType Type) (*Recipe, error) {
+func (r *registry) GetRecipe(recipeName string, recipeType Type) (Recipe, error) {
 	var key = folderKey(recipeType, recipeName)
-	var result = b.Recipes[key]
+	var result = r.Recipes[key]
 
 	if result == nil {
 		return nil, errors.New("recipe not found")
@@ -105,34 +128,33 @@ func (b *Book) GetRecipe(recipeName string, recipeType Type) (*Recipe, error) {
 // FindRecipe tries to find a recipe from its current Book entries
 //
 // TODO: have the function look through paths using baseName as a filename
-func (b *Book) FindRecipe(baseName string, recipeType Type) (*Recipe, error) {
-	var recipe = b.Recipes[baseName]
+func (r *registry) FindRecipe(baseName string, recipeType Type) (Recipe, error) {
+	var result = r.Recipes[baseName]
 	var err error
 
-	if recipe == nil {
-		recipe, err = b.GetRecipe(baseName, recipeType)
+	if result == nil {
+		result, err = r.GetRecipe(baseName, recipeType)
 	}
 
-	if recipe == nil {
-		recipe, err = b.FindVariation(baseName, recipeType)
+	if result == nil {
+		result, err = r.FindVariation(baseName, recipeType)
 	}
 
-	return recipe, err
+	return result, err
 }
 
 // FindVariation tries to find a recipe from its current Book entries using a variation definition for the recipeType
-func (b *Book) FindVariation(baseName string, recipeType Type) (*Recipe, error) {
+func (r *registry) FindVariation(baseName string, recipeType Type) (Recipe, error) {
 	var varies = Variations[recipeType]
 
 	if varies != nil {
 		var variations = varies.GetVariations(baseName)
-		var recipe *Recipe
 
 		for _, variation := range variations {
 			var key = folderKey(recipeType, variation)
 
-			if recipe = b.Recipes[key]; recipe != nil {
-				return recipe, nil
+			if result, ok := r.Recipes[key]; ok {
+				return result, nil
 			}
 		}
 	}
@@ -140,68 +162,98 @@ func (b *Book) FindVariation(baseName string, recipeType Type) (*Recipe, error) 
 	return nil, errors.New("recipe not found")
 }
 
-// Recipe is a set of commands with a set of artifacts to write and optionally to process
-type Recipe struct {
-	Name         string      // Name of the recipe, usually found in the filename if external with some variations
-	Path         string      // Path of the recipe
-	Type         Type        // Type of recipe, see recipe.Type
-	Aliases      []string    // Aliases represent a list of strings with which one can refer to the recipe, these are not combined with variations
-	Artifacts    []*Artifact // Artifacts contains File content and an optional command to execute after writing
-	InitCommands []string    `yaml:"initCommands"` // InitCommand should be executed before the Artifacts are processed with their own Command
-	PostCommands []string    `yaml:"postCommands"` // PostCommand should be executed after the Artifacts are written locally
+// addRecipe adds a recipe with keyed variations to the Book.Recipes map
+func (r *registry) addRecipe(rp *recipe) {
+	r.Recipes[rp.getKey()] = rp
+
+	for _, key := range rp.getKeyVariations() {
+		r.Recipes[key] = rp
+	}
+
+	for _, key := range rp.getKeyAliases() {
+		r.Recipes[key] = rp
+	}
+}
+
+// recipe is a set of commands with a set of artifacts to write and optionally to process
+type recipe struct {
+	Name         string            // Name of the recipe, usually found in the filename if external with some variations
+	Path         string            // Path of the recipe
+	Type         Type              // Type of recipe, see recipe.Type
+	Aliases      []string          // Aliases represent a list of strings with which one can refer to the recipe, these are not combined with variations
+	Artifacts    []Artifact        // Artifacts contains File content and an optional command to execute after writing
+	InitParams   map[string]string `yaml:"initParams"`   // InitParams provide initial configurations from the recipe
+	InitCommands []string          `yaml:"initCommands"` // InitCommands should be executed before the Artifacts are processed with their own Command
+	PostCommands []string          `yaml:"postCommands"` // PostCommands should be executed after the Artifacts are written locally
 
 	parse parseFunction // parse provides the parseFunction for parsing the Recipe.Path
 }
 
-// Finish calls the Recipe.PostCommand. Returns an error if the command fails.
-func (r *Recipe) Finish(dest string, instanceName string, variables map[string]string) error {
+func (r *recipe) Finish(dest string, instanceName string, variables map[string]string) error {
 	var params = instanceParams(dest, instanceName)
 
 	maps.Copy(params, variables)
-	return executeCommands(r.PostCommands, "postCommands", &params)
+	return executeCommands(r.PostCommands, "postCommands", params)
 }
 
-// GetKey creates a key for the recipe for classifying in a Book or in a map[string]*Recipe
-func (r *Recipe) GetKey() string {
-	return folderKey(r.Type, r.Name)
+func (r *recipe) GetArtifacts() []Artifact {
+	return r.Artifacts
 }
 
-// GetKeyAliases returns a slice of all the recipe key aliases supported by this recipe
-func (r *Recipe) GetKeyAliases() []string {
-	var result []string
+func (r *recipe) GetName() string {
+	return r.Name
+}
 
-	for _, alias := range r.Aliases {
-		result = append(result, folderKey(r.Type, alias))
+func (r *recipe) Init(dest string, instanceName string, variables map[string]string) (map[string]string, error) {
+	var params = instanceParams(dest, instanceName)
+
+	maps.Copy(params, variables)
+
+	if err := executeCommands(r.InitCommands, "initCommands", params); err != nil {
+		return nil, err
 	}
 
-	return result
+	return r.InitParams, nil
 }
 
-// GetKeyVariations returns a slice of all the recipe key variations supported by this recipe
-func (r *Recipe) GetKeyVariations() []string {
-	var result []string
+func (r *recipe) PrintFiles(dest string, instanceName string, variables map[string]string) {
+	var params = instanceParams(dest, instanceName)
 
-	if v, _ := Variations[r.Type]; v != nil {
-		if !v.IsaVariety(r.Name) {
-			for _, variation := range v.GetVariations(r.Name) {
-				result = append(result, folderKey(r.Type, variation))
-			}
+	maps.Copy(params, variables)
+
+	for _, artifact := range r.Artifacts {
+		var artifactPath = filepath.Join(r.Path, artifact.Name)
+
+		fmt.Printf("touch %s", artifactPath)
+
+		if err := printCommands(artifact.Commands, instanceName, params); err != nil {
+			fmt.Printf("%s\n", err.Error())
+			break
 		}
 	}
-
-	return result
 }
 
-// Init creates the recipe layout using the Recipe.InitCommand for the destination provided and the instanceName specified. Returns an error if the command fails.
-func (r *Recipe) Init(dest string, instanceName string, variables map[string]string) error {
+func (r *recipe) PrintFinish(dest string, instanceName string, variables map[string]string) {
 	var params = instanceParams(dest, instanceName)
 
 	maps.Copy(params, variables)
-	return executeCommands(r.InitCommands, "initCommands", &params)
+
+	if err := printCommands(r.PostCommands, "postCommands", params); err != nil {
+		fmt.Printf("%s\n", err.Error())
+	}
 }
 
-// WriteFiles processes all the Recipe.Artifacts under the destination provided. Returns an error if file processing fails.
-func (r *Recipe) WriteFiles(dest string, instanceName string, variables map[string]string) error {
+func (r *recipe) PrintInit(dest string, instanceName string, variables map[string]string) {
+	var params = instanceParams(dest, instanceName)
+
+	maps.Copy(params, variables)
+
+	if err := printCommands(r.InitCommands, "initCommands", params); err != nil {
+		fmt.Printf("%s\n", err.Error())
+	}
+}
+
+func (r *recipe) WriteFiles(dest string, instanceName string, variables map[string]string) error {
 	var params = instanceParams(dest, instanceName)
 	var err error
 
@@ -215,7 +267,7 @@ func (r *Recipe) WriteFiles(dest string, instanceName string, variables map[stri
 		if tpl, err = r.parse(artifactPath, tpl); err == nil {
 			if err = tpl.Execute(io.Writer(output), params); err == nil {
 				if err = os.WriteFile(artifact.Name, output.Bytes(), 0640); err == nil {
-					err = executeCommands(artifact.Commands, instanceName, &variables)
+					err = executeCommands(artifact.Commands, instanceName, variables)
 				}
 			}
 		}
@@ -226,6 +278,34 @@ func (r *Recipe) WriteFiles(dest string, instanceName string, variables map[stri
 	}
 
 	return err
+}
+
+func (r *recipe) getKey() string {
+	return folderKey(r.Type, r.Name)
+}
+
+func (r *recipe) getKeyAliases() []string {
+	var result []string
+
+	for _, alias := range r.Aliases {
+		result = append(result, folderKey(r.Type, alias))
+	}
+
+	return result
+}
+
+func (r *recipe) getKeyVariations() []string {
+	var result []string
+
+	if v, _ := Variations[r.Type]; v != nil {
+		if !v.IsaVariety(r.Name) {
+			for _, variation := range v.GetVariations(r.Name) {
+				result = append(result, folderKey(r.Type, variation))
+			}
+		}
+	}
+
+	return result
 }
 
 type Variation struct {
@@ -249,38 +329,9 @@ func (v Variation) IsaVariety(name string) bool {
 	}) > -1
 }
 
-// NewBook creates a new Recipe Book based on the provided local paths. The Book will also be initialized with all embedded recipes under the genaiz executable.
-func NewBook(paths ...string) *Book {
-	var result = Book{
-		Paths:   paths,
-		Recipes: map[string]*Recipe{},
-	}
-	var entries []fs.DirEntry
-	var err error
-
-	if entries, err = embedded.ReadDir(embeddedPath); entries != nil {
-		for _, recipeEntry := range entries {
-			var recipe = NewEmbedded(recipeEntry, embeddedPath)
-
-			result.AddRecipe(recipe)
-		}
-	}
-
-	panicz.PanicIfError(err)
-	return &result
-}
-
-func NewEmbedded(entry fs.DirEntry, parentPath string) *Recipe {
-	var recipe, err = readRecipe(entry, parentPath,
-		func(path string, t *template.Template) (*template.Template, error) {
-			return t.ParseFS(embedded, path)
-		},
-		embedded.ReadDir,
-		embedded.ReadFile)
-
-	// embedded recipes can not contain errors, panic, it's a bug
-	panicz.PanicIfError(err)
-	return recipe
+// NewRegistry creates a new Recipe Registry based on the provided local paths. The Book will also be initialized with all embedded recipes under the genaiz executable.
+func NewRegistry(paths ...string) Registry {
+	return newRegistry(paths...)
 }
 
 func executeCommand(cmd string) error {
@@ -308,7 +359,7 @@ func executeCommand(cmd string) error {
 	return err
 }
 
-func executeCommands(commands []string, name string, params *map[string]string) error {
+func executeCommands(commands []string, name string, params map[string]string) error {
 	var err error
 
 	panicz.RequiresNotNil("params", params)
@@ -342,13 +393,67 @@ func instanceParams(dest string, name string) map[string]string {
 	}
 }
 
+func newEmbedded(entry fs.DirEntry, parentPath string) *recipe {
+	var result, err = readRecipe(entry, parentPath,
+		func(path string, t *template.Template) (*template.Template, error) {
+			return t.ParseFS(embedded, path)
+		},
+		embedded.ReadDir,
+		embedded.ReadFile)
+
+	// embedded recipes can not contain errors, panic, it's a bug
+	panicz.PanicIfError(err)
+	return result
+}
+
+func newRegistry(paths ...string) *registry {
+	var result = &registry{
+		Paths:   paths,
+		Recipes: map[string]Recipe{},
+	}
+	var entries []fs.DirEntry
+	var err error
+
+	if entries, err = embedded.ReadDir(embeddedPath); entries != nil {
+		for _, recipeEntry := range entries {
+			var embRecipe = newEmbedded(recipeEntry, embeddedPath)
+
+			result.addRecipe(embRecipe)
+		}
+	}
+
+	panicz.PanicIfError(err)
+	return result
+}
+
+func printCommands(commands []string, name string, params map[string]string) error {
+	var err error
+
+	for _, cmd := range commands {
+		var cmdBuffer = new(bytes.Buffer)
+		var tpl = template.New(name)
+
+		if tpl, err = tpl.Parse(cmd); err == nil {
+			if err = tpl.Execute(io.Writer(cmdBuffer), params); err == nil {
+				fmt.Printf("%s\n", cmdBuffer.String())
+			}
+
+			if err != nil {
+				break
+			}
+		}
+	}
+
+	return err
+}
+
 func readRecipe(entry fs.DirEntry, parentPath string,
 	parsingWith parseFunction,
 	readingDirWith readDirFunction,
-	readingFilesWith readFileFunction) (*Recipe, error) {
+	readingFilesWith readFileFunction) (*recipe, error) {
 	var basePath = filepath.Join(parentPath, entry.Name())
 	var entryDescriptor = filepath.Join(basePath, recipeFile)
-	var result = &Recipe{
+	var result = &recipe{
 		Path:  basePath,
 		parse: parsingWith,
 	}
@@ -357,15 +462,14 @@ func readRecipe(entry fs.DirEntry, parentPath string,
 
 	if desc, err = readingFilesWith(entryDescriptor); err == nil {
 		if err = yaml.Unmarshal(desc, result); err == nil {
-			var artifacts = mapz.Mapped(result.Artifacts, func(a *Artifact) string { return a.Name })
+			var artifacts = mapz.Mapped(result.Artifacts, func(a Artifact) string { return a.Name })
 			var files, _ = readingDirWith(basePath)
 
 			for _, file := range files {
 				if !strings.Contains(file.Name(), recipeFile) {
 					var filePath = filepath.Join(basePath, file.Name())
-					var artifact = artifacts[file.Name()]
 
-					if artifact != nil {
+					if artifact, ok := artifacts[file.Name()]; ok {
 						artifact.File, err = readingFilesWith(filePath)
 					}
 				}
