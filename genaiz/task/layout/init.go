@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
@@ -86,6 +87,10 @@ func NewInitTask(writer ConfigWriter) *task.Task[InitParams] {
 }
 
 func handleLayoutInitContext(params *InitParams, state *task.State) error {
+	var initState = NewInitState(state)
+
+	state.Output = stringz.FirstNonEmpty(initState.GetConfigFile(), state.Output)
+
 	if state.Output == "" {
 		state.Logger.Debugf("Init finding a configuration file for writing")
 
@@ -108,6 +113,7 @@ func handleLayoutInitContext(params *InitParams, state *task.State) error {
 
 func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task.State) error {
 	if state.Output != "" {
+		var initState = NewInitState(state)
 		var err error
 
 		state.Logger.Debugf("Init writing to [%s]", state.Output)
@@ -116,8 +122,8 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 			WithHandle(params.Handle).
 			WithName(params.Name).
 			WithType(params.Type).
-			WithInput(params.MountInput).
-			WithOutput(params.MountOutput).
+			WithInput(initState.DefaultInput(params.MountInput)).
+			WithOutput(initState.DefaultOutput(params.MountOutput)).
 			WithOem(params.OEM).
 			WithPropSpecs(params.PropSpecs).
 			WithVersion(params.Version).

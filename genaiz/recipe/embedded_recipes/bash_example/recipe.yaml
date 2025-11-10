@@ -12,6 +12,9 @@ artifacts:
   - name: Dockerfile.tmpl
     commands:
       - "mv Dockerfile.tmpl Dockerfile"
+initParams:
+  input: input
+  output: output
 initCommands:
   - "ls /bin/bash"
 postCommands:

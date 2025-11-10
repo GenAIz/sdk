@@ -127,10 +127,10 @@ func (se *StartExecutor) makeStartParams(force bool, envMap map[string]string) *
 	var result = makeContainerParams(se.BaseExecutor, se.StartOptions.StopOptions, se.StartOptions.RunOptions)
 
 	result.EnvVars = envMap
-	result.MountInput = se.Ledger.GetString(se.optionMountInput)
-	result.MountOutput = se.Ledger.GetString(se.optionMountOutput)
-	result.MountLog = se.Ledger.GetString(se.optionMountLog)
-	result.MountVar = se.Ledger.GetString(se.optionMountVar)
+	result.MountInput = se.Ledger.GetPath(se.optionMountInput)
+	result.MountOutput = se.Ledger.GetPath(se.optionMountOutput)
+	result.MountLog = se.Ledger.GetPath(se.optionMountLog)
+	result.MountVar = se.Ledger.GetPath(se.optionMountVar)
 	result.Force = force
 	return result
 }
@@ -202,6 +202,16 @@ func NewStartExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 }
 
 func NewStartOptions(sfCli *Cli) *StartOptions {
+	var outputMountOption = cli.Options.Functions.MountOutput().
+		WithKeys(&schema.Genaiz.Function.Start.MountOutput).
+		WithDefaultGetter(func(ledger *config.Ledger) any {
+			return ledger.GetString(cli.Options.Functions.MountOutput().
+				WithKeys(&schema.Genaiz.Function.Run.MountOutput).
+				BuildStringOption())
+		}).
+		Optional(false).
+		BuildStringOption()
+
 	return &StartOptions{
 		RunOptions: &RunOptions{
 			EnvOptions: EnvOptions{
@@ -214,15 +224,25 @@ func NewStartOptions(sfCli *Cli) *StartOptions {
 			},
 			optionMountInput: cli.Options.Functions.MountInput().
 				WithKeys(&schema.Genaiz.Function.Start.MountInput).
+				WithDefaultGetter(func(ledger *config.Ledger) any {
+					return ledger.GetString(cli.Options.Functions.MountInput().
+						WithKeys(&schema.Genaiz.Function.Run.MountInput).
+						BuildStringOption())
+				}).
+				Optional(false).
 				BuildStringOption(),
 			optionMountLog: cli.Options.Functions.MountLog().
 				WithKeys(&schema.Genaiz.Function.Start.MountLog).
+				WithDefaultGetter(func(ledger *config.Ledger) any {
+					return ledger.GetString(outputMountOption)
+				}).
 				BuildStringOption(),
-			optionMountOutput: cli.Options.Functions.MountOutput().
-				WithKeys(&schema.Genaiz.Function.Start.MountOutput).
-				BuildStringOption(),
+			optionMountOutput: outputMountOption,
 			optionMountVar: cli.Options.Functions.MountVar().
 				WithKeys(&schema.Genaiz.Function.Start.MountVar).
+				WithDefaultGetter(func(ledger *config.Ledger) any {
+					return ledger.GetString(outputMountOption)
+				}).
 				BuildStringOption(),
 			optionRunImage: cli.Options.Docker.Image().
 				WithKeys(&schema.Genaiz.Function.Start.Image).

@@ -483,7 +483,25 @@ func TestNewStartOptions(t *testing.T) {
 	assert.False(t, testOptions.rebuildImage)
 }
 
+func TestNewStartOptions_DefaultRunMounts(t *testing.T) {
+	var testInputDir = t.TempDir()
+	var testOutputDir = t.TempDir()
+	var testCli = NewSfCli(nil, nil, nil)
+	var testOptions = NewStartOptions(testCli)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+
+	testViper.Set(schema.Genaiz.Function.Run.MountInput.Doc, testInputDir)
+	testViper.Set(schema.Genaiz.Function.Run.MountOutput.Doc, testOutputDir)
+
+	assert.Equal(t, testInputDir, testLedger.GetString(testOptions.optionMountInput))
+	assert.Equal(t, testOutputDir, testLedger.GetString(testOptions.optionMountOutput))
+	assert.Equal(t, testOutputDir, testLedger.GetString(testOptions.optionMountLog))
+	assert.Equal(t, testOutputDir, testLedger.GetString(testOptions.optionMountVar))
+}
+
 func TestNewStart(t *testing.T) {
+	var testDir = t.TempDir()
 	var startCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
@@ -510,6 +528,7 @@ func TestNewStart(t *testing.T) {
 	}
 
 	testViper.Set(testCli.optionDockerTag.Key, expectedTag)
+	testViper.Set(schema.Genaiz.Function.Start.MountOutput.Doc, testDir)
 	assert.NoError(t, testStart.PersistentFlags().Lookup(testParam).Value.Set(expectedFolder))
 	testLedger.WorkDir = expectedWorkDir
 	assert.NoError(t, testStart.Execute())

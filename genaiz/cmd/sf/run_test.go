@@ -266,6 +266,7 @@ func TestNewRunOptions(t *testing.T) {
 }
 
 func TestNewRun(t *testing.T) {
+	var testDir = t.TempDir()
 	var runCompleted = false
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
@@ -289,6 +290,7 @@ func TestNewRun(t *testing.T) {
 	}
 
 	testViper.Set(testCli.optionDockerTag.Key, expectedTag)
+	testViper.Set(schema.Genaiz.Function.Run.MountOutput.Doc, testDir)
 	assert.NoError(t, testRun.Execute())
 	assert.True(t, runCompleted)
 

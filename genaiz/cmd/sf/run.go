@@ -136,6 +136,11 @@ func NewRunExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, option
 }
 
 func NewRunOptions(sfCli *Cli) *RunOptions {
+	var outputMountOption = cli.Options.Functions.MountOutput().
+		WithKeys(&schema.Genaiz.Function.Run.MountOutput).
+		Optional(false).
+		BuildStringOption()
+
 	return &RunOptions{
 		EnvOptions: EnvOptions{
 			optionEnvFile: cli.Options.Docker.EnvFile().
@@ -147,15 +152,20 @@ func NewRunOptions(sfCli *Cli) *RunOptions {
 		},
 		optionMountInput: cli.Options.Functions.MountInput().
 			WithKeys(&schema.Genaiz.Function.Run.MountInput).
+			Optional(false).
 			BuildStringOption(),
 		optionMountLog: cli.Options.Functions.MountLog().
 			WithKeys(&schema.Genaiz.Function.Run.MountLog).
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(outputMountOption)
+			}).
 			BuildStringOption(),
-		optionMountOutput: cli.Options.Functions.MountOutput().
-			WithKeys(&schema.Genaiz.Function.Run.MountOutput).
-			BuildStringOption(),
+		optionMountOutput: outputMountOption,
 		optionMountVar: cli.Options.Functions.MountVar().
 			WithKeys(&schema.Genaiz.Function.Run.MountVar).
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(outputMountOption)
+			}).
 			BuildStringOption(),
 		optionRunImage: cli.Options.Docker.Image().
 			WithKeys(&schema.Genaiz.Function.Run.Image).
@@ -202,10 +212,10 @@ func makeRunParams(be BaseExecutor, ro *RunOptions) (*docker.ContainerParams, er
 			},
 			DockerImage: be.Ledger.GetString(ro.optionRunImage),
 			EnvVars:     envVars,
-			MountInput:  be.Ledger.GetString(ro.optionMountInput),
-			MountLog:    be.Ledger.GetString(ro.optionMountLog),
-			MountOutput: be.Ledger.GetString(ro.optionMountOutput),
-			MountVar:    be.Ledger.GetString(ro.optionMountVar),
+			MountInput:  be.Ledger.GetPath(ro.optionMountInput),
+			MountLog:    be.Ledger.GetPath(ro.optionMountLog),
+			MountOutput: be.Ledger.GetPath(ro.optionMountOutput),
+			MountVar:    be.Ledger.GetPath(ro.optionMountVar),
 			Prefix:      be.Ledger.GetString(ro.optionRunPrefix),
 			PropSpecs:   propSpecs,
 		}, nil

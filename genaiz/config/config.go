@@ -283,6 +283,17 @@ func (lr *Ledger) GetList(option *ListOption) []string {
 	return result
 }
 
+// GetPath returns the value of a StringOption relative to the Ledger's working directory if it's not absolute
+func (lr *Ledger) GetPath(option *StringOption) string {
+	var path = lr.GetString(option)
+
+	if filepath.IsLocal(path) {
+		return filepath.Join(lr.WorkDir, path)
+	}
+
+	return path
+}
+
 // GetString returns the value of a StringOption from Get as a string
 func (lr *Ledger) GetString(option *StringOption) string {
 	var result = cast.ToString(lr.Get(&option.Option))
