@@ -6,10 +6,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/strftime"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -19,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -510,6 +513,29 @@ func TestLedger_GetPath(t *testing.T) {
 	assert.Equal(t, absDir, testLedger.GetPath(testOption))
 }
 
+func TestLedger_GetPath_Invalid(t *testing.T) {
+	var testDir = t.TempDir()
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var expectedFile = "file"
+	var testViper = viper.New()
+	var testLedger = NewBuilder().WithViper(testViper).Build()
+	var testOption = &StringOption{
+		Option{
+			Key: "key",
+			Validator: func(value any) bool {
+				return false
+			},
+		},
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testOption.Key, expectedFile)
+	testLedger.WorkDir = testDir
+	assert.Equal(t, filepath.Join(testDir, expectedFile), testLedger.GetPath(testOption))
+	assert.True(t, patch.Called)
+	assert.EqualValues(t, 1, patch.CalledWith)
+}
+
 func TestLedger_GetString(t *testing.T) {
 	var expectedValue = "value"
 	var testViper, testLedger = newTestConfigs()
@@ -887,6 +913,62 @@ func TestLedger_QuerySecret(t *testing.T) {
 
 	assert.Empty(t, testLedger.QuerySecret("secret"))
 	assert.EqualValues(t, "secret\n", buff.String())
+}
+
+func TestLedger_StampString(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = NewBuilder().WithViper(testViper).Build()
+	var testOption = &StringOption{
+		Option{Key: "key"},
+	}
+	var expectedValue = "value/{timestamp}"
+
+	testViper.Set(testOption.Key, expectedValue)
+	actual := testLedger.StampString(testOption)
+	assert.True(t, strings.HasPrefix(actual, "value/"))
+	assert.Regexp(t, regexp.MustCompile(`value/[0-9]+`), actual)
+}
+
+func TestLedger_StampString_Format(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = NewBuilder().WithViper(testViper).Build()
+	var testOption = &StringOption{
+		Option{Key: "key"},
+	}
+	var expectedFormat = "%Y-%m-%dT%H:%M"
+	var expectedValue = fmt.Sprintf("value/{timestamp:%s}", expectedFormat)
+	var now = time.Now()
+
+	testViper.Set(testOption.Key, expectedValue)
+	actual := testLedger.StampString(testOption)
+	assert.True(t, strings.HasPrefix(actual, "value/"))
+	timeSuffix, err := strftime.New(expectedFormat)
+	assert.NoError(t, err)
+	assert.True(t, strings.HasSuffix(actual, timeSuffix.FormatString(now)))
+}
+
+func TestLedger_StampString_Invalid(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = NewBuilder().WithViper(testViper).Build()
+	var testOption = &StringOption{
+		Option{Key: "key"},
+	}
+	var expectedValue = "value/{timestamp:"
+
+	testViper.Set(testOption.Key, expectedValue)
+	assert.Equal(t, expectedValue, testLedger.StampString(testOption))
+}
+
+func TestLedger_StampString_NoStamp(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = NewBuilder().WithViper(testViper).Build()
+	var testOption = &StringOption{
+		Option{Key: "key"},
+	}
+	var expectedValue = "value"
+
+	testViper.Set(testOption.Key, expectedValue)
+	assert.Equal(t, expectedValue, testLedger.StampString(testOption))
 }
 
 func TestLedger_ToWorkDir(t *testing.T) {

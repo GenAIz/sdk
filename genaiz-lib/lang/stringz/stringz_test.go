@@ -13,6 +13,13 @@ func TestAllNonEmpty(t *testing.T) {
 	assert.EqualValues(t, expectedValue, AllNonEmpty(testStrings...)[2])
 }
 
+func TestCharAt(t *testing.T) {
+	assert.Empty(t, CharAt("test", 4))
+	assert.Empty(t, CharAt("test", -1))
+	assert.Equal(t, "t", CharAt("test", 0))
+	assert.Equal(t, "t", CharAt("test", 3))
+}
+
 func TestFirstNonEmpty(t *testing.T) {
 	var expectedValue = "value"
 

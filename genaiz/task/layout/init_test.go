@@ -99,6 +99,15 @@ func (s *stubWriter) WithInput(input string) ConfigWriter {
 	return s
 }
 
+func (s *stubWriter) WithLog(logDir string) ConfigWriter {
+	if s.output == nil {
+		s.output = make(map[string]string)
+	}
+
+	s.output["log"] = logDir
+	return s
+}
+
 func (s *stubWriter) WithName(name string) ConfigWriter {
 	s.name = name
 	return s
@@ -114,7 +123,7 @@ func (s *stubWriter) WithOutput(output string) ConfigWriter {
 		s.output = make(map[string]string)
 	}
 
-	s.output[output] = output
+	s.output["output"] = output
 	return s
 }
 
@@ -130,6 +139,15 @@ func (s *stubWriter) WithPropSpecRemoved(spec *broker.PropSpec) ConfigWriter {
 
 func (s *stubWriter) WithType(sfType string) ConfigWriter {
 	s.sfType = sfType
+	return s
+}
+
+func (s *stubWriter) WithVar(varDir string) ConfigWriter {
+	if s.output == nil {
+		s.output = make(map[string]string)
+	}
+
+	s.output["var"] = varDir
 	return s
 }
 

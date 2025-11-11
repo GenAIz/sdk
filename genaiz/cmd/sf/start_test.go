@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -178,9 +179,9 @@ func TestStartExecutor_Pretend_NoDispose(t *testing.T) {
 	}
 }
 
-func TestStartExecutor_Pretend_NoPreserve(t *testing.T) {
+func TestStartExecutor_Pretend_RebuildImage(t *testing.T) {
 	var calledBuild bool
-	var calledCreate, calledDispose, calledStart, calledStop int
+	var calledCreate, calledDispose, calledStart int
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -201,7 +202,6 @@ func TestStartExecutor_Pretend_NoPreserve(t *testing.T) {
 		containerTaskFactory: newContainerTaskPretendStub(&calledCreate),
 		disposeTaskFactory:   newContainerTaskPretendStub(&calledDispose),
 		startTaskFactory:     newContainerTaskPretendStub(&calledStart),
-		stopTaskFactory:      newContainerTaskPretendStub(&calledStop),
 	}
 
 	testViper.Set(testExecutor.optionContainerPreserve.Key, false)
@@ -216,9 +216,8 @@ func TestStartExecutor_Pretend_NoPreserve(t *testing.T) {
 		testExecutor.Pretend()
 		assert.True(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
-		assert.EqualValues(t, 1, calledDispose)
+		assert.EqualValues(t, 0, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
-		assert.EqualValues(t, 1, calledStop)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -226,7 +225,7 @@ func TestStartExecutor_Pretend_NoPreserve(t *testing.T) {
 
 func TestStartExecutor_Pretend_Replace(t *testing.T) {
 	var calledBuild bool
-	var calledCreate, calledDispose, calledStart, calledStop int
+	var calledCreate, calledDispose, calledStart int
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -247,7 +246,6 @@ func TestStartExecutor_Pretend_Replace(t *testing.T) {
 		containerTaskFactory: newContainerTaskPretendStub(&calledCreate),
 		disposeTaskFactory:   newContainerTaskPretendStub(&calledDispose),
 		startTaskFactory:     newContainerTaskPretendStub(&calledStart),
-		stopTaskFactory:      newContainerTaskPretendStub(&calledStop),
 	}
 
 	testViper.Set(testExecutor.optionContainerReplace.Key, true)
@@ -261,9 +259,8 @@ func TestStartExecutor_Pretend_Replace(t *testing.T) {
 		testExecutor.Pretend()
 		assert.False(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
-		assert.EqualValues(t, 2, calledDispose)
+		assert.EqualValues(t, 1, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
-		assert.EqualValues(t, 1, calledStop)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -314,7 +311,7 @@ func TestStartExecutor_Proceed_EnvMapError(t *testing.T) {
 
 func TestStartExecutor_Proceed_NoDispose(t *testing.T) {
 	var calledBuild bool
-	var calledCreate, calledDispose, calledStart, calledStop int
+	var calledCreate, calledDispose, calledStart int
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -335,7 +332,6 @@ func TestStartExecutor_Proceed_NoDispose(t *testing.T) {
 		containerTaskFactory: newContainerTaskCompleteStub(&calledCreate),
 		disposeTaskFactory:   newContainerTaskCompleteStub(&calledDispose),
 		startTaskFactory:     newContainerTaskCompleteStub(&calledStart),
-		stopTaskFactory:      newContainerTaskCompleteStub(&calledStop),
 	}
 
 	testViper.Set(testExecutor.optionContainerPreserve.Key, true)
@@ -351,15 +347,14 @@ func TestStartExecutor_Proceed_NoDispose(t *testing.T) {
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 0, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
-		assert.EqualValues(t, 0, calledStop)
 	} else {
 		assert.NoError(t, err)
 	}
 }
 
-func TestStartExecutor_Proceed_NoPreserve(t *testing.T) {
+func TestStartExecutor_Proceed_RebuildImage(t *testing.T) {
 	var calledBuild bool
-	var calledCreate, calledDispose, calledStart, calledStop int
+	var calledCreate, calledDispose, calledStart int
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -380,10 +375,9 @@ func TestStartExecutor_Proceed_NoPreserve(t *testing.T) {
 		containerTaskFactory: newContainerTaskCompleteStub(&calledCreate),
 		disposeTaskFactory:   newContainerTaskCompleteStub(&calledDispose),
 		startTaskFactory:     newContainerTaskCompleteStub(&calledStart),
-		stopTaskFactory:      newContainerTaskCompleteStub(&calledStop),
 	}
 
-	testViper.Set(testExecutor.optionContainerReplace.Key, false)
+	testViper.Set(testExecutor.optionContainerPreserve.Key, false)
 
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
@@ -395,9 +389,8 @@ func TestStartExecutor_Proceed_NoPreserve(t *testing.T) {
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
-		assert.EqualValues(t, 1, calledDispose)
+		assert.EqualValues(t, 0, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
-		assert.EqualValues(t, 1, calledStop)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -405,7 +398,7 @@ func TestStartExecutor_Proceed_NoPreserve(t *testing.T) {
 
 func TestStartExecutor_Proceed_Replace(t *testing.T) {
 	var calledBuild bool
-	var calledCreate, calledDispose, calledStart, calledStop int
+	var calledCreate, calledDispose, calledStart int
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -426,7 +419,6 @@ func TestStartExecutor_Proceed_Replace(t *testing.T) {
 		containerTaskFactory: newContainerTaskCompleteStub(&calledCreate),
 		disposeTaskFactory:   newContainerTaskCompleteStub(&calledDispose),
 		startTaskFactory:     newContainerTaskCompleteStub(&calledStart),
-		stopTaskFactory:      newContainerTaskCompleteStub(&calledStop),
 	}
 
 	testViper.Set(testExecutor.optionContainerReplace.Key, true)
@@ -440,9 +432,8 @@ func TestStartExecutor_Proceed_Replace(t *testing.T) {
 		testExecutor.Proceed()
 		assert.False(t, calledBuild)
 		assert.EqualValues(t, 1, calledCreate)
-		assert.EqualValues(t, 2, calledDispose)
+		assert.EqualValues(t, 1, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
-		assert.EqualValues(t, 1, calledStop)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -459,7 +450,6 @@ func TestStartOptions_allDefiners(t *testing.T) {
 	assert.Contains(t, definers, testOptions.optionMountLog)
 	assert.Contains(t, definers, testOptions.optionMountVar)
 	assert.Contains(t, definers, testOptions.optionRunImage)
-	assert.Contains(t, definers, testOptions.optionContainerPreserve)
 	assert.Contains(t, definers, testOptions.optionContainerPrefix)
 	assert.Contains(t, definers, testOptions.optionContainerName)
 	assert.Contains(t, definers, testOptions.optionContainerReplace)
@@ -477,27 +467,35 @@ func TestNewStartOptions(t *testing.T) {
 	assert.NotEmpty(t, testOptions.optionMountVar)
 	assert.NotEmpty(t, testOptions.optionRunImage)
 	assert.NotEmpty(t, testOptions.optionContainerReplace)
-	assert.NotEmpty(t, testOptions.optionContainerPreserve)
 	assert.NotEmpty(t, testOptions.optionContainerPrefix)
 	assert.NotEmpty(t, testOptions.optionContainerName)
 	assert.False(t, testOptions.rebuildImage)
 }
 
 func TestNewStartOptions_DefaultRunMounts(t *testing.T) {
-	var testInputDir = t.TempDir()
-	var testOutputDir = t.TempDir()
+	var testDir = t.TempDir()
 	var testCli = NewSfCli(nil, nil, nil)
 	var testOptions = NewStartOptions(testCli)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 
-	testViper.Set(schema.Genaiz.Function.Run.MountInput.Doc, testInputDir)
-	testViper.Set(schema.Genaiz.Function.Run.MountOutput.Doc, testOutputDir)
-
-	assert.Equal(t, testInputDir, testLedger.GetString(testOptions.optionMountInput))
-	assert.Equal(t, testOutputDir, testLedger.GetString(testOptions.optionMountOutput))
-	assert.Equal(t, testOutputDir, testLedger.GetString(testOptions.optionMountLog))
-	assert.Equal(t, testOutputDir, testLedger.GetString(testOptions.optionMountVar))
+	if err := os.MkdirAll(filepath.Join(testDir, "/run/in"), 0755); err == nil {
+		testLedger.WorkDir = testDir
+		actualIn := testLedger.GetString(testOptions.optionMountInput)
+		assert.True(t, strings.HasPrefix(actualIn, testDir))
+		assert.True(t, strings.HasSuffix(actualIn, "/in"))
+		actualOut := testLedger.GetString(testOptions.optionMountOutput)
+		assert.True(t, strings.HasPrefix(actualOut, testDir))
+		assert.True(t, strings.HasSuffix(actualOut, "/out"))
+		actualLog := testLedger.GetString(testOptions.optionMountLog)
+		assert.True(t, strings.HasPrefix(actualLog, testDir))
+		assert.True(t, strings.HasSuffix(actualLog, "/log"))
+		actualVar := testLedger.GetString(testOptions.optionMountVar)
+		assert.True(t, strings.HasPrefix(actualVar, testDir))
+		assert.True(t, strings.HasSuffix(actualVar, "/var"))
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestNewStart(t *testing.T) {

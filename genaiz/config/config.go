@@ -12,7 +12,9 @@ import (
 	"strings"
 	"syscall"
 	"text/tabwriter"
+	"time"
 
+	"github.com/lestrrat-go/strftime"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -23,6 +25,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -72,6 +75,7 @@ type Ledger struct {
 	loggers           []func(*logrus.Logger) // loggers is a list of delayed logging instructions for the Ledger to call OnLogging
 	output            io.Writer              // os.Stdout by default, swapped to other writers when testing
 	originalDir       string                 // originalDir is set to the dir the genaiz command was launched from
+	timestamp         time.Time              // timestamp is used to mark command execution is a single stamp per invocation
 	validationHandler func(interface{})      // validationHandler is invoked when an option is not valid
 	viper             *viper.Viper           // viper internal reference
 	workspace         *StringOption          // workspace refers to an owning classification which may enter naming conventions by default
@@ -285,10 +289,15 @@ func (lr *Ledger) GetList(option *ListOption) []string {
 
 // GetPath returns the value of a StringOption relative to the Ledger's working directory if it's not absolute
 func (lr *Ledger) GetPath(option *StringOption) string {
-	var path = lr.GetString(option)
+	var path = lr.StampString(option)
 
 	if filepath.IsLocal(path) {
-		return filepath.Join(lr.WorkDir, path)
+		path = filepath.Join(lr.WorkDir, path)
+	}
+
+	if option.Validator != nil && !option.Validator(path) {
+		lr.validationHandler(fmt.Errorf("path [%s] for option [%s] is invalid",
+			path, strings.ToLower(option.Key)))
 	}
 
 	return path
@@ -457,6 +466,31 @@ func (lr *Ledger) Register(cmd *cobra.Command, definers ...Definer) {
 	}
 }
 
+// StampString stamps a string if the '{timestamp:...}' placeholder can be found in it
+func (lr *Ledger) StampString(option *StringOption) string {
+	var beginStamp = "{timestamp"
+	var raw = cast.ToString(lr.Get(&option.Option))
+
+	if i := strings.Index(raw, beginStamp); i >= 0 {
+		var nextIndex = i + len(beginStamp)
+		var nextChar = stringz.CharAt(raw, nextIndex)
+
+		if nextChar == ":" {
+			if closingIndex := strings.Index(raw, "}"); closingIndex > nextIndex {
+				var format = raw[nextIndex+1 : closingIndex]
+				var posixFormatter, err = strftime.New(format)
+
+				lang.HandleExit(err)
+				return strings.ReplaceAll(raw, beginStamp+":"+format+"}", posixFormatter.FormatString(lr.timestamp))
+			}
+		} else if nextChar == "}" {
+			return strings.ReplaceAll(raw, beginStamp+"}", cast.ToString(lr.timestamp.Unix()))
+		}
+	}
+
+	return raw
+}
+
 // ToWorkDir sets the value of the provided StringOption's pflag.Flag from a pflag.FlagSet to the current Ledger.WorkDir
 func (lr *Ledger) ToWorkDir(option *StringOption, flags *pflag.FlagSet) {
 	if flag := flags.Lookup(option.Param); flag != nil {
@@ -508,6 +542,7 @@ func (b *Builder) Build() *Ledger {
 		input:             b.Input(),
 		output:            b.Output(),
 		originalDir:       cwd,
+		timestamp:         time.Now(),
 		validationHandler: cobra.CheckErr,
 		viper:             b.Viper(),
 	}

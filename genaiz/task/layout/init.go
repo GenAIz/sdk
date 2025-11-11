@@ -48,6 +48,8 @@ type ConfigWriter interface {
 
 	WithInput(string) ConfigWriter
 
+	WithLog(string) ConfigWriter
+
 	WithName(string) ConfigWriter
 
 	WithOem(string) ConfigWriter
@@ -59,6 +61,8 @@ type ConfigWriter interface {
 	WithPropSpecRemoved(spec *broker.PropSpec) ConfigWriter
 
 	WithType(string) ConfigWriter
+
+	WithVar(string) ConfigWriter
 
 	WithVersion(string) ConfigWriter
 }
@@ -123,9 +127,11 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 			WithName(params.Name).
 			WithType(params.Type).
 			WithInput(initState.DefaultInput(params.MountInput)).
-			WithOutput(initState.DefaultOutput(params.MountOutput)).
+			WithLog(initState.DefaultLog(params.MountOutput)).
 			WithOem(params.OEM).
+			WithOutput(initState.DefaultOutput(params.MountOutput)).
 			WithPropSpecs(params.PropSpecs).
+			WithVar(initState.DefaultVar(params.MountOutput)).
 			WithVersion(params.Version).
 			Write(state.Output); err == nil {
 			var _, oem = writer.BuildOem()

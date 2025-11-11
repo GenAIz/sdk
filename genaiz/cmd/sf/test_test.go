@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -288,20 +289,29 @@ func TestNewTestOptions(t *testing.T) {
 }
 
 func TestNewTestOptions_DefaultRunMounts(t *testing.T) {
-	var testInputDir = t.TempDir()
-	var testOutputDir = t.TempDir()
+	var testDir = t.TempDir()
 	var testCli = NewSfCli(nil, nil, nil)
 	var testOptions = NewTestOptions(testCli)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 
-	testViper.Set(schema.Genaiz.Function.Run.MountInput.Doc, testInputDir)
-	testViper.Set(schema.Genaiz.Function.Run.MountOutput.Doc, testOutputDir)
-
-	assert.Equal(t, testInputDir, testLedger.GetString(testOptions.optionMountInput))
-	assert.Equal(t, testOutputDir, testLedger.GetString(testOptions.optionMountOutput))
-	assert.Equal(t, testOutputDir, testLedger.GetString(testOptions.optionMountLog))
-	assert.Equal(t, testOutputDir, testLedger.GetString(testOptions.optionMountVar))
+	if err := os.MkdirAll(filepath.Join(testDir, "/run/in"), 0755); err == nil {
+		testLedger.WorkDir = testDir
+		actualIn := testLedger.GetString(testOptions.optionMountInput)
+		assert.True(t, strings.HasPrefix(actualIn, testDir))
+		assert.True(t, strings.HasSuffix(actualIn, "/in"))
+		actualOut := testLedger.GetString(testOptions.optionMountOutput)
+		assert.True(t, strings.HasPrefix(actualOut, testDir))
+		assert.True(t, strings.HasSuffix(actualOut, "/out"))
+		actualLog := testLedger.GetString(testOptions.optionMountLog)
+		assert.True(t, strings.HasPrefix(actualLog, testDir))
+		assert.True(t, strings.HasSuffix(actualLog, "/log"))
+		actualVar := testLedger.GetString(testOptions.optionMountVar)
+		assert.True(t, strings.HasPrefix(actualVar, testDir))
+		assert.True(t, strings.HasSuffix(actualVar, "/var"))
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestNewTest(t *testing.T) {
@@ -332,6 +342,7 @@ func TestNewTest(t *testing.T) {
 	}
 
 	testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+	testViper.Set(schema.Genaiz.Function.Test.MountInput.Doc, testDir)
 	testViper.Set(schema.Genaiz.Function.Test.MountOutput.Doc, testDir)
 	testViper.Set(schema.Genaiz.Function.Test.Image.Doc, expectedImage)
 	assert.NoError(t, testTest.Execute())

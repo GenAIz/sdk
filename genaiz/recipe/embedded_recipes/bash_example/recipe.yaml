@@ -13,10 +13,11 @@ artifacts:
     commands:
       - "mv Dockerfile.tmpl Dockerfile"
 initParams:
-  input: input
-  output: output
+  input: run/in
+  output: run/{timestamp}/out
+  var: run/{timestamp}/var
+  log: run/{timestamp}/log
 initCommands:
   - "ls /bin/bash"
 postCommands:
-  - 'mkdir -p {{or .in "input"}}'
-  - 'mkdir -p {{or .out "output"}}'
+  - 'mkdir -p {{or .mount_in "input"}}'

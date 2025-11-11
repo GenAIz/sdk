@@ -3,6 +3,7 @@ package sf
 import (
 	"context"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -135,8 +136,20 @@ func (ce *CreateExecutor) makeRecipeParams(recipeName string, folderPath string)
 		Type:         recipe.TypeFunction,
 		Destination:  folderPath,
 		Options:      config.MapOptionsByEnvKey(ce.Ledger, recipeOptions...),
-		Parameters:   config.MapOptionsByParam(ce.Ledger, recipeOptions...),
+		Parameters:   ce.makeRecipeParamsMap(recipeOptions),
 	}
+}
+
+func (ce *CreateExecutor) makeRecipeParamsMap(recipeOptions []*config.Option) map[string]string {
+	var result = map[string]string{}
+	var goBadTemplateKeys = config.MapOptionsByParam(ce.Ledger, recipeOptions...)
+
+	for k, v := range goBadTemplateKeys {
+		// go template package does not like kebab case variable names, which we use to match GetOpt::Long cli tools
+		result[strings.ReplaceAll(k, "-", "_")] = v
+	}
+
+	return result
 }
 
 type CreateOptions struct {

@@ -134,6 +134,8 @@ func TestInitWriter_BuildOem(t *testing.T) {
 
 func TestInitWriter_BuildOutput(t *testing.T) {
 	var expectedOutput = "output"
+	var expectedLog = "log"
+	var expectedVar = "var"
 	var testWriter = &InitWriter{
 		RunOptions: &RunOptions{
 			optionMountOutput: cli.Options.Functions.MountOutput().
@@ -148,13 +150,17 @@ func TestInitWriter_BuildOutput(t *testing.T) {
 		},
 		vp: viper.New(),
 	}
-	var actualValues = testWriter.WithOutput(expectedOutput).BuildOutput()
+	var actualValues = testWriter.WithOutput(expectedOutput).WithLog(expectedLog).WithVar(expectedVar).BuildOutput()
 
-	assert.EqualValues(t, actualValues[testWriter.optionMountOutput.Key], expectedOutput)
+	assert.Equal(t, actualValues[testWriter.optionMountOutput.Key], expectedOutput)
+	assert.Equal(t, actualValues[testWriter.optionMountLog.Key], expectedLog)
+	assert.Equal(t, actualValues[testWriter.optionMountVar.Key], expectedVar)
 
-	actualValues = testWriter.WithOutput("").BuildOutput()
+	actualValues = testWriter.WithOutput("").WithLog("").WithVar("").BuildOutput()
 
-	assert.EqualValues(t, actualValues[testWriter.optionMountOutput.Key], expectedOutput)
+	assert.Equal(t, actualValues[testWriter.optionMountOutput.Key], expectedOutput)
+	assert.Equal(t, actualValues[testWriter.optionMountLog.Key], expectedLog)
+	assert.Equal(t, actualValues[testWriter.optionMountVar.Key], expectedVar)
 }
 
 func TestInitWriter_BuildPropSpecs(t *testing.T) {

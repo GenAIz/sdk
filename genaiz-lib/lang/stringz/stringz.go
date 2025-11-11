@@ -17,6 +17,15 @@ func AllNonEmpty(ss ...string) []string {
 	return result
 }
 
+// CharAt returns a string of one character if the index is contained within the string
+func CharAt(s string, i int) string {
+	if i >= 0 && len(s) > i {
+		return s[i : i+1]
+	}
+
+	return ""
+}
+
 // FirstNonEmpty returns the first non-empty provided as argument: YAY!
 func FirstNonEmpty(s1 string, s2 ...string) string {
 	if s1 == "" && len(s2) > 0 {

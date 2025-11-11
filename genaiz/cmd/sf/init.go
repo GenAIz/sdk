@@ -127,6 +127,14 @@ func (iw *InitWriter) WithInput(value string) layout.ConfigWriter {
 	return iw
 }
 
+func (iw *InitWriter) WithLog(value string) layout.ConfigWriter {
+	if value != "" {
+		iw.vp.Set(iw.optionMountLog.Key, value)
+	}
+
+	return iw
+}
+
 func (iw *InitWriter) WithName(value string) layout.ConfigWriter {
 	if value != "" {
 		iw.vp.Set(iw.optionName.Key, value)
@@ -177,6 +185,14 @@ func (iw *InitWriter) WithTag(value string) layout.ConfigWriter {
 func (iw *InitWriter) WithType(value string) layout.ConfigWriter {
 	if value != "" {
 		iw.vp.Set(iw.optionType.Key, value)
+	}
+
+	return iw
+}
+
+func (iw *InitWriter) WithVar(value string) layout.ConfigWriter {
+	if value != "" {
+		iw.vp.Set(iw.optionMountVar.Key, value)
 	}
 
 	return iw

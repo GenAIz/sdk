@@ -12,6 +12,9 @@
     "type": {
       "type": "string"
     },
+    "initParams": {
+      "type": "object"
+    },
     "initCommands": {
       "type": "array",
       "contains": {

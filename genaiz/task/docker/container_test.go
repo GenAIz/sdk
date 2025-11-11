@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
@@ -550,6 +551,68 @@ func Test_handleContainerCreate_NamingError(t *testing.T) {
 	var testState = &task.State{}
 
 	assert.Error(t, handleContainerCreate(testParams, testState))
+}
+
+func Test_handleContainerCreate_UserWarning(t *testing.T) {
+	var testDir = t.TempDir()
+	var patchedUid = mock.Patches{T: t}.OsGetuid(-1)
+	var patchedGid = mock.Patches{T: t}.OsGetgid(-1)
+	var expectedImage = "expectedImage"
+	var testLogger, loggerHook = test.NewNullLogger()
+	var testState = &task.State{
+		Logger: testLogger,
+		Output: expectedImage,
+	}
+	var testParams = &ContainerParams{
+		RunParams: RunParams{
+			Dispose: true,
+		},
+		MountInput:  testDir,
+		MountLog:    testDir,
+		MountOutput: testDir,
+		MountVar:    testDir,
+		Prefix:      "expectedPrefix",
+	}
+	var expectedContainer = &container.Summary{ID: "0123456789ABC"}
+	var stubClient = &stubDockerClient{
+		containerCreate:         expectedContainer,
+		containerCreateWarnings: []string{"testWarning"},
+	}
+
+	defer patchedUid.Unpatch()
+	defer patchedGid.Unpatch()
+	defer installDockerClient(stubClient)()
+	assert.NoError(t, handleContainerCreate(testParams, testState))
+	assert.NotEmpty(t, stubClient.containerCreateConfig)
+	assert.False(t, stubClient.containerCreateConfig.Tty)
+	assert.Equal(t, expectedImage, stubClient.containerCreateConfig.Image)
+	assert.Equal(t, expectedContainer.ID[0:12], testState.Output)
+	assert.Equal(t, fmt.Sprintf("%s-0", testParams.Prefix), stubClient.containerCreateName)
+	assert.NotEmpty(t, stubClient.containerHostConfig)
+	assert.Equal(t, 4, len(stubClient.containerHostConfig.Mounts))
+	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
+		return m.Source == testDir && m.Target == InputMount.MountPath
+	}))
+	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
+		return m.Source == testDir && m.Target == LogMount.MountPath
+	}))
+	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
+		return m.Source == testDir && m.Target == OutputMount.MountPath
+	}))
+	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
+		return m.Source == testDir && m.Target == VarMount.MountPath
+	}))
+	assert.Equal(t, 7, len(stubClient.containerCreateConfig.Env))
+	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", InputMount.EnvVar, InputMount.MountPath))
+	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", LogMount.EnvVar, LogMount.MountPath))
+	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", OutputMount.EnvVar, OutputMount.MountPath))
+	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", VarMount.EnvVar, VarMount.MountPath))
+	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s/%s", envProgressFile, VarMount.MountPath, "progress"))
+	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s/%s", envResultFile, VarMount.MountPath, "result"))
+	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s/%s", envStatusFile, VarMount.MountPath, "status"))
+	assert.True(t, slices.ContainsFunc(loggerHook.Entries, func(entry logrus.Entry) bool {
+		return strings.Contains(entry.Message, "[-1:-1]")
+	}))
 }
 
 func Test_handleContainerCreate_ValidationError(t *testing.T) {

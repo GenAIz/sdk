@@ -9,6 +9,37 @@ import (
 	"genaiz.com/genaiz/task"
 )
 
+func TestNewInitLayout(t *testing.T) {
+	var expectedIn = "testIn"
+	var expectedOut = "path"
+	var testLayout = NewInitLayout(expectedIn, expectedOut)
+
+	assert.Equal(t, expectedIn, testLayout.DirInput)
+	assert.Equal(t, filepath.Join(expectedOut, "log"), testLayout.DirLog)
+	assert.Equal(t, expectedOut, testLayout.DirOutput)
+	assert.Equal(t, filepath.Join(expectedOut, "var"), testLayout.DirVar)
+}
+
+func TestNewInitLayout_Timestamp(t *testing.T) {
+	var expectedIn = "testIn"
+	var expectedOut = "path/{timestamp}"
+	var testLayout = NewInitLayout(expectedIn, expectedOut)
+
+	assert.Equal(t, expectedIn, testLayout.DirInput)
+	assert.Equal(t, filepath.Join(expectedOut, "log"), testLayout.DirLog)
+	assert.Equal(t, filepath.Join(expectedOut, "out"), testLayout.DirOutput)
+	assert.Equal(t, filepath.Join(expectedOut, "var"), testLayout.DirVar)
+}
+
+func TestNewRunLayout(t *testing.T) {
+	var testLayout = NewRunLayout()
+
+	assert.NotEmpty(t, testLayout.DirInput)
+	assert.NotEmpty(t, testLayout.DirLog)
+	assert.NotEmpty(t, testLayout.DirOutput)
+	assert.NotEmpty(t, testLayout.DirVar)
+}
+
 func TestInitState_AddParams(t *testing.T) {
 	var testState = &task.State{}
 	var testInitState = NewInitState(testState)
