@@ -419,8 +419,10 @@ func Test_embedded_recipes_bash_example_DOCKERFILE(t *testing.T) {
 		if err = testTemplate.Execute(io.Writer(buffer), map[string]string{"SF_BIN_PATH": expectedBinPath}); err == nil {
 			var content = buffer.String()
 
+			assert.Contains(t, content, "RUN chmod 555 /mnt/in")
+			assert.Contains(t, content, "RUN chmod 777 /mnt/out /mnt/log /mnt/var")
 			assert.Contains(t, content, "ADD app.sh "+expectedBinPath+"/")
-			assert.Contains(t, content, "RUN chmod +x "+expectedBinPath+"/app.sh")
+			assert.Contains(t, content, "RUN chmod 755 "+expectedBinPath+"/app.sh")
 			assert.Contains(t, content, "CMD [\""+expectedBinPath+"/app.sh\"]")
 		}
 	}

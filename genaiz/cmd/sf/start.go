@@ -11,6 +11,7 @@ import (
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
+	"genaiz.com/genaiz/task/layout"
 )
 
 type ContainerTaskFactory func() *task.Task[docker.ContainerParams]
@@ -25,7 +26,6 @@ type StartExecutor struct {
 	containerTaskFactory ContainerTaskFactory
 	disposeTaskFactory   DisposeTaskFactory
 	startTaskFactory     StartTaskFactory
-	stopTaskFactory      StopTaskFactory
 }
 
 func (se *StartExecutor) Display() {
@@ -52,7 +52,6 @@ func (se *StartExecutor) Pretend() {
 
 	if envMap, err = se.makeEnvMap(se.Ledger); err == nil {
 		var replace = se.Ledger.GetBool(se.optionContainerReplace)
-		var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
 		var buildParams = makeBuildParams(&se.BaseExecutor)
 		var params = se.makeStartParams(replace, envMap)
 		var plan = task.NewPlan("Start", se.Ledger.Logger)
@@ -69,14 +68,6 @@ func (se *StartExecutor) Pretend() {
 		workers = append(workers,
 			task.NewPretender(params, se.containerTaskFactory()),
 			task.NewPretender(params, se.startTaskFactory()))
-
-		if !preserve {
-			var disposeParams = se.makeStartParams(false, envMap)
-
-			workers = append(workers, task.NewPretender(disposeParams, se.stopTaskFactory()))
-			workers = append(workers, task.NewPretender(disposeParams, se.disposeTaskFactory()))
-		}
-
 		plan.Sequence(workers...)
 		return
 	}
@@ -91,7 +82,6 @@ func (se *StartExecutor) Proceed() {
 	if envMap, err = se.makeEnvMap(se.Ledger); err == nil {
 		var replace = se.Ledger.GetBool(se.optionContainerReplace)
 		var params = se.makeStartParams(replace, envMap)
-		var preserve = se.Ledger.GetBool(se.optionContainerPreserve)
 		var buildParams = makeBuildParams(&se.BaseExecutor)
 		var plan = task.NewPlan("Start", se.Ledger.Logger)
 		var workers []task.Worker
@@ -107,14 +97,6 @@ func (se *StartExecutor) Proceed() {
 		workers = append(workers,
 			task.NewWorker(params, se.containerTaskFactory()),
 			task.NewWorker(params, se.startTaskFactory()))
-
-		if !preserve {
-			var disposeParams = se.makeStartParams(false, envMap)
-
-			workers = append(workers, task.NewWorker(disposeParams, se.stopTaskFactory()))
-			workers = append(workers, task.NewWorker(disposeParams, se.disposeTaskFactory()))
-		}
-
 		plan.PrintReportsOnly = true
 		plan.Sequence(workers...)
 		return
@@ -147,7 +129,6 @@ func (so *StartOptions) allDefiners() []config.Definer {
 		so.optionContainerPrefix,
 		so.optionContainerName,
 		so.optionContainerReplace,
-		so.optionContainerPreserve,
 		so.optionMountInput,
 		so.optionMountLog,
 		so.optionMountOutput,
@@ -197,16 +178,20 @@ func NewStartExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 		containerTaskFactory: docker.NewCreateTask,
 		disposeTaskFactory:   docker.NewDisposeTask,
 		startTaskFactory:     docker.NewStartTask,
-		stopTaskFactory:      docker.NewStopTask,
 	}
 }
 
 func NewStartOptions(sfCli *Cli) *StartOptions {
-	var outputMountOption = cli.Options.Functions.MountOutput().
-		WithKeys(&schema.Genaiz.Function.Start.MountOutput).
+	var runLayout = layout.NewRunLayout()
+	var mountOutputOption = cli.Options.Functions.MountOutput().
+		WithKeys(&schema.Genaiz.Function.Run.MountOutput).
 		WithDefaultGetter(func(ledger *config.Ledger) any {
-			return ledger.GetString(cli.Options.Functions.MountOutput().
+			return ledger.GetPath(cli.Options.Functions.MountOutput().
 				WithKeys(&schema.Genaiz.Function.Run.MountOutput).
+				WithDefaultGetter(func(ledger *config.Ledger) any {
+					return runLayout.DirOutput
+				}).
+				WithDefaultValue(runLayout.DirOutput).
 				BuildStringOption())
 		}).
 		Optional(false).
@@ -225,8 +210,11 @@ func NewStartOptions(sfCli *Cli) *StartOptions {
 			optionMountInput: cli.Options.Functions.MountInput().
 				WithKeys(&schema.Genaiz.Function.Start.MountInput).
 				WithDefaultGetter(func(ledger *config.Ledger) any {
-					return ledger.GetString(cli.Options.Functions.MountInput().
+					return ledger.GetPath(cli.Options.Functions.MountInput().
 						WithKeys(&schema.Genaiz.Function.Run.MountInput).
+						WithDefaultGetter(func(ledger *config.Ledger) any {
+							return runLayout.DirInput
+						}).
 						BuildStringOption())
 				}).
 				Optional(false).
@@ -234,14 +222,24 @@ func NewStartOptions(sfCli *Cli) *StartOptions {
 			optionMountLog: cli.Options.Functions.MountLog().
 				WithKeys(&schema.Genaiz.Function.Start.MountLog).
 				WithDefaultGetter(func(ledger *config.Ledger) any {
-					return ledger.GetString(outputMountOption)
+					return ledger.GetPath(cli.Options.Functions.MountLog().
+						WithKeys(&schema.Genaiz.Function.Run.MountLog).
+						WithDefaultGetter(func(ledger *config.Ledger) any {
+							return runLayout.DirLog
+						}).
+						BuildStringOption())
 				}).
 				BuildStringOption(),
-			optionMountOutput: outputMountOption,
+			optionMountOutput: mountOutputOption,
 			optionMountVar: cli.Options.Functions.MountVar().
 				WithKeys(&schema.Genaiz.Function.Start.MountVar).
 				WithDefaultGetter(func(ledger *config.Ledger) any {
-					return ledger.GetString(outputMountOption)
+					return ledger.GetPath(cli.Options.Functions.MountVar().
+						WithKeys(&schema.Genaiz.Function.Run.MountVar).
+						WithDefaultGetter(func(ledger *config.Ledger) any {
+							return runLayout.DirVar
+						}).
+						BuildStringOption())
 				}).
 				BuildStringOption(),
 			optionRunImage: cli.Options.Docker.Image().
@@ -257,9 +255,6 @@ func NewStartOptions(sfCli *Cli) *StartOptions {
 				WithKeys(&schema.Genaiz.Function.Start.Prefix).
 				WithDefaultGetter(sfCli.ContainerPrefix).
 				BuildStringOption(),
-			optionContainerPreserve: cli.Options.Docker.Preserve().
-				WithKeys(&schema.Genaiz.Function.Start.Preserve).
-				BuildBoolOption(),
 		},
 
 		optionContainerReplace: cli.Options.Docker.Replace().

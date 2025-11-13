@@ -378,6 +378,13 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 
 			state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
 
+			if uid, gid := os.Getuid(), os.Getgid(); uid >= 0 && gid >= 0 {
+				state.Logger.Debugf("Runtime user selected: [%d:%d]", uid, gid)
+				createConfig.User = fmt.Sprintf("%d:%d", uid, gid)
+			} else {
+				state.Logger.Warningf("Could not determine a runtime user [%d:%d]", uid, gid)
+			}
+
 			if params.Dispose {
 				state.Logger.Debugf("Auto-Remove of container after start is enabled")
 			}

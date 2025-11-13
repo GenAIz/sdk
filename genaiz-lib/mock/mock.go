@@ -66,3 +66,35 @@ func (p Patches) OsExit(impl func(int)) *Patched {
 	patchedExit.PatchFunc = patchFunc
 	return patchedExit
 }
+
+func (p Patches) OsGetgid(gid int) *Patched {
+	var patchedExit = &Patched{Called: false}
+	var patchFunc, err = mpatch.PatchMethod(os.Getgid, func() int {
+		patchedExit.Called = true
+		return gid
+	})
+
+	if err != nil {
+		p.T.Errorf("Failed to patch os.Getgid due to an error: %v", err)
+		return nil
+	}
+
+	patchedExit.PatchFunc = patchFunc
+	return patchedExit
+}
+
+func (p Patches) OsGetuid(uid int) *Patched {
+	var patchedExit = &Patched{Called: false}
+	var patchFunc, err = mpatch.PatchMethod(os.Getuid, func() int {
+		patchedExit.Called = true
+		return uid
+	})
+
+	if err != nil {
+		p.T.Errorf("Failed to patch os.Getuid due to an error: %v", err)
+		return nil
+	}
+
+	patchedExit.PatchFunc = patchFunc
+	return patchedExit
+}

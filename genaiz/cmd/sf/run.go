@@ -12,6 +12,7 @@ import (
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
+	"genaiz.com/genaiz/task/layout"
 )
 
 type RunTaskFactory func() *task.Task[docker.ContainerParams]
@@ -136,8 +137,10 @@ func NewRunExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, option
 }
 
 func NewRunOptions(sfCli *Cli) *RunOptions {
-	var outputMountOption = cli.Options.Functions.MountOutput().
+	var runLayout = layout.NewRunLayout()
+	var mountOutputOption = cli.Options.Functions.MountOutput().
 		WithKeys(&schema.Genaiz.Function.Run.MountOutput).
+		WithDefaultValue(runLayout.DirOutput).
 		Optional(false).
 		BuildStringOption()
 
@@ -152,20 +155,17 @@ func NewRunOptions(sfCli *Cli) *RunOptions {
 		},
 		optionMountInput: cli.Options.Functions.MountInput().
 			WithKeys(&schema.Genaiz.Function.Run.MountInput).
+			WithDefaultValue(runLayout.DirInput).
 			Optional(false).
 			BuildStringOption(),
 		optionMountLog: cli.Options.Functions.MountLog().
 			WithKeys(&schema.Genaiz.Function.Run.MountLog).
-			WithDefaultGetter(func(ledger *config.Ledger) any {
-				return ledger.GetString(outputMountOption)
-			}).
+			WithDefaultValue(runLayout.DirLog).
 			BuildStringOption(),
-		optionMountOutput: outputMountOption,
+		optionMountOutput: mountOutputOption,
 		optionMountVar: cli.Options.Functions.MountVar().
 			WithKeys(&schema.Genaiz.Function.Run.MountVar).
-			WithDefaultGetter(func(ledger *config.Ledger) any {
-				return ledger.GetString(outputMountOption)
-			}).
+			WithDefaultValue(runLayout.DirVar).
 			BuildStringOption(),
 		optionRunImage: cli.Options.Docker.Image().
 			WithKeys(&schema.Genaiz.Function.Run.Image).

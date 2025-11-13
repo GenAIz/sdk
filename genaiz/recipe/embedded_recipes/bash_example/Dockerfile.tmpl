@@ -7,7 +7,9 @@ RUN mkdir -p /mnt/in  \
     && mkdir -p /mnt/out \
     && mkdir -p /mnt/log \
     && mkdir -p /mnt/var
+RUN chmod 555 /mnt/in
+RUN chmod 777 /mnt/out /mnt/log /mnt/var
 ADD app.sh {{$bin_path}}/
-RUN chmod +x {{$bin_path}}/app.sh
+RUN chmod 755 {{$bin_path}}/app.sh
 
 CMD ["{{$bin_path}}/app.sh"]
