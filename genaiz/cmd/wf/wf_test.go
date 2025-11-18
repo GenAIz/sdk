@@ -1,11 +1,14 @@
 package wf
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
@@ -26,6 +29,64 @@ func TestBaseExecutor_makeConfigParams(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, testLedger.ConfigName, actual.ConfigName)
 	assert.Equal(t, shared.ConfigTypeJson, *actual.ConfigType)
+}
+
+func TestBaseExecutor_makeConfigParams_FileInvalidError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testFile = filepath.Join(testDir, "Genaiz.txt")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testOption = newOptionConfigType("test")
+	var testExecutor = &BaseExecutor{Ledger: testLedger}
+	var actual *shared.ConfigParams
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+		t.Chdir(testDir)
+		actual, err = testExecutor.makeConfigParams(testOption)
+		assert.Error(t, err)
+		assert.Empty(t, actual)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestBaseExecutor_makeConfigParams_TypeNone(t *testing.T) {
+	var testDir = t.TempDir()
+	var testFile = filepath.Join(testDir, "Genaiz.yaml")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testOption = newOptionConfigType("test")
+	var testExecutor = &BaseExecutor{Ledger: testLedger}
+	var actual *shared.ConfigParams
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+		t.Chdir(testDir)
+		actual, err = testExecutor.makeConfigParams(testOption)
+		assert.NoError(t, err)
+		assert.Equal(t, testLedger.ConfigName, actual.ConfigName)
+		assert.Equal(t, shared.ConfigTypeYaml, *actual.ConfigType)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestBaseExecutor_makeConfigParams_TypeNoneError(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testOption = newOptionConfigType("test")
+	var testExecutor = &BaseExecutor{Ledger: testLedger}
+	var actual *shared.ConfigParams
+	var err error
+
+	actual, err = testExecutor.makeConfigParams(testOption)
+	assert.Error(t, err)
+	assert.Empty(t, actual)
 }
 
 func TestNewWf(t *testing.T) {
@@ -68,8 +129,8 @@ func TestWorkflowWriter_addNodes(t *testing.T) {
 	testWriter.WithCurrent(&broker.Solution{
 		Workflows: []broker.Workflow{{Handle: expectedHandle}},
 	})
-	testWriter.addNodes(expectedHandle, &broker.WorkflowNode{Handle: expectedNode})
-	testWriter.addNodes(expectedHandle, &broker.WorkflowNode{Handle: expectedNode})
+	_, err = testWriter.addNodes(expectedHandle, &broker.WorkflowNode{Handle: expectedNode})
+	assert.NoError(t, err)
 	actual, err = testWriter.GetWorkflowByHandle(expectedHandle)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actual.Nodes))

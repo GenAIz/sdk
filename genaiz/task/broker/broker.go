@@ -228,22 +228,6 @@ type Solution struct {
 	Workflows   []Workflow `json:"workflows"`
 }
 
-type SolutionRemote struct {
-	Solution
-	Id     int64
-	Digest string
-	Fqdn   string
-}
-
-func (s SolutionRemote) asIdentity() *shared.Identity {
-	return &shared.Identity{
-		Id:      strconv.FormatInt(s.Id, 10),
-		Hash:    s.Digest,
-		Path:    s.Fqdn,
-		Version: s.Version,
-	}
-}
-
 func (s Solution) Merge(update Solution) *Solution {
 	var result = &Solution{}
 
@@ -280,12 +264,54 @@ func (s Solution) Merge(update Solution) *Solution {
 	return result
 }
 
+type SolutionRemote struct {
+	Solution
+	Id     int64
+	Digest string
+	Fqdn   string
+}
+
+func (r SolutionRemote) asIdentity() *shared.Identity {
+	return &shared.Identity{
+		Id:      strconv.FormatInt(r.Id, 10),
+		Hash:    r.Digest,
+		Path:    r.Fqdn,
+		Version: r.Version,
+	}
+}
+
 type Workflow struct {
 	Name        string         `json:"name"`
 	Description string         `json:"Description"`
 	Handle      string         `json:"handle"`
 	Links       []WorkflowLink `json:"links"`
 	Nodes       []WorkflowNode `json:"nodes"`
+}
+
+func (wf Workflow) ContainsNode(handle string) bool {
+	return slices.ContainsFunc(wf.Nodes, func(node WorkflowNode) bool {
+		return strings.EqualFold(node.Handle, handle)
+	})
+}
+
+func (wf Workflow) FindNodeHandleBySf(oem, handle, version string) (string, error) {
+	var nodeIndex = slices.IndexFunc(wf.Nodes, func(node WorkflowNode) bool {
+		var sf = node.Sf
+
+		if sf != nil {
+			return strings.EqualFold(sf.Oem, oem) &&
+				strings.EqualFold(sf.Handle, handle) &&
+				strings.EqualFold(sf.Version, version)
+		}
+
+		return false
+	})
+
+	if nodeIndex < 0 {
+		return "", errors.New("node not found")
+	}
+
+	return wf.Nodes[nodeIndex].Handle, nil
 }
 
 type WorkflowLink struct {
@@ -303,10 +329,10 @@ func (wl WorkflowLink) Equals(wl2 WorkflowLink) bool {
 }
 
 type WorkflowNode struct {
-	Name        string                `json:"name"`
-	Description string                `json:"description"`
-	Handle      string                `json:"handle"`
-	Sf          *WorkflowNodeFunction `json:"sf"`
+	Name        string                `yaml:"name" json:"name"`
+	Description string                `yaml:"description,omitempty" json:"description,omitempty"`
+	Handle      string                `yaml:"handle" json:"handle"`
+	Sf          *WorkflowNodeFunction `yaml:"sf,omitempty" json:"sf,omitempty"`
 }
 
 func (wn WorkflowNode) Equals(wn2 WorkflowNode) bool {

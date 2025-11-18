@@ -173,6 +173,54 @@ func TestSolution_MergeWorkflows(t *testing.T) {
 	assert.Equal(t, mergedWorkflow, actual.Workflows[1].Handle)
 }
 
+func TestWorkflow_ContainsNode(t *testing.T) {
+	var expectedHandle = "nodeHandle"
+	var testWorkflow = &Workflow{
+		Nodes: []WorkflowNode{
+			{
+				Handle: expectedHandle,
+			},
+		},
+	}
+
+	assert.False(t, testWorkflow.ContainsNode("notHandle"))
+	assert.True(t, testWorkflow.ContainsNode(expectedHandle))
+}
+
+func TestWorkflow_FindNodeHandleBySf(t *testing.T) {
+	var expectedHandle = "nodeHandle"
+	var expectedSfOem = "sfOem"
+	var expectedSfHandle = "sfHandle"
+	var expectedSfVersion = "sfVersion"
+	var testWorkflow = &Workflow{
+		Nodes: []WorkflowNode{
+			{
+				Handle: "notTheRightHandle",
+			},
+			{
+				Handle: expectedHandle,
+				Sf: &WorkflowNodeFunction{
+					Oem:     expectedSfOem,
+					Handle:  expectedSfHandle,
+					Version: expectedSfVersion,
+				},
+			},
+		},
+	}
+
+	actual, err := testWorkflow.FindNodeHandleBySf("", "", "")
+	assert.Empty(t, actual)
+	assert.Error(t, err)
+	actual, err = testWorkflow.FindNodeHandleBySf(expectedSfOem, "", "")
+	assert.Empty(t, actual)
+	assert.Error(t, err)
+	actual, err = testWorkflow.FindNodeHandleBySf(expectedSfOem, expectedSfHandle, "")
+	assert.Empty(t, actual)
+	assert.Error(t, err)
+	actual, err = testWorkflow.FindNodeHandleBySf(expectedSfOem, expectedSfHandle, expectedSfVersion)
+	assert.Equal(t, actual, expectedHandle)
+}
+
 func TestWorkflowHandlePredicate(t *testing.T) {
 	var expectedHandle = "handle"
 	var testWorkflow = Workflow{Handle: expectedHandle}

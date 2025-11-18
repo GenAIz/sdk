@@ -138,6 +138,13 @@ func TestCreateWorkingDir_NotWritable(t *testing.T) {
 	assert.Equal(t, testDir, actual)
 }
 
+func TestFirstParentName(t *testing.T) {
+	var expectedParent = "parent"
+
+	assert.Equal(t, expectedParent, FirstParentName("parent/child/friends"))
+	assert.Equal(t, expectedParent, FirstParentName("/parent/friends"))
+}
+
 func TestCreateWorkingDir(t *testing.T) {
 	if expected, err := filepath.EvalSymlinks(t.TempDir()); err == nil {
 		var cwd, _ = os.Getwd()

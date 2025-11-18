@@ -157,6 +157,32 @@ type Document struct {
 			Version     Keys
 		}
 	}
+	Workflow struct {
+		Nodes struct {
+			Add struct {
+				ConfigType   Keys
+				Description  Keys
+				Deserialized Keys
+				Handle       Keys
+				Name         Keys
+				Oem          Keys
+				Sequence     Keys
+				Serialized   Keys
+				Version      Keys
+			}
+			Remove struct {
+				ConfigType Keys
+			}
+		}
+		Links struct {
+			Add struct {
+				ConfigType Keys
+			}
+			Remove struct {
+				ConfigType Keys
+			}
+		}
+	}
 }
 
 type Keys struct {
@@ -272,6 +298,18 @@ func init() {
 	Genaiz.Solution.Publish.Name = newKeys("Solution.Publish.Name", "SN_PUBLISH_NAME")
 	Genaiz.Solution.Publish.Oem = newKeys("Solution.Publish.Oem", "SN_PUBLISH_OEM")
 	Genaiz.Solution.Publish.Version = newKeys("Solution.Publish.Version", "SN_PUBLISH_VERSION")
+	Genaiz.Workflow.Links.Add.ConfigType = newKeys("Workflow.Links.Add.ConfigType", "WF_LINKS_ADD_CONFIG_TYPE")
+	Genaiz.Workflow.Links.Remove.ConfigType = newKeys("Workflow.Links.Remove.ConfigType", "WF_LINKS_RM_CONFIG_TYPE")
+	Genaiz.Workflow.Nodes.Add.ConfigType = newKeys("Workflow.Nodes.Add.ConfigType", "WF_NODES_ADD_CONFIG_TYPE")
+	Genaiz.Workflow.Nodes.Add.Description = newKeys("Workflow.Nodes.Add.Description", "WF_NODES_ADD_DESCRIPTION")
+	Genaiz.Workflow.Nodes.Add.Deserialized = newKeys("Workflow.Nodes.Add.Deserialized", "WF_NODES_ADD_DESERIALIZED")
+	Genaiz.Workflow.Nodes.Add.Handle = newKeys("Workflow.Nodes.Add.Handle", "WF_NODES_ADD_HANDLE")
+	Genaiz.Workflow.Nodes.Add.Name = newKeys("Workflow.Nodes.Add.Name", "WF_NODES_ADD_NAME")
+	Genaiz.Workflow.Nodes.Add.Oem = newKeys("Workflow.Nodes.Add.Oem", "WF_NODES_ADD_OEM")
+	Genaiz.Workflow.Nodes.Add.Sequence = newKeys("Workflow.Nodes.Add.Seq", "WF_NODES_ADD_SEQ")
+	Genaiz.Workflow.Nodes.Add.Serialized = newKeys("Workflow.Nodes.Add.Serialized", "WF_NODES_ADD_SERIALIZED")
+	Genaiz.Workflow.Nodes.Add.Version = newKeys("Workflow.Nodes.Add.Version", "WF_NODES_ADD_VERSION")
+	Genaiz.Workflow.Nodes.Remove.ConfigType = newKeys("Workflow.Nodes.Remove.ConfigType", "WF_NODES_RM_CONFIG_TYPE")
 }
 
 func newKeys(docKey, envKey string) Keys {

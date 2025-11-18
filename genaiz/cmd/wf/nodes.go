@@ -2,20 +2,30 @@ package wf
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/stringz"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/cmd/wf/nodes"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
+)
+
+var (
+	errorIncompleteSfSpec = errors.New("incomplete smart function specification, minimum required: OEM/HANDLE:VERSION")
 )
 
 type NodesExecutor struct {
@@ -88,6 +98,7 @@ func (ne *NodesExecutor) Proceed() {
 			var writer = ne.workflowWriterFactory(ne.Ledger, configParams.GetConfigFile())
 			var plan = task.NewPlan("Workflow", ne.Ledger.Logger)
 
+			plan.PrintReportsOnly = true
 			task.Single(plan, workflowParams, ne.workflowTaskFactory(writer))
 		}
 	}
@@ -95,7 +106,7 @@ func (ne *NodesExecutor) Proceed() {
 	lang.HandleExit(err)
 }
 
-func (ne *NodesExecutor) Add(workflowArg string, nodeHandle string) {
+func (ne *NodesExecutor) Add(workflowArg string, nodeHandle string) error {
 	var nodeName = ne.Ledger.GetString(ne.optionName)
 	var sfHandle = ne.Ledger.GetString(ne.optionSfHandle)
 	var sfOem = ne.Ledger.GetString(ne.optionSfOem)
@@ -118,16 +129,76 @@ func (ne *NodesExecutor) Add(workflowArg string, nodeHandle string) {
 			Seq:     cast.ToInt(ne.Ledger.GetString(ne.optionSfSeq)),
 			Version: sfVersion,
 		}
+	} else if strings.Join([]string{sfHandle, sfOem, sfVersion}, "") != "" {
+		return errorIncompleteSfSpec
 	}
 
 	ne.workflowArg = workflowArg
 	ne.Cli.Exec(ne.Ledger, ne)
+	return nil
+}
+
+func (ne *NodesExecutor) Find(path string) (string, error) {
+	var vp *viper.Viper
+	var err error
+
+	if vp, err = ne.findPathConfig(path); err == nil {
+		var handle = vp.GetString(schema.Genaiz.Function.Publish.Handle.Doc)
+
+		return handle + "-node", nil
+	}
+
+	if !errorz.IsPathError(err) {
+		return "", err
+	}
+
+	return path, nil
+}
+
+func (ne *NodesExecutor) Init(path string) (string, error) {
+	var vp *viper.Viper
+	var err error
+
+	if vp, err = ne.findPathConfig(path); err == nil {
+		var oem = vp.GetString(schema.Genaiz.Function.Publish.Oem.Doc)
+		var handle = vp.GetString(schema.Genaiz.Function.Publish.Handle.Doc)
+		var version = vp.GetString(schema.Genaiz.Function.Publish.Version.Doc)
+
+		if err = ne.initPathOption(path, oem, ne.optionSfOem); err == nil {
+			if err = ne.initPathOption(path, handle, ne.optionSfHandle); err == nil {
+				if err = ne.initPathOption(path, version, ne.optionSfVersion); err == nil {
+					return filepath.Base(path) + "-node", nil
+				}
+			}
+		}
+	}
+
+	if !errorz.IsPathError(err) {
+		return "", err
+	}
+
+	return path, nil
 }
 
 func (ne *NodesExecutor) Remove(workflowArg string, nodeHandles ...string) {
 	ne.rmNodes = nodeHandles
 	ne.workflowArg = workflowArg
 	ne.Cli.Exec(ne.Ledger, ne)
+}
+
+func (ne *NodesExecutor) initPathOption(path, value string, option *config.StringOption) error {
+	if value != "" {
+		var oldValue = ne.Ledger.GetString(option)
+
+		ne.Ledger.InitValue(option, value)
+
+		if oldValue != "" && value != oldValue {
+			return fmt.Errorf("value [%s] for option [%s] conflicts with [%s] under [%s]",
+				oldValue, option.Key, value, path)
+		}
+	}
+
+	return nil
 }
 
 func (ne *NodesExecutor) makeWorkflowParams(configParams *shared.ConfigParams) (*broker.WorkflowParams, error) {
@@ -137,7 +208,9 @@ func (ne *NodesExecutor) makeWorkflowParams(configParams *shared.ConfigParams) (
 	var err error
 
 	if ne.addNode != nil {
-		writer.addNodes(handle, ne.addNode)
+		if _, err = writer.addNodes(handle, ne.addNode); err != nil {
+			return nil, err
+		}
 	}
 
 	writer.removeNodes(handle, ne.rmNodes...)
@@ -183,6 +256,83 @@ func (no NodesOptions) removeDefiners() []config.Definer {
 	}
 }
 
+type SerializedOptions struct {
+	node *broker.WorkflowNodeFunction
+
+	optionSerialized   *config.StringOption
+	optionDeserialized *config.Option
+}
+
+func (so *SerializedOptions) GetHandle(ledger *config.Ledger) any {
+	return so.getNode(ledger).Handle
+}
+
+func (so *SerializedOptions) GetOem(ledger *config.Ledger) any {
+	return so.getNode(ledger).Oem
+}
+
+func (so *SerializedOptions) GetSeq(ledger *config.Ledger) any {
+	return so.getNode(ledger).Seq
+}
+
+func (so *SerializedOptions) GetVersion(ledger *config.Ledger) any {
+	return so.getNode(ledger).Version
+}
+
+func (so *SerializedOptions) getDefault(ledger *config.Ledger) any {
+	var serialized = ledger.GetString(so.optionSerialized)
+	var result = &broker.WorkflowNodeFunction{}
+
+	if serialized != "" {
+		var i int
+
+		if i = strings.Index(serialized, "/"); i >= 0 {
+			result.Oem = serialized[0:i]
+			serialized = stringz.SubstrFrom(serialized, i+1)
+		}
+
+		if i = strings.Index(serialized, ":"); i >= 0 {
+			result.Handle = serialized[0:i]
+			serialized = stringz.SubstrFrom(serialized, i+1)
+		} else {
+			result.Handle = serialized
+		}
+
+		if i = strings.Index(serialized, "-rc"); i >= 0 {
+			var j = strings.Index(serialized, "-rc.")
+
+			if j < 0 {
+				j = strings.Index(serialized, "-rc-")
+			}
+
+			if j >= 0 {
+				result.Version = serialized[0:j]
+				result.Seq = cast.ToInt(serialized[j+4:])
+			} else {
+				result.Version = serialized[0:i]
+				result.Seq = cast.ToInt(serialized[i+3:])
+			}
+		} else {
+			result.Version = serialized
+		}
+	}
+
+	return result
+}
+
+func (so *SerializedOptions) getNode(ledger *config.Ledger) *broker.WorkflowNodeFunction {
+	if so.node == nil {
+		var dAny = ledger.Get(so.optionDeserialized)
+		var ok bool
+
+		if so.node, ok = dAny.(*broker.WorkflowNodeFunction); !ok {
+			so.node = &broker.WorkflowNodeFunction{}
+		}
+	}
+
+	return so.node
+}
+
 func NewNodes(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var addNodesOptions = NewAddNodesOptions()
 	var rmNodesOptions = NewRemoveNodesOptions()
@@ -216,33 +366,65 @@ func NewNodesExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 }
 
 func NewAddNodesOptions() *NodesOptions {
-	var cmd = "Nodes.Add"
-	var serializedOption = newOptionSfSerialized(cmd)
-	var deserializedOption = newOptionSfDeserialized(serializedOption, cmd)
-	var nameOption = newOptionNodeName(cmd)
+	var serializedOptions = NewSerializedOptions()
+	var nameOption = cli.Options.Workflows.Name().
+		WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Name).
+		BuildStringOption()
 
 	return &NodesOptions{
-		optionConfigType:   newOptionConfigType(cmd),
-		optionDescription:  newOptionNodeDescription(cmd, &nameOption.Option),
-		optionName:         nameOption,
-		optionSfHandle:     newOptionSfHandle(deserializedOption, cmd),
-		optionSfOem:        newOptionSfOem(deserializedOption, cmd),
-		optionSfSeq:        newOptionSfSeq(deserializedOption, cmd),
-		optionSfSerialized: serializedOption,
-		optionSfVersion:    newOptionSfVersion(deserializedOption, cmd),
+		optionConfigType: cli.Options.Configs.Type().
+			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.ConfigType).
+			BuildStringOption(),
+		optionDescription: cli.Options.Workflows.Description().
+			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Description).
+			WithDefaultGetter(func(ledger *config.Ledger) any {
+				return ledger.GetString(nameOption)
+			}).BuildStringOption(),
+		optionName: nameOption,
+		optionSfHandle: cli.Options.Workflows.Handle().
+			Optional(true).
+			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Handle).
+			WithDefaultGetter(serializedOptions.GetHandle).
+			BuildStringOption(),
+		optionSfOem: cli.Options.Workflows.Oem().
+			Optional(true).
+			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Oem).
+			WithDefaultGetter(serializedOptions.GetOem).
+			BuildStringOption(),
+		optionSfSeq: cli.Options.Workflows.Sequence().
+			Optional(true).
+			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Sequence).
+			WithDefaultGetter(serializedOptions.GetSeq).
+			BuildStringOption(),
+		optionSfSerialized: serializedOptions.optionSerialized,
+		optionSfVersion: cli.Options.Workflows.Version().
+			Optional(true).
+			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Version).
+			WithDefaultGetter(serializedOptions.GetVersion).
+			BuildStringOption(),
 	}
+}
+
+func NewSerializedOptions() *SerializedOptions {
+	var result = &SerializedOptions{
+		optionSerialized: cli.Options.Workflows.Serialized().
+			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Serialized).
+			BuildStringOption(),
+		optionDeserialized: &config.Option{
+			Key: schema.Genaiz.Workflow.Nodes.Add.Deserialized.Doc,
+		},
+	}
+
+	result.optionDeserialized.DefaultGetter = result.getDefault
+	return result
 }
 
 func NewRemoveNodesOptions() *NodesOptions {
-	var cmd = "Nodes.Remove"
-
 	return &NodesOptions{
-		optionConfigType: newOptionConfigType(cmd),
+		optionConfigType: cli.Options.Configs.Type().
+			WithKeys(&schema.Genaiz.Workflow.Nodes.Remove.ConfigType).
+			BuildStringOption(),
 	}
-}
-
-func makeEnvKey(key string) string {
-	return strings.ReplaceAll(strings.ToUpper(key), ".", "_")
 }
 
 func newNodesAddExecutorFactory(ledger *config.Ledger, cli *Cli, options *NodesOptions) func(*cobra.Command) nodes.AddExecutor {
@@ -254,163 +436,6 @@ func newNodesAddExecutorFactory(ledger *config.Ledger, cli *Cli, options *NodesO
 func newNodesRemoveExecutorFactory(ledger *config.Ledger, cli *Cli, options *NodesOptions) func(*cobra.Command) nodes.RemoveExecutor {
 	return func(cmd *cobra.Command) nodes.RemoveExecutor {
 		return NewNodesExecutor(cmd.Context(), ledger, cli, options)
-	}
-}
-
-func newOptionNodeDescription(cmd string, defaultOption *config.Option) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "Workflow." + cmd + ".Description",
-			Env:   makeEnvKey("WF_" + cmd + "_DESCRIPTION"),
-			Param: "description",
-			Usage: "description of the workflow node",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				return ledger.Get(defaultOption)
-			},
-			Validator: config.Validation.Blob,
-		},
-	}
-}
-
-func newOptionNodeName(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:       "Workflow." + cmd + ".Name",
-			Env:       makeEnvKey("WF_" + cmd + "_NAME"),
-			Param:     "name",
-			Usage:     "name of the workflow node",
-			Validator: config.Validation.Name,
-		},
-	}
-}
-
-func newOptionSfDeserialized(serializedOption *config.StringOption, cmd string) *config.Option {
-	var deserialized *broker.WorkflowNodeFunction
-
-	return &config.Option{
-		Key: "Workflow." + cmd + ".Function.Deserialized",
-		DefaultGetter: func(ledger *config.Ledger) any {
-			if deserialized == nil {
-				var serialized = ledger.GetString(serializedOption)
-
-				deserialized = &broker.WorkflowNodeFunction{}
-
-				if serialized != "" {
-					var i int
-
-					if i = strings.Index(serialized, "/"); i >= 0 {
-						deserialized.Oem = serialized[0:i]
-						serialized = stringz.SubstrFrom(serialized, i+1)
-					}
-
-					if i = strings.Index(serialized, ":"); i >= 0 {
-						deserialized.Handle = serialized[0:i]
-						serialized = stringz.SubstrFrom(serialized, i+1)
-					} else {
-						deserialized.Handle = serialized
-					}
-
-					if i = strings.Index(serialized, "-rc"); i >= 0 {
-						var j = strings.Index(serialized, "-rc.")
-
-						if j < 0 {
-							j = strings.Index(serialized, "-rc-")
-						}
-
-						if j >= 0 {
-							deserialized.Version = serialized[0:j]
-							deserialized.Seq = cast.ToInt(serialized[j+4:])
-						} else {
-							deserialized.Version = serialized[0:i]
-							deserialized.Seq = cast.ToInt(serialized[i+3:])
-						}
-					} else {
-						deserialized.Version = serialized
-					}
-				}
-			}
-
-			return deserialized
-		},
-	}
-}
-
-func newOptionSfHandle(defaultOption *config.Option, cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "Workflow." + cmd + ".Function.Handle",
-			Env:   makeEnvKey("WF_" + cmd + "_FUNCTION_HANDLE"),
-			Param: "sf.handle",
-			Usage: "handle of the node smart function",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				var dAny = ledger.Get(defaultOption)
-
-				return dAny.(*broker.WorkflowNodeFunction).Handle
-			},
-			Validator: config.Optionally(config.Validation.Handle),
-		},
-	}
-}
-
-func newOptionSfOem(defaultOption *config.Option, cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "Workflow." + cmd + ".Function.Oem",
-			Env:   makeEnvKey("WF_" + cmd + "_FUNCTION_OEM"),
-			Param: "sf.oem",
-			Usage: "oem of the node smart function",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				var dAny = ledger.Get(defaultOption)
-
-				return dAny.(*broker.WorkflowNodeFunction).Oem
-			},
-			Validator: config.Optionally(config.Validation.Oem),
-		},
-	}
-}
-
-func newOptionSfSeq(defaultOption *config.Option, cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "Workflow." + cmd + ".Function.Seq",
-			Env:   makeEnvKey("WF_" + cmd + "_FUNCTION_SEQ"),
-			Param: "sf.seq",
-			Usage: "sequence number of the node smart function",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				var dAny = ledger.Get(defaultOption)
-
-				return dAny.(*broker.WorkflowNodeFunction).Seq
-			},
-			Validator: config.Optionally(config.Validation.VersionNumber),
-		},
-	}
-}
-
-func newOptionSfSerialized(cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "Workflow." + cmd + ".Function.Serialized",
-			Env:   makeEnvKey("WF_" + cmd + "_FUNCTION_SERIALIZED"),
-			Param: "sf",
-			Usage: "serialized string of the smart function, the individual options have precedence",
-		},
-	}
-}
-
-func newOptionSfVersion(defaultOption *config.Option, cmd string) *config.StringOption {
-	return &config.StringOption{
-		Option: config.Option{
-			Key:   "Workflow." + cmd + ".Function.Version",
-			Env:   makeEnvKey("WF_" + cmd + "_FUNCTION_VERSION"),
-			Param: "sf.version",
-			Usage: "version of the node smart function",
-			DefaultGetter: func(ledger *config.Ledger) any {
-				var dAny = ledger.Get(defaultOption)
-
-				return dAny.(*broker.WorkflowNodeFunction).Version
-			},
-			Validator: config.Optionally(config.Validation.Version),
-		},
 	}
 }
 
