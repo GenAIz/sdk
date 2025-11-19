@@ -676,6 +676,73 @@ func Test_OptionsSolutionsWorkflowName(t *testing.T) {
 	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
 }
 
+func Test_OptionsWorkflowDescription(t *testing.T) {
+	var testOption = Options.Workflows.Description().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("a valid description"))
+}
+
+func Test_OptionsWorkflowHandle(t *testing.T) {
+	var testOption = Options.Workflows.Handle().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, testOption.Validator("--not-valid--"))
+	assert.True(t, testOption.Validator("function-37"))
+}
+
+func Test_OptionsWorkflowName(t *testing.T) {
+	var testOption = Options.Workflows.Name().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("a valid name"))
+	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
+}
+
+func Test_OptionsWorkflowOem(t *testing.T) {
+	var testOption = Options.Workflows.Oem().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("com.genaiz"))
+	assert.False(t, testOption.Validator("com..genaiz"))
+}
+
+func Test_OptionsWorkflowSequence(t *testing.T) {
+	var testOption = Options.Workflows.Sequence().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("37"))
+	assert.False(t, testOption.Validator("notASequence"))
+}
+
+func Test_OptionsWorkflowSerialized(t *testing.T) {
+	var testOption = Options.Workflows.Serialized().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsWorkflowVersion(t *testing.T) {
+	var testOption = Options.Workflows.Version().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("1.1.37"))
+	assert.False(t, testOption.Validator("1.2"))
+}
+
 func TestOptionBuilder_Validated(t *testing.T) {
 	var called bool
 	var expectedValue = "value"

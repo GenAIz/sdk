@@ -11,6 +11,7 @@ The concepts and design related to the Orchestrator and GenAIz platform should b
 * [genaiz function create](function/create.md)
 * [genaiz function init](function/init.md)
 * [genaiz function list](function/list.md)
+* [genaiz function prop](function/prop.md)
 * [genaiz function publish](function/publish.md)
 * [genaiz function run](function/run.md)
 * [genaiz function start](function/start.md)
@@ -20,6 +21,12 @@ The concepts and design related to the Orchestrator and GenAIz platform should b
 ## [Solutions](solution/index.md)
 * [genaiz solution create](solution/create.md)
 * [genaiz solution publish](solution/publish.md)
+
+## [Workflows](workflow/index.md)
+* [genaiz workflow create](workflow/create.md)
+* [genaiz workflow delete](workflow/delete.md)
+* [genaiz workflow links](workflow/links.md)
+* [genaiz workflow nodes](workflow/nodes.md)
 
 ## Global Validation
 

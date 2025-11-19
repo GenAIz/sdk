@@ -154,6 +154,7 @@ Design was modeled with a behavior driven approach focusing on user's usage stud
 
 * [Account Scenarios](doc/account/index.md)
   * [account (ac) login](doc/account/index.md#login)
+  * [account (ac) logout](doc/account/index.md#logout)
 * [Function Scenarios](doc/function/index.md)
   * [function (sf) build](doc/function/build.md)
   * [function (sf) create](doc/function/create.md)
@@ -168,6 +169,11 @@ Design was modeled with a behavior driven approach focusing on user's usage stud
 * [Solution Scenarios](doc/solution/index.md)
   * [solution (sn) create](doc/solution/create.md)
   * [solution (sn) publish](doc/solution/publish.md)
+* [Workflow Scenarios](doc/workflow/index.md)
+  * [workflow (wf) create](doc/workflow/create.md)
+  * [workflow (wf) delete](doc/workflow/delete.md)
+  * [workflow (wf) nodes](doc/workflow/nodes.md)
+  * [workflow (wf) links](doc/workflow/links.md)
 
 ## Troubleshooting
 

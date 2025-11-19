@@ -8,13 +8,29 @@ import (
 )
 
 type stubRemoveExecutor struct {
-	actualWorkflow *string
-	actualLinks    *[]string
+	initError    error
+	initLinks    *[]string
+	initResult   []string
+	initWorkflow *string
+	rmLinks      *[]string
+	rmWorkflow   *string
+}
+
+func (sr *stubRemoveExecutor) Init(wf string, links []string) ([]string, error) {
+	if sr.initWorkflow != nil {
+		*sr.initWorkflow = wf
+	}
+
+	if sr.initLinks != nil {
+		*sr.initLinks = links
+	}
+
+	return sr.initResult, sr.initError
 }
 
 func (sr *stubRemoveExecutor) Remove(wf string, links []string) {
-	*sr.actualWorkflow = wf
-	*sr.actualLinks = links
+	*sr.rmWorkflow = wf
+	*sr.rmLinks = links
 }
 
 func TestRemoveAddLinks(t *testing.T) {
@@ -23,7 +39,13 @@ func TestRemoveAddLinks(t *testing.T) {
 	var expectedWorkflow = "_workflow"
 	var expectedLinks = "_add-handle"
 	var testRmLinks = NewRemoveLinks(
-		newRemoveFactory(&actualWorkflow, &actualLinks),
+		func(command *cobra.Command) RemoveExecutor {
+			return &stubRemoveExecutor{
+				rmWorkflow: &actualWorkflow,
+				rmLinks:    &actualLinks,
+				initResult: []string{expectedLinks},
+			}
+		},
 		newRemoveValidator(true))
 
 	testRmLinks.SetArgs([]string{expectedWorkflow, expectedLinks})
@@ -42,8 +64,8 @@ func TestNewRemoveLinksInvalidArgs(t *testing.T) {
 func newRemoveFactory(actualWorkflow *string, actualLinks *[]string) RemoveExecutorFactory {
 	return func(command *cobra.Command) RemoveExecutor {
 		return &stubRemoveExecutor{
-			actualWorkflow: actualWorkflow,
-			actualLinks:    actualLinks,
+			rmWorkflow: actualWorkflow,
+			rmLinks:    actualLinks,
 		}
 	}
 }

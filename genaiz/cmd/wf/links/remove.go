@@ -2,10 +2,14 @@ package links
 
 import (
 	"github.com/spf13/cobra"
+
+	"genaiz.com/genaiz/lang"
 )
 
 type RemoveExecutor interface {
 	Remove(string, []string)
+
+	Init(string, []string) ([]string, error)
 }
 
 type RemoveExecutorFactory func(*cobra.Command) RemoveExecutor
@@ -24,9 +28,17 @@ func NewRemoveLinks(factory RemoveExecutorFactory, validator RemoveValidator) *c
 		}),
 		Run: func(cmd *cobra.Command, args []string) {
 			var executor = factory(cmd)
+			var links []string
+			var err error
 
-			executor.Remove(args[0], args[1:])
+			if links, err = executor.Init(args[0], args[1:]); err == nil {
+				executor.Remove(args[0], links)
+			}
+
+			lang.HandleExit(err)
 		},
+		SilenceErrors: true,
+		SilenceUsage:  true,
 	}
 
 	return rmCmd

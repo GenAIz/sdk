@@ -424,6 +424,49 @@ var (
 					WithValidator(config.Validation.RequiredName)
 			},
 		},
+		Workflows: workflowOptions{
+			Description: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("description").
+					WithUsage("description of the workflow node").
+					WithValidator(config.Validation.Blob)
+			},
+			Handle: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("sf-handle").
+					WithUsage("handle of the node smart function").
+					WithValidator(config.Validation.Handle)
+			},
+			Name: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithUsage("name of the workflow node").
+					WithValidator(config.Validation.Name)
+			},
+			Oem: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("sf-oem").
+					WithUsage("oem of the node smart function").
+					WithValidator(config.Validation.Oem)
+			},
+			Sequence: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("sf-seq").
+					WithUsage("sequence number of the node smart function").
+					WithValidator(config.Validation.VersionNumber)
+			},
+			Serialized: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("sf").
+					WithUsage("serialized string of the smart function, the individual options have precedence")
+			},
+			Version: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("sf-version").
+					WithUsage("version of the node smart function").
+					WithValidator(config.Validation.Version)
+			},
+		},
 	}
 )
 
@@ -435,6 +478,7 @@ type cliOptions struct {
 	Modes     modeOptions
 	PropSpecs propSpecsOptions
 	Solutions solutionOptions
+	Workflows workflowOptions
 }
 
 type accountOptions struct {
@@ -517,6 +561,16 @@ type solutionOptions struct {
 	WorkflowDesc    func() OptionBuilder
 	WorkflowHandle  func() OptionBuilder
 	WorkflowName    func() OptionBuilder
+}
+
+type workflowOptions struct {
+	Description func() OptionBuilder
+	Handle      func() OptionBuilder
+	Name        func() OptionBuilder
+	Oem         func() OptionBuilder
+	Sequence    func() OptionBuilder
+	Serialized  func() OptionBuilder
+	Version     func() OptionBuilder
 }
 
 type OptionBuilder interface {

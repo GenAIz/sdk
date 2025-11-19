@@ -5,11 +5,21 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	"genaiz.com/genaiz-lib/mock"
 )
 
 type stubRemoveExecutor struct {
 	actualWorkflow *string
 	actualNodes    *[]string
+	findError      error
+	findHandle     string
+	findPath       string
+}
+
+func (sr *stubRemoveExecutor) Find(path string) (string, error) {
+	sr.findPath = path
+	return sr.findHandle, sr.findError
 }
 
 func (sr *stubRemoveExecutor) Remove(wf string, nodes ...string) {
@@ -23,7 +33,13 @@ func TestRemoveAddNodes(t *testing.T) {
 	var expectedWorkflow = "_workflow"
 	var expectedNodes = "_add-handle"
 	var testRmNodes = NewRemoveNodes(
-		newRemoveFactory(&actualWorkflow, &actualNodes),
+		func(command *cobra.Command) RemoveExecutor {
+			return &stubRemoveExecutor{
+				actualWorkflow: &actualWorkflow,
+				actualNodes:    &actualNodes,
+				findHandle:     expectedNodes,
+			}
+		},
 		newRemoveValidator(true))
 
 	testRmNodes.SetArgs([]string{expectedWorkflow, expectedNodes})
@@ -33,10 +49,16 @@ func TestRemoveAddNodes(t *testing.T) {
 }
 
 func TestNewRemoveNodesInvalidArgs(t *testing.T) {
-	var testRmNodes = NewRemoveNodes(nil, newRemoveValidator(false))
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testRmNodes = NewRemoveNodes(
+		newRemoveFactory(nil, nil),
+		newRemoveValidator(false))
 
+	defer patch.Unpatch()
 	testRmNodes.SetArgs([]string{"_workflow", "_rm-handle"})
-	assert.ErrorIs(t, testRmNodes.Execute(), errorInvalid)
+	assert.NoError(t, testRmNodes.Execute())
+	assert.True(t, patch.Called)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func newRemoveFactory(actualWorkflow *string, actualNodes *[]string) RemoveExecutorFactory {

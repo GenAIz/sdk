@@ -84,6 +84,28 @@ func DoIfPathExist(path string, call func() error) error {
 	return nil
 }
 
+// FirstParentName returns the name first directory in a path or empty string if there are no parents.
+func FirstParentName(path string) string {
+	var dir = path
+	var result string
+
+	for {
+		dir = filepath.Dir(dir)
+
+		if dir == "." || (len(dir) == 1 && strings.IndexRune(dir, filepath.Separator) == 0) {
+			break
+		}
+
+		result = dir
+	}
+
+	if strings.IndexRune(result, filepath.Separator) == 0 {
+		result = result[1:]
+	}
+
+	return result
+}
+
 // OptionalWorkingDir returns a provider returning the absolute path of the provided arguments or the current working dir if no arguments are provided
 func OptionalWorkingDir(args ...string) func() (string, error) {
 	var result func() (string, error)

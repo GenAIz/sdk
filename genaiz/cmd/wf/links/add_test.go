@@ -13,13 +13,29 @@ var (
 )
 
 type stubAddExecutor struct {
-	actualWorkflow *string
-	actualLinks    *[]string
+	addLinks     *[]string
+	addWorkflow  *string
+	initError    error
+	initLinks    *[]string
+	initResult   []string
+	initWorkflow *string
 }
 
 func (sa *stubAddExecutor) Add(wf string, links []string) {
-	*sa.actualWorkflow = wf
-	*sa.actualLinks = links
+	*sa.addWorkflow = wf
+	*sa.addLinks = links
+}
+
+func (sa *stubAddExecutor) Init(wf string, links []string) ([]string, error) {
+	if sa.initWorkflow != nil {
+		*sa.initWorkflow = wf
+	}
+
+	if sa.initLinks != nil {
+		*sa.initLinks = links
+	}
+
+	return sa.initResult, sa.initError
 }
 
 func TestNewAddLinks(t *testing.T) {
@@ -28,7 +44,13 @@ func TestNewAddLinks(t *testing.T) {
 	var expectedWorkflow = "_workflow"
 	var expectedLinks = "_add-handle"
 	var testAddLinks = NewAddLinks(
-		newAddFactory(&actualWorkflow, &actualLinks),
+		func(command *cobra.Command) AddExecutor {
+			return &stubAddExecutor{
+				addWorkflow: &actualWorkflow,
+				addLinks:    &actualLinks,
+				initResult:  []string{expectedLinks},
+			}
+		},
 		newAddValidator(true))
 
 	testAddLinks.SetArgs([]string{expectedWorkflow, expectedLinks})
@@ -42,15 +64,6 @@ func TestNewAddLinksInvalidArgs(t *testing.T) {
 
 	testAddLinks.SetArgs([]string{"_workflow", "_add-handle"})
 	assert.ErrorIs(t, testAddLinks.Execute(), errorInvalid)
-}
-
-func newAddFactory(actualWorkflow *string, actualLinks *[]string) AddExecutorFactory {
-	return func(command *cobra.Command) AddExecutor {
-		return &stubAddExecutor{
-			actualWorkflow: actualWorkflow,
-			actualLinks:    actualLinks,
-		}
-	}
 }
 
 func newAddValidator(valid bool) AddValidator {

@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	"genaiz.com/genaiz-lib/mock"
 )
 
 var (
@@ -13,13 +15,23 @@ var (
 )
 
 type stubAddExecutor struct {
-	actualWorkflow   *string
-	actualNodeHandle *string
+	addError      error
+	addNodeHandle *string
+	addWorkflow   *string
+	initPath      string
+	initHandle    string
+	initError     error
 }
 
-func (sa *stubAddExecutor) Add(wf string, nodeHandle string) {
-	*sa.actualWorkflow = wf
-	*sa.actualNodeHandle = nodeHandle
+func (sa *stubAddExecutor) Add(wf string, nodeHandle string) error {
+	*sa.addWorkflow = wf
+	*sa.addNodeHandle = nodeHandle
+	return sa.addError
+}
+
+func (sa *stubAddExecutor) Init(path string) (string, error) {
+	sa.initPath = path
+	return sa.initHandle, sa.initError
 }
 
 func TestNewAddNodes(t *testing.T) {
@@ -28,7 +40,13 @@ func TestNewAddNodes(t *testing.T) {
 	var expectedWorkflow = "_workflow"
 	var expectedNode = "_add-handle"
 	var testAddNodes = NewAddNodes(
-		newAddFactory(&actualWorkflow, &actualNodeHandle),
+		func(command *cobra.Command) AddExecutor {
+			return &stubAddExecutor{
+				addWorkflow:   &actualWorkflow,
+				addNodeHandle: &actualNodeHandle,
+				initHandle:    expectedNode,
+			}
+		},
 		newAddValidator(true))
 
 	testAddNodes.SetArgs([]string{expectedWorkflow, expectedNode})
@@ -38,17 +56,23 @@ func TestNewAddNodes(t *testing.T) {
 }
 
 func TestNewAddNodesInvalidArgs(t *testing.T) {
-	var testAddNodes = NewAddNodes(nil, newAddValidator(false))
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testAddNodes = NewAddNodes(
+		newAddFactory(nil, nil),
+		newAddValidator(false))
 
+	defer patch.Unpatch()
 	testAddNodes.SetArgs([]string{"_workflow", "_add-handle"})
-	assert.ErrorIs(t, testAddNodes.Execute(), errorInvalid)
+	assert.NoError(t, testAddNodes.Execute())
+	assert.True(t, patch.Called)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func newAddFactory(actualWorkflow *string, actualNodeHandle *string) AddExecutorFactory {
 	return func(command *cobra.Command) AddExecutor {
 		return &stubAddExecutor{
-			actualWorkflow:   actualWorkflow,
-			actualNodeHandle: actualNodeHandle,
+			addWorkflow:   actualWorkflow,
+			addNodeHandle: actualNodeHandle,
 		}
 	}
 }

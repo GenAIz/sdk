@@ -6,16 +6,26 @@ package wf
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
+)
+
+var (
+	errorNodeExists = errors.New("the node specified already exists")
 )
 
 type WorkflowTaskFactory func(broker.WorkflowWriter) *task.Task[broker.WorkflowParams]
@@ -27,15 +37,47 @@ type BaseExecutor struct {
 	Ledger  *config.Ledger
 }
 
-func (be BaseExecutor) makeConfigParams(typeOption *config.StringOption) (*shared.ConfigParams, error) {
-	var configType *shared.ConfigType
+func (be BaseExecutor) findPathConfig(path string) (*viper.Viper, error) {
+	var workingConfig string
 	var err error
 
-	if configType, err = be.Ledger.GetConfigType(typeOption); err == nil {
-		return &shared.ConfigParams{
-			ConfigName: be.Ledger.ConfigName,
-			ConfigType: configType,
-		}, nil
+	if workingConfig, err = filez.FirstNamedFileUnder(path, be.Ledger.ConfigName); err == nil {
+		var vp = viper.New()
+
+		vp.SetConfigFile(filepath.Join(path, workingConfig))
+
+		if err = vp.ReadInConfig(); err == nil {
+			return vp, nil
+		}
+	}
+
+	return nil, err
+}
+
+func (be BaseExecutor) makeConfigParams(typeOption *config.StringOption) (*shared.ConfigParams, error) {
+	var configType, _ = be.Ledger.GetConfigType(typeOption)
+	var result = &shared.ConfigParams{
+		ConfigName: be.Ledger.ConfigName,
+		ConfigType: configType,
+	}
+	var err error
+
+	if result.IsConfigTypeNone() {
+		var workingConfig string
+
+		if workingConfig, err = filez.FirstNamedFile(result.ConfigName); err == nil {
+			var fileType = filez.GetFileType(workingConfig)
+
+			result.ConfigType, err = shared.ConfigTypes.FromString(fileType)
+		}
+	}
+
+	if err == nil {
+		return result, nil
+	} else {
+		var wd, _ = os.Getwd()
+
+		err = fmt.Errorf("could not find local config [%s] under [%s]", result.ConfigName, wd)
 	}
 
 	return nil, err
@@ -90,20 +132,22 @@ func (w *workflowWriter) addLinks(handle string, links []broker.WorkflowLink) br
 	return w
 }
 
-func (w *workflowWriter) addNodes(handle string, nodes ...*broker.WorkflowNode) broker.WorkflowWriter {
+func (w *workflowWriter) addNodes(handle string, nodes ...*broker.WorkflowNode) (broker.WorkflowWriter, error) {
 	if workflow, err := w.GetWorkflowByHandle(handle); err == nil {
 		for _, add := range nodes {
 			var predicate = func(node broker.WorkflowNode) bool {
 				return node.Equals(*add)
 			}
 
-			if !slices.ContainsFunc(workflow.Nodes, predicate) {
+			if slices.ContainsFunc(workflow.Nodes, predicate) {
+				return w, errorNodeExists
+			} else {
 				workflow.Nodes = append(workflow.Nodes, *add)
 			}
 		}
 	}
 
-	return w
+	return w, nil
 }
 
 func (w *workflowWriter) removeLinks(handle string, links []broker.WorkflowLink) broker.WorkflowWriter {

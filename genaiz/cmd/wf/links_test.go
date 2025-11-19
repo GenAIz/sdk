@@ -4,16 +4,21 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -27,7 +32,7 @@ func TestLinksExecutor_Add(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewLinksOptions("test")
+	var testOptions = NewAddLinksOptions()
 	var testCli = &Cli{
 		BaseCli: cli.BaseCli{
 			Dry: func(ledger *config.Ledger) bool {
@@ -55,7 +60,7 @@ func TestLinksExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewLinksOptions("test")
+	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -72,11 +77,609 @@ func TestLinksExecutor_Display(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`workflow:[\s\t]*`+expectedWorkflow), actual)
 }
 
+func TestLinksExecutor_Init(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedLeftPath = "leftPath"
+	var expectedLeftPort = "leftPort"
+	var expectedRightPath = "rightPath"
+	var expectedRightPort = "rightPort"
+	var expectedWorkflow = "workflow"
+	var expectedSfOem = "sfOem"
+	var expectedSfVersion = "sfVersion"
+	var expectedLeftSfHandle = "leftHandle"
+	var expectedRightSfHandle = "rightHandle"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterFactory(&broker.Solution{
+			Workflows: []broker.Workflow{
+				{
+					Handle: expectedWorkflow,
+					Nodes: []broker.WorkflowNode{
+						{
+							Handle: expectedLeftPath,
+						},
+						{
+							Handle: expectedRightPath,
+						},
+					},
+				},
+			},
+		}),
+	}
+	var fd *os.File
+	var err error
+
+	if err = os.MkdirAll(filepath.Join(testDir, expectedLeftPath), 0750); err == nil {
+		var sfViper = viper.New()
+
+		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
+		sfViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedLeftSfHandle)
+		sfViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedSfVersion)
+		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedLeftPath, "Genaiz.yaml"))
+	}
+
+	if err != nil {
+		assert.Fail(t, err.Error())
+		return
+	}
+
+	if err = os.MkdirAll(filepath.Join(testDir, expectedLeftPath), 0750); err == nil {
+		var sfViper = viper.New()
+
+		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
+		sfViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedRightSfHandle)
+		sfViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedSfVersion)
+		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedLeftPath, "Genaiz.yaml"))
+	}
+
+	if err != nil {
+		assert.Fail(t, err.Error())
+		return
+	}
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var testLink = fmt.Sprintf("%s/%s:%s/%s", expectedLeftPath, expectedLeftPort, expectedRightPath, expectedRightPort)
+				var expectedLink = fmt.Sprintf("%s[%s]:%s[%s]", expectedLeftPath, expectedLeftPort, expectedRightPath, expectedRightPort)
+				var actualLinks []string
+
+				t.Chdir(testDir)
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
+				assert.NoError(t, err)
+				assert.Equal(t, 1, len(actualLinks))
+				assert.Equal(t, expectedLink, actualLinks[0])
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLinksExecutor_Init_BasicLink(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedLeftHandle = "leftHandle"
+	var expectedLeftPort = "leftPort"
+	var expectedRightHandle = "rightHandle"
+	var expectedRightPort = "rightPort"
+	var expectedWorkflow = "workflow"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterFactory(&broker.Solution{
+			Workflows: []broker.Workflow{
+				{
+					Handle: expectedWorkflow,
+					Nodes: []broker.WorkflowNode{
+						{
+							Handle: expectedRightHandle,
+						},
+						{
+							Handle: expectedLeftHandle,
+						},
+					},
+				},
+			},
+		}),
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var testLink = fmt.Sprintf("%s[%s]:%s[%s]", expectedLeftHandle, expectedLeftPort, expectedRightHandle, expectedRightPort)
+				var expectedLink = fmt.Sprintf("%s[%s]:%s[%s]", expectedLeftHandle, expectedLeftPort, expectedRightHandle, expectedRightPort)
+				var actualLinks []string
+
+				t.Chdir(testDir)
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
+				assert.NoError(t, err)
+				assert.Equal(t, 1, len(actualLinks))
+				assert.Equal(t, expectedLink, actualLinks[0])
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLinksExecutor_Init_InvalidConfigType(t *testing.T) {
+	var expectedWorkflow = "workflow"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+	}
+
+	actualLinks, err := testExecutor.Init(expectedWorkflow, []string{})
+	assert.Empty(t, actualLinks)
+	assert.Error(t, err)
+}
+
+func TestLinksExecutor_Init_InvalidWorkflow(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedWorkflow = "invalid_workflow"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterStub,
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var actualLinks []string
+
+		defer filez.CloseSilently(fd)
+		t.Chdir(testDir)
+		actualLinks, err = testExecutor.Init(expectedWorkflow, []string{})
+		assert.Empty(t, actualLinks)
+		assert.Error(t, err)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestLinksExecutor_Init_FindLeftError(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedWorkflow = "workflow"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterStub,
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var actualLinks []string
+
+				t.Chdir(testDir)
+				// The testPath won't exist and therefor should be an error
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{"testPath:testHandle"})
+				assert.Empty(t, actualLinks)
+				assert.Error(t, err)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedPath = "testPath"
+	var expectedNodeHandle = "nodeHandle"
+	var expectedRightHandle = "rightHandle"
+	var expectedRightPort = "rightPort"
+	var expectedWorkflow = "workflow"
+	var expectedSfOem = "sfOem"
+	var expectedSfHandle = "sfHandle"
+	var expectedSfVersion = "sfVersion"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterFactory(&broker.Solution{
+			Workflows: []broker.Workflow{
+				{
+					Handle: expectedWorkflow,
+					Nodes: []broker.WorkflowNode{
+						{
+							Handle: expectedNodeHandle,
+							Sf: &broker.WorkflowNodeFunction{
+								Oem:     expectedSfOem,
+								Handle:  expectedSfHandle,
+								Version: expectedSfVersion,
+							},
+						},
+						{
+							Handle: expectedRightHandle,
+						},
+					},
+				},
+			},
+		}),
+	}
+	var fd *os.File
+	var err error
+
+	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+		var sfViper = viper.New()
+
+		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
+		sfViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedSfHandle)
+		sfViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedSfVersion)
+		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedPath, "Genaiz.yaml"))
+	}
+
+	if err != nil {
+		assert.Fail(t, err.Error())
+		return
+	}
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var testLink = fmt.Sprintf("%s:%s[%s]", expectedPath, expectedRightHandle, expectedRightPort)
+				var expectedLink = fmt.Sprintf("%s:%s[%s]", expectedNodeHandle, expectedRightHandle, expectedRightPort)
+				var actualLinks []string
+
+				t.Chdir(testDir)
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
+				assert.NoError(t, err)
+				assert.Equal(t, 1, len(actualLinks))
+				assert.Equal(t, expectedLink, actualLinks[0])
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLinksExecutor_Init_FindRightError(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedPath = "testPath"
+	var expectedNodeHandle = "nodeHandle"
+	var expectedWorkflow = "workflow"
+	var expectedSfOem = "sfOem"
+	var expectedSfHandle = "sfHandle"
+	var expectedSfVersion = "sfVersion"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterFactory(&broker.Solution{
+			Workflows: []broker.Workflow{
+				{
+					Handle: expectedWorkflow,
+					Nodes: []broker.WorkflowNode{
+						{
+							Handle: expectedNodeHandle,
+							Sf: &broker.WorkflowNodeFunction{
+								Oem:     expectedSfOem,
+								Handle:  expectedSfHandle,
+								Version: expectedSfVersion,
+							},
+						},
+					},
+				},
+			},
+		}),
+	}
+	var fd *os.File
+	var err error
+
+	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+		var sfViper = viper.New()
+
+		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
+		sfViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedSfHandle)
+		sfViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedSfVersion)
+		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedPath, "Genaiz.yaml"))
+	}
+
+	if err != nil {
+		assert.Fail(t, err.Error())
+		return
+	}
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var actualLinks []string
+
+				t.Chdir(testDir)
+				// The invalidPath won't exist and therefor should be an error
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{expectedPath + ":invalidPath"})
+				assert.Empty(t, actualLinks)
+				assert.Error(t, err)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLinksExecutor_Init_FindRightValue(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedPath = "testPath"
+	var expectedNodeHandle = "nodeHandle"
+	var expectedLeftHandle = "leftHandle"
+	var expectedLeftPort = "leftPort"
+	var expectedWorkflow = "workflow"
+	var expectedSfOem = "sfOem"
+	var expectedSfHandle = "sfHandle"
+	var expectedSfVersion = "sfVersion"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterFactory(&broker.Solution{
+			Workflows: []broker.Workflow{
+				{
+					Handle: expectedWorkflow,
+					Nodes: []broker.WorkflowNode{
+						{
+							Handle: expectedNodeHandle,
+							Sf: &broker.WorkflowNodeFunction{
+								Oem:     expectedSfOem,
+								Handle:  expectedSfHandle,
+								Version: expectedSfVersion,
+							},
+						},
+						{
+							Handle: expectedLeftHandle,
+						},
+					},
+				},
+			},
+		}),
+	}
+	var fd *os.File
+	var err error
+
+	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+		var sfViper = viper.New()
+
+		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
+		sfViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedSfHandle)
+		sfViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedSfVersion)
+		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedPath, "Genaiz.yaml"))
+	}
+
+	if err != nil {
+		assert.Fail(t, err.Error())
+		return
+	}
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var testLink = fmt.Sprintf("%s[%s]:%s", expectedLeftHandle, expectedLeftPort, expectedPath)
+				var expectedLink = fmt.Sprintf("%s[%s]:%s", expectedLeftHandle, expectedLeftPort, expectedNodeHandle)
+				var actualLinks []string
+
+				t.Chdir(testDir)
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
+				assert.NoError(t, err)
+				assert.Equal(t, 1, len(actualLinks))
+				assert.Equal(t, expectedLink, actualLinks[0])
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLinksExecutor_Init_ParseLeftConflict(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedWorkflow = "workflow"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterStub,
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var actualLinks []string
+
+				t.Chdir(testDir)
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{"testPath/testPort[anotherPort]:testHandle"})
+				assert.Empty(t, actualLinks)
+				assert.Error(t, err)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLinksExecutor_Init_ParseRightConflict(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedWorkflow = "workflow"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterStub,
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var actualLinks []string
+
+				t.Chdir(testDir)
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{"testHandle:testPath/testPort[anotherPort]"})
+				assert.Empty(t, actualLinks)
+				assert.Error(t, err)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
 func TestLinksExecutor_Pretend(t *testing.T) {
 	var calledWorkflow bool
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewLinksOptions("test")
+	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -98,7 +701,7 @@ func TestLinksExecutor_PretendInvalidConfigType(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewLinksOptions("test")
+	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -121,7 +724,7 @@ func TestLinksExecutor_PretendInvalidParams(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewLinksOptions("test")
+	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -144,7 +747,7 @@ func TestLinksExecutor_Proceed(t *testing.T) {
 	var calledWorkflow bool
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewLinksOptions("test")
+	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -167,7 +770,7 @@ func TestLinksExecutor_ProceedInvalidConfigType(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewLinksOptions("test")
+	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -190,7 +793,7 @@ func TestLinksExecutor_ProceedInvalidParams(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewLinksOptions("test")
+	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -218,7 +821,7 @@ func TestLinksExecutor_Remove(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewLinksOptions("test")
+	var testOptions = NewAddLinksOptions()
 	var testCli = &Cli{
 		BaseCli: cli.BaseCli{
 			Dry: func(ledger *config.Ledger) bool {
@@ -260,6 +863,44 @@ func Test_parseArgsLinks(t *testing.T) {
 	assert.Equal(t, expectedLeft, actualLinks[0].LhsNode)
 	assert.Equal(t, expectedPort, actualLinks[0].LhsNodePort)
 	assert.Equal(t, expectedRight, actualLinks[0].RhsNode)
+}
+
+func Test_parseNodeRefs(t *testing.T) {
+	var expectedNode = "normal"
+	var expectedPort = "port"
+	var expected = []string{expectedNode, expectedPort}
+	var actualNode, actualPort string
+	var err error
+
+	// Not a valid case, but parsing does not validate beyond conflicting field specs
+	actualNode, actualPort, err = parseNodeRefs("[port]", "")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"[port]", ""}, []string{actualNode, actualPort})
+	actualNode, actualPort, err = parseNodeRefs("normal", "port")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, []string{actualNode, actualPort})
+	actualNode, actualPort, err = parseNodeRefs("normal/", "port")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, []string{actualNode, actualPort})
+	actualNode, actualPort, err = parseNodeRefs("normal/port", "")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, []string{actualNode, actualPort})
+	actualNode, actualPort, err = parseNodeRefs("normal/port/", "")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, []string{actualNode, actualPort})
+	actualNode, actualPort, err = parseNodeRefs("normal/child/port", "")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, []string{actualNode, actualPort})
+	actualNode, actualPort, err = parseNodeRefs("normal/child/port/", "")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, []string{actualNode, actualPort})
+	actualNode, actualPort, err = parseNodeRefs("/normal//port/", "")
+	assert.NoError(t, err)
+	assert.Equal(t, expected, []string{actualNode, actualPort})
+	actualNode, actualPort, err = parseNodeRefs("normal/port", "port2")
+	assert.Error(t, err)
+	assert.Empty(t, actualNode)
+	assert.Empty(t, actualPort)
 }
 
 func Test_validateArgsLinks(t *testing.T) {
