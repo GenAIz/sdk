@@ -345,6 +345,7 @@ func TestNewTest(t *testing.T) {
 	testViper.Set(schema.Genaiz.Function.Test.MountInput.Doc, testDir)
 	testViper.Set(schema.Genaiz.Function.Test.MountOutput.Doc, testDir)
 	testViper.Set(schema.Genaiz.Function.Test.Image.Doc, expectedImage)
+	testLedger.WorkDir = testDir
 	assert.NoError(t, testTest.Execute())
 	assert.True(t, testCompleted)
 

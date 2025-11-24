@@ -80,6 +80,26 @@ func Test_OptionsConfigsType(t *testing.T) {
 	assert.False(t, testOption.Validator("invalid"))
 }
 
+func Test_OptionsDataPortsDesc(t *testing.T) {
+	var testOption = Options.DataPorts.Desc().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("a description"))
+}
+
+func Test_OptionsDataPortsName(t *testing.T) {
+	var testOption = Options.DataPorts.Name().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("a description"))
+}
+
 func Test_OptionsDockerContainerName(t *testing.T) {
 	var testOption = Options.Docker.ContainerName().BuildStringOption()
 

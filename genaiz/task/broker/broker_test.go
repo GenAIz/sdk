@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/spf13/cast"
@@ -84,6 +85,23 @@ func TestFindPropSpec(t *testing.T) {
 	} else {
 		assert.Fail(t, "propSpec not found")
 	}
+}
+
+func TestListDataPorts(t *testing.T) {
+	var expectedHandle = "expectedHandle"
+	var expectedPortMap = map[string]any{
+		"handle":      expectedHandle,
+		"name":        "expectedName",
+		"description": "expectedDescription",
+	}
+	var actualPorts []DataPort
+
+	assert.Empty(t, ListDataPorts("notAList"))
+	actualPorts = ListDataPorts([]interface{}{expectedPortMap, "notASpec"})
+	assert.Equal(t, 1, len(actualPorts))
+	assert.True(t, strings.EqualFold(cast.ToString(expectedPortMap["handle"]), actualPorts[0].Handle))
+	assert.Equal(t, expectedPortMap["name"], actualPorts[0].Name)
+	assert.Equal(t, expectedPortMap["description"], actualPorts[0].Description)
 }
 
 func TestListPropSpecs(t *testing.T) {

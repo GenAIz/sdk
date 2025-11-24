@@ -50,6 +50,34 @@ func (b Broker) GetClient() (Client, error) {
 	return clientFactory.Get(b.AuthFile, b.HostAddr)
 }
 
+type DataPort struct {
+	Description string `json:"description,omitempty"`
+	Handle      string `json:"handle"`
+	Name        string `json:"name"`
+}
+
+func ListDataPorts(ports any) []DataPort {
+	var result []DataPort
+	var list []interface{}
+	var ok bool
+
+	if list, ok = ports.([]interface{}); ok {
+		var portMap map[string]interface{}
+
+		for _, portInterface := range list {
+			if portMap, ok = portInterface.(map[string]interface{}); ok {
+				result = append(result, DataPort{
+					Description: cast.ToString(portMap["description"]),
+					Handle:      strings.ToLower(cast.ToString(portMap["handle"])),
+					Name:        cast.ToString(portMap["name"]),
+				})
+			}
+		}
+	}
+
+	return result
+}
+
 type Error struct {
 	Code    int    `json:"code"`
 	Status  string `json:"status"`
@@ -64,10 +92,12 @@ type Function struct {
 	Fqdn        string
 	Handle      string
 	Img         string
+	InputPorts  []DataPort
 	Digest      string
 	ImgDigest   string
 	Name        string
 	Oem         string
+	OutputPorts []DataPort
 	PropSpecs   []PropSpec
 	Seq         int
 	Type        string
@@ -89,8 +119,10 @@ func (f Function) toModel() *functionModel {
 		Description: f.Description,
 		Handle:      f.Handle,
 		ImgDigest:   f.ImgDigest,
+		InputPorts:  f.InputPorts,
 		Name:        f.Name,
 		Oem:         f.Oem,
+		OutputPorts: f.OutputPorts,
 		PropSpecs:   f.PropSpecs,
 		Type:        f.Type,
 		Version:     f.Version,
@@ -108,9 +140,11 @@ type functionModel struct {
 	Description string     `json:"description"`
 	Handle      string     `json:"handle"`
 	ImgDigest   string     `json:"imgDigest"`
+	InputPorts  []DataPort `json:"inputPorts,omitempty"`
 	Name        string     `json:"name"`
 	Oem         string     `json:"oem"`
-	PropSpecs   []PropSpec `json:"propSpecs"`
+	OutputPorts []DataPort `json:"outputPorts,omitempty"`
+	PropSpecs   []PropSpec `json:"propSpecs,omitempty"`
 	Type        string     `json:"type"`
 	Version     string     `json:"version"`
 }

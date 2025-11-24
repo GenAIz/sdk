@@ -19,19 +19,23 @@ import (
 )
 
 type stubWriter struct {
-	arches     []string
-	configFile string
-	dest       string
-	handle     string
-	input      string
-	name       string
-	oem        string
-	output     map[string]string
-	propSpecs  []broker.PropSpec
-	rmPropSpec *broker.PropSpec
-	sfType     string
-	version    string
-	writeErr   error
+	arches            []string
+	configFile        string
+	dest              string
+	handle            string
+	input             string
+	inputPorts        []broker.DataPort
+	inputPortRemoved  *broker.DataPort
+	name              string
+	oem               string
+	output            map[string]string
+	outputPorts       []broker.DataPort
+	outputPortRemoved *broker.DataPort
+	propSpecs         []broker.PropSpec
+	rmPropSpec        *broker.PropSpec
+	sfType            string
+	version           string
+	writeErr          error
 }
 
 func (s *stubWriter) Write(dest string) error {
@@ -51,6 +55,14 @@ func (s *stubWriter) BuildInput() (string, string) {
 	return "", s.input
 }
 
+func (s *stubWriter) BuildInputPorts() (string, []broker.DataPort) {
+	return "", s.inputPorts
+}
+
+func (s *stubWriter) BuildInputPortRemoved() (string, *broker.DataPort) {
+	return "", s.inputPortRemoved
+}
+
 func (s *stubWriter) BuildName() (string, string) {
 	return "", s.name
 }
@@ -63,11 +75,19 @@ func (s *stubWriter) BuildOutput() map[string]string {
 	return s.output
 }
 
+func (s *stubWriter) BuildOutputPorts() (string, []broker.DataPort) {
+	return "", s.outputPorts
+}
+
+func (s *stubWriter) BuildOutputPortRemoved() (string, *broker.DataPort) {
+	return "", s.outputPortRemoved
+}
+
 func (s *stubWriter) BuildPropSpecs() (string, []broker.PropSpec) {
 	return "", s.propSpecs
 }
 
-func (s *stubWriter) BuildRemovedPropSpec() (string, *broker.PropSpec) {
+func (s *stubWriter) BuildPropSpecRemoved() (string, *broker.PropSpec) {
 	return "", s.rmPropSpec
 }
 
@@ -99,6 +119,16 @@ func (s *stubWriter) WithInput(input string) ConfigWriter {
 	return s
 }
 
+func (s *stubWriter) WithInputPorts(inputPorts []broker.DataPort) ConfigWriter {
+	s.inputPorts = inputPorts
+	return s
+}
+
+func (s *stubWriter) WithInputPortRemoved(inputPort *broker.DataPort) ConfigWriter {
+	s.inputPortRemoved = inputPort
+	return s
+}
+
 func (s *stubWriter) WithLog(logDir string) ConfigWriter {
 	if s.output == nil {
 		s.output = make(map[string]string)
@@ -124,6 +154,16 @@ func (s *stubWriter) WithOutput(output string) ConfigWriter {
 	}
 
 	s.output["output"] = output
+	return s
+}
+
+func (s *stubWriter) WithOutputPorts(outputPorts []broker.DataPort) ConfigWriter {
+	s.outputPorts = outputPorts
+	return s
+}
+
+func (s *stubWriter) WithOutputPortRemoved(outputPort *broker.DataPort) ConfigWriter {
+	s.outputPortRemoved = outputPort
 	return s
 }
 
@@ -299,8 +339,120 @@ func Test_handleLayoutInitPretend(t *testing.T) {
 	assert.Contains(t, output, testParams.Version)
 }
 
+func Test_handleLayoutInitPretend_inputPorts(t *testing.T) {
+	var expectedInputPort = broker.DataPort{
+		Handle:      "expectedHandle",
+		Description: "expectedDescription",
+		Name:        "expectedName",
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var testParams = &InitParams{InputPorts: []broker.DataPort{expectedInputPort}}
+	var testWriter = &stubWriter{}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedInputPort.Handle)
+	assert.Contains(t, output, expectedInputPort.Description)
+	assert.Contains(t, output, expectedInputPort.Name)
+}
+
+func Test_handleLayoutInitPretend_inputPortsRemoval(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var expectedRemovePort = &broker.DataPort{Handle: "expectedRemoveHandle"}
+	var testParams = &InitParams{}
+	var testWriter = &stubWriter{inputPortRemoved: expectedRemovePort}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedRemovePort.Handle)
+}
+
 func Test_handleLayoutInitPretend_noConfig(t *testing.T) {
 	assert.ErrorIs(t, errorNoConfigFile, handleLayoutInitPretend(nil, &InitParams{}, &task.State{}))
+}
+
+func Test_handleLayoutInitPretend_outputPorts(t *testing.T) {
+	var expectedOutputPort = broker.DataPort{
+		Handle:      "expectedHandle",
+		Description: "expectedDescription",
+		Name:        "expectedName",
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var testParams = &InitParams{OutputPorts: []broker.DataPort{expectedOutputPort}}
+	var testWriter = &stubWriter{}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedOutputPort.Handle)
+	assert.Contains(t, output, expectedOutputPort.Description)
+	assert.Contains(t, output, expectedOutputPort.Name)
+}
+
+func Test_handleLayoutInitPretend_outputPortRemoval(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var expectedRemovePort = &broker.DataPort{Handle: "expectedRemoveHandle"}
+	var testParams = &InitParams{}
+	var testWriter = &stubWriter{outputPortRemoved: expectedRemovePort}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedRemovePort.Handle)
 }
 
 func Test_handleLayoutInitPretend_propSpecs(t *testing.T) {

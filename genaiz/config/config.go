@@ -23,6 +23,7 @@ import (
 	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz-lib/lang/stringz"
@@ -203,6 +204,24 @@ func (lr *Ledger) DisplayOptionsWithMap(keyValues *map[string]string, options ..
 		panicz.PanicIfError(err)
 	})
 	panicz.PanicIfError(writer.Flush())
+}
+
+// FindPathConfig returns a viper.Viper configuration for a given path if the Ledgers' ConfigName can be resolved under the path
+func (lr *Ledger) FindPathConfig(path string) (*viper.Viper, error) {
+	var workingConfig string
+	var err error
+
+	if workingConfig, err = filez.FirstNamedFileUnder(path, lr.ConfigName); err == nil {
+		var vp = viper.New()
+
+		vp.SetConfigFile(filepath.Join(path, workingConfig))
+
+		if err = vp.ReadInConfig(); err == nil {
+			return vp, nil
+		}
+	}
+
+	return nil, err
 }
 
 // FromWorkDir updates a pflag.Flag of pflag.FlagSet corresponding to a StringOption with a relative path to a value using the current Ledger.WorkDir

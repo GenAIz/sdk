@@ -26,15 +26,23 @@ type ConfigWriter interface {
 
 	BuildInput() (string, string)
 
+	BuildInputPorts() (string, []broker.DataPort)
+
+	BuildInputPortRemoved() (string, *broker.DataPort)
+
 	BuildName() (string, string)
 
 	BuildOem() (string, string)
 
 	BuildOutput() map[string]string
 
+	BuildOutputPorts() (string, []broker.DataPort)
+
+	BuildOutputPortRemoved() (string, *broker.DataPort)
+
 	BuildPropSpecs() (string, []broker.PropSpec)
 
-	BuildRemovedPropSpec() (string, *broker.PropSpec)
+	BuildPropSpecRemoved() (string, *broker.PropSpec)
 
 	BuildType() (string, string)
 
@@ -48,6 +56,10 @@ type ConfigWriter interface {
 
 	WithInput(string) ConfigWriter
 
+	WithInputPorts([]broker.DataPort) ConfigWriter
+
+	WithInputPortRemoved(*broker.DataPort) ConfigWriter
+
 	WithLog(string) ConfigWriter
 
 	WithName(string) ConfigWriter
@@ -56,9 +68,13 @@ type ConfigWriter interface {
 
 	WithOutput(string) ConfigWriter
 
+	WithOutputPorts([]broker.DataPort) ConfigWriter
+
+	WithOutputPortRemoved(*broker.DataPort) ConfigWriter
+
 	WithPropSpecs([]broker.PropSpec) ConfigWriter
 
-	WithPropSpecRemoved(spec *broker.PropSpec) ConfigWriter
+	WithPropSpecRemoved(*broker.PropSpec) ConfigWriter
 
 	WithType(string) ConfigWriter
 
@@ -71,11 +87,13 @@ type InitParams struct {
 	CreateParams
 	Arches      []ArchType
 	Handle      string
+	InputPorts  []broker.DataPort
 	Name        string
 	Type        FunctionType
 	MountInput  string
 	MountOutput string
 	OEM         string
+	OutputPorts []broker.DataPort
 	PropSpecs   []broker.PropSpec
 	Version     string
 }
@@ -127,9 +145,11 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 			WithName(params.Name).
 			WithType(params.Type).
 			WithInput(initState.DefaultInput(params.MountInput)).
+			WithInputPorts(params.InputPorts).
 			WithLog(initState.DefaultLog(params.MountOutput)).
 			WithOem(params.OEM).
 			WithOutput(initState.DefaultOutput(params.MountOutput)).
+			WithOutputPorts(params.OutputPorts).
 			WithPropSpecs(params.PropSpecs).
 			WithVar(initState.DefaultVar(params.MountOutput)).
 			WithVersion(params.Version).
@@ -151,8 +171,12 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *task.State) error {
 	if state.Output != "" {
 		var pretender = shared.NewConfigPretender(state.Output)
-		var removedKey, rmPropSpec = writer.BuildRemovedPropSpec()
-		var rootKey, propSpecs = writer.WithPropSpecs(params.PropSpecs).BuildPropSpecs()
+		var rmInputPortKey, rmInputPort = writer.BuildInputPortRemoved()
+		var inputPortKey, inputPorts = writer.WithInputPorts(params.InputPorts).BuildInputPorts()
+		var rmOutputPortKey, rmOutputPort = writer.BuildOutputPortRemoved()
+		var outputPortKey, outputPorts = writer.WithOutputPorts(params.OutputPorts).BuildOutputPorts()
+		var rmPropSpecKey, rmPropSpec = writer.BuildPropSpecRemoved()
+		var propSpecKey, propSpecs = writer.WithPropSpecs(params.PropSpecs).BuildPropSpecs()
 
 		state.Logger.Debugf("Pretending to initialize [%s]", state.Output)
 		writer.WithHandle(params.Handle)
@@ -165,37 +189,77 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 		shared.PretendValue(pretender, writer.WithOem(params.OEM).BuildOem)
 		shared.PretendValue(pretender, writer.WithVersion(params.Version).BuildVersion)
 
+		if rmInputPort != nil {
+			shared.PretendDeleteByField(pretender, func() (string, string, string) {
+				return fmt.Sprintf("%s[]", rmInputPortKey), "handle", rmInputPort.Handle
+			})
+		} else if len(inputPorts) > 0 {
+			pretender.PretendDelete(inputPortKey)
+
+			for i, port := range inputPorts {
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].handle", inputPortKey, i), port.Handle
+				})
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].name", inputPortKey, i), port.Name
+				})
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].description", inputPortKey, i), port.Description
+				})
+			}
+		}
+
+		if rmOutputPort != nil {
+			shared.PretendDeleteByField(pretender, func() (string, string, string) {
+				return fmt.Sprintf("%s[]", rmOutputPortKey), "handle", rmOutputPort.Handle
+			})
+		} else if len(outputPorts) > 0 {
+			pretender.PretendDelete(outputPortKey)
+
+			for i, port := range outputPorts {
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].handle", outputPortKey, i), port.Handle
+				})
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].name", outputPortKey, i), port.Name
+				})
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].description", outputPortKey, i), port.Description
+				})
+			}
+		}
+
 		if rmPropSpec != nil {
 			shared.PretendDeleteByField(pretender, func() (string, string, string) {
-				return fmt.Sprintf("%s[]", removedKey), "key", rmPropSpec.Key
+				return fmt.Sprintf("%s[]", rmPropSpecKey), "key", rmPropSpec.Key
 			})
 		} else if len(propSpecs) > 0 {
-			pretender.PretendDelete(rootKey)
+			pretender.PretendDelete(propSpecKey)
 
-			for i, spec := range params.PropSpecs {
+			for i, spec := range propSpecs {
 				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].key", rootKey, i), spec.Key
+					return fmt.Sprintf("%s[%d].key", propSpecKey, i), spec.Key
 				})
 				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].type", rootKey, i), spec.Type
+					return fmt.Sprintf("%s[%d].type", propSpecKey, i), spec.Type
 				})
 				shared.PretendValue(pretender, func() (string, string) {
-					return fmt.Sprintf("%s[%d].name", rootKey, i), spec.Name
+					return fmt.Sprintf("%s[%d].name", propSpecKey, i), spec.Name
 				})
 
 				if spec.Description != "" {
 					shared.PretendValue(pretender, func() (string, string) {
-						return fmt.Sprintf("%s[%d].description", rootKey, i), spec.Description
+						return fmt.Sprintf("%s[%d].description", propSpecKey, i), spec.Description
 					})
 				}
 
 				if spec.Value != "" {
 					shared.PretendValue(pretender, func() (string, string) {
-						return fmt.Sprintf("%s[%d].value", rootKey, i), spec.Value
+						return fmt.Sprintf("%s[%d].value", propSpecKey, i), spec.Value
 					})
 				} else if len(spec.Values) > 0 {
 					shared.PretendSlice(pretender, func() (string, []string) {
-						return fmt.Sprintf("%s[%d].values", rootKey, i), spec.Values
+						return fmt.Sprintf("%s[%d].values", propSpecKey, i), spec.Values
 					})
 				}
 			}

@@ -4,6 +4,7 @@
 
 * [Build bash example](build_bash_example.feature)
 * [Create bash example](create_bash_example.feature)
+* [Data bash example](data_bash_example.feature)
 * [Init empty example](init_empty_example.feature)
 * [List bash example](list_bash_example.feature)
 * [Prop bash example](prop_bash_example.feature)
@@ -19,6 +20,7 @@
 * [create](create.md)
 * [init](init.md)
 * [list](list.md)
+* [data](data.md)
 * [prop](prop.md)
 * [publish](publish.md)
 * [run](run.md)

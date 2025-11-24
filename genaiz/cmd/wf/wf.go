@@ -9,12 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
@@ -35,23 +33,6 @@ type BaseExecutor struct {
 	Cli     *Cli
 	Context context.Context
 	Ledger  *config.Ledger
-}
-
-func (be BaseExecutor) findPathConfig(path string) (*viper.Viper, error) {
-	var workingConfig string
-	var err error
-
-	if workingConfig, err = filez.FirstNamedFileUnder(path, be.Ledger.ConfigName); err == nil {
-		var vp = viper.New()
-
-		vp.SetConfigFile(filepath.Join(path, workingConfig))
-
-		if err = vp.ReadInConfig(); err == nil {
-			return vp, nil
-		}
-	}
-
-	return nil, err
 }
 
 func (be BaseExecutor) makeConfigParams(typeOption *config.StringOption) (*shared.ConfigParams, error) {

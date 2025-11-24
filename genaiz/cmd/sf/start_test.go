@@ -519,7 +519,7 @@ func TestNewStart(t *testing.T) {
 	var testParam = cli.Options.Functions.MountInput().BuildStringOption().Param
 	var expectedTag = "dockerTag"
 	var expectedFolder = "folder"
-	var expectedWorkDir = "work"
+	var expectedWorkDir = filepath.Join(testDir, "work")
 
 	testStart.PostRun = func(cmd *cobra.Command, args []string) {
 		startCompleted = true

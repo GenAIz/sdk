@@ -94,6 +94,45 @@ func TestInitWriter_BuildInput(t *testing.T) {
 	assert.EqualValues(t, expectedInput, actualValue)
 }
 
+func TestInitWriter_BuildInputPorts(t *testing.T) {
+	var expectedDataPort = broker.DataPort{Handle: "portHandle"}
+	var testPorts = []broker.DataPort{expectedDataPort}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishInputPortsKeys: &schema.Genaiz.Function.Publish.InputPorts,
+		vp:                    testViper,
+	}
+	var actualPorts []broker.DataPort
+	var actualKey string
+
+	actualKey, actualPorts = testWriter.WithInputPorts(nil).BuildInputPorts()
+	assert.Equal(t, testWriter.publishInputPortsKeys.Doc, actualKey)
+	assert.Empty(t, actualPorts)
+
+	actualKey, actualPorts = testWriter.WithInputPorts(testPorts).BuildInputPorts()
+	assert.Equal(t, testWriter.publishInputPortsKeys.Doc, actualKey)
+	assert.Equal(t, testPorts, actualPorts)
+}
+
+func TestInitWriter_BuildInputPortRemoved(t *testing.T) {
+	var expectedDataPort = &broker.DataPort{Handle: "portHandle"}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishInputPortsKeys: &schema.Genaiz.Function.Publish.OutputPorts,
+		vp:                    testViper,
+	}
+	var actualPort *broker.DataPort
+	var actualKey string
+
+	actualKey, actualPort = testWriter.BuildInputPortRemoved()
+	assert.Equal(t, testWriter.publishInputPortsKeys.Doc, actualKey)
+	assert.Empty(t, actualPort)
+
+	actualKey, actualPort = testWriter.WithInputPortRemoved(expectedDataPort).BuildInputPortRemoved()
+	assert.Equal(t, testWriter.publishInputPortsKeys.Doc, actualKey)
+	assert.Equal(t, expectedDataPort, actualPort)
+}
+
 func TestInitWriter_BuildName(t *testing.T) {
 	var expectedName = "name"
 	var testWriter = &InitWriter{
@@ -163,6 +202,45 @@ func TestInitWriter_BuildOutput(t *testing.T) {
 	assert.Equal(t, actualValues[testWriter.optionMountVar.Key], expectedVar)
 }
 
+func TestInitWriter_BuildOutputPorts(t *testing.T) {
+	var expectedDataPort = broker.DataPort{Handle: "portHandle"}
+	var testPorts = []broker.DataPort{expectedDataPort}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishOutputPortsKeys: &schema.Genaiz.Function.Publish.OutputPorts,
+		vp:                     testViper,
+	}
+	var actualPorts []broker.DataPort
+	var actualKey string
+
+	actualKey, actualPorts = testWriter.WithOutputPorts(nil).BuildOutputPorts()
+	assert.Equal(t, testWriter.publishOutputPortsKeys.Doc, actualKey)
+	assert.Empty(t, actualPorts)
+
+	actualKey, actualPorts = testWriter.WithOutputPorts(testPorts).BuildOutputPorts()
+	assert.Equal(t, testWriter.publishOutputPortsKeys.Doc, actualKey)
+	assert.Equal(t, testPorts, actualPorts)
+}
+
+func TestInitWriter_BuildOutputPortRemoved(t *testing.T) {
+	var expectedDataPort = &broker.DataPort{Handle: "portHandle"}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishOutputPortsKeys: &schema.Genaiz.Function.Publish.OutputPorts,
+		vp:                     testViper,
+	}
+	var actualPort *broker.DataPort
+	var actualKey string
+
+	actualKey, actualPort = testWriter.BuildOutputPortRemoved()
+	assert.Equal(t, testWriter.publishOutputPortsKeys.Doc, actualKey)
+	assert.Empty(t, actualPort)
+
+	actualKey, actualPort = testWriter.WithOutputPortRemoved(expectedDataPort).BuildOutputPortRemoved()
+	assert.Equal(t, testWriter.publishOutputPortsKeys.Doc, actualKey)
+	assert.Equal(t, expectedDataPort, actualPort)
+}
+
 func TestInitWriter_BuildPropSpecs(t *testing.T) {
 	var expectedPropSpec = broker.PropSpec{Key: "expectedPropKey"}
 	var testSpecs = []broker.PropSpec{expectedPropSpec}
@@ -193,11 +271,11 @@ func TestInitWriter_BuildRemovedPropSpec(t *testing.T) {
 	var actualSpecs *broker.PropSpec
 	var actualKey string
 
-	actualKey, actualSpecs = testWriter.BuildRemovedPropSpec()
+	actualKey, actualSpecs = testWriter.BuildPropSpecRemoved()
 	assert.Equal(t, testWriter.publishPropSpecsKeys.Doc, actualKey)
 	assert.Empty(t, actualSpecs)
 
-	actualKey, actualSpecs = testWriter.WithPropSpecRemoved(&expectedPropSpec).BuildRemovedPropSpec()
+	actualKey, actualSpecs = testWriter.WithPropSpecRemoved(&expectedPropSpec).BuildPropSpecRemoved()
 	assert.Equal(t, testWriter.publishPropSpecsKeys.Doc, actualKey)
 	assert.Equal(t, expectedPropSpec, *actualSpecs)
 }

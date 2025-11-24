@@ -60,6 +60,16 @@ type Document struct {
 			Version      Keys
 		}
 		Publish struct {
+			DataPortAdd struct {
+				Input struct {
+					Desc Keys
+					Name Keys
+				}
+				Output struct {
+					Desc Keys
+					Name Keys
+				}
+			}
 			PropSpecAdd struct {
 				DefaultValue Keys
 				Description  Keys
@@ -80,9 +90,11 @@ type Document struct {
 			Description Keys
 			Extras      Keys
 			Handle      Keys
+			InputPorts  Keys
 			Name        Keys
 			NoUpdate    Keys
 			Oem         Keys
+			OutputPorts Keys
 			PropSpecs   Keys
 			Rebuild     Keys
 			Type        Keys
@@ -231,12 +243,19 @@ func init() {
 	Genaiz.Function.Publish.Extras = newKeys("Sf.Publish.Extras", "SF_PUBLISH_EXTRAS")
 	Genaiz.Function.Publish.Description = newKeys("Sf.Publish.Description", "SF_PUBLISH_DESCRIPTION")
 	Genaiz.Function.Publish.Handle = newKeys("Sf.Publish.Handle", "SF_PUBLISH_HANDLE")
+	Genaiz.Function.Publish.InputPorts = newKeys("Sf.Publish.InputPorts", "")
 	Genaiz.Function.Publish.Name = newKeys("Sf.Publish.Name", "SF_PUBLISH_NAME")
 	Genaiz.Function.Publish.NoUpdate = newKeys("Sf.Publish.NoUpdate", "SF_PUBLISH_NO_UPDATE")
 	Genaiz.Function.Publish.Oem = newKeys("Sf.Publish.Oem", "SF_PUBLISH_OEM")
+	Genaiz.Function.Publish.OutputPorts = newKeys("Sf.Publish.OutputPorts", "")
+	Genaiz.Function.Publish.PropSpecs = newKeys("Sf.Publish.PropSpecs", "")
 	Genaiz.Function.Publish.Rebuild = newKeys("Sf.Publish.Rebuild", "SF_PUBLISH_REBUILD")
 	Genaiz.Function.Publish.Type = newKeys("Sf.Publish.Type", "SF_PUBLISH_TYPE")
 	Genaiz.Function.Publish.Version = newKeys("Sf.Publish.Version", "SF_PUBLISH_VERSION")
+	Genaiz.Function.Publish.DataPortAdd.Input.Desc = newKeys("Sf.Publish.DataPortAdd.Input.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC")
+	Genaiz.Function.Publish.DataPortAdd.Input.Name = newKeys("Sf.Publish.DataPortAdd.Input.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME")
+	Genaiz.Function.Publish.DataPortAdd.Output.Desc = newKeys("Sf.Publish.DataPortAdd.Output.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC")
+	Genaiz.Function.Publish.DataPortAdd.Output.Name = newKeys("Sf.Publish.DataPortAdd.Output.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME")
 	Genaiz.Function.Publish.PropSpecAdd.DefaultValue = newKeys("Sf.Publish.PropSpecAdd.DefaultValue", "SF_PUBLISH_PROP_SPEC_ADD_DEFAULT_VALUE")
 	Genaiz.Function.Publish.PropSpecAdd.Description = newKeys("Sf.Publish.PropSpecAdd.Description", "SF_PUBLISH_PROP_SPEC_ADD_DESCRIPTION")
 	Genaiz.Function.Publish.PropSpecAdd.EnumValue = newKeys("Sf.Publish.PropSpecAdd.EnumValue", "SF_PUBLISH_PROP_SPEC_ADD_ENUM_VALUE")
@@ -248,7 +267,6 @@ func init() {
 	Genaiz.Function.Publish.PropSpecEdit.EnumRemoveValue = newKeys("Sf.Publish.PropSpecEdit.EnumRemoveValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_RM_VALUE")
 	Genaiz.Function.Publish.PropSpecEdit.EnumValue = newKeys("Sf.Publish.PropSpecEdit.EnumValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_VALUE")
 	Genaiz.Function.Publish.PropSpecEdit.Name = newKeys("Sf.Publish.PropSpecEdit.Name", "SF_PUBLISH_PROP_SPEC_EDIT_NAME")
-	Genaiz.Function.Publish.PropSpecs = newKeys("Sf.Publish.PropSpecs", "")
 	Genaiz.Function.Run.EnvFile = newKeys("Sf.Run.EnvFile", "SF_RUN_ENV_FILE")
 	Genaiz.Function.Run.EnvVars = newKeys("Sf.Run.EnvVar", "SF_RUN_ENV_VAR")
 	Genaiz.Function.Run.Image = newKeys("Sf.Run.Image", "SF_RUN_IMAGE")

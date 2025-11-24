@@ -205,6 +205,7 @@ func NewSf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	sfCmd.AddCommand(
 		NewBuild(ledger, sfCli),
 		NewCreate(ledger, sfCli),
+		NewData(ledger, sfCli),
 		NewInit(ledger, sfCli),
 		NewList(ledger, sfCli),
 		NewProp(ledger, sfCli),

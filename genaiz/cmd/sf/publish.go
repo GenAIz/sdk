@@ -28,7 +28,9 @@ type PublishExecutor struct {
 	BaseExecutor
 	*PublishOptions
 
-	innerPropSpecs *config.Option
+	innerInputPorts  *config.Option
+	innerOutputPorts *config.Option
+	innerPropSpecs   *config.Option
 
 	buildTaskFactory     BuildTaskFactory
 	initTaskFactory      InitTaskFactory
@@ -126,6 +128,8 @@ func (pe *PublishExecutor) makeProvisionExtras() map[string]any {
 
 func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 	var nameDesc = pe.Ledger.GetString(pe.optionName)
+	var inputPorts = broker.ListDataPorts(pe.Ledger.Get(pe.innerInputPorts))
+	var outputPorts = broker.ListDataPorts(pe.Ledger.Get(pe.innerOutputPorts))
 	var propSpecs = broker.ListPropSpecs(pe.Ledger.Get(pe.innerPropSpecs))
 	var extraMap = pe.makeProvisionExtras()
 
@@ -138,8 +142,10 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 		Extras:      extraMap,
 		Description: nameDesc,
 		Handle:      pe.Ledger.GetString(pe.optionHandle),
+		InputPorts:  inputPorts,
 		Name:        nameDesc,
 		Oem:         pe.Ledger.GetString(pe.optionOem),
+		OutputPorts: outputPorts,
 		PropSpecs:   propSpecs,
 		Type:        pe.Ledger.GetString(pe.optionType),
 		Version:     pe.Ledger.GetString(pe.optionVersion),
@@ -243,6 +249,12 @@ func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, 
 		},
 		PublishOptions: options,
 
+		innerInputPorts: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.InputPorts).
+			BuildOption(),
+		innerOutputPorts: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.OutputPorts).
+			BuildOption(),
 		innerPropSpecs: cli.NewOptionBuilder().
 			WithKeys(&schema.Genaiz.Function.Publish.PropSpecs).
 			BuildOption(),
