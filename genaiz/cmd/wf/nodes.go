@@ -142,7 +142,7 @@ func (ne *NodesExecutor) Find(path string) (string, error) {
 	var vp *viper.Viper
 	var err error
 
-	if vp, err = ne.findPathConfig(path); err == nil {
+	if vp, err = ne.Ledger.FindPathConfig(path); err == nil {
 		var handle = vp.GetString(schema.Genaiz.Function.Publish.Handle.Doc)
 
 		return handle + "-node", nil
@@ -159,7 +159,7 @@ func (ne *NodesExecutor) Init(path string) (string, error) {
 	var vp *viper.Viper
 	var err error
 
-	if vp, err = ne.findPathConfig(path); err == nil {
+	if vp, err = ne.Ledger.FindPathConfig(path); err == nil {
 		var oem = vp.GetString(schema.Genaiz.Function.Publish.Oem.Doc)
 		var handle = vp.GetString(schema.Genaiz.Function.Publish.Handle.Doc)
 		var version = vp.GetString(schema.Genaiz.Function.Publish.Version.Doc)

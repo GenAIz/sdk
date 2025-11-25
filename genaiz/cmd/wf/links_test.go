@@ -333,6 +333,91 @@ func TestLinksExecutor_Init_FindLeftError(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestLinksExecutor_Init_FindLeftSyntaxError(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedPath = "testPath"
+	var expectedNodeHandle = "nodeHandle"
+	var expectedRightHandle = "rightHandle"
+	var expectedRightPort = "rightPort"
+	var expectedWorkflow = "workflow"
+	var expectedSfOem = "sfOem"
+	var expectedSfHandle = "sfHandle"
+	var expectedSfVersion = "sfVersion"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterFactory(&broker.Solution{
+			Workflows: []broker.Workflow{
+				{
+					Handle: expectedWorkflow,
+					Nodes: []broker.WorkflowNode{
+						{
+							Handle: expectedNodeHandle,
+							Sf: &broker.WorkflowNodeFunction{
+								Oem:     expectedSfOem,
+								Handle:  expectedSfHandle,
+								Version: expectedSfVersion,
+							},
+						},
+						{
+							Handle: expectedRightHandle,
+						},
+					},
+				},
+			},
+		}),
+	}
+	var fd *os.File
+	var err error
+
+	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+		var cfd *os.File
+
+		if cfd, err = os.Create(filepath.Join(testDir, expectedPath, "Genaiz.yaml")); err == nil {
+			defer filez.CloseSilently(cfd)
+			_, err = cfd.Write([]byte(":notYaml"))
+		}
+	}
+
+	if err != nil {
+		assert.Fail(t, err.Error())
+		return
+	}
+
+	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var testLink = fmt.Sprintf("%s:%s[%s]", expectedPath, expectedRightHandle, expectedRightPort)
+				var actualLinks []string
+
+				t.Chdir(testDir)
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
+				assert.Error(t, err)
+				assert.Empty(t, actualLinks)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
 func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
 	var testDir = t.TempDir()
 	var expectedPath = "testPath"

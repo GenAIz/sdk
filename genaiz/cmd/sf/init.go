@@ -24,12 +24,16 @@ import (
 type InitWriter struct {
 	*PublishOptions
 	*RunOptions
-	buildFileKeys        *schema.Keys
-	buildTagKeys         *schema.Keys
-	buildVersionKeys     *schema.Keys
-	publishPropSpecsKeys *schema.Keys
-	removedPropSpec      *broker.PropSpec
-	vp                   *viper.Viper
+	buildFileKeys          *schema.Keys
+	buildTagKeys           *schema.Keys
+	buildVersionKeys       *schema.Keys
+	publishInputPortsKeys  *schema.Keys
+	publishOutputPortsKeys *schema.Keys
+	publishPropSpecsKeys   *schema.Keys
+	removedInputPort       *broker.DataPort
+	removedOutputPort      *broker.DataPort
+	removedPropSpec        *broker.PropSpec
+	vp                     *viper.Viper
 }
 
 func (iw *InitWriter) BuildArches() (string, []string) {
@@ -42,6 +46,18 @@ func (iw *InitWriter) BuildHandle() (string, string) {
 
 func (iw *InitWriter) BuildInput() (string, string) {
 	return iw.optionMountInput.Key, iw.vp.GetString(iw.optionMountInput.Key)
+}
+
+func (iw *InitWriter) BuildInputPorts() (string, []broker.DataPort) {
+	if list, ok := iw.vp.Get(iw.publishInputPortsKeys.Doc).([]broker.DataPort); ok {
+		return iw.publishInputPortsKeys.Doc, list
+	}
+
+	return iw.publishInputPortsKeys.Doc, []broker.DataPort{}
+}
+
+func (iw *InitWriter) BuildInputPortRemoved() (string, *broker.DataPort) {
+	return iw.publishInputPortsKeys.Doc, iw.removedInputPort
 }
 
 func (iw *InitWriter) BuildName() (string, string) {
@@ -60,6 +76,18 @@ func (iw *InitWriter) BuildOutput() map[string]string {
 	}
 }
 
+func (iw *InitWriter) BuildOutputPorts() (string, []broker.DataPort) {
+	if list, ok := iw.vp.Get(iw.publishOutputPortsKeys.Doc).([]broker.DataPort); ok {
+		return iw.publishOutputPortsKeys.Doc, list
+	}
+
+	return iw.publishOutputPortsKeys.Doc, []broker.DataPort{}
+}
+
+func (iw *InitWriter) BuildOutputPortRemoved() (string, *broker.DataPort) {
+	return iw.publishOutputPortsKeys.Doc, iw.removedOutputPort
+}
+
 func (iw *InitWriter) BuildPropSpecs() (string, []broker.PropSpec) {
 	if list, ok := iw.vp.Get(iw.publishPropSpecsKeys.Doc).([]broker.PropSpec); ok {
 		return iw.publishPropSpecsKeys.Doc, list
@@ -68,7 +96,7 @@ func (iw *InitWriter) BuildPropSpecs() (string, []broker.PropSpec) {
 	return iw.publishPropSpecsKeys.Doc, []broker.PropSpec{}
 }
 
-func (iw *InitWriter) BuildRemovedPropSpec() (string, *broker.PropSpec) {
+func (iw *InitWriter) BuildPropSpecRemoved() (string, *broker.PropSpec) {
 	return iw.publishPropSpecsKeys.Doc, iw.removedPropSpec
 }
 
@@ -127,6 +155,19 @@ func (iw *InitWriter) WithInput(value string) layout.ConfigWriter {
 	return iw
 }
 
+func (iw *InitWriter) WithInputPorts(ports []broker.DataPort) layout.ConfigWriter {
+	if len(ports) > 0 || iw.removedInputPort != nil {
+		iw.vp.Set(iw.publishInputPortsKeys.Doc, ports)
+	}
+
+	return iw
+}
+
+func (iw *InitWriter) WithInputPortRemoved(port *broker.DataPort) layout.ConfigWriter {
+	iw.removedInputPort = port
+	return iw
+}
+
 func (iw *InitWriter) WithLog(value string) layout.ConfigWriter {
 	if value != "" {
 		iw.vp.Set(iw.optionMountLog.Key, value)
@@ -158,6 +199,19 @@ func (iw *InitWriter) WithOutput(value string) layout.ConfigWriter {
 		iw.vp.Set(iw.optionMountOutput.Key, value)
 	}
 
+	return iw
+}
+
+func (iw *InitWriter) WithOutputPorts(ports []broker.DataPort) layout.ConfigWriter {
+	if len(ports) > 0 || iw.removedOutputPort != nil {
+		iw.vp.Set(iw.publishOutputPortsKeys.Doc, ports)
+	}
+
+	return iw
+}
+
+func (iw *InitWriter) WithOutputPortRemoved(port *broker.DataPort) layout.ConfigWriter {
+	iw.removedOutputPort = port
 	return iw
 }
 
@@ -386,13 +440,15 @@ func makeInitBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
 	var dockerFile = ledger.GetString(sfCli.optionDockerFile)
 	var dockerTag = ledger.GetString(sfCli.optionDockerTag)
 	var result = &InitWriter{
-		PublishOptions:       NewPublishOptions(sfCli),
-		RunOptions:           NewRunOptions(sfCli),
-		buildFileKeys:        &schema.Genaiz.Function.Build.File,
-		buildTagKeys:         &schema.Genaiz.Function.Build.Tag,
-		buildVersionKeys:     &schema.Genaiz.Function.Build.Version,
-		publishPropSpecsKeys: &schema.Genaiz.Function.Publish.PropSpecs,
-		vp:                   viper.New(),
+		PublishOptions:         NewPublishOptions(sfCli),
+		RunOptions:             NewRunOptions(sfCli),
+		buildFileKeys:          &schema.Genaiz.Function.Build.File,
+		buildTagKeys:           &schema.Genaiz.Function.Build.Tag,
+		buildVersionKeys:       &schema.Genaiz.Function.Build.Version,
+		publishInputPortsKeys:  &schema.Genaiz.Function.Publish.InputPorts,
+		publishOutputPortsKeys: &schema.Genaiz.Function.Publish.OutputPorts,
+		publishPropSpecsKeys:   &schema.Genaiz.Function.Publish.PropSpecs,
+		vp:                     viper.New(),
 	}
 
 	if dockerFile != sfCli.optionDockerFile.DefaultGetter(ledger) {

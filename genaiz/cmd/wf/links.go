@@ -171,7 +171,7 @@ func (le *LinksExecutor) findFunctionNode(workflow *broker.Workflow, ref, port s
 	// We'll eventually have to validate the port
 	_ = port
 
-	if vp, err = le.findPathConfig(ref); err == nil {
+	if vp, err = le.Ledger.FindPathConfig(ref); err == nil {
 		var sfOem = vp.GetString(schema.Genaiz.Function.Publish.Oem.Doc)
 		var sfHandle = vp.GetString(schema.Genaiz.Function.Publish.Handle.Doc)
 		var sfVersion = vp.GetString(schema.Genaiz.Function.Publish.Version.Doc)

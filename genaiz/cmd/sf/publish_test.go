@@ -83,7 +83,9 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerPropSpecs: &config.Option{Key: "innerSpecs"},
+		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
+		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -136,7 +138,9 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerPropSpecs: &config.Option{Key: "innerSpecs"},
+		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
+		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -185,7 +189,9 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerPropSpecs: &config.Option{Key: "innerSpecs"},
+		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
+		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -235,7 +241,9 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerPropSpecs: &config.Option{Key: "innerSpecs"},
+		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
+		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -287,7 +295,9 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerPropSpecs: &config.Option{Key: "innerSpecs"},
+		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
+		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -344,7 +354,9 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerPropSpecs: &config.Option{Key: "innerSpecs"},
+		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
+		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -404,7 +416,9 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerPropSpecs: &config.Option{Key: "innerSpecs"},
+		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
+		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -458,7 +472,9 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerPropSpecs: &config.Option{Key: "innerSpecs"},
+		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
+		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {

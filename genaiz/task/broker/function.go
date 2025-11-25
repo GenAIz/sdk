@@ -23,8 +23,10 @@ type ProvisionParams struct {
 	Description string
 	Extras      map[string]any
 	Handle      string
+	InputPorts  []DataPort
 	Name        string
 	Oem         string
+	OutputPorts []DataPort
 	PropSpecs   []PropSpec
 	Type        string
 	Version     string
@@ -43,8 +45,10 @@ func (pp ProvisionParams) asFunction() *Function {
 		Arches:      pp.Arches,
 		Description: pp.Description,
 		Handle:      pp.Handle,
+		InputPorts:  pp.InputPorts,
 		Name:        pp.Name,
 		Oem:         pp.Oem,
+		OutputPorts: pp.OutputPorts,
 		PropSpecs:   pp.PropSpecs,
 		Type:        strings.ToUpper(pp.Type),
 		Version:     pp.Version,

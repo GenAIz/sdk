@@ -281,7 +281,7 @@ func NewProp(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
 	var propCmd = &cobra.Command{
 		Use:     "prop",
 		Aliases: []string{"pr"},
-		Short:   "Manages property specifications for Smart Function",
+		Short:   "Manages property specifications for Smart Functions",
 	}
 
 	propCmd.AddCommand(addSpecCmd)

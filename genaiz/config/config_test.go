@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/task/shared"
@@ -228,6 +229,62 @@ func TestLedger_DisplayOptionsWithMap(t *testing.T) {
 	} else {
 		assert.Fail(t, "could not read output")
 	}
+}
+
+func TestLedger_FindPathConfig(t *testing.T) {
+	var expectedKey = "vpKey"
+	var expectedValue = "vpValue"
+	var testDir = t.TempDir()
+	var testLedger = NewBuilder().Build()
+	var fd *os.File
+	var actual *viper.Viper
+	var err error
+
+	if fd, err = os.Create(filepath.Join(testDir, testLedger.ConfigName+".yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		if _, err = fd.Write([]byte(fmt.Sprintf("%s: %s", expectedKey, expectedValue))); err == nil {
+			actual, err = testLedger.FindPathConfig(testDir)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue, actual.GetString(expectedKey))
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLedger_FindPathConfig_PathError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testLedger = NewBuilder().Build()
+	var actual *viper.Viper
+	var err error
+
+	actual, err = testLedger.FindPathConfig(testDir)
+	assert.True(t, errorz.IsPathError(err))
+	assert.Empty(t, actual)
+}
+
+func TestLedger_FindPathConfig_ParseError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testLedger = NewBuilder().Build()
+	var fd *os.File
+	var actual *viper.Viper
+	var err error
+
+	if fd, err = os.Create(filepath.Join(testDir, testLedger.ConfigName+".yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		if _, err = fd.Write([]byte(":notYaml")); err == nil {
+			actual, err = testLedger.FindPathConfig(testDir)
+			assert.Error(t, err)
+			assert.False(t, errorz.IsPathError(err))
+			assert.Empty(t, actual)
+			return
+		}
+	}
+
+	assert.NoError(t, err)
 }
 
 func TestLedger_FromWorkDirAbs(t *testing.T) {

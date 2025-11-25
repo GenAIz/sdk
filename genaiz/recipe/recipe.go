@@ -224,7 +224,7 @@ func (r *recipe) PrintFiles(dest string, instanceName string, variables map[stri
 	for _, artifact := range r.Artifacts {
 		var artifactPath = filepath.Join(r.Path, artifact.Name)
 
-		fmt.Printf("touch %s", artifactPath)
+		fmt.Printf("touch %s\n", artifactPath)
 
 		if err := printCommands(artifact.Commands, instanceName, params); err != nil {
 			fmt.Printf("%s\n", err.Error())

@@ -55,6 +55,22 @@ var (
 					WithValidator(config.AnyOfEnumerated(shared.ConfigTypes))
 			},
 		},
+		DataPorts: dataPortOptions{
+			Desc: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("description").
+					WithShort("d").
+					WithUsage("description of the data port").
+					WithValidator(config.Validation.Blob)
+			},
+			Name: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithShort("n").
+					WithUsage("name of the data port").
+					WithValidator(config.Validation.Name)
+			},
+		},
 		Docker: dockerOptions{
 			ContainerName: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -473,6 +489,7 @@ var (
 type cliOptions struct {
 	Accounts  accountOptions
 	Configs   configOptions
+	DataPorts dataPortOptions
 	Docker    dockerOptions
 	Functions functionOptions
 	Modes     modeOptions
@@ -492,6 +509,11 @@ type configOptions struct {
 	NoUpdate     func() OptionBuilder
 	SolutionPath func() OptionBuilder
 	Type         func() OptionBuilder
+}
+
+type dataPortOptions struct {
+	Desc func() OptionBuilder
+	Name func() OptionBuilder
 }
 
 type dockerOptions struct {

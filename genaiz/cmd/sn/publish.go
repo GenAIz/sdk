@@ -23,6 +23,9 @@ import (
 type SolutionPublishTaskFactory func() *task.Task[broker.SolutionPublishParams]
 
 type FunctionOptions struct {
+	innerInputPorts   *config.Option
+	innerOutputPorts  *config.Option
+	innerPropSpecs    *config.Option
 	optionArches      *config.ListOption
 	optionExtras      *config.Option
 	optionDescription *config.StringOption
@@ -225,6 +228,9 @@ func (pe *PublishExecutor) makeFunctionBuildParams(path string, vp *viper.Viper)
 func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution *broker.Solution) *broker.ProvisionParams {
 	var ledger = config.NewBuilder().WithViper(vp).Build()
 	var options = NewFunctionOptions(solution)
+	var inputPorts = broker.ListDataPorts(ledger.Get(options.innerInputPorts))
+	var outputPorts = broker.ListDataPorts(ledger.Get(options.innerOutputPorts))
+	var propSpecs = broker.ListPropSpecs(ledger.Get(options.innerPropSpecs))
 
 	ledger.Register(pe.cmd, options.allDefiners()...)
 	ledger.InitDefaults()
@@ -237,8 +243,11 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 		Extras:      pe.makeProvisionExtras(ledger, options.optionExtras),
 		Description: ledger.GetString(options.optionDescription),
 		Handle:      ledger.GetString(options.optionHandle),
+		InputPorts:  inputPorts,
 		Name:        ledger.GetString(options.optionName),
 		Oem:         ledger.GetString(options.optionOem),
+		OutputPorts: outputPorts,
+		PropSpecs:   propSpecs,
 		Type:        ledger.GetString(options.optionType),
 		Version:     ledger.GetString(options.optionVersion),
 	}
@@ -381,6 +390,15 @@ func NewFunctionOptions(solution *broker.Solution) *FunctionOptions {
 		}).BuildStringOption()
 
 	return &FunctionOptions{
+		innerInputPorts: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.InputPorts).
+			BuildOption(),
+		innerOutputPorts: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.OutputPorts).
+			BuildOption(),
+		innerPropSpecs: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.PropSpecs).
+			BuildOption(),
 		optionArches: cli.Options.Solutions.FunctionArches().
 			BuildListOption(),
 		optionDescription: cli.Options.Solutions.FunctionDesc().

@@ -84,8 +84,19 @@ func DoIfPathExist(path string, call func() error) error {
 	return nil
 }
 
-// FirstParentName returns the name first directory in a path or empty string if there are no parents.
+// FirstParentName returns the name of the first directory in a path or empty string if there are no parents.
 func FirstParentName(path string) string {
+	var result = FirstParentPath(path)
+
+	if strings.IndexRune(result, filepath.Separator) == 0 {
+		result = result[1:]
+	}
+
+	return result
+}
+
+// FirstParentPath returns the path of the first directory in a path or empty string if there are no parents. Differs from FirstParentName, by preserving roots and volumes
+func FirstParentPath(path string) string {
 	var dir = path
 	var result string
 
@@ -97,10 +108,6 @@ func FirstParentName(path string) string {
 		}
 
 		result = dir
-	}
-
-	if strings.IndexRune(result, filepath.Separator) == 0 {
-		result = result[1:]
 	}
 
 	return result
@@ -128,6 +135,7 @@ func WorkingDirBase() string {
 	return filepath.Base(wd)
 }
 
+// WorkingDirOrPanic handles the exceptional case where os.Getwd returns an error because the working directory no longer exists. This should always result into a panic, as in a bug, not a user error
 func WorkingDirOrPanic() string {
 	var wd, err = os.Getwd()
 
