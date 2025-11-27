@@ -269,6 +269,23 @@ func TestConditional_OnSuccess(t *testing.T) {
 	assert.EqualValues(t, expectedOutput, actualOutput)
 }
 
+func TestHandleFlag(t *testing.T) {
+	var falseFlag, trueFlag bool
+
+	HandleFlag(&falseFlag, false)("test")
+	assert.False(t, falseFlag)
+	HandleFlag(&trueFlag, true)("test")
+	assert.True(t, trueFlag)
+}
+
+func TestHandleString(t *testing.T) {
+	var expectedValue = "value"
+	var stringValue string
+
+	HandleString(&stringValue)(expectedValue)
+	assert.Equal(t, expectedValue, stringValue)
+}
+
 func TestSingle_Complete(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "param"

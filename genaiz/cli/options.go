@@ -19,6 +19,12 @@ var (
 				return NewOptionBuilder().
 					WithParam("host")
 			},
+			NoBrowser: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("no-browser").
+					WithUsage("prevents the shell from redirecting login urls to the system default browser").
+					WithDefaultValue("false")
+			},
 			Password: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Account.Login.Password)
@@ -499,10 +505,11 @@ type cliOptions struct {
 }
 
 type accountOptions struct {
-	Host     func() OptionBuilder
-	Password func() OptionBuilder
-	Refresh  func() OptionBuilder
-	Username func() OptionBuilder
+	Host      func() OptionBuilder
+	NoBrowser func() OptionBuilder
+	Password  func() OptionBuilder
+	Refresh   func() OptionBuilder
+	Username  func() OptionBuilder
 }
 
 type configOptions struct {

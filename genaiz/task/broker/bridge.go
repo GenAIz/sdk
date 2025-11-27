@@ -17,6 +17,8 @@ type requestBridge interface {
 
 	Get(string) (responseBridge, error)
 
+	Form() requestBridge
+
 	Json() requestBridge
 
 	Params(map[string]string) requestBridge
@@ -50,6 +52,11 @@ func (r *restyBridge) Get(url string) (responseBridge, error) {
 	}
 
 	return resp, nil
+}
+
+func (r *restyBridge) Form() requestBridge {
+	r.request.SetExpectResponseContentType("application/x-www-form-urlencoded")
+	return r
 }
 
 func (r *restyBridge) Json() requestBridge {

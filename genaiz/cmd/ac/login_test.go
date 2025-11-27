@@ -22,7 +22,7 @@ import (
 	"genaiz.com/genaiz/task/broker"
 )
 
-func TestLoginExecutor_LoginExistingSession(t *testing.T) {
+func TestLoginExecutor_Login_ExistingSession(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
 	var expectedHost = "expectedAddr"
 	var expectedSession = "expectedSession"
@@ -53,23 +53,23 @@ func TestLoginExecutor_LoginExistingSession(t *testing.T) {
 	assert.Contains(t, cast.ToStringSlice(patch.CalledWith)[0], "logged in")
 }
 
-func TestLoginExecutor_LoginExpiredSession(t *testing.T) {
+func TestLoginExecutor_Login_ExpiredSession(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
 	var expectedHost = "expectedAddr"
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testPasswordOption = cli.Options.Accounts.Password().BuildStringOption()
-	var testRefreshOption = cli.Options.Accounts.Refresh().BuildBoolOption()
 	var testUsernameOption = cli.Options.Accounts.Username().
 		WithKeys(&schema.Genaiz.Account.Login.Username).
 		BuildStringOption()
 	var testExecutor = &LoginExecutor{
 		Ledger: testLedger,
 
-		optionPassword: testPasswordOption,
-		optionRefresh:  testRefreshOption,
-		optionUsername: testUsernameOption,
+		optionNoBrowser: cli.Options.Accounts.NoBrowser().BuildBoolOption(),
+		optionPassword:  testPasswordOption,
+		optionRefresh:   cli.Options.Accounts.Refresh().BuildBoolOption(),
+		optionUsername:  testUsernameOption,
 
 		loginTaskFactory: func() *task.Task[broker.LoginParams] {
 			return &task.Task[broker.LoginParams]{
@@ -83,6 +83,7 @@ func TestLoginExecutor_LoginExpiredSession(t *testing.T) {
 				},
 			}
 		},
+		oidcTaskFactory: newOidcNotSupportedTaskFactory(),
 		sessionTaskFactory: func() *task.Task[broker.Broker] {
 			return &task.Task[broker.Broker]{
 				Name: "test-session",
@@ -102,7 +103,7 @@ func TestLoginExecutor_LoginExpiredSession(t *testing.T) {
 	assert.Contains(t, strings.ToLower(cast.ToStringSlice(patch.CalledWith)[0]), "logged in")
 }
 
-func TestLoginExecutor_LoginRefresh(t *testing.T) {
+func TestLoginExecutor_Login_Refresh(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
 	var expectedHost = "expectedAddr"
 	var expectedSession = "expectedSession"
@@ -116,9 +117,10 @@ func TestLoginExecutor_LoginRefresh(t *testing.T) {
 	var testExecutor = &LoginExecutor{
 		Ledger: testLedger,
 
-		optionPassword: testPasswordOption,
-		optionRefresh:  testRefreshOption,
-		optionUsername: testUsernameOption,
+		optionNoBrowser: cli.Options.Accounts.NoBrowser().BuildBoolOption(),
+		optionPassword:  testPasswordOption,
+		optionRefresh:   testRefreshOption,
+		optionUsername:  testUsernameOption,
 
 		loginTaskFactory: func() *task.Task[broker.LoginParams] {
 			return &task.Task[broker.LoginParams]{
@@ -132,6 +134,7 @@ func TestLoginExecutor_LoginRefresh(t *testing.T) {
 				},
 			}
 		},
+		oidcTaskFactory: newOidcNotSupportedTaskFactory(),
 	}
 
 	defer patch.Unpatch()
@@ -142,6 +145,65 @@ func TestLoginExecutor_LoginRefresh(t *testing.T) {
 	testExecutor.Login(expectedHost)
 	assert.NotEmpty(t, patch.CalledWith)
 	assert.Contains(t, strings.ToLower(cast.ToStringSlice(patch.CalledWith)[0]), "logged in")
+}
+
+func TestLoginExecutor_Login_Oidc(t *testing.T) {
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var expectedHost = "expectedAddr"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &LoginExecutor{
+		Ledger: testLedger,
+
+		optionNoBrowser: cli.Options.Accounts.NoBrowser().BuildBoolOption(),
+		optionPassword:  cli.Options.Accounts.Password().BuildStringOption(),
+		optionRefresh:   cli.Options.Accounts.Refresh().BuildBoolOption(),
+		optionUsername: cli.Options.Accounts.Username().
+			WithKeys(&schema.Genaiz.Account.Login.Username).
+			BuildStringOption(),
+
+		oidcTaskFactory: newOidcCompletedTaskFactory(),
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.optionRefresh.Key, true)
+	testLedger.Logger = &logrus.Logger{}
+	testExecutor.Login(expectedHost)
+	assert.NotEmpty(t, patch.CalledWith)
+	assert.Contains(t, strings.ToLower(cast.ToStringSlice(patch.CalledWith)[0]), "logged in")
+}
+
+func TestLoginExecutor_Login_OidcError(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var expectedHost = "expectedAddr"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &LoginExecutor{
+		Ledger: testLedger,
+
+		optionNoBrowser: cli.Options.Accounts.NoBrowser().BuildBoolOption(),
+		optionPassword:  cli.Options.Accounts.Password().BuildStringOption(),
+		optionRefresh:   cli.Options.Accounts.Refresh().BuildBoolOption(),
+		optionUsername: cli.Options.Accounts.Username().
+			WithKeys(&schema.Genaiz.Account.Login.Username).
+			BuildStringOption(),
+
+		oidcTaskFactory: func() *task.Task[broker.OidcParams] {
+			return &task.Task[broker.OidcParams]{
+				Name: "oidc-error",
+				OnPrepare: func(params *broker.OidcParams, state *task.State) error {
+					return errors.New("expected")
+				},
+			}
+		},
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.optionRefresh.Key, true)
+	testLedger.Logger = &logrus.Logger{}
+	testExecutor.Login(expectedHost)
+	assert.NotEmpty(t, patch.CalledWith)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestLoginExecutor_queryPassword(t *testing.T) {
@@ -219,4 +281,29 @@ func TestNewLogin_InvalidBrokerAddr(t *testing.T) {
 	assert.True(t, loginCompleted)
 	assert.True(t, patch.Called)
 	assert.EqualValues(t, 1, patch.CalledWith)
+}
+
+func newOidcCompletedTaskFactory() func() *task.Task[broker.OidcParams] {
+	return func() *task.Task[broker.OidcParams] {
+		return &task.Task[broker.OidcParams]{
+			Name: "test-oidc",
+			OnPrepare: func(params *broker.OidcParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *broker.OidcParams, state *task.State) error {
+				return nil
+			},
+		}
+	}
+}
+
+func newOidcNotSupportedTaskFactory() func() *task.Task[broker.OidcParams] {
+	return func() *task.Task[broker.OidcParams] {
+		return &task.Task[broker.OidcParams]{
+			Name: "test-oidc",
+			OnPrepare: func(params *broker.OidcParams, state *task.State) error {
+				return broker.ErrorOidcNotSupported
+			},
+		}
+	}
 }

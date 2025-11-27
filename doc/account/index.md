@@ -3,6 +3,7 @@
 ## Test Cases
 
 * [Account login with username](login_username.feature)
+* [Account login with OIDC](login_oidc.feature)
 
 ## Commands
 
@@ -11,9 +12,11 @@
 
 ### Login
 
-`genaiz account login HOST --username=USERNAME --refresh`
+`genaiz account login HOST --username=USERNAME --refresh --no-browser`
 
 The command manages an .auth file under the ~/.cache/genaiz folder. It records the token used to make requests to one or several broker services.
+
+It will always prompt for a password if a username is used. When no username is used the command will attempt to log in a user using the Broker's OIDC provided urls. If the broker does not support OIDC, login can not work without a username and password.
 
 #### HOST
 
@@ -24,13 +27,9 @@ The command manages an .auth file under the ~/.cache/genaiz folder. It records t
 
 #### username
 
-* if omitted the command will prompt for a username
+* if omitted the command will attempt a login with an OIDC url provided by the broker
+* if no OIDC url is provided by the broker, the command will prompt for a username
 * any string will do even empty `--username=`, the validity of it belongs to the orchestrator.
-
-#### password
-
-* if omitted the command will prompt for a password
-* empty strings are not allowed and the command will keep prompting until a password is entered. `--password=` should cause a prompt.
 
 #### refresh
 

@@ -27,6 +27,16 @@ func Test_OptionsAccountsHost(t *testing.T) {
 	assert.NotEmpty(t, testOption.Param)
 }
 
+func Test_OptionsNoBrowser(t *testing.T) {
+	var testOption = Options.Accounts.NoBrowser().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.Empty(t, testOption.Env)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsAccountsPassword(t *testing.T) {
 	var testOption = Options.Accounts.Password().BuildStringOption()
 

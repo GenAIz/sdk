@@ -125,6 +125,20 @@ func Conditional[P any](plan Planner, condition bool, params *P, ifTask, elseTas
 	plan.Single(worker, lang.HandleExit)
 }
 
+// HandleFlag is a utility for creating handling functions which simply set the value of a flag on call
+func HandleFlag(flag *bool, value bool) func(interface{}) {
+	return func(i interface{}) {
+		*flag = value
+	}
+}
+
+// HandleString is a utility for creating handling function which simply set the value of a string by casting the result passed as a string
+func HandleString(str *string) func(interface{}) {
+	return func(i interface{}) {
+		*str = cast.ToString(i)
+	}
+}
+
 // Single is a shorthand way to express the execution of a task.Task with the provided par
 func Single[P any](plan Planner, params *P, task *Task[P]) {
 	plan.Single(NewWorker(params, task), lang.HandleExit)

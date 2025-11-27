@@ -9,6 +9,7 @@ import (
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
@@ -16,52 +17,78 @@ import (
 
 type LoginTaskFactory func() *task.Task[broker.LoginParams]
 
+type OidcTaskFactory func() *task.Task[broker.OidcParams]
+
 type SessionTaskFactory func() *task.Task[broker.Broker]
 
 type LoginExecutor struct {
 	Ledger *config.Ledger
 
-	optionPassword *config.StringOption
-	optionRefresh  *config.BoolOption
-	optionUsername *config.StringOption
+	optionNoBrowser *config.BoolOption
+	optionPassword  *config.StringOption
+	optionRefresh   *config.BoolOption
+	optionUsername  *config.StringOption
 
 	loginTaskFactory   LoginTaskFactory
+	oidcTaskFactory    OidcTaskFactory
 	sessionTaskFactory SessionTaskFactory
 }
 
 func (le *LoginExecutor) Login(brokerAddr string) {
-	var currentSession string
+	var brokerParams = le.makeBrokerParams(brokerAddr)
 	var refresh = le.Ledger.GetBool(le.optionRefresh)
-	var brokerParam = le.makeBrokerParams(brokerAddr)
 
 	if !refresh {
+		var currentSession string
 		var sessionPlan = &task.Plan{
-			Logger: le.Ledger.Logger,
-			OnFailure: func(msg interface{}) {
-				refresh = true
-			},
-			OnSuccess: func(msg interface{}) {
-				currentSession = cast.ToString(msg)
-			},
+			Logger:    le.Ledger.Logger,
+			OnFailure: task.HandleFlag(&refresh, true),
+			OnSuccess: task.HandleString(&currentSession),
 		}
 
-		task.Attempt(sessionPlan, brokerParam, le.sessionTaskFactory())
+		task.Attempt(sessionPlan, brokerParams, le.sessionTaskFactory())
 
 		if currentSession != "" {
-			fmt.Printf("Already logged in to %s\n", brokerParam.HostAddr)
+			fmt.Printf("Already logged in to %s\n", brokerParams.HostAddr)
 		}
 	}
 
 	if refresh {
-		var params = le.makeLoginParams(brokerParam)
-		var loginPlan = task.NewPlan("Login", le.Ledger.Logger)
-
-		loginPlan.OnSuccess = func(i interface{}) {
-			fmt.Printf("Logged in to %s\n", brokerParam.HostAddr)
-		}
-
-		task.Single(loginPlan, params, le.loginTaskFactory())
+		le.loginWithOidc(brokerParams)
 	}
+}
+
+func (le *LoginExecutor) allDefiners() []config.Definer {
+	return []config.Definer{
+		le.optionNoBrowser,
+		le.optionPassword,
+		le.optionRefresh,
+		le.optionUsername,
+	}
+}
+
+func (le *LoginExecutor) loginWithOidc(brokerParams *broker.Broker) {
+	var oidcWorker = task.NewWorker(le.makeOidcParams(brokerParams), le.oidcTaskFactory())
+	var oidcPlan = &task.Plan{
+		Logger:    le.Ledger.Logger,
+		OnSuccess: le.printSuccessHandler(brokerParams),
+	}
+
+	oidcPlan.Single(oidcWorker, func(msg interface{}) {
+		if strings.EqualFold(cast.ToString(msg), broker.ErrorOidcNotSupported.Error()) {
+			le.loginWithUsername(brokerParams)
+		} else {
+			lang.HandleExit(msg)
+		}
+	})
+}
+
+func (le *LoginExecutor) loginWithUsername(brokerParams *broker.Broker) {
+	var params = le.makeLoginParams(brokerParams)
+	var loginPlan = task.NewPlan("Login", le.Ledger.Logger)
+
+	loginPlan.OnSuccess = le.printSuccessHandler(brokerParams)
+	task.Single(loginPlan, params, le.loginTaskFactory())
 }
 
 func (le *LoginExecutor) makeBrokerParams(brokerAddr string) *broker.Broker {
@@ -71,11 +98,24 @@ func (le *LoginExecutor) makeBrokerParams(brokerAddr string) *broker.Broker {
 	}
 }
 
-func (le *LoginExecutor) makeLoginParams(brokerParam *broker.Broker) *broker.LoginParams {
+func (le *LoginExecutor) makeLoginParams(brokerParams *broker.Broker) *broker.LoginParams {
 	return &broker.LoginParams{
-		Broker:   brokerParam,
+		Broker:   brokerParams,
 		Username: le.queryUsername(),
 		Password: le.queryPassword(),
+	}
+}
+
+func (le *LoginExecutor) makeOidcParams(brokerParams *broker.Broker) *broker.OidcParams {
+	return &broker.OidcParams{
+		Broker:          brokerParams,
+		BrowserRedirect: !le.Ledger.GetBool(le.optionNoBrowser),
+	}
+}
+
+func (le *LoginExecutor) printSuccessHandler(brokerParams *broker.Broker) func(interface{}) {
+	return func(msg interface{}) {
+		fmt.Printf("Logged in to %s\n", brokerParams.HostAddr)
 	}
 }
 
@@ -115,7 +155,7 @@ func NewLogin(ledger *config.Ledger) *cobra.Command {
 		},
 	}
 
-	ledger.Register(login, exec.optionUsername, exec.optionPassword, exec.optionRefresh)
+	ledger.Register(login, exec.allDefiners()...)
 	return login
 }
 
@@ -123,13 +163,15 @@ func NewLoginExecutor(ledger *config.Ledger) *LoginExecutor {
 	return &LoginExecutor{
 		Ledger: ledger,
 
-		optionPassword: cli.Options.Accounts.Password().BuildStringOption(),
-		optionRefresh:  cli.Options.Accounts.Refresh().BuildBoolOption(),
+		optionNoBrowser: cli.Options.Accounts.NoBrowser().BuildBoolOption(),
+		optionPassword:  cli.Options.Accounts.Password().BuildStringOption(),
+		optionRefresh:   cli.Options.Accounts.Refresh().BuildBoolOption(),
 		optionUsername: cli.Options.Accounts.Username().
 			WithKeys(&schema.Genaiz.Account.Login.Username).
 			BuildStringOption(),
 
 		loginTaskFactory:   broker.NewLoginTask,
+		oidcTaskFactory:    broker.NewOidcTask,
 		sessionTaskFactory: broker.NewSessionTask,
 	}
 }
