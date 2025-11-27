@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,10 +26,12 @@ const (
 	defaultExpiryMinutes  = 5 * 24 * 60
 	defaultTimeoutSeconds = 30
 
-	apiVersion1  version = "v1"
-	pathFunction path    = "sf"
-	pathSession  path    = "user/session"
-	pathSolution path    = "oem/solution"
+	apiVersion1    version = "v1"
+	pathFunction   path    = "sf"
+	pathOidcDevice path    = "oidc/device"
+	pathOidcToken  path    = "oidc/token"
+	pathSession    path    = "user/session"
+	pathSolution   path    = "oem/solution"
 )
 
 var (
@@ -80,6 +83,16 @@ type Client interface {
 
 	LogoutUrl() string
 
+	OidcDeviceCode(string, *DeviceClient) (*DeviceAuth, error)
+
+	OidcDeviceUrl() (string, error)
+
+	OidcTokenCreate(string, string, *DeviceClient) (string, error)
+
+	OidcTokenSession(string, string) (*AuthSession, error)
+
+	OidcTokenUrl() (string, error)
+
 	ProvisionFunction(*Function, map[string]any) (*shared.Identity, error)
 
 	ProvisionFunctionUrl() string
@@ -116,6 +129,18 @@ type clientPayload[P any] struct {
 	Status string
 }
 
+type oauthResponse struct {
+	AccessToken      string `json:"access_token"`
+	ExpiresIn        int    `json:"expires_in"`
+	IdToken          string `json:"id_token"`
+	NotBeforePolicy  int    `json:"not_before_policy"`
+	RefreshExpiresIn int    `json:"refresh_expires_in"`
+	RefreshToken     string `json:"refresh_token"`
+	Scope            string `json:"scope"`
+	SessionState     string `json:"session_state"`
+	TokenType        string `json:"token_type"`
+}
+
 type solutionSlices struct {
 	Solution       SolutionRemote `json:"solution"`
 	Workflows      []Workflow     `json:"workflows"`
@@ -149,7 +174,6 @@ func (c *client) Login(username string, password []byte) (*AuthSession, error) {
 	if url, err = c.makeUrl(apiVersion1, pathSession, "create"); err == nil {
 		var rb = c.requestBridge()
 		var resp responseBridge
-		var result *AuthSession
 
 		defer c.closeSilently(rb)
 		resp, err = rb.Json().
@@ -161,27 +185,9 @@ func (c *client) Login(username string, password []byte) (*AuthSession, error) {
 			}).
 			Post(url)
 
-		if resp != nil {
-			if resp.IsSuccess() {
-				var cookieValue = c.authFromCookie(defaultCookieName, resp.Cookies())
-
-				if cookieValue == "" {
-					err = errorNoToken
-				} else {
-					var payload = resp.Result().(*clientPayload[Session])
-
-					c.AuthToken = cookieValue
-					c.UserId = payload.Data.UserId
-					result = NewAuthSession(&payload.Data, username, cookieValue)
-				}
-			} else if resp.Status() != "" {
-				err = errors.New(resp.Status())
-			} else {
-				err = fmt.Errorf("could not reach %s", c.HostAddr)
-			}
+		if err == nil {
+			return c.sessionOrError(resp, username)
 		}
-
-		return result, err
 	}
 
 	return nil, err
@@ -224,6 +230,145 @@ func (c *client) Logout(sessionId string) error {
 
 func (c *client) LogoutUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "delete")
+}
+
+func (c *client) OidcDeviceCode(deviceUrl string, deviceClient *DeviceClient) (*DeviceAuth, error) {
+	if deviceUrl != "" {
+		var rb = c.requestBridge()
+		var resp responseBridge
+		var err error
+
+		defer c.closeSilently(rb)
+		resp, err = rb.Form().
+			Resulting(&DeviceAuth{}).
+			Params(map[string]string{
+				"client_id": deviceClient.ClientId,
+				"scope":     deviceClient.ClientScope,
+			}).
+			Post(deviceUrl)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return resultOrError(resp, func(body any) *DeviceAuth {
+			return resp.Result().(*DeviceAuth)
+		})
+	}
+
+	return nil, errors.New("missing device url")
+}
+
+func (c *client) OidcDeviceUrl() (string, error) {
+	var url string
+	var err error
+
+	if url, err = c.makeUrl(apiVersion1, pathOidcDevice); err == nil {
+		var rb = c.requestBridge()
+		var resp responseBridge
+		var result *string
+
+		defer c.closeSilently(rb)
+		resp, err = rb.Json().
+			Cookie(c.makeCookie()).
+			Resulting(&clientPayload[string]{}).
+			Get(url)
+
+		if err == nil {
+			if result, err = resultOrError(resp, func(body any) *string {
+				var payload = resp.Result().(*clientPayload[string])
+
+				return &payload.Data
+			}); err == nil {
+				return *result, nil
+			}
+		}
+	}
+
+	return "", err
+}
+
+func (c *client) OidcTokenCreate(tokenUrl string, deviceCode string, deviceClient *DeviceClient) (string, error) {
+	if tokenUrl != "" {
+		var rb = c.requestBridge()
+		var resp responseBridge
+		var result *oauthResponse
+		var err error
+
+		defer c.closeSilently(rb)
+		resp, err = rb.Form().
+			Resulting(&oauthResponse{}).
+			Params(map[string]string{
+				"client_id":   deviceClient.ClientId,
+				"device_code": deviceCode,
+				"grant_type":  deviceClient.GrantType,
+			}).
+			Post(tokenUrl)
+
+		if err == nil {
+			if result, err = resultOrError(resp, func(body any) *oauthResponse {
+				return resp.Result().(*oauthResponse)
+			}); err == nil {
+				return result.AccessToken, nil
+			}
+		}
+
+		return "", err
+	}
+
+	return "", errors.New("missing token url")
+}
+
+func (c *client) OidcTokenSession(tokenUrl, token string) (*AuthSession, error) {
+	var url string
+	var err error
+
+	if url, err = c.makeUrl(apiVersion1, pathSession, "oidc"); err == nil {
+		var rb = c.requestBridge()
+		var resp responseBridge
+
+		defer c.closeSilently(rb)
+		resp, _ = rb.Json().
+			Cookie(c.makeCookie()).
+			Resulting(&clientPayload[Session]{}).
+			Params(map[string]string{
+				"accessToken": token,
+			}).
+			Post(url)
+
+		return c.sessionOrError(resp, filepath.Base(tokenUrl))
+	}
+
+	return nil, err
+}
+
+func (c *client) OidcTokenUrl() (string, error) {
+	var url string
+	var err error
+
+	if url, err = c.makeUrl(apiVersion1, pathOidcToken); err == nil {
+		var rb = c.requestBridge()
+		var resp responseBridge
+		var result *string
+
+		defer c.closeSilently(rb)
+		resp, err = rb.Json().
+			Cookie(c.makeCookie()).
+			Resulting(&clientPayload[string]{}).
+			Get(url)
+
+		if err == nil {
+			if result, err = resultOrError(resp, func(body any) *string {
+				var payload = resp.Result().(*clientPayload[string])
+
+				return &payload.Data
+			}); err == nil {
+				return *result, nil
+			}
+		}
+	}
+
+	return "", err
 }
 
 func (c *client) ProvisionFunction(function *Function, extras map[string]any) (*shared.Identity, error) {
@@ -414,6 +559,31 @@ func (c *client) makeUrl(version version, path path, rpc ...string) (string, err
 	}
 
 	return makeHostUrl(c.HostAddr, version, path, rpc...), nil
+}
+
+func (c *client) sessionOrError(resp responseBridge, username string) (*AuthSession, error) {
+	var result *AuthSession
+	var err error
+
+	if resp.IsSuccess() {
+		var cookieValue = c.authFromCookie(defaultCookieName, resp.Cookies())
+
+		if cookieValue == "" {
+			err = errorNoToken
+		} else {
+			var payload = resp.Result().(*clientPayload[Session])
+
+			c.AuthToken = cookieValue
+			c.UserId = payload.Data.UserId
+			result = NewAuthSession(&payload.Data, username, cookieValue)
+		}
+	} else if resp.Status() != "" {
+		err = errors.New(resp.Status())
+	} else {
+		err = fmt.Errorf("could not reach %s", c.HostAddr)
+	}
+
+	return result, err
 }
 
 type ClientFactory struct {

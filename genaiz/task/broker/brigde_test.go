@@ -64,6 +64,17 @@ func TestRestyBridge_Get_Error(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestRestyBridge_Form(t *testing.T) {
+	var testResty = resty.New()
+	var testBridge = &restyBridge{
+		client:  testResty,
+		request: testResty.R(),
+	}
+
+	testBridge.Form()
+	assert.Equal(t, "application/x-www-form-urlencoded", testBridge.request.ExpectResponseContentType)
+}
+
 func TestRestyBridge_Json(t *testing.T) {
 	var testResty = resty.New()
 	var testBridge = &restyBridge{

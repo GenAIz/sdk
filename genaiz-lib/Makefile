@@ -26,7 +26,7 @@ clean:
 test:
 	@echo "Testing..."
 	# gcflags=-1 disables inlining to allow Monkey Patching
-	go test -gcflags=-l ./lang/...
+	go test -gcflags=-l ./lang/... ./browser/...
 
 .PHONY: coverage
 ## coverage - Invokes the go coverage tool to produce an html report of the cover.out file
@@ -39,4 +39,4 @@ coverage: report
 report:
 	@echo "Running coverage, report only..."
 	# gcflags=-1 disables inlining to allow Monkey Patching
-	go test -gcflags=-l --coverprofile=cover.out ./lang/...
+	go test -gcflags=-l --coverprofile=cover.out ./lang/... ./browser/...

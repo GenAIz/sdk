@@ -45,24 +45,6 @@ func TestPropSpec_Validate(t *testing.T) {
 	assert.NoError(t, enumSpec.Validate("value"))
 }
 
-func TestSolution_asIdentity(t *testing.T) {
-	var actual *shared.Identity
-	var solution = SolutionRemote{
-		Solution: Solution{
-			Version: "version",
-		},
-		Id:     37,
-		Digest: "digest",
-		Fqdn:   "path",
-	}
-
-	actual = solution.asIdentity()
-	assert.Equal(t, solution.Id, cast.ToInt64(actual.Id))
-	assert.Equal(t, solution.Digest, actual.Hash)
-	assert.Equal(t, solution.Fqdn, actual.Path)
-	assert.Equal(t, solution.Version, actual.Version)
-}
-
 func TestFindPropSpec(t *testing.T) {
 	var expectedKey = "expectedKey"
 	var expectedSpecMap = map[string]any{
@@ -189,6 +171,24 @@ func TestSolution_MergeWorkflows(t *testing.T) {
 	assert.Equal(t, 2, len(actual.Workflows))
 	assert.Equal(t, sourceWorkflow, actual.Workflows[0].Handle)
 	assert.Equal(t, mergedWorkflow, actual.Workflows[1].Handle)
+}
+
+func TestSolution_asIdentity(t *testing.T) {
+	var actual *shared.Identity
+	var solution = SolutionRemote{
+		Solution: Solution{
+			Version: "version",
+		},
+		Id:     37,
+		Digest: "digest",
+		Fqdn:   "path",
+	}
+
+	actual = solution.asIdentity()
+	assert.Equal(t, solution.Id, cast.ToInt64(actual.Id))
+	assert.Equal(t, solution.Digest, actual.Hash)
+	assert.Equal(t, solution.Fqdn, actual.Path)
+	assert.Equal(t, solution.Version, actual.Version)
 }
 
 func TestWorkflow_ContainsNode(t *testing.T) {

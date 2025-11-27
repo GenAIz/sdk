@@ -26,6 +26,7 @@ type emptyClient struct {
 }
 
 type stubBridge struct {
+	formRequest bool
 	jsonRequest bool
 	cookie      *http.Cookie
 	err         error
@@ -48,6 +49,11 @@ func (s *stubBridge) Cookie(cookie *http.Cookie) requestBridge {
 func (s *stubBridge) Get(url string) (responseBridge, error) {
 	s.url = url
 	return s.response, s.err
+}
+
+func (s *stubBridge) Form() requestBridge {
+	s.formRequest = true
+	return s
 }
 
 func (s *stubBridge) Json() requestBridge {
@@ -266,6 +272,236 @@ func TestClient_LogoutUrl(t *testing.T) {
 	var testClient = &client{HostAddr: expectedHost}
 
 	assert.Contains(t, testClient.LogoutUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
+}
+
+func TestClient_OidcDeviceCode(t *testing.T) {
+	var expectedCodeUrl = "codeUrl"
+	var expectedAuth = &DeviceAuth{
+		DeviceCode:              "expectedCode",
+		VerificationUriComplete: "expectedUri",
+	}
+	var testBridge = &stubBridge{
+		response: &stubResponse{
+			success:    true,
+			statusCode: 200,
+			result:     expectedAuth,
+		},
+	}
+	var testClient = newTestClient(testBridge)
+
+	if actual, err := testClient.OidcDeviceCode(expectedCodeUrl, oidcDeviceClient); actual != nil {
+		assert.Equal(t, expectedAuth, actual)
+		assert.Equal(t, expectedCodeUrl, testBridge.url)
+		assert.True(t, testBridge.formRequest)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestClient_OidcDeviceCode_EmptyUrl(t *testing.T) {
+	var testClient = &client{}
+
+	actual, err := testClient.OidcDeviceCode("", nil)
+	assert.Empty(t, actual)
+	assert.Error(t, err)
+}
+
+func TestClient_OidcDeviceCode_UrlError(t *testing.T) {
+	var expectedCodeUrl = "codeUrl"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcDeviceCode(expectedCodeUrl, oidcDeviceClient)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_OidcDeviceUrl(t *testing.T) {
+	var expectedUrl = "expectedUrl"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[string]{
+				Data: expectedUrl,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcDeviceUrl()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedUrl, actual)
+}
+
+func TestClient_OidcDeviceUrl_RequestError(t *testing.T) {
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcDeviceUrl()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_OidcDeviceUrl_UnknownHost(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.OidcDeviceUrl()
+	assert.Empty(t, actual)
+	assert.Error(t, err)
+}
+
+func TestClient_OidcDeviceUrl_UrlError(t *testing.T) {
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcDeviceUrl()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_OidcTokenCreate(t *testing.T) {
+	var expectedToken = "expectedToken"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &oauthResponse{
+				AccessToken: expectedToken,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcTokenCreate("url", "testCode", &DeviceClient{})
+	assert.NoError(t, err)
+	assert.Equal(t, expectedToken, actual)
+}
+
+func TestClient_OidcTokenCreate_EmptyUrl(t *testing.T) {
+	var testClient = &client{}
+	var actual, err = testClient.OidcTokenCreate("", "testCode", &DeviceClient{})
+
+	assert.Empty(t, actual)
+	assert.Error(t, err)
+}
+
+func TestClient_OidcTokenCreate_RequestError(t *testing.T) {
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcTokenCreate("url", "testCode", &DeviceClient{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_OidcTokenCreate_UrlError(t *testing.T) {
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcTokenCreate("url", "testCode", &DeviceClient{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_OidcTokenSession(t *testing.T) {
+	var expectedId = int64(37)
+	var expectedUserId = 42
+	var expectedExpiry = int64(1)
+	var expectedToken = "sessionToken"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			cookies: []*http.Cookie{{Name: defaultCookieName, Value: expectedToken}},
+			result: &clientPayload[Session]{
+				Data: Session{
+					Id:     expectedId,
+					UserId: expectedUserId,
+					Expiry: expectedExpiry,
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcTokenSession("url", "testCode")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedId, actual.SessionId)
+	assert.Equal(t, expectedUserId, actual.UserId)
+	assert.Equal(t, expectedExpiry, actual.Expiry)
+	assert.Equal(t, expectedToken, actual.Token)
+}
+
+func TestClient_OidcTokenSession_UnknownHost(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.OidcTokenSession("url", "token")
+	assert.Empty(t, actual)
+	assert.Error(t, err)
+}
+
+func TestClient_OidcTokenUrl(t *testing.T) {
+	var expectedUrl = "expectedUrl"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[string]{
+				Data: expectedUrl,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcTokenUrl()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedUrl, actual)
+}
+
+func TestClient_OidcTokenUrl_RequestError(t *testing.T) {
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcTokenUrl()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_OidcTokenUrl_UnknownHost(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.OidcTokenUrl()
+	assert.Empty(t, actual)
+	assert.Error(t, err)
+}
+
+func TestClient_OidcTokenUrl_UrlError(t *testing.T) {
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcTokenUrl()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
 }
 
 func TestClient_ProvisionFunction(t *testing.T) {
@@ -722,6 +958,7 @@ func TestNewClientFactory(t *testing.T) {
 	var testClientFactory = NewClientFactory()
 	var testClient = testClientFactory.New(expectedAddr)
 
+	assert.Equal(t, defaultExpiryMinutes, testClient.GetExpiry())
 	assert.Equal(t, defaultTimeoutSeconds, testClient.GetTimeout())
 	assert.Equal(t, expectedAddr, testClient.GetHostAddr())
 }

@@ -78,6 +78,29 @@ func ListDataPorts(ports any) []DataPort {
 	return result
 }
 
+type DeviceAuth struct {
+	DeviceCode              string `json:"device_code"`
+	ExpiresIn               int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+	UserCode                string `json:"user_code"`
+	VerificationUri         string `json:"verification_uri"`
+	VerificationUriComplete string `json:"verification_uri_complete"`
+}
+
+type DeviceClient struct {
+	ClientId    string
+	ClientScope string
+	GrantType   string
+}
+
+func NewDeviceClient(clientId, clientScope, grantType string) *DeviceClient {
+	return &DeviceClient{
+		ClientId:    clientId,
+		ClientScope: clientScope,
+		GrantType:   grantType,
+	}
+}
+
 type Error struct {
 	Code    int    `json:"code"`
 	Status  string `json:"status"`

@@ -178,7 +178,6 @@ func NewLoginTask() *task.Task[LoginParams] {
 		Name:       "broker-login",
 		OnPrepare:  handleLoginContext,
 		OnComplete: handleLoginCreate,
-		OnPretend:  handleLoginPretend,
 	}
 }
 
@@ -187,7 +186,6 @@ func NewLogoutTask() *task.Task[LoginParams] {
 		Name:       "broker-logout",
 		OnPrepare:  handleLogoutContext,
 		OnComplete: handleLoginDelete,
-		OnPretend:  handleLogoutPretend,
 	}
 }
 
@@ -273,23 +271,6 @@ func handleLoginDelete(params *LoginParams, state *task.State) error {
 	return ErrorNoSession
 }
 
-func handleLoginPretend(params *LoginParams, state *task.State) error {
-	if errors.Is(state.Error, ErrorNoAuth) {
-		var brokerClient = clientFactory.New(params.HostAddr)
-
-		state.Logger.Debugf("Pretending to login to [%s] with username [%s]", params.HostAddr, params.Username)
-		fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
-		fmt.Printf("-d username=%s\\\n", params.Username)
-		fmt.Printf("-d password=**********\\\n")
-		fmt.Printf("-d expiry=%d\\\n", brokerClient.GetExpiry())
-		fmt.Printf("%s\n", brokerClient.LoginUrl())
-		return nil
-	}
-
-	state.Logger.Debugf("Would not pretend login, since auth to [%s] is already established", params.HostAddr)
-	return nil
-}
-
 func handleLogoutContext(params *LoginParams, state *task.State) error {
 	var auth = NewAuthData(params.AuthFile)
 	var size = len(auth.Accounts)
@@ -323,27 +304,6 @@ func handleLogoutContext(params *LoginParams, state *task.State) error {
 	}
 
 	return ErrorNoLogin
-}
-
-func handleLogoutPretend(params *LoginParams, state *task.State) error {
-	if state.Output != "" {
-		var brokerClient Client
-		var err error
-
-		if brokerClient, err = params.GetClient(); err == nil {
-			state.Logger.Debugf("Pretending to logout from session id [%s]", state.Output)
-			state.Logger.Debugf("For host [%s]", params.HostAddr)
-			state.Logger.Debugf("And username [%s]", params.Username)
-			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
-			fmt.Printf("-d id=%s\\\n", state.Output)
-			fmt.Printf("%s\n", brokerClient.LogoutUrl())
-			return nil
-		}
-
-		return err
-	}
-
-	return state.Error
 }
 
 func handleSessionContext(params *Broker, state *task.State) error {

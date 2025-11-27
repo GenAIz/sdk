@@ -2,7 +2,6 @@ package broker
 
 import (
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -182,9 +181,15 @@ func TestAuthData_Push(t *testing.T) {
 }
 
 func TestAuthData_Write_PermissionDenied(t *testing.T) {
+	var testDir = t.TempDir()
+	var testFile = filepath.Join(testDir, "notWriteable", ".auth")
 	var authData = NewAuthData()
 
-	assert.Error(t, authData.Write("/?root"))
+	if err := os.MkdirAll(filepath.Dir(testFile), 0222); err == nil {
+		assert.Error(t, authData.Write(testFile))
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestAuthData_Write(t *testing.T) {
@@ -216,7 +221,7 @@ func TestNewLoginTask(t *testing.T) {
 	assert.NotEmpty(t, actual.Name)
 	assert.NotEmpty(t, actual.OnPrepare)
 	assert.NotEmpty(t, actual.OnComplete)
-	assert.NotEmpty(t, actual.OnPretend)
+	assert.Empty(t, actual.OnPretend)
 }
 
 func TestNewLogoutTask(t *testing.T) {
@@ -225,7 +230,7 @@ func TestNewLogoutTask(t *testing.T) {
 	assert.NotEmpty(t, actual.Name)
 	assert.NotEmpty(t, actual.OnPrepare)
 	assert.NotEmpty(t, actual.OnComplete)
-	assert.NotEmpty(t, actual.OnPretend)
+	assert.Empty(t, actual.OnPretend)
 }
 
 func TestNewSessionTask(t *testing.T) {
@@ -234,6 +239,7 @@ func TestNewSessionTask(t *testing.T) {
 	assert.NotEmpty(t, actual.Name)
 	assert.NotEmpty(t, actual.OnPrepare)
 	assert.NotEmpty(t, actual.OnComplete)
+	assert.Empty(t, actual.OnPretend)
 }
 
 func Test_handleLoginContext_EmptyFile(t *testing.T) {
@@ -461,51 +467,6 @@ func Test_handleLoginDelete(t *testing.T) {
 	}
 }
 
-func Test_handleLoginPretend_AlreadyAuth(t *testing.T) {
-	var testState = &task.State{
-		Error:  errors.New("not_the_right_one"),
-		Logger: logrus.New(),
-	}
-	var testParams = &LoginParams{
-		Broker: &Broker{
-			HostAddr: "hostAddr",
-		},
-	}
-
-	assert.NoError(t, handleLoginPretend(testParams, testState))
-}
-
-func Test_handleLoginPretend(t *testing.T) {
-	var expectedUser = "username"
-	var expectedHost = "hostAddr"
-	var testState = &task.State{
-		Error:  ErrorNoAuth,
-		Logger: logrus.New(),
-	}
-	var testParams = &LoginParams{
-		Broker: &Broker{
-			HostAddr: expectedHost,
-		},
-		Username: expectedUser,
-	}
-	var stdoutRestore = os.Stdout
-	var r, w, _ = os.Pipe()
-
-	os.Stdout = w
-	defer func() {
-		os.Stdout = stdoutRestore
-	}()
-
-	assert.NoError(t, handleLoginPretend(testParams, testState))
-
-	_ = w.Close()
-	b, _ := io.ReadAll(r)
-	output := string(b)
-
-	assert.Contains(t, output, expectedUser)
-	assert.Contains(t, output, expectedHost)
-}
-
 func Test_handleLogoutContext_NoAuth(t *testing.T) {
 	var dir = t.TempDir()
 
@@ -670,86 +631,6 @@ func Test_handleLogoutContext(t *testing.T) {
 	} else {
 		assert.Fail(t, err.Error())
 	}
-}
-
-func Test_handleLogoutPretend_NoSession(t *testing.T) {
-	var testError = errors.New("expected")
-	var testState = &task.State{
-		Error: testError,
-	}
-	var testParams = &LoginParams{}
-
-	assert.Same(t, testError, handleLogoutPretend(testParams, testState))
-}
-
-func Test_handleLogoutPretend_NoHostSession(t *testing.T) {
-	var expectedSessionId = int64(37)
-	var expectedError = errors.New("expected")
-	var testState = &task.State{
-		Error:  errors.New("test"),
-		Logger: logrus.New(),
-		Output: cast.ToString(expectedSessionId),
-	}
-	var testParams = &LoginParams{
-		Broker: &Broker{
-			AuthFile: "file",
-			HostAddr: "hostAddr",
-		},
-	}
-	var restoredFactory = clientFactory.Get
-
-	defer func() {
-		clientFactory.Get = restoredFactory
-	}()
-	clientFactory.Get = func(authFile, addr string) (Client, error) {
-		return nil, expectedError
-	}
-
-	assert.ErrorIs(t, expectedError, handleLogoutPretend(testParams, testState))
-}
-
-func Test_handleLogoutPretend(t *testing.T) {
-	var expectedSessionId = int64(37)
-	var testError = errors.New("expected")
-	var testState = &task.State{
-		Error:  testError,
-		Logger: logrus.New(),
-		Output: cast.ToString(expectedSessionId),
-	}
-	var testParams = &LoginParams{
-		Broker: &Broker{
-			AuthFile: "file",
-			HostAddr: "hostAddr",
-		},
-	}
-	var restoredFactory = clientFactory.Get
-	var stdoutRestore = os.Stdout
-	var r, w, _ = os.Pipe()
-
-	os.Stdout = w
-	defer func() {
-		os.Stdout = stdoutRestore
-	}()
-
-	defer func() {
-		clientFactory.Get = restoredFactory
-	}()
-	clientFactory.Get = func(authFile, addr string) (Client, error) {
-		return &stubLoginClient{
-			session: &AuthSession{
-				Token:    "token",
-				Username: "user",
-			},
-		}, nil
-	}
-
-	assert.NoError(t, handleLogoutPretend(testParams, testState))
-
-	_ = w.Close()
-	b, _ := io.ReadAll(r)
-	output := string(b)
-
-	assert.Contains(t, output, cast.ToString(expectedSessionId))
 }
 
 func Test_handleSessionContext_NoAuth(t *testing.T) {
