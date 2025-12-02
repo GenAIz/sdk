@@ -20,4 +20,7 @@ initParams:
 initCommands:
   - "ls /bin/bash"
 postCommands:
-  - 'mkdir -p {{or .mount_in "input"}}'
+  - 'mkdir -p {{or .mount_in .input "input"}}'
+  - 'mkdir -p {{or .mount_out .output "output"}}'
+  - 'mkdir -p {{or .mount_log .log "output/log"}}'
+  - 'mkdir -p {{or .mount_var .var "output/var"}}'

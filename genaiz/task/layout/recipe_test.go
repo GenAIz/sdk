@@ -2,13 +2,16 @@ package layout
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz-lib/lang/errorz"
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/recipe"
 	"genaiz.com/genaiz/task"
 )
@@ -169,24 +172,34 @@ func Test_handleLayoutRecipeContext(t *testing.T) {
 	assert.Equal(t, testRegistry.registryRecipe.GetName(), testState.Output)
 }
 
-func Test_handleLayoutRecipeContext_ArtifactError(t *testing.T) {
-	var testDir = t.TempDir()
-	var testParams = &RecipeParams{}
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
-	var testRegistry = &stubRegistry{
-		registryRecipe: &stubRecipe{
-			artifacts: []recipe.Artifact{
-				{
-					Name: filepath.Join(testDir, "notExisting", "artifact"),
+func Test_handleLayoutRecipeContext_ArtifactWarning(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), "artifact.txt")
+
+	if fd, err := os.Create(testFile); err == nil {
+		var testParams = &RecipeParams{}
+		var testState = &task.State{Logger: logrus.New()}
+		var testHook = test.NewLocal(testState.Logger)
+		var testRegistry = &stubRegistry{
+			registryRecipe: &stubRecipe{
+				artifacts: []recipe.Artifact{
+					{
+						Name: testFile,
+					},
 				},
 			},
-		},
-	}
+		}
 
-	err := handleLayoutRecipeContext(testRegistry, testParams, testState)
-	assert.True(t, errorz.IsPathError(err))
+		filez.CloseSilently(fd)
+		assert.NoError(t, handleLayoutRecipeContext(testRegistry, testParams, testState))
+		assert.NotEmpty(t, testHook.Entries)
+		index := slices.IndexFunc(testHook.Entries, func(entry logrus.Entry) bool {
+			return entry.Level == logrus.WarnLevel
+		})
+		assert.True(t, index >= 0)
+		assert.Contains(t, testHook.Entries[index].Message, testFile)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func Test_handleLayoutRecipeContext_FinderError(t *testing.T) {

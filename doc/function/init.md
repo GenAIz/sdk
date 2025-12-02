@@ -1,6 +1,6 @@
 ## Function Init
 
-```bash
+```
 genaiz sf init --context=PATH --file=FILE --config-type=TYPE \
   --tag=LOCAL --handle=HANDLE --oem=OEM --version=VERSION \
   --type=TYPE --name=NAME --mount-in=/PATH-IN --mount-out=/PATH-OUT \
