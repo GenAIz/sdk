@@ -24,6 +24,7 @@ func deferOnExit(err *error, errStream io.Writer, fn func()) func() {
 	}
 }
 
+// DeferOnExit returns a function which can exit the program with an error code if err points to an error when the function is evaluated
 func DeferOnExit(err *error, fn func()) func() {
 	return deferOnExit(err, os.Stderr, fn)
 }
@@ -41,4 +42,22 @@ func IsPathError(err error) bool {
 	}
 
 	return false
+}
+
+// ResultOrError guarantees either a non-empty reference to an interface{} or an error will be returned if err is not nil
+func ResultOrError[T any](result *T, err error) (*T, error) {
+	if err == nil {
+		return result, nil
+	}
+
+	return nil, err
+}
+
+// StringSliceOrError guarantees either a string slice or an error will be returned if err is not nil
+func StringSliceOrError(slice []string, err error) ([]string, error) {
+	if err == nil {
+		return slice, nil
+	}
+
+	return nil, err
 }

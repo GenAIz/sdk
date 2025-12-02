@@ -91,6 +91,7 @@ type Document struct {
 			Extras      Keys
 			Handle      Keys
 			InputPorts  Keys
+			Internal    Keys
 			Name        Keys
 			NoUpdate    Keys
 			Oem         Keys
@@ -170,6 +171,14 @@ type Document struct {
 		}
 	}
 	Workflow struct {
+		Create struct {
+			ConfigType  Keys
+			Description Keys
+			Name        Keys
+		}
+		Delete struct {
+			ConfigType Keys
+		}
 		Nodes struct {
 			Add struct {
 				ConfigType   Keys
@@ -188,10 +197,12 @@ type Document struct {
 		}
 		Links struct {
 			Add struct {
-				ConfigType Keys
+				ConfigType   Keys
+				NoValidation Keys
 			}
 			Remove struct {
-				ConfigType Keys
+				ConfigType   Keys
+				NoValidation Keys
 			}
 		}
 	}
@@ -243,6 +254,7 @@ func init() {
 	Genaiz.Function.Publish.Extras = newKeys("Sf.Publish.Extras", "SF_PUBLISH_EXTRAS")
 	Genaiz.Function.Publish.Description = newKeys("Sf.Publish.Description", "SF_PUBLISH_DESCRIPTION")
 	Genaiz.Function.Publish.Handle = newKeys("Sf.Publish.Handle", "SF_PUBLISH_HANDLE")
+	Genaiz.Function.Publish.Internal = newKeys("Sf.Publish", "")
 	Genaiz.Function.Publish.InputPorts = newKeys("Sf.Publish.InputPorts", "")
 	Genaiz.Function.Publish.Name = newKeys("Sf.Publish.Name", "SF_PUBLISH_NAME")
 	Genaiz.Function.Publish.NoUpdate = newKeys("Sf.Publish.NoUpdate", "SF_PUBLISH_NO_UPDATE")
@@ -316,8 +328,14 @@ func init() {
 	Genaiz.Solution.Publish.Name = newKeys("Solution.Publish.Name", "SN_PUBLISH_NAME")
 	Genaiz.Solution.Publish.Oem = newKeys("Solution.Publish.Oem", "SN_PUBLISH_OEM")
 	Genaiz.Solution.Publish.Version = newKeys("Solution.Publish.Version", "SN_PUBLISH_VERSION")
+	Genaiz.Workflow.Create.ConfigType = newKeys("Workflow.Create.ConfigType", "WF_CREATE_CONFIG_TYPE")
+	Genaiz.Workflow.Create.Description = newKeys("Workflow.Create.Description", "WF_CREATE_DESCRIPTION")
+	Genaiz.Workflow.Create.Name = newKeys("Workflow.Create.Name", "WF_CREATE_NAME")
+	Genaiz.Workflow.Delete.ConfigType = newKeys("Workflow.Delete.ConfigType", "WF_DELETE_CONFIG_TYPE")
 	Genaiz.Workflow.Links.Add.ConfigType = newKeys("Workflow.Links.Add.ConfigType", "WF_LINKS_ADD_CONFIG_TYPE")
+	Genaiz.Workflow.Links.Add.NoValidation = newKeys("Workflow.Links.Add.NoValidation", "WF_LINKS_ADD_NO_VALIDATION")
 	Genaiz.Workflow.Links.Remove.ConfigType = newKeys("Workflow.Links.Remove.ConfigType", "WF_LINKS_RM_CONFIG_TYPE")
+	Genaiz.Workflow.Links.Remove.NoValidation = newKeys("Workflow.Links.Remove.NoValidation", "WF_LINKS_RM_NO_VALIDATION")
 	Genaiz.Workflow.Nodes.Add.ConfigType = newKeys("Workflow.Nodes.Add.ConfigType", "WF_NODES_ADD_CONFIG_TYPE")
 	Genaiz.Workflow.Nodes.Add.Description = newKeys("Workflow.Nodes.Add.Description", "WF_NODES_ADD_DESCRIPTION")
 	Genaiz.Workflow.Nodes.Add.Deserialized = newKeys("Workflow.Nodes.Add.Deserialized", "WF_NODES_ADD_DESERIALIZED")

@@ -84,3 +84,29 @@ func TestIsPathError_PermissionDenied(t *testing.T) {
 
 	assert.False(t, IsPathError(permissionError))
 }
+
+func TestResultOrError(t *testing.T) {
+	var expectedStruct = &struct{ A string }{A: "test"}
+	var expectedError = errors.New("error")
+	var nothing *error
+	var result, err = ResultOrError(expectedStruct, nil)
+
+	assert.Same(t, expectedStruct, result)
+	assert.Nil(t, err)
+	nothing, err = ResultOrError(nothing, expectedError)
+	assert.Nil(t, nothing)
+	assert.Equal(t, expectedError, err)
+}
+
+func TestStringSliceOrError(t *testing.T) {
+	var expectedSlice = []string{"expected"}
+	var expectedError = errors.New("error")
+	var nothing []string
+	var result, err = StringSliceOrError(expectedSlice, nil)
+
+	assert.Equal(t, expectedSlice, result)
+	assert.Nil(t, err)
+	nothing, err = StringSliceOrError(nothing, expectedError)
+	assert.Nil(t, nothing)
+	assert.Equal(t, expectedError, err)
+}

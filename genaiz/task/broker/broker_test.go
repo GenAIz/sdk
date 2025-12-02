@@ -26,6 +26,26 @@ func TestFunction_asIdentity(t *testing.T) {
 	assert.Equal(t, function.Version, actual.Version)
 }
 
+func TestFunction_FindDataPortByHandle(t *testing.T) {
+	var testHandle = "handle"
+	var testFunction = &Function{}
+	var expectedDataPort = &DataPort{
+		Handle:      testHandle,
+		Description: "testDescription",
+		Name:        "Test Description",
+	}
+
+	assert.Nil(t, testFunction.FindDataPortByHandle(testHandle))
+	testFunction.OutputPorts = []DataPort{
+		{
+			Handle: "notTheHandle",
+		},
+		*expectedDataPort,
+	}
+	actual := testFunction.FindDataPortByHandle(testHandle)
+	assert.Equal(t, expectedDataPort, actual)
+}
+
 func TestPropSpec_Validate(t *testing.T) {
 	var booleanSpec = &PropSpec{Type: PropSpecTypeBoolean}
 	var intSpec = &PropSpec{Type: PropSpecTypeInt}
@@ -107,6 +127,56 @@ func TestListPropSpecs(t *testing.T) {
 	assert.Equal(t, expectedSpecMap["value"], actualSpecs[0].Value)
 	assert.Equal(t, expectedSpecMap["values"], actualSpecs[0].Values)
 	assert.Equal(t, expectedSpecMap["type"], actualSpecs[0].Type)
+}
+
+func TestMapFunction(t *testing.T) {
+	var testPropSpec = &PropSpec{
+		Type: PropSpecTypeInt,
+		Key:  "test_key",
+		Name: "Test PropSpec",
+	}
+	var testOutPort = &DataPort{Handle: "test-out"}
+	var testInPort = &DataPort{Handle: "test-in"}
+	var testFunction = &Function{
+		Handle:      "testHandle",
+		Name:        "testName",
+		Oem:         "testOem",
+		Type:        "testType",
+		OutputPorts: []DataPort{*testOutPort},
+		InputPorts:  []DataPort{*testInPort},
+		PropSpecs:   []PropSpec{*testPropSpec},
+		Description: "testDescription",
+		Version:     "testVersion",
+		Arches:      []string{"arch"},
+	}
+
+	assert.Empty(t, MapFunction("something"))
+	assert.Equal(t, testFunction, MapFunction(map[string]any{
+		"handle": testFunction.Handle,
+		"name":   testFunction.Name,
+		"oem":    testFunction.Oem,
+		"type":   testFunction.Type,
+		"outputports": []interface{}{
+			map[string]any{
+				"handle": testOutPort.Handle,
+			},
+		},
+		"inputports": []interface{}{
+			map[string]any{
+				"handle": testInPort.Handle,
+			},
+		},
+		"propspecs": []interface{}{
+			map[string]any{
+				"key":  testPropSpec.Key,
+				"type": testPropSpec.Type,
+				"name": testPropSpec.Name,
+			},
+		},
+		"description": testFunction.Description,
+		"version":     testFunction.Version,
+		"arches":      testFunction.Arches,
+	}))
 }
 
 func TestSolution_Merge(t *testing.T) {

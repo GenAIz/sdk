@@ -126,9 +126,9 @@ func NewCreate(ledger *config.Ledger, snCli *Cli) *cobra.Command {
 		Use:     "create [SOLUTION_PATH]",
 		Short:   "Creates a Solution from scratch",
 		Long:    "Creates a Solution from scratch, adding a default workflow, optionally from a selected template",
-		Example: "genaiz sn create solution-1 --workflow=workflow-1",
+		Example: "genaiz sn create solution-1 --oem=com.genaiz",
 		Args: cobra.MatchAll(cobra.MaximumNArgs(1),
-			cli.ArgsFolderValidator("solution", config.Validation.Handle)),
+			cli.ArgsOptionalFolder("solution", 1, config.Validation.Handle)),
 		Run: func(cmd *cobra.Command, args []string) {
 			var wdp = dirz.OptionalWorkingDir(args...)
 

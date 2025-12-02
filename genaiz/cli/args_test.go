@@ -10,16 +10,16 @@ import (
 	"genaiz.com/genaiz/config"
 )
 
-func TestArgsFolderValidator(t *testing.T) {
-	var validator = ArgsFolderValidator("test", config.Validation.Handle)
+func TestArgsOptionalFolder(t *testing.T) {
+	var validator = ArgsOptionalFolder("test", 1, config.Validation.Handle)
 
 	assert.NoError(t, validator(nil, []string{"valid"}))
 }
 
-func TestArgsFolderValidator_InvalidDir(t *testing.T) {
+func TestArgsOptionalFolder_InvalidDir(t *testing.T) {
 	if fd, err := os.CreateTemp("", "genaiz-args-invalid-file*.yaml"); err == nil {
 		defer filez.RemoveSilently(fd.Name())
-		var validator = ArgsFolderValidator("test", config.Validation.Handle)
+		var validator = ArgsOptionalFolder("test", 1, config.Validation.Handle)
 
 		err = validator(nil, []string{fd.Name()})
 		assert.Error(t, err)
@@ -29,10 +29,10 @@ func TestArgsFolderValidator_InvalidDir(t *testing.T) {
 	}
 }
 
-func TestArgsFolderValidator_InvalidName(t *testing.T) {
+func TestArgsOptionalFolder_InvalidName(t *testing.T) {
 	var expectedType = "testType"
 	var expectedInvalid = "..invalid"
-	var validator = ArgsFolderValidator(expectedType, config.Validation.Handle)
+	var validator = ArgsOptionalFolder(expectedType, 1, config.Validation.Handle)
 	var err = validator(nil, []string{expectedInvalid})
 
 	assert.Error(t, err)
@@ -42,14 +42,14 @@ func TestArgsFolderValidator_InvalidName(t *testing.T) {
 
 func TestArgsFolderValidator_MultiArgs(t *testing.T) {
 	var expectedType = "testType"
-	var validator = ArgsFolderValidator(expectedType, config.Validation.Handle)
+	var validator = ArgsOptionalFolder(expectedType, 1, config.Validation.Handle)
 
 	assert.NoError(t, validator(nil, []string{"valid", "not--a-folder-argument"}))
 }
 
 func TestArgsFolderValidator_NoArgs(t *testing.T) {
 	var expectedType = "testType"
-	var validator = ArgsFolderValidator(expectedType, config.Validation.Handle)
+	var validator = ArgsOptionalFolder(expectedType, 1, config.Validation.Handle)
 
 	assert.NoError(t, validator(nil, []string{}))
 }

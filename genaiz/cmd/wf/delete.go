@@ -5,8 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
@@ -29,33 +31,50 @@ func (de *DeleteExecutor) Display() {
 }
 
 func (de *DeleteExecutor) Pretend() {
-	var params = de.makeWorkflowParams()
-	var writer = newWorkflowWriter(de.Ledger, params.GetConfigFile())
+	var params *broker.WorkflowParams
+	var err error
 
-	de.workflowTaskFactory(writer).Pretend(params, de.Ledger.Logger)
+	if params, err = de.makeWorkflowParams(); err == nil {
+		var writer = newWorkflowWriter(de.Ledger, params.GetConfigFile())
+
+		de.workflowTaskFactory(writer).Pretend(params, de.Ledger.Logger)
+	}
+
+	lang.HandleExit(err)
 }
 
 func (de *DeleteExecutor) Proceed() {
-	var params = de.makeWorkflowParams()
-	var writer = newWorkflowWriter(de.Ledger, params.GetConfigFile())
-	var plan = task.NewPlan("Workflow", de.Ledger.Logger)
+	var params *broker.WorkflowParams
+	var err error
 
-	task.Single(plan, params, de.workflowTaskFactory(writer))
-}
+	if params, err = de.makeWorkflowParams(); err == nil {
+		var writer = newWorkflowWriter(de.Ledger, params.GetConfigFile())
+		var plan = task.NewPlan("Workflow", de.Ledger.Logger)
 
-func (de *DeleteExecutor) makeWorkflowParams() *broker.WorkflowParams {
-	var configType, err = de.Ledger.GetConfigType(de.optionConfigType)
+		plan.PrintReportsOnly = true
+		task.Single(plan, params, de.workflowTaskFactory(writer))
+	}
 
 	lang.HandleExit(err)
-	return &broker.WorkflowParams{
-		ConfigParams: shared.ConfigParams{
-			ConfigName: de.Ledger.ConfigName,
-			ConfigType: configType,
-		},
-		Workflow: &broker.Workflow{
-			Handle: de.workflowArg,
-		},
+}
+
+func (de *DeleteExecutor) makeWorkflowParams() (*broker.WorkflowParams, error) {
+	var configType *shared.ConfigType
+	var err error
+
+	if configType, err = de.Ledger.GetConfigType(de.optionConfigType); err == nil {
+		return &broker.WorkflowParams{
+			ConfigParams: shared.ConfigParams{
+				ConfigName: de.Ledger.ConfigName,
+				ConfigType: configType,
+			},
+			Workflow: &broker.Workflow{
+				Handle: de.workflowArg,
+			},
+		}, nil
 	}
+
+	return nil, err
 }
 
 type DeleteOptions struct {
@@ -69,9 +88,9 @@ func (co DeleteOptions) allDefiners() []config.Definer {
 }
 
 func NewDelete(ledger *config.Ledger, cli *Cli) *cobra.Command {
-	var deleteOptions = NewDeleteOptions()
+	var deleteOptions = NewDeleteOptions(cli)
 	var deleteCmd = &cobra.Command{
-		Use:     "delete",
+		Use:     "delete WORKFLOW_HANDLE",
 		Short:   "Deletes a Workflow from the local config",
 		Long:    "Deletes a Workflow from the local config, providing there is under the current workdir",
 		Example: "genaiz wf delete workflow-1",
@@ -100,10 +119,11 @@ func NewDeleteExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opt
 	}
 }
 
-func NewDeleteOptions() *DeleteOptions {
-	var cmd = "delete"
-
+func NewDeleteOptions(wfCli *Cli) *DeleteOptions {
 	return &DeleteOptions{
-		optionConfigType: newOptionConfigType(cmd),
+		optionConfigType: cli.Options.Configs.Type().
+			WithKeys(&schema.Genaiz.Workflow.Create.ConfigType).
+			WithDefaultGetter(wfCli.WorkingConfigType()).
+			BuildStringOption(),
 	}
 }

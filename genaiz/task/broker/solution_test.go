@@ -707,6 +707,27 @@ func Test_handleWorkflowDeleteConfig_NoFileOutput(t *testing.T) {
 	assert.ErrorIs(t, handleWorkflowDeleteConfig(nil, &WorkflowParams{}, &task.State{}), errorWorkflowFileInvalid)
 }
 
+func Test_handleWorkflowDeleteConfig_PathError(t *testing.T) {
+	var testDir = t.TempDir()
+	var mockWriter = &mockWorkflowWriter{
+		testWorkflows: []Workflow{{
+			Handle: "testHandle",
+		}},
+		writeError: errors.New("expected"),
+	}
+	var testParams = &WorkflowParams{
+		Workflow: &Workflow{
+			Handle: "testHandle",
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: filepath.Join(testDir, "not", "exist.yaml"),
+	}
+
+	assert.ErrorIs(t, handleWorkflowDeleteConfig(mockWriter, testParams, testState), mockWriter.writeError)
+}
+
 func Test_handleWorkflowDeleteContext(t *testing.T) {
 	var testDir = t.TempDir()
 	var testParams = &WorkflowParams{

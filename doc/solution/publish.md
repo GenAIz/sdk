@@ -1,6 +1,6 @@
 ## Solution Publish
 
-```bash
+```
 genaiz sn publish --broker=BROKER --config-type=TYPE \ 
  --handle=HANDLE --oem=OEM --version=VERSION \ 
  --description=DESC --name=NAME 

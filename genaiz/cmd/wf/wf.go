@@ -14,9 +14,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
@@ -66,6 +68,22 @@ func (be BaseExecutor) makeConfigParams(typeOption *config.StringOption) (*share
 
 type Cli struct {
 	cli.BaseCli
+}
+
+func (c Cli) WorkingConfigType() func(*config.Ledger) any {
+	return func(ledger *config.Ledger) any {
+		var solutionReader = config.NewSolutionReader(ledger).
+			WithConfigPath(ledger.WorkDir)
+
+		if _, err := solutionReader.ReadName(ledger.ConfigName); err == nil {
+			return solutionReader.GetConfigType()
+		} else if !errorz.IsPathError(err) {
+			lang.HandleExit(err)
+			return nil
+		}
+
+		return shared.ConfigTypeYaml
+	}
 }
 
 func NewWf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Decisive) *cobra.Command {

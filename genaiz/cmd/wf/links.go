@@ -2,7 +2,9 @@ package wf
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -20,6 +22,10 @@ import (
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
+)
+
+var (
+	errorNoFunction = errors.New("no function could be found")
 )
 
 type LinksExecutor struct {
@@ -105,45 +111,22 @@ func (le *LinksExecutor) Init(workflowArg string, links []string) ([]string, err
 	if configParams, err = le.makeConfigParams(le.optionConfigType); err == nil {
 		var writer = le.workflowWriterFactory(le.Ledger, configParams.GetConfigFile())
 		var workflowLinks = parseArgsLinks(links...)
-		var current *broker.Workflow
+		var workflow *broker.Workflow
 
-		if current, err = writer.GetWorkflowByHandle(workflowArg); err == nil {
+		if workflow, err = writer.GetWorkflowByHandle(workflowArg); err == nil {
 			for _, link := range workflowLinks {
 				var leftReference, leftPort, rightReference, rightPort string
 
 				if leftReference, leftPort, err = parseNodeRefs(link.LhsNode, link.LhsNodePort); err == nil {
 					if rightReference, rightPort, err = parseNodeRefs(link.RhsNode, link.RhsNodePort); err == nil {
-						var leftHandle, rightHandle string
-						var leftValue, rightValue string
+						var leftValue string
 
-						if current.ContainsNode(leftReference) {
-							leftHandle = leftReference
-						} else {
-							leftHandle, err = le.findFunctionNode(current, leftReference, leftPort)
-						}
+						if leftValue, err = le.resolveFunctionLink(workflow, leftReference, leftPort); err == nil {
+							var rightValue string
 
-						if err == nil {
-							if current.ContainsNode(rightReference) {
-								rightHandle = rightReference
-							} else {
-								rightHandle, err = le.findFunctionNode(current, rightReference, rightPort)
+							if rightValue, err = le.resolveFunctionLink(workflow, rightReference, rightPort); err == nil {
+								result = append(result, fmt.Sprintf("%s:%s", leftValue, rightValue))
 							}
-						}
-
-						if err == nil {
-							if leftPort == "" {
-								leftValue = leftHandle
-							} else {
-								leftValue = fmt.Sprintf("%s[%s]", leftHandle, leftPort)
-							}
-
-							if rightPort == "" {
-								rightValue = rightHandle
-							} else {
-								rightValue = fmt.Sprintf("%s[%s]", rightHandle, rightPort)
-							}
-
-							result = append(result, fmt.Sprintf("%s:%s", leftValue, rightValue))
 						}
 					}
 				}
@@ -155,7 +138,7 @@ func (le *LinksExecutor) Init(workflowArg string, links []string) ([]string, err
 		}
 	}
 
-	return result, err
+	return errorz.StringSliceOrError(result, err)
 }
 
 func (le *LinksExecutor) Remove(workflowArg string, rmLinks []string) {
@@ -164,24 +147,62 @@ func (le *LinksExecutor) Remove(workflowArg string, rmLinks []string) {
 	le.Cli.Exec(le.Ledger, le)
 }
 
-func (le *LinksExecutor) findFunctionNode(workflow *broker.Workflow, ref, port string) (string, error) {
+func (le *LinksExecutor) findDataPortByHandle(fn *broker.Function, port string) (string, error) {
+	if result := fn.FindDataPortByHandle(port); result != nil {
+		return result.Handle, nil
+	}
+
+	return "", broker.ErrorDataPortNotFound
+}
+
+func (le *LinksExecutor) findFunctionByHandle(handle string) (*broker.Function, error) {
+	var entries, _ = os.ReadDir(".")
+	var result *broker.Function
+	var err error
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			if result, err = le.findFunctionByPath(entry.Name()); err == nil &&
+				strings.EqualFold(handle, result.Handle) {
+				return result, nil
+			}
+		}
+	}
+
+	return nil, errorNoFunction
+}
+
+func (le *LinksExecutor) findFunctionByPath(path string) (*broker.Function, error) {
 	var vp *viper.Viper
 	var err error
 
-	// We'll eventually have to validate the port
-	_ = port
+	if vp, err = le.Ledger.FindPathConfig(path); err == nil {
+		var object = vp.Get(schema.Genaiz.Function.Publish.Internal.Doc)
+		var result = broker.MapFunction(object)
 
-	if vp, err = le.Ledger.FindPathConfig(ref); err == nil {
-		var sfOem = vp.GetString(schema.Genaiz.Function.Publish.Oem.Doc)
-		var sfHandle = vp.GetString(schema.Genaiz.Function.Publish.Handle.Doc)
-		var sfVersion = vp.GetString(schema.Genaiz.Function.Publish.Version.Doc)
+		if result == nil {
+			return nil, fmt.Errorf("invalid function object found under path [%s]", path)
+		}
 
-		return workflow.FindNodeHandleBySf(sfOem, sfHandle, sfVersion)
-	} else if errorz.IsPathError(err) {
-		return "", fmt.Errorf("value [%s] could not resolve to a workflow node", ref)
+		return result, nil
 	}
 
-	return "", err
+	return nil, err
+}
+
+func (le *LinksExecutor) findFunctionByReference(ref string) (*broker.Function, error) {
+	var result *broker.Function
+	var err error
+
+	if result, err = le.findFunctionByPath(ref); errorz.IsPathError(err) {
+		return le.findFunctionByHandle(ref)
+	}
+
+	return errorz.ResultOrError(result, err)
+}
+
+func (le *LinksExecutor) findWorkflowNodeByFunction(workflow *broker.Workflow, fn *broker.Function) (string, error) {
+	return workflow.FindNodeHandleBySf(fn.Oem, fn.Handle, fn.Version)
 }
 
 func (le *LinksExecutor) makeWorkflowParams(configParams *shared.ConfigParams) (*broker.WorkflowParams, error) {
@@ -203,8 +224,39 @@ func (le *LinksExecutor) makeWorkflowParams(configParams *shared.ConfigParams) (
 	return nil, err
 }
 
+func (le *LinksExecutor) resolveFunctionLink(workflow *broker.Workflow, ref, port string) (string, error) {
+	var noValidation = le.Ledger.GetBool(le.optionNoValidation)
+	var fn *broker.Function
+	var handle string
+	var err error
+
+	if fn, err = le.findFunctionByReference(ref); errors.Is(err, errorNoFunction) {
+		// If we can't find a function locally, the link may refer to external entities, which can not be validated
+		return makeBracketedDataPort(ref, port), nil
+	} else if err != nil {
+		return "", err
+	} else if handle, err = le.findWorkflowNodeByFunction(workflow, fn); err == nil {
+		if port == "" {
+			// Absence of a port is valid, for now
+			return handle, nil
+		}
+
+		if port, err = le.findDataPortByHandle(fn, port); err == nil {
+			// If a function matches the reference, handle or path, we need to validate the port specified
+			return makeBracketedDataPort(handle, port), nil
+		}
+	}
+
+	if noValidation {
+		return makeBracketedDataPort(ref, port), nil
+	}
+
+	return "", err
+}
+
 type LinksOptions struct {
-	optionConfigType *config.StringOption
+	optionConfigType   *config.StringOption
+	optionNoValidation *config.BoolOption
 }
 
 func (lo LinksOptions) allDefiners() []config.Definer {
@@ -250,6 +302,9 @@ func NewAddLinksOptions() *LinksOptions {
 		optionConfigType: cli.Options.Configs.Type().
 			WithKeys(&schema.Genaiz.Workflow.Links.Add.ConfigType).
 			BuildStringOption(),
+		optionNoValidation: cli.Options.Workflows.NoLinkValidation().
+			WithKeys(&schema.Genaiz.Workflow.Links.Add.NoValidation).
+			BuildBoolOption(),
 	}
 }
 
@@ -258,7 +313,19 @@ func NewRemoveLinksOptions() *LinksOptions {
 		optionConfigType: cli.Options.Configs.Type().
 			WithKeys(&schema.Genaiz.Workflow.Links.Remove.ConfigType).
 			BuildStringOption(),
+		optionNoValidation: cli.Options.Workflows.NoLinkValidation().
+			WithKeys(&schema.Genaiz.Workflow.Links.Add.NoValidation).
+			WithDefaultValue("true").
+			BuildBoolOption(),
 	}
+}
+
+func makeBracketedDataPort(handle, port string) string {
+	if port == "" {
+		return handle
+	}
+
+	return fmt.Sprintf("%s[%s]", handle, port)
 }
 
 func newLinksAddExecutorFactory(ledger *config.Ledger, cli *Cli, options *LinksOptions) func(*cobra.Command) links.AddExecutor {

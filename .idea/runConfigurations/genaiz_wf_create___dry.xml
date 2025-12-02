@@ -3,7 +3,7 @@
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out" />
     <go_parameters value="-tags dev" />
-    <parameters value="wf create myBashSolution --name=&quot;Workflow One&quot; --handle=workflow-1 --description=&quot;First Workflow Description&quot; --dry" />
+    <parameters value="wf create workflow-1 myIdeSolution --name=&quot;Workflow One&quot; --description=&quot;First Workflow Description&quot; --dry" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />
