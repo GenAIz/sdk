@@ -5,7 +5,7 @@ Feature: function create for the bash example
 
   Scenario: create bash example bad context
     Given the following parameters
-      | handle          | context         |
+      | handle          | context      |
       | my-bash-example | /_badContext |
     When I run the command "sf create <handle> --context=<context>"
     Then I should have an error for field "sf.build.context"
@@ -86,5 +86,16 @@ Feature: function create for the bash example
       | recipe       | handle          | oem            | type     | version |
       | bash-example | my-bash-example | com.genaiz.dev | function | 0.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe>"
-    Then I should have a function under "<handle>" named "<handle>" with oem "<oem>" and version "<version>"
-    And I should have a function under "<handle>" named "<handle>" with type "<type>"
+    Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
+
+  Scenario create bash example with mounts
+    Given the scenario "create bash example solution" ran with condition "service_completed_successfully"
+    And the following parameters
+      | recipe       | handle         | oem            | version | name        | mountPoint | mountIn     | mountOut                 | mountLog                 | mountVar                 |
+      | bash-example | my-bash-mounts | com.genaiz.dev | 0.0.1   | Bash Mounts | run/test   | run/test/in | run/test/{timestamp}/out | run/test/{timestamp}/log | run/test/{timestamp}/var |
+    When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --name='<name>' --mount-in=<mountIn> --mount-out=<mountOut>
+    Then I should have a function under "<handle>" named "<name>" with oem "<oem>", version "<version>" and type "<type>"
+    And I should have a function under "<handle>" with run mount input "<mountIn>" with the folder created under "<handle>/<mountIn>"
+    And I should have a function under "<handle>" with run mount output "<mountOut>" with a stamped folder under "<handle>/<mountPoint>"
+    And I should have a function under "<handle>" with run mount log "<mountLog>" with a stamped folder under "<handle>/<mountPoint>"
+    And I should have a function under "<handle>" with run mount var "<mountVar>" with a stamped folder under "<handle>/<mountPoint>"

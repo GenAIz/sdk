@@ -1,6 +1,6 @@
 ## Function Create
 
-```bash
+```
 genaiz sf create FOLDER --context=PATH --file=FILE --config-type=TYPE \
   --tag=LOCAL --handle=HANDLE --oem=OEM --version=VERSION \
   --recipe=RECIPE --type=TYPE --name=NAME \

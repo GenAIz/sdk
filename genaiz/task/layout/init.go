@@ -265,6 +265,7 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 			}
 		}
 
+		state.Output = ""
 		return nil
 	}
 

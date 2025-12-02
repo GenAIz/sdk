@@ -1,6 +1,6 @@
 ## Function Publish
 
-```bash
+```
 genaiz sf publish --broker=HOST \
 --handle=HANDLE --oem=OEM --version=VERSION --name=NAME --type=TYPE \
 --arch=x86 --arch=... --no-update --rebuild

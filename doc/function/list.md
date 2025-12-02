@@ -1,6 +1,6 @@
 ## Function List
 
-```bash
+```
 genaiz sf list --context=PATH --file=FILE --tag=TAG_MATCH --version=VERSION_MATCH
 ```
 

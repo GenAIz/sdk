@@ -152,6 +152,15 @@ func (ce *CreateExecutor) makeRecipeParamsMap(recipeOptions []*config.Option) ma
 		result[strings.ReplaceAll(k, "-", "_")] = v
 	}
 
+	if out, ok := result["mount_out"]; ok {
+		// log and var should be under the same folder
+		var stampedOut = layout.StampString(out, ce.Ledger.Timestamp)
+
+		result["mount_out"] = stampedOut
+		result["mount_log"] = filepath.Join(filepath.Dir(stampedOut), "log")
+		result["mount_var"] = filepath.Join(filepath.Dir(stampedOut), "var")
+	}
+
 	return result
 }
 

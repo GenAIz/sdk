@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/strftime"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -984,48 +983,6 @@ func TestLedger_StampString(t *testing.T) {
 	actual := testLedger.StampString(testOption)
 	assert.True(t, strings.HasPrefix(actual, "value/"))
 	assert.Regexp(t, regexp.MustCompile(`value/[0-9]+`), actual)
-}
-
-func TestLedger_StampString_Format(t *testing.T) {
-	var testViper = viper.New()
-	var testLedger = NewBuilder().WithViper(testViper).Build()
-	var testOption = &StringOption{
-		Option{Key: "key"},
-	}
-	var expectedFormat = "%Y-%m-%dT%H:%M"
-	var expectedValue = fmt.Sprintf("value/{timestamp:%s}", expectedFormat)
-	var now = time.Now()
-
-	testViper.Set(testOption.Key, expectedValue)
-	actual := testLedger.StampString(testOption)
-	assert.True(t, strings.HasPrefix(actual, "value/"))
-	timeSuffix, err := strftime.New(expectedFormat)
-	assert.NoError(t, err)
-	assert.True(t, strings.HasSuffix(actual, timeSuffix.FormatString(now)))
-}
-
-func TestLedger_StampString_Invalid(t *testing.T) {
-	var testViper = viper.New()
-	var testLedger = NewBuilder().WithViper(testViper).Build()
-	var testOption = &StringOption{
-		Option{Key: "key"},
-	}
-	var expectedValue = "value/{timestamp:"
-
-	testViper.Set(testOption.Key, expectedValue)
-	assert.Equal(t, expectedValue, testLedger.StampString(testOption))
-}
-
-func TestLedger_StampString_NoStamp(t *testing.T) {
-	var testViper = viper.New()
-	var testLedger = NewBuilder().WithViper(testViper).Build()
-	var testOption = &StringOption{
-		Option{Key: "key"},
-	}
-	var expectedValue = "value"
-
-	testViper.Set(testOption.Key, expectedValue)
-	assert.Equal(t, expectedValue, testLedger.StampString(testOption))
 }
 
 func TestLedger_ToWorkDir(t *testing.T) {

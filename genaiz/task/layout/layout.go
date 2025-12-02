@@ -5,7 +5,13 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/lestrrat-go/strftime"
+	"github.com/spf13/cast"
+
+	"genaiz.com/genaiz-lib/lang/stringz"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/lang/enumz"
 	"genaiz.com/genaiz/task"
 )
@@ -123,6 +129,15 @@ func (is *InitState) GetConfigFile() string {
 	return is.configFile
 }
 
+func (is *InitState) InitVars(variables map[string]string) {
+	var stamp = time.Now()
+
+	variables["input"] = StampString(is.DefaultInput(variables["input"]), stamp)
+	variables["output"] = StampString(is.DefaultOutput(variables["output"]), stamp)
+	variables["log"] = StampString(is.DefaultLog(variables["log"]), stamp)
+	variables["var"] = StampString(is.DefaultVar(variables["var"]), stamp)
+}
+
 func (is *InitState) SetConfigFile(configFile string) {
 	is.configFile = configFile
 	is.state.Internal = is.initTracking
@@ -145,4 +160,27 @@ func NewInitState(state *task.State) *InitState {
 		},
 		state: state,
 	}
+}
+
+func StampString(raw string, stamp time.Time) string {
+	var beginStamp = "{timestamp"
+
+	if i := strings.Index(raw, beginStamp); i >= 0 {
+		var nextIndex = i + len(beginStamp)
+		var nextChar = stringz.CharAt(raw, nextIndex)
+
+		if nextChar == ":" {
+			if closingIndex := strings.Index(raw, "}"); closingIndex > nextIndex {
+				var format = raw[nextIndex+1 : closingIndex]
+				var posixFormatter, err = strftime.New(format)
+
+				lang.HandleExit(err)
+				return strings.ReplaceAll(raw, beginStamp+":"+format+"}", posixFormatter.FormatString(stamp))
+			}
+		} else if nextChar == "}" {
+			return strings.ReplaceAll(raw, beginStamp+"}", cast.ToString(stamp.Unix()))
+		}
+	}
+
+	return raw
 }

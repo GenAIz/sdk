@@ -1,9 +1,14 @@
 package layout
 
 import (
+	"fmt"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/lestrrat-go/strftime"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz/task"
@@ -101,4 +106,37 @@ func TestNewInitState(t *testing.T) {
 
 	assert.Equal(t, expectedMap, actual.params)
 	assert.Equal(t, testFile, actual.configFile)
+}
+
+func TestStampString(t *testing.T) {
+	var testValue = "value/{timestamp}"
+	var now = time.Now()
+
+	actual := StampString(testValue, now)
+	assert.True(t, strings.HasPrefix(actual, "value/"))
+	assert.True(t, strings.HasSuffix(actual, strconv.FormatInt(now.Unix(), 10)))
+}
+
+func TestStampString_Format(t *testing.T) {
+	var expectedFormat = "%Y-%m-%dT%H:%M"
+	var testValue = fmt.Sprintf("value/{timestamp:%s}", expectedFormat)
+	var now = time.Now()
+
+	actual := StampString(testValue, now)
+	assert.True(t, strings.HasPrefix(actual, "value/"))
+	timeSuffix, err := strftime.New(expectedFormat)
+	assert.NoError(t, err)
+	assert.True(t, strings.HasSuffix(actual, timeSuffix.FormatString(now)))
+}
+
+func TestStampString_Invalid(t *testing.T) {
+	var testValue = "value/{timestamp:"
+
+	assert.Equal(t, testValue, StampString(testValue, time.Now()))
+}
+
+func TestStampString_NoStamp(t *testing.T) {
+	var testValue = "value"
+
+	assert.Equal(t, testValue, StampString(testValue, time.Now()))
 }

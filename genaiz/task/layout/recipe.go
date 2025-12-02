@@ -4,7 +4,6 @@ import (
 	"maps"
 	"os"
 
-	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/recipe"
 	"genaiz.com/genaiz/task"
@@ -49,16 +48,17 @@ func handleLayoutRecipeContext(registry recipe.Registry, params *RecipeParams, s
 	state.Logger.Debugf("Finding a recipe for [%s] of type [%s]", params.Name, params.Type)
 
 	if layoutRecipe, err = registry.FindRecipe(params.Name, params.Type); layoutRecipe != nil {
+		var fd os.FileInfo
+
 		state.Output = layoutRecipe.GetName()
 
 		for _, artifact := range layoutRecipe.GetArtifacts() {
-			var fd *os.File
+			fd, err = os.Stat(artifact.Name)
 
-			if fd, err = os.OpenFile(artifact.Name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0640); fd != nil {
-				filez.CloseSilently(fd)
+			if fd != nil {
+				state.Logger.Warningf("Artifact [%s] already exists and will be overwritten", artifact.Name)
 			} else {
-				state.Logger.Errorf("Can not write file [%s] to destination [%s]: %s", artifact.Name, params.Destination, err)
-				break
+				err = nil
 			}
 		}
 	}
@@ -84,11 +84,13 @@ func handleLayoutRecipeCreate(registry recipe.Registry, params *RecipeParams, st
 			state.Logger.Debugf("Writing recipe [%d] files", len(layoutRecipe.GetArtifacts())-1)
 
 			if err = layoutRecipe.WriteFiles(currentFolder, params.InstanceName, allVariables); err == nil {
-				state.Logger.Debugf("Completing recipe instance [%s]", params.InstanceName)
-				if err = layoutRecipe.Finish(currentFolder, params.InstanceName, allVariables); err == nil {
-					var initState = NewInitState(state)
+				var initState = NewInitState(state)
 
-					initState.AddParams(recipeParams)
+				initState.AddParams(recipeParams)
+				initState.InitVars(allVariables)
+				state.Logger.Debugf("Completing recipe instance [%s]", params.InstanceName)
+
+				if err = layoutRecipe.Finish(currentFolder, params.InstanceName, allVariables); err == nil {
 					state.Output = ""
 					state.Reportf("Constructed recipe %s", layoutRecipe.GetName())
 				} else {
