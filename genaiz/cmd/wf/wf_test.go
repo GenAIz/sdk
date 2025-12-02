@@ -9,7 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/mock"
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -17,7 +20,9 @@ import (
 func TestBaseExecutor_makeConfigParams(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = newOptionConfigType("test")
+	var testOption = cli.Options.Configs.Type().
+		WithKeys(&schema.Keys{Doc: "test"}).
+		BuildStringOption()
 	var testExecutor = &BaseExecutor{
 		Ledger: testLedger,
 	}
@@ -36,7 +41,9 @@ func TestBaseExecutor_makeConfigParams_FileInvalidError(t *testing.T) {
 	var testFile = filepath.Join(testDir, "Genaiz.txt")
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = newOptionConfigType("test")
+	var testOption = cli.Options.Configs.Type().
+		WithKeys(&schema.Keys{Doc: "test"}).
+		BuildStringOption()
 	var testExecutor = &BaseExecutor{Ledger: testLedger}
 	var actual *shared.ConfigParams
 	var fd *os.File
@@ -58,7 +65,9 @@ func TestBaseExecutor_makeConfigParams_TypeNone(t *testing.T) {
 	var testFile = filepath.Join(testDir, "Genaiz.yaml")
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = newOptionConfigType("test")
+	var testOption = cli.Options.Configs.Type().
+		WithKeys(&schema.Keys{Doc: "test"}).
+		BuildStringOption()
 	var testExecutor = &BaseExecutor{Ledger: testLedger}
 	var actual *shared.ConfigParams
 	var fd *os.File
@@ -79,7 +88,9 @@ func TestBaseExecutor_makeConfigParams_TypeNone(t *testing.T) {
 func TestBaseExecutor_makeConfigParams_TypeNoneError(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = newOptionConfigType("test")
+	var testOption = cli.Options.Configs.Type().
+		WithKeys(&schema.Keys{Doc: "test"}).
+		BuildStringOption()
 	var testExecutor = &BaseExecutor{Ledger: testLedger}
 	var actual *shared.ConfigParams
 	var err error
@@ -87,6 +98,50 @@ func TestBaseExecutor_makeConfigParams_TypeNoneError(t *testing.T) {
 	actual, err = testExecutor.makeConfigParams(testOption)
 	assert.Error(t, err)
 	assert.Empty(t, actual)
+}
+
+func TestCli_WorkingConfigType(t *testing.T) {
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = &Cli{}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(filepath.Join(testDir, testLedger.ConfigName+".toml")); err == nil {
+		var testFunc = testCli.WorkingConfigType()
+
+		defer filez.CloseSilently(fd)
+		testLedger.WorkDir = testDir
+		assert.Equal(t, shared.ConfigTypeToml, testFunc(testLedger))
+		return
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestCli_WorkingConfigType_SyntaxError(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = &Cli{}
+	var fd *os.File
+	var err error
+
+	defer patch.Unpatch()
+
+	if fd, err = os.Create(filepath.Join(testDir, testLedger.ConfigName+".json")); err == nil {
+		var testFunc = testCli.WorkingConfigType()
+
+		defer filez.CloseSilently(fd)
+		testLedger.WorkDir = testDir
+		assert.Nil(t, testFunc(testLedger))
+		assert.EqualValues(t, 1, patch.CalledWith)
+		return
+	}
+
+	assert.NoError(t, err)
 }
 
 func TestNewWf(t *testing.T) {

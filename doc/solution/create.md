@@ -1,6 +1,6 @@
 ## Solution Create
 
-```bash
+```
 genaiz sn create [FOLDER] --config-type=TYPE --handle=HANDLE --oem=OEM \
   --description=DESC --name=NAME --version=VERSION \
   --workflow-desc=DESC --workflow-handle=HANDLE --workflow-name=NAME

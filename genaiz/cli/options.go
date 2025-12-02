@@ -455,8 +455,8 @@ var (
 			},
 			Handle: func() OptionBuilder {
 				return NewOptionBuilder().
-					WithParam("sf-handle").
-					WithUsage("handle of the node smart function").
+					WithParam("handle").
+					WithUsage("handle of the workflow").
 					WithValidator(config.Validation.Handle)
 			},
 			Name: func() OptionBuilder {
@@ -465,24 +465,36 @@ var (
 					WithUsage("name of the workflow node").
 					WithValidator(config.Validation.Name)
 			},
-			Oem: func() OptionBuilder {
+			NoLinkValidation: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("no-validation").
+					WithUsage("instructs the command to skip validation of link handles and ports").
+					WithDefaultValue("false")
+			},
+			SfHandle: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("sf-handle").
+					WithUsage("handle of the node smart function").
+					WithValidator(config.Validation.Handle)
+			},
+			SfOem: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("sf-oem").
 					WithUsage("oem of the node smart function").
 					WithValidator(config.Validation.Oem)
 			},
-			Sequence: func() OptionBuilder {
+			SfSequence: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("sf-seq").
 					WithUsage("sequence number of the node smart function").
 					WithValidator(config.Validation.VersionNumber)
 			},
-			Serialized: func() OptionBuilder {
+			SfSerialized: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("sf").
 					WithUsage("serialized string of the smart function, the individual options have precedence")
 			},
-			Version: func() OptionBuilder {
+			SfVersion: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("sf-version").
 					WithUsage("version of the node smart function").
@@ -593,13 +605,15 @@ type solutionOptions struct {
 }
 
 type workflowOptions struct {
-	Description func() OptionBuilder
-	Handle      func() OptionBuilder
-	Name        func() OptionBuilder
-	Oem         func() OptionBuilder
-	Sequence    func() OptionBuilder
-	Serialized  func() OptionBuilder
-	Version     func() OptionBuilder
+	Description      func() OptionBuilder
+	Handle           func() OptionBuilder
+	Name             func() OptionBuilder
+	NoLinkValidation func() OptionBuilder
+	SfHandle         func() OptionBuilder
+	SfOem            func() OptionBuilder
+	SfSequence       func() OptionBuilder
+	SfSerialized     func() OptionBuilder
+	SfVersion        func() OptionBuilder
 }
 
 type OptionBuilder interface {

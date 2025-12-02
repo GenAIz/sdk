@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task/shared"
@@ -24,7 +25,7 @@ func TestDeleteExecutor_Display(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewDeleteOptions()
+	var testOptions = NewDeleteOptions(NewWfCli(nil, nil, nil))
 	var testExecutor = &DeleteExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
@@ -50,7 +51,7 @@ func TestDeleteExecutor_Pretend(t *testing.T) {
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 		},
-		DeleteOptions: NewDeleteOptions(),
+		DeleteOptions: NewDeleteOptions(NewWfCli(nil, nil, nil)),
 
 		workflowArg: "test",
 
@@ -71,7 +72,7 @@ func TestDeleteExecutor_Proceed(t *testing.T) {
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 		},
-		DeleteOptions: NewDeleteOptions(),
+		DeleteOptions: NewDeleteOptions(NewWfCli(nil, nil, nil)),
 
 		workflowTaskFactory: newWorkflowTaskCompleteStub(&calledWorkflow),
 	}
@@ -80,6 +81,28 @@ func TestDeleteExecutor_Proceed(t *testing.T) {
 	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Proceed()
 	assert.True(t, calledWorkflow)
+}
+
+func TestDeleteExecutor_Proceed_InvalidConfigType(t *testing.T) {
+	var calledWorkflow bool
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &DeleteExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		DeleteOptions: NewDeleteOptions(NewWfCli(nil, nil, nil)),
+
+		workflowTaskFactory: newWorkflowTaskCompleteStub(&calledWorkflow),
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.optionConfigType.Key, "invalid")
+	testLedger.Logger = &logrus.Logger{}
+	testExecutor.Proceed()
+	assert.False(t, calledWorkflow)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestNewDelete(t *testing.T) {

@@ -735,8 +735,27 @@ func Test_OptionsWorkflowName(t *testing.T) {
 	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
 }
 
-func Test_OptionsWorkflowOem(t *testing.T) {
-	var testOption = Options.Workflows.Oem().BuildStringOption()
+func Test_OptionsWorkflowNoLinkValidation(t *testing.T) {
+	var testOption = Options.Workflows.NoLinkValidation().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsWorkflowSFHandle(t *testing.T) {
+	var testOption = Options.Workflows.SfHandle().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, testOption.Validator("--not-valid--"))
+	assert.True(t, testOption.Validator("function-37"))
+}
+
+func Test_OptionsWorkflowSfOem(t *testing.T) {
+	var testOption = Options.Workflows.SfOem().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
 	assert.NotEmpty(t, testOption.Param)
@@ -745,8 +764,8 @@ func Test_OptionsWorkflowOem(t *testing.T) {
 	assert.False(t, testOption.Validator("com..genaiz"))
 }
 
-func Test_OptionsWorkflowSequence(t *testing.T) {
-	var testOption = Options.Workflows.Sequence().BuildStringOption()
+func Test_OptionsWorkflowSfSequence(t *testing.T) {
+	var testOption = Options.Workflows.SfSequence().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
 	assert.NotEmpty(t, testOption.Param)
@@ -755,16 +774,16 @@ func Test_OptionsWorkflowSequence(t *testing.T) {
 	assert.False(t, testOption.Validator("notASequence"))
 }
 
-func Test_OptionsWorkflowSerialized(t *testing.T) {
-	var testOption = Options.Workflows.Serialized().BuildStringOption()
+func Test_OptionsWorkflowSfSerialized(t *testing.T) {
+	var testOption = Options.Workflows.SfSerialized().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
 }
 
-func Test_OptionsWorkflowVersion(t *testing.T) {
-	var testOption = Options.Workflows.Version().BuildStringOption()
+func Test_OptionsWorkflowSfVersion(t *testing.T) {
+	var testOption = Options.Workflows.SfVersion().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
 	assert.NotEmpty(t, testOption.Param)

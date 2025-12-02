@@ -363,8 +363,12 @@ func handleWorkflowDeleteConfig(writer WorkflowWriter, params *WorkflowParams, s
 			}
 		}
 
-		return writer.WithWorkflows(updated).
-			Write(state.Output)
+		if err := writer.WithWorkflows(updated).Write(state.Output); err == nil {
+			state.Report(fmt.Sprintf("Removed workflow %s under folder %s", params.Handle, state.Output))
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	return errorWorkflowFileInvalid

@@ -29,10 +29,12 @@ var (
 	PropSpecTypes = enumz.NewEnumType(PropSpecTypeBoolean, PropSpecTypeDouble,
 		PropSpecTypeEnum, PropSpecTypeInt, PropSpecTypeString)
 
-	ErrorPropIllegalBool   = errors.New("illegal bool value")
-	ErrorPropIllegalDouble = errors.New("illegal double value")
-	ErrorPropIllegalInt    = errors.New("illegal int value")
-	ErrorPropIllegalEnum   = errors.New("illegal enum value")
+	ErrorDataPortNotFound     = errors.New("data port not found")
+	ErrorPropIllegalBool      = errors.New("illegal bool value")
+	ErrorPropIllegalDouble    = errors.New("illegal double value")
+	ErrorPropIllegalInt       = errors.New("illegal int value")
+	ErrorPropIllegalEnum      = errors.New("illegal enum value")
+	ErrorWorkflowNodeNotFound = errors.New("workflow node not found")
 )
 
 type PropSpecType = string
@@ -127,6 +129,21 @@ type Function struct {
 	Version     string
 }
 
+func (f Function) FindDataPortByHandle(handle string) *DataPort {
+	var ports []DataPort
+
+	ports = append(ports, f.InputPorts...)
+	ports = append(ports, f.OutputPorts...)
+
+	for _, port := range ports {
+		if strings.EqualFold(port.Handle, handle) {
+			return &port
+		}
+	}
+
+	return nil
+}
+
 func (f Function) asIdentity() *shared.Identity {
 	return &shared.Identity{
 		Id:      strconv.Itoa(f.Id),
@@ -150,6 +167,26 @@ func (f Function) toModel() *functionModel {
 		Type:        f.Type,
 		Version:     f.Version,
 	}
+}
+
+func MapFunction(fn any) *Function {
+	if fnMap, ok := fn.(map[string]interface{}); ok {
+		var result = &Function{}
+
+		result.Handle = cast.ToString(fnMap["handle"])
+		result.Name = cast.ToString(fnMap["name"])
+		result.Oem = cast.ToString(fnMap["oem"])
+		result.Type = cast.ToString(fnMap["type"])
+		result.PropSpecs = ListPropSpecs(fnMap["propspecs"])
+		result.OutputPorts = ListDataPorts(fnMap["outputports"])
+		result.InputPorts = ListDataPorts(fnMap["inputports"])
+		result.Description = cast.ToString(fnMap["description"])
+		result.Version = cast.ToString(fnMap["version"])
+		result.Arches = cast.ToStringSlice(fnMap["arches"])
+		return result
+	}
+
+	return nil
 }
 
 type functionFlags struct {
@@ -365,7 +402,7 @@ func (wf Workflow) FindNodeHandleBySf(oem, handle, version string) (string, erro
 	})
 
 	if nodeIndex < 0 {
-		return "", errors.New("node not found")
+		return "", ErrorWorkflowNodeNotFound
 	}
 
 	return wf.Nodes[nodeIndex].Handle, nil

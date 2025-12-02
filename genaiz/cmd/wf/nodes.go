@@ -381,23 +381,23 @@ func NewAddNodesOptions() *NodesOptions {
 				return ledger.GetString(nameOption)
 			}).BuildStringOption(),
 		optionName: nameOption,
-		optionSfHandle: cli.Options.Workflows.Handle().
+		optionSfHandle: cli.Options.Workflows.SfHandle().
 			Optional(true).
 			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Handle).
 			WithDefaultGetter(serializedOptions.GetHandle).
 			BuildStringOption(),
-		optionSfOem: cli.Options.Workflows.Oem().
+		optionSfOem: cli.Options.Workflows.SfOem().
 			Optional(true).
 			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Oem).
 			WithDefaultGetter(serializedOptions.GetOem).
 			BuildStringOption(),
-		optionSfSeq: cli.Options.Workflows.Sequence().
+		optionSfSeq: cli.Options.Workflows.SfSequence().
 			Optional(true).
 			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Sequence).
 			WithDefaultGetter(serializedOptions.GetSeq).
 			BuildStringOption(),
 		optionSfSerialized: serializedOptions.optionSerialized,
-		optionSfVersion: cli.Options.Workflows.Version().
+		optionSfVersion: cli.Options.Workflows.SfVersion().
 			Optional(true).
 			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Version).
 			WithDefaultGetter(serializedOptions.GetVersion).
@@ -407,7 +407,7 @@ func NewAddNodesOptions() *NodesOptions {
 
 func NewSerializedOptions() *SerializedOptions {
 	var result = &SerializedOptions{
-		optionSerialized: cli.Options.Workflows.Serialized().
+		optionSerialized: cli.Options.Workflows.SfSerialized().
 			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Serialized).
 			BuildStringOption(),
 		optionDeserialized: &config.Option{
