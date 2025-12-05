@@ -1,10 +1,21 @@
 // Package schema provides schematic elements for validating Genaiz.yaml files. It also provides a central structure for all configuration key constants used by the genaiz toolkits.
 package schema
 
-var (
-	Genaiz = &Document{}
+import (
+	_ "embed"
+	"errors"
+	"strings"
+
+	"github.com/spf13/viper"
 )
 
+var (
+	Genaiz = &Document{}
+	//go:embed genaiz.json
+	GenaizSchema []byte
+)
+
+// Document is the registry containing all Keys used by the genaiz commands
 type Document struct {
 	Account struct {
 		Login struct {
@@ -19,14 +30,14 @@ type Document struct {
 	}
 	Function struct {
 		Build struct {
-			Context Keys
-			File    Keys
-			Label   Keys
-			Legacy  Keys
-			NoCache Keys
-			Prune   Keys
-			Tag     Keys
-			Version Keys
+			Context       Keys
+			File          Keys
+			Label         Keys
+			LegacyBuilder Keys
+			NoCache       Keys
+			Prune         Keys
+			Tag           Keys
+			Version       Keys
 		}
 		Create struct {
 			Arches       Keys
@@ -208,149 +219,233 @@ type Document struct {
 	}
 }
 
+// Keys describe a structure of string used to refer to a specific option or value read by the genaiz commands
 type Keys struct {
-	Doc string
-	Env string
+	Doc        string   // Doc is the key a user should expect to see if the value is specified under a structured document
+	Env        string   // Env is the key a user could use to specify the value under the environment of execution
+	Pseudonyms []string // Pseudonyms is a list of alternate keys, which may refer to Doc in a structured document. Pseudonyms can be used to support key migrations between versions
+}
+
+// GetObject will look for a value in the provided viper.Viper registry using the Keys' Doc and Pseudonyms values.
+func (k Keys) GetObject(viper *viper.Viper) any {
+	var result any
+
+	if result = viper.Get(k.Doc); result == nil {
+		for _, pseudo := range k.Pseudonyms {
+			if result = viper.Get(pseudo); result != nil {
+				break
+			}
+		}
+	}
+
+	return result
+}
+
+// GetString will look for a string value in the provided viper.Viper registry using the Keys' Doc and Pseudonyms values. If no value is found it returns the provided defaultValue list, merged.
+func (k Keys) GetString(viper *viper.Viper, defaultValue ...string) string {
+	var result string
+
+	if result = viper.GetString(k.Doc); result == "" {
+		for _, pseudo := range k.Pseudonyms {
+			if result = viper.GetString(pseudo); result != "" {
+				return result
+			}
+		}
+	} else {
+		return result
+	}
+
+	return strings.Join(defaultValue, "")
+}
+
+func (k Keys) Unmarshall(viper *viper.Viper, ref any) error {
+	var value any
+
+	if value = viper.Get(k.Doc); value == nil {
+		for _, pseudo := range k.Pseudonyms {
+			if value = viper.Get(pseudo); value != nil {
+				return viper.UnmarshalKey(pseudo, ref)
+			}
+		}
+	} else {
+		return viper.UnmarshalKey(k.Doc, &ref)
+	}
+
+	return errors.New("not found")
+}
+
+// Normalize is a utility method used to migrate configurations using pseudonym prefixes to long key formats
+func Normalize(vp *viper.Viper) *viper.Viper {
+	var result = viper.New()
+	var merging = make(map[string]any)
+
+	for _, key := range vp.AllKeys() {
+		switch strings.ToLower(key)[0:3] {
+		case "ac.":
+			merging["account"+key[2:]] = vp.Get(key)
+			break
+		case "sf.":
+			merging["function"+key[2:]] = vp.Get(key)
+			break
+		case "sn.":
+			merging["solution"+key[2:]] = vp.Get(key)
+			break
+		case "wf.":
+			merging["workflow"+key[2:]] = vp.Get(key)
+			break
+		default:
+			result.Set(key, vp.Get(key))
+		}
+	}
+
+	for k, v := range merging {
+		if result.Get(k) == nil {
+			result.Set(k, v)
+		}
+	}
+
+	return result
 }
 
 func init() {
 	Genaiz.Account.Login.Password = newKeys("p", "GENAIZ_PASSWORD")
-	Genaiz.Account.Login.Refresh = newKeys("Account.Login.Refresh", "AC_LOGIN_REFRESH")
-	Genaiz.Account.Login.Username = newKeys("Account.Login.Username", "GENAIZ_USERNAME")
-	Genaiz.Account.Logout.Host = newKeys("Account.Logout.Host", "AC_LOGOUT_HOST")
-	Genaiz.Account.Logout.Username = newKeys("Account.Logout.Username", "GENAIZ_USERNAME")
-	Genaiz.Function.Build.Context = newKeys("Sf.Build.Context", "SF_BUILD_CONTEXT")
-	Genaiz.Function.Build.File = newKeys("Sf.Build.File", "SF_BUILD_FILE")
-	Genaiz.Function.Build.Label = newKeys("Sf.Build.Label", "SF_BUILD_LABEL")
-	Genaiz.Function.Build.Legacy = newKeys("Sf.Build.Legacy", "SF_BUILD_LEGACY")
-	Genaiz.Function.Build.NoCache = newKeys("Sf.Build.NoCache", "SF_BUILD_NOCACHE")
-	Genaiz.Function.Build.Prune = newKeys("Sf.Build.Prune", "SF_BUILD_PRUNE")
-	Genaiz.Function.Build.Tag = newKeys("Sf.Build.Tag", "SF_BUILD_TAG")
-	Genaiz.Function.Build.Version = newKeys("Sf.Build.Version", "SF_BUILD_VERSION")
-	Genaiz.Function.Create.Arches = newKeys("Sf.Create.Arches", "SF_CREATE_ARCHES")
-	Genaiz.Function.Create.ConfigType = newKeys("Sf.Create.ConfigType", "SF_CREATE_CONFIG_TYPE")
-	Genaiz.Function.Create.Handle = newKeys("Sf.Create.Handle", "SF_CREATE_HANDLE")
-	Genaiz.Function.Create.MountInput = newKeys("Sf.Create.Input", "SF_CREATE_MOUNT_INPUT")
-	Genaiz.Function.Create.MountOutput = newKeys("Sf.Create.Output", "SF_CREATE_MOUNT_OUTPUT")
-	Genaiz.Function.Create.Name = newKeys("Sf.Create.Name", "SF_CREATE_NAME")
-	Genaiz.Function.Create.Oem = newKeys("Sf.Create.Oem", "SF_CREATE_OEM")
-	Genaiz.Function.Create.Recipe = newKeys("Sf.Create.Recipe", "SF_CREATE_RECIPE")
-	Genaiz.Function.Create.SolutionPath = newKeys("Sf.Create.SolutionPath", "SF_CREATE_SN_PATH")
-	Genaiz.Function.Create.Type = newKeys("Sf.Create.Type", "SF_CREATE_TYPE")
-	Genaiz.Function.Create.Version = newKeys("Sf.Create.Version", "SF_CREATE_VERSION")
-	Genaiz.Function.Env.Context = newKeys("Sf.Env.Context", "SF_ENV_CONTEXT")
-	Genaiz.Function.Env.File = newKeys("Sf.Env.File", "SF_ENV_FILE")
-	Genaiz.Function.Init.Arches = newKeys("Sf.Init.Arches", "SF_INIT_ARCHES")
-	Genaiz.Function.Init.ConfigType = newKeys("Sf.Init.ConfigType", "SF_INIT_CONFIG_TYPE")
-	Genaiz.Function.Init.Handle = newKeys("Sf.Init.Handle", "SF_INIT_HANDLE")
-	Genaiz.Function.Init.MountInput = newKeys("Sf.Init.Input", "SF_INIT_MOUNT_INPUT")
-	Genaiz.Function.Init.MountOutput = newKeys("Sf.Init.Output", "SF_INIT_MOUNT_OUTPUT")
-	Genaiz.Function.Init.Name = newKeys("Sf.Init.Name", "SF_INIT_NAME")
-	Genaiz.Function.Init.Oem = newKeys("Sf.Init.Oem", "SF_INIT_OEM")
-	Genaiz.Function.Init.SolutionPath = newKeys("SF.Init.SolutionPath", "SF_INIT_SN_PATH")
-	Genaiz.Function.Init.Type = newKeys("Sf.Init.Type", "SF_INIT_TYPE")
-	Genaiz.Function.Init.Version = newKeys("Sf.Init.Version", "SF_INIT_VERSION")
-	Genaiz.Function.Publish.Arches = newKeys("Sf.Publish.Arches", "SF_PUBLISH_ARCHES")
-	Genaiz.Function.Publish.Extras = newKeys("Sf.Publish.Extras", "SF_PUBLISH_EXTRAS")
-	Genaiz.Function.Publish.Description = newKeys("Sf.Publish.Description", "SF_PUBLISH_DESCRIPTION")
-	Genaiz.Function.Publish.Handle = newKeys("Sf.Publish.Handle", "SF_PUBLISH_HANDLE")
-	Genaiz.Function.Publish.Internal = newKeys("Sf.Publish", "")
-	Genaiz.Function.Publish.InputPorts = newKeys("Sf.Publish.InputPorts", "")
-	Genaiz.Function.Publish.Name = newKeys("Sf.Publish.Name", "SF_PUBLISH_NAME")
-	Genaiz.Function.Publish.NoUpdate = newKeys("Sf.Publish.NoUpdate", "SF_PUBLISH_NO_UPDATE")
-	Genaiz.Function.Publish.Oem = newKeys("Sf.Publish.Oem", "SF_PUBLISH_OEM")
-	Genaiz.Function.Publish.OutputPorts = newKeys("Sf.Publish.OutputPorts", "")
-	Genaiz.Function.Publish.PropSpecs = newKeys("Sf.Publish.PropSpecs", "")
-	Genaiz.Function.Publish.Rebuild = newKeys("Sf.Publish.Rebuild", "SF_PUBLISH_REBUILD")
-	Genaiz.Function.Publish.Type = newKeys("Sf.Publish.Type", "SF_PUBLISH_TYPE")
-	Genaiz.Function.Publish.Version = newKeys("Sf.Publish.Version", "SF_PUBLISH_VERSION")
-	Genaiz.Function.Publish.DataPortAdd.Input.Desc = newKeys("Sf.Publish.DataPortAdd.Input.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC")
-	Genaiz.Function.Publish.DataPortAdd.Input.Name = newKeys("Sf.Publish.DataPortAdd.Input.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME")
-	Genaiz.Function.Publish.DataPortAdd.Output.Desc = newKeys("Sf.Publish.DataPortAdd.Output.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC")
-	Genaiz.Function.Publish.DataPortAdd.Output.Name = newKeys("Sf.Publish.DataPortAdd.Output.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME")
-	Genaiz.Function.Publish.PropSpecAdd.DefaultValue = newKeys("Sf.Publish.PropSpecAdd.DefaultValue", "SF_PUBLISH_PROP_SPEC_ADD_DEFAULT_VALUE")
-	Genaiz.Function.Publish.PropSpecAdd.Description = newKeys("Sf.Publish.PropSpecAdd.Description", "SF_PUBLISH_PROP_SPEC_ADD_DESCRIPTION")
-	Genaiz.Function.Publish.PropSpecAdd.EnumValue = newKeys("Sf.Publish.PropSpecAdd.EnumValue", "SF_PUBLISH_PROP_SPEC_ADD_ENUM_VALUE")
-	Genaiz.Function.Publish.PropSpecAdd.Name = newKeys("Sf.Publish.PropSpecAdd.Name", "SF_PUBLISH_PROP_SPEC_ADD_NAME")
-	Genaiz.Function.Publish.PropSpecAdd.Type = newKeys("Sf.Publish.PropSpecAdd.Type", "SF_PUBLISH_PROP_SPEC_ADD_TYPE")
-	Genaiz.Function.Publish.PropSpecEdit.DefaultValue = newKeys("Sf.Publish.PropSpecEdit.DefaultValue", "SF_PUBLISH_PROP_SPEC_EDIT_DEFAULT_VALUE")
-	Genaiz.Function.Publish.PropSpecEdit.Description = newKeys("Sf.Publish.PropSpecEdit.Description", "SF_PUBLISH_PROP_SPEC_EDIT_DESCRIPTION")
-	Genaiz.Function.Publish.PropSpecEdit.EnumAddValue = newKeys("Sf.Publish.PropSpecEdit.EnumAddValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_ADD_VALUE")
-	Genaiz.Function.Publish.PropSpecEdit.EnumRemoveValue = newKeys("Sf.Publish.PropSpecEdit.EnumRemoveValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_RM_VALUE")
-	Genaiz.Function.Publish.PropSpecEdit.EnumValue = newKeys("Sf.Publish.PropSpecEdit.EnumValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_VALUE")
-	Genaiz.Function.Publish.PropSpecEdit.Name = newKeys("Sf.Publish.PropSpecEdit.Name", "SF_PUBLISH_PROP_SPEC_EDIT_NAME")
-	Genaiz.Function.Run.EnvFile = newKeys("Sf.Run.EnvFile", "SF_RUN_ENV_FILE")
-	Genaiz.Function.Run.EnvVars = newKeys("Sf.Run.EnvVar", "SF_RUN_ENV_VAR")
-	Genaiz.Function.Run.Image = newKeys("Sf.Run.Image", "SF_RUN_IMAGE")
-	Genaiz.Function.Run.MountInput = newKeys("Sf.Run.Input", "SF_RUN_MOUNT_INPUT")
-	Genaiz.Function.Run.MountOutput = newKeys("Sf.Run.Output", "SF_RUN_MOUNT_OUTPUT")
-	Genaiz.Function.Run.MountLog = newKeys("Sf.Run.Log", "SF_RUN_MOUNT_LOG")
-	Genaiz.Function.Run.MountVar = newKeys("Sf.Run.Var", "SF_RUN_MOUNT_VAR")
-	Genaiz.Function.Run.Prefix = newKeys("Sf.Run.Prefix", "SF_RUN_CONTAINER_PREFIX")
-	Genaiz.Function.Start.EnvFile = newKeys("Sf.Start.EnvFile", "SF_RUN_ENV_FILE")
-	Genaiz.Function.Start.EnvVars = newKeys("Sf.Start.EnvVar", "SF_RUN_ENV_VAR")
-	Genaiz.Function.Start.Image = newKeys("Sf.Start.Image", "SF_RUN_IMAGE")
-	Genaiz.Function.Start.MountInput = newKeys("Sf.Start.Input", "SF_RUN_MOUNT_INPUT")
-	Genaiz.Function.Start.MountOutput = newKeys("Sf.Start.Output", "SF_RUN_MOUNT_OUTPUT")
-	Genaiz.Function.Start.MountLog = newKeys("Sf.Start.Log", "SF_RUN_MOUNT_LOG")
-	Genaiz.Function.Start.MountVar = newKeys("Sf.Start.Var", "SF_RUN_MOUNT_VAR")
-	Genaiz.Function.Start.Name = newKeys("Sf.Start.Name", "SF_RUN_CONTAINER_NAME")
-	Genaiz.Function.Start.Prefix = newKeys("Sf.Start.Prefix", "SF_RUN_CONTAINER_PREFIX")
-	Genaiz.Function.Start.Preserve = newKeys("Sf.Start.Preserve", "Sf_RUN_CONTAINER_PRESERVE")
-	Genaiz.Function.Start.Replace = newKeys("Sf.Start.Replace", "SF_RUN_REPLACE")
-	Genaiz.Function.Stop.Image = newKeys("Sf.Stop.Image", "SF_RUN_IMAGE")
-	Genaiz.Function.Stop.Name = newKeys("Sf.Stop.Name", "SF_RUN_CONTAINER_NAME")
-	Genaiz.Function.Stop.Prefix = newKeys("Sf.Stop.Prefix", "Sf_RUN_CONTAINER_PREFIX")
-	Genaiz.Function.Stop.Preserve = newKeys("Sf.Stop.Preserve", "Sf_RUN_CONTAINER_PRESERVE")
-	Genaiz.Function.Test.EnvFile = newKeys("Sf.Test.EnvFile", "SF_RUN_ENV_FILE")
-	Genaiz.Function.Test.EnvVars = newKeys("Sf.Test.EnvVar", "SF_RUN_ENV_VAR")
-	Genaiz.Function.Test.Image = newKeys("Sf.Test.Image", "SF_RUN_IMAGE")
-	Genaiz.Function.Test.MountInput = newKeys("Sf.Test.Input", "SF_RUN_MOUNT_INPUT")
-	Genaiz.Function.Test.MountOutput = newKeys("Sf.Test.Output", "SF_RUN_MOUNT_OUTPUT")
-	Genaiz.Function.Test.MountLog = newKeys("Sf.Test.Log", "SF_RUN_MOUNT_LOG")
-	Genaiz.Function.Test.MountVar = newKeys("Sf.Test.Var", "SF_RUN_MOUNT_VAR")
-	Genaiz.Function.Test.Prefix = newKeys("Sf.Test.Prefix", "SF_RUN_CONTAINER_PREFIX")
-	Genaiz.Solution.Create.ConfigType = newKeys("Solution.Create.ConfigType", "SN_CREATE_CONFIG_TYPE")
-	Genaiz.Solution.Create.Description = newKeys("Solution.Create.Description", "SN_CREATE_DESCRIPTION")
-	Genaiz.Solution.Create.Handle = newKeys("Solution.Create.Handle", "SN_CREATE_HANDLE")
-	Genaiz.Solution.Create.Name = newKeys("Solution.Create.Name", "SN_CREATE_NAME")
-	Genaiz.Solution.Create.Oem = newKeys("Solution.Create.Oem", "SN_CREATE_OEM")
-	Genaiz.Solution.Create.Version = newKeys("Solution.Create.Version", "SN_CREATE_VERSION")
-	Genaiz.Solution.Create.Workflow.Description = newKeys("Solution.Creation.Workflow.Description", "SN_CREATE_WORKFLOW_DESCRIPTION")
-	Genaiz.Solution.Create.Workflow.Handle = newKeys("Solution.Create.Workflow.Handle", "SN_CREATE_WORKFLOW_HANDLE")
-	Genaiz.Solution.Create.Workflow.Name = newKeys("Solution.Create.Workflow.Name", "SN_CREATE_WORKFLOW_NAME")
-	Genaiz.Solution.Log.Format = newKeys("Solution.Log.Format", "SN_LOG_FORMAT")
-	Genaiz.Solution.Log.Level = newKeys("Solution.Log.Level", "SN_LOG_LEVEL")
-	Genaiz.Solution.Publish.Broker = newKeys("Solution.Publish.Broker", "SN_PUBLISH_BROKER")
-	Genaiz.Solution.Publish.ConfigType = newKeys("Solution.Publish.ConfigType", "SN_PUBLISH_CONFIG_TYPE")
-	Genaiz.Solution.Publish.Description = newKeys("Solution.Publish.Description", "SN_PUBLISH_DESCRIPTION")
-	Genaiz.Solution.Publish.Handle = newKeys("Solution.Publish.Handle", "SN_PUBLISH_HANDLE")
-	Genaiz.Solution.Publish.Name = newKeys("Solution.Publish.Name", "SN_PUBLISH_NAME")
-	Genaiz.Solution.Publish.Oem = newKeys("Solution.Publish.Oem", "SN_PUBLISH_OEM")
-	Genaiz.Solution.Publish.Version = newKeys("Solution.Publish.Version", "SN_PUBLISH_VERSION")
-	Genaiz.Workflow.Create.ConfigType = newKeys("Workflow.Create.ConfigType", "WF_CREATE_CONFIG_TYPE")
-	Genaiz.Workflow.Create.Description = newKeys("Workflow.Create.Description", "WF_CREATE_DESCRIPTION")
-	Genaiz.Workflow.Create.Name = newKeys("Workflow.Create.Name", "WF_CREATE_NAME")
-	Genaiz.Workflow.Delete.ConfigType = newKeys("Workflow.Delete.ConfigType", "WF_DELETE_CONFIG_TYPE")
-	Genaiz.Workflow.Links.Add.ConfigType = newKeys("Workflow.Links.Add.ConfigType", "WF_LINKS_ADD_CONFIG_TYPE")
-	Genaiz.Workflow.Links.Add.NoValidation = newKeys("Workflow.Links.Add.NoValidation", "WF_LINKS_ADD_NO_VALIDATION")
-	Genaiz.Workflow.Links.Remove.ConfigType = newKeys("Workflow.Links.Remove.ConfigType", "WF_LINKS_RM_CONFIG_TYPE")
-	Genaiz.Workflow.Links.Remove.NoValidation = newKeys("Workflow.Links.Remove.NoValidation", "WF_LINKS_RM_NO_VALIDATION")
-	Genaiz.Workflow.Nodes.Add.ConfigType = newKeys("Workflow.Nodes.Add.ConfigType", "WF_NODES_ADD_CONFIG_TYPE")
-	Genaiz.Workflow.Nodes.Add.Description = newKeys("Workflow.Nodes.Add.Description", "WF_NODES_ADD_DESCRIPTION")
-	Genaiz.Workflow.Nodes.Add.Deserialized = newKeys("Workflow.Nodes.Add.Deserialized", "WF_NODES_ADD_DESERIALIZED")
-	Genaiz.Workflow.Nodes.Add.Handle = newKeys("Workflow.Nodes.Add.Handle", "WF_NODES_ADD_HANDLE")
-	Genaiz.Workflow.Nodes.Add.Name = newKeys("Workflow.Nodes.Add.Name", "WF_NODES_ADD_NAME")
-	Genaiz.Workflow.Nodes.Add.Oem = newKeys("Workflow.Nodes.Add.Oem", "WF_NODES_ADD_OEM")
-	Genaiz.Workflow.Nodes.Add.Sequence = newKeys("Workflow.Nodes.Add.Seq", "WF_NODES_ADD_SEQ")
-	Genaiz.Workflow.Nodes.Add.Serialized = newKeys("Workflow.Nodes.Add.Serialized", "WF_NODES_ADD_SERIALIZED")
-	Genaiz.Workflow.Nodes.Add.Version = newKeys("Workflow.Nodes.Add.Version", "WF_NODES_ADD_VERSION")
-	Genaiz.Workflow.Nodes.Remove.ConfigType = newKeys("Workflow.Nodes.Remove.ConfigType", "WF_NODES_RM_CONFIG_TYPE")
+	Genaiz.Account.Login.Refresh = newKeys("Account.Login.Refresh", "AC_LOGIN_REFRESH", "Ac.Login.Refresh")
+	Genaiz.Account.Login.Username = newKeys("Account.Login.Username", "GENAIZ_USERNAME", "Ac.Login.Username")
+	Genaiz.Account.Logout.Host = newKeys("Account.Logout.Host", "AC_LOGOUT_HOST", "Ac.Logout.Host")
+	Genaiz.Account.Logout.Username = newKeys("Account.Logout.Username", "GENAIZ_USERNAME", "Ac.Logout.Username")
+	Genaiz.Function.Build.Context = newKeys("Function.Build.Context", "SF_BUILD_CONTEXT", "Sf.Build.Context")
+	Genaiz.Function.Build.File = newKeys("Function.Build.File", "SF_BUILD_FILE", "Sf.Build.File")
+	Genaiz.Function.Build.Label = newKeys("Function.Build.Label", "SF_BUILD_LABEL", "Sf.Build.Label")
+	Genaiz.Function.Build.LegacyBuilder = newKeys("Function.Build.LegacyBuilder", "SF_BUILD_LEGACY", "Sf.Build.LegacyBuilder")
+	Genaiz.Function.Build.NoCache = newKeys("Function.Build.NoCache", "SF_BUILD_NOCACHE", "Sf.Build.NoCache")
+	Genaiz.Function.Build.Prune = newKeys("Function.Build.Prune", "SF_BUILD_PRUNE", "Sf.Build.Prune")
+	Genaiz.Function.Build.Tag = newKeys("Function.Build.Tag", "SF_BUILD_TAG", "Sf.Build.Tag")
+	Genaiz.Function.Build.Version = newKeys("Function.Build.Version", "SF_BUILD_VERSION", "Sf.Build.Version")
+	Genaiz.Function.Create.Arches = newKeys("Function.Create.Arches", "SF_CREATE_ARCHES", "Sf.Create.Arches")
+	Genaiz.Function.Create.ConfigType = newKeys("Function.Create.ConfigType", "SF_CREATE_CONFIG_TYPE", "Sf.Create.ConfigType")
+	Genaiz.Function.Create.Handle = newKeys("Function.Create.Handle", "SF_CREATE_HANDLE", "Sf.Create.Handle")
+	Genaiz.Function.Create.MountInput = newKeys("Function.Create.Input", "SF_CREATE_MOUNT_INPUT", "Sf.Create.Input")
+	Genaiz.Function.Create.MountOutput = newKeys("Function.Create.Output", "SF_CREATE_MOUNT_OUTPUT", "Sf.Create.Output")
+	Genaiz.Function.Create.Name = newKeys("Function.Create.Name", "SF_CREATE_NAME", "Sf.Create.Name")
+	Genaiz.Function.Create.Oem = newKeys("Function.Create.Oem", "SF_CREATE_OEM", "Sf.Create.Oem")
+	Genaiz.Function.Create.Recipe = newKeys("Function.Create.Recipe", "SF_CREATE_RECIPE", "Sf.Create.Recipe")
+	Genaiz.Function.Create.SolutionPath = newKeys("Function.Create.SolutionPath", "SF_CREATE_SN_PATH", "Sf.Create.SolutionPath")
+	Genaiz.Function.Create.Type = newKeys("Function.Create.Type", "SF_CREATE_TYPE", "Sf.Create.Type")
+	Genaiz.Function.Create.Version = newKeys("Function.Create.Version", "SF_CREATE_VERSION", "Sf.Create.Version")
+	Genaiz.Function.Env.Context = newKeys("Function.Env.Context", "SF_ENV_CONTEXT", "Sf.Env.Context")
+	Genaiz.Function.Env.File = newKeys("Function.Env.File", "SF_ENV_FILE", "Sf.Env.File")
+	Genaiz.Function.Init.Arches = newKeys("Function.Init.Arches", "SF_INIT_ARCHES", "Sf.Init.Arches")
+	Genaiz.Function.Init.ConfigType = newKeys("Function.Init.ConfigType", "SF_INIT_CONFIG_TYPE", "Sf.Init.ConfigType")
+	Genaiz.Function.Init.Handle = newKeys("Function.Init.Handle", "SF_INIT_HANDLE", "Sf.Init.Handle")
+	Genaiz.Function.Init.MountInput = newKeys("Function.Init.Input", "SF_INIT_MOUNT_INPUT", "Sf.Init.Input")
+	Genaiz.Function.Init.MountOutput = newKeys("Function.Init.Output", "SF_INIT_MOUNT_OUTPUT", "Sf.Init.Output")
+	Genaiz.Function.Init.Name = newKeys("Function.Init.Name", "SF_INIT_NAME", "Sf.Init.Name")
+	Genaiz.Function.Init.Oem = newKeys("Function.Init.Oem", "SF_INIT_OEM", "Sf.Init.Oem")
+	Genaiz.Function.Init.SolutionPath = newKeys("Function.Init.SolutionPath", "SF_INIT_SN_PATH", "Sf.Init.SolutionPath")
+	Genaiz.Function.Init.Type = newKeys("Function.Init.Type", "SF_INIT_TYPE", "Sf.Init.Type")
+	Genaiz.Function.Init.Version = newKeys("Function.Init.Version", "SF_INIT_VERSION", "Sf.Init.Version")
+	Genaiz.Function.Publish.Arches = newKeys("Function.Publish.Arches", "SF_PUBLISH_ARCHES", "Sf.Publish.Arches")
+	Genaiz.Function.Publish.Description = newKeys("Function.Publish.Description", "SF_PUBLISH_DESCRIPTION", "Sf.Publish.Description")
+	Genaiz.Function.Publish.Extras = newKeys("Function.Publish.Extras", "SF_PUBLISH_EXTRAS", "Sf.Publish.Extras")
+	Genaiz.Function.Publish.Handle = newKeys("Function.Publish.Handle", "SF_PUBLISH_HANDLE", "Sf.Publish.Handle")
+	Genaiz.Function.Publish.Internal = newKeys("Function.Publish", "", "Sf.Publish")
+	Genaiz.Function.Publish.InputPorts = newKeys("Function.Publish.InputPorts", "", "Sf.Publish.InputPorts")
+	Genaiz.Function.Publish.Name = newKeys("Function.Publish.Name", "SF_PUBLISH_NAME", "Sf.Publish.Name")
+	Genaiz.Function.Publish.NoUpdate = newKeys("Function.Publish.NoUpdate", "SF_PUBLISH_NO_UPDATE", "Sf.Publish.NoUpdate")
+	Genaiz.Function.Publish.Oem = newKeys("Function.Publish.Oem", "SF_PUBLISH_OEM", "Sf.Publish.Oem")
+	Genaiz.Function.Publish.OutputPorts = newKeys("Function.Publish.OutputPorts", "", "Sf.Publish.OutputPorts")
+	Genaiz.Function.Publish.PropSpecs = newKeys("Function.Publish.PropSpecs", "", "Sf.Publish.PropSpecs")
+	Genaiz.Function.Publish.Rebuild = newKeys("Function.Publish.Rebuild", "SF_PUBLISH_REBUILD", "Sf.Publish.Rebuild")
+	Genaiz.Function.Publish.Type = newKeys("Function.Publish.Type", "SF_PUBLISH_TYPE", "Sf.Publish.Type")
+	Genaiz.Function.Publish.Version = newKeys("Function.Publish.Version", "SF_PUBLISH_VERSION", "Sf.Publish.Version")
+	Genaiz.Function.Publish.DataPortAdd.Input.Desc = newKeys("Function.Publish.DataPortAdd.Input.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC", "Sf.Publish.DataPortAdd.Input.Desc")
+	Genaiz.Function.Publish.DataPortAdd.Input.Name = newKeys("Function.Publish.DataPortAdd.Input.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME", "Sf.Publish.DataPortAdd.Input.Name")
+	Genaiz.Function.Publish.DataPortAdd.Output.Desc = newKeys("Function.Publish.DataPortAdd.Output.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC", "Sf.Publish.DataPortAdd.Output.Desc")
+	Genaiz.Function.Publish.DataPortAdd.Output.Name = newKeys("Function.Publish.DataPortAdd.Output.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME", "Sf.Publish.DataPortAdd.Output.Name")
+	Genaiz.Function.Publish.PropSpecAdd.DefaultValue = newKeys("Function.Publish.PropSpecAdd.DefaultValue", "SF_PUBLISH_PROP_SPEC_ADD_DEFAULT_VALUE", "Sf.Publish.PropSpecAdd.DefaultValue")
+	Genaiz.Function.Publish.PropSpecAdd.Description = newKeys("Function.Publish.PropSpecAdd.Description", "SF_PUBLISH_PROP_SPEC_ADD_DESCRIPTION", "Sf.Publish.PropSpecAdd.Description")
+	Genaiz.Function.Publish.PropSpecAdd.EnumValue = newKeys("Function.Publish.PropSpecAdd.EnumValue", "SF_PUBLISH_PROP_SPEC_ADD_ENUM_VALUE", "Sf.Publish.PropSpecAdd.EnumValue")
+	Genaiz.Function.Publish.PropSpecAdd.Name = newKeys("Function.Publish.PropSpecAdd.Name", "SF_PUBLISH_PROP_SPEC_ADD_NAME", "Sf.Publish.PropSpecAdd.Name")
+	Genaiz.Function.Publish.PropSpecAdd.Type = newKeys("Function.Publish.PropSpecAdd.Type", "SF_PUBLISH_PROP_SPEC_ADD_TYPE", "Sf.Publish.PropSpecAdd.Type")
+	Genaiz.Function.Publish.PropSpecEdit.DefaultValue = newKeys("Function.Publish.PropSpecEdit.DefaultValue", "SF_PUBLISH_PROP_SPEC_EDIT_DEFAULT_VALUE", "Sf.Publish.PropSpecEdit.DefaultValue")
+	Genaiz.Function.Publish.PropSpecEdit.Description = newKeys("Function.Publish.PropSpecEdit.Description", "SF_PUBLISH_PROP_SPEC_EDIT_DESCRIPTION", "Sf.Publish.PropSpecEdit.Description")
+	Genaiz.Function.Publish.PropSpecEdit.EnumAddValue = newKeys("Function.Publish.PropSpecEdit.EnumAddValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_ADD_VALUE", "Sf.Publish.PropSpecEdit.EnumAddValue")
+	Genaiz.Function.Publish.PropSpecEdit.EnumRemoveValue = newKeys("Function.Publish.PropSpecEdit.EnumRemoveValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_RM_VALUE", "Sf.Publish.PropSpecEdit.EnumRemoveValue")
+	Genaiz.Function.Publish.PropSpecEdit.EnumValue = newKeys("Function.Publish.PropSpecEdit.EnumValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_VALUE", "Sf.Publish.PropSpecEdit.EnumValue")
+	Genaiz.Function.Publish.PropSpecEdit.Name = newKeys("Function.Publish.PropSpecEdit.Name", "SF_PUBLISH_PROP_SPEC_EDIT_NAME", "Sf.Publish.PropSpecEdit.Name")
+	Genaiz.Function.Run.EnvFile = newKeys("Function.Run.EnvFile", "SF_RUN_ENV_FILE", "Sf.Run.EnvFile")
+	Genaiz.Function.Run.EnvVars = newKeys("Function.Run.EnvVar", "SF_RUN_ENV_VAR", "Sf.Run.EnvVar")
+	Genaiz.Function.Run.Image = newKeys("Function.Run.Image", "SF_RUN_IMAGE", "Sf.Run.Image")
+	Genaiz.Function.Run.MountInput = newKeys("Function.Run.Input", "SF_RUN_MOUNT_INPUT", "Sf.Run.Input")
+	Genaiz.Function.Run.MountOutput = newKeys("Function.Run.Output", "SF_RUN_MOUNT_OUTPUT", "Sf.Run.Output")
+	Genaiz.Function.Run.MountLog = newKeys("Function.Run.Log", "SF_RUN_MOUNT_LOG", "Sf.Run.Log")
+	Genaiz.Function.Run.MountVar = newKeys("Function.Run.Var", "SF_RUN_MOUNT_VAR", "Sf.Run.Var")
+	Genaiz.Function.Run.Prefix = newKeys("Function.Run.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Run.Prefix")
+	Genaiz.Function.Start.EnvFile = newKeys("Function.Start.EnvFile", "SF_RUN_ENV_FILE", "Sf.Start.EnvFile")
+	Genaiz.Function.Start.EnvVars = newKeys("Function.Start.EnvVar", "SF_RUN_ENV_VAR", "Sf.Start.EnvVar")
+	Genaiz.Function.Start.Image = newKeys("Function.Start.Image", "SF_RUN_IMAGE", "Sf.Start.Image")
+	Genaiz.Function.Start.MountInput = newKeys("Function.Start.Input", "SF_RUN_MOUNT_INPUT", "Sf.Start.Input")
+	Genaiz.Function.Start.MountOutput = newKeys("Function.Start.Output", "SF_RUN_MOUNT_OUTPUT", "Sf.Start.Output")
+	Genaiz.Function.Start.MountLog = newKeys("Function.Start.Log", "SF_RUN_MOUNT_LOG", "Sf.Start.Log")
+	Genaiz.Function.Start.MountVar = newKeys("Function.Start.Var", "SF_RUN_MOUNT_VAR", "Sf.Start.Var")
+	Genaiz.Function.Start.Name = newKeys("Function.Start.Name", "SF_RUN_CONTAINER_NAME", "Sf.Start.Name")
+	Genaiz.Function.Start.Prefix = newKeys("Function.Start.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Start.Prefix")
+	Genaiz.Function.Start.Preserve = newKeys("Function.Start.Preserve", "Sf_RUN_CONTAINER_PRESERVE", "Sf.Start.Preserve")
+	Genaiz.Function.Start.Replace = newKeys("Function.Start.Replace", "SF_RUN_REPLACE", "Sf.Start.Replace")
+	Genaiz.Function.Stop.Image = newKeys("Function.Stop.Image", "SF_RUN_IMAGE", "Sf.Stop.Image")
+	Genaiz.Function.Stop.Name = newKeys("Function.Stop.Name", "SF_RUN_CONTAINER_NAME", "Sf.Stop.Name")
+	Genaiz.Function.Stop.Prefix = newKeys("Function.Stop.Prefix", "Sf_RUN_CONTAINER_PREFIX", "Sf.Stop.Prefix")
+	Genaiz.Function.Stop.Preserve = newKeys("Function.Stop.Preserve", "Sf_RUN_CONTAINER_PRESERVE", "Sf.Stop.Preserve")
+	Genaiz.Function.Test.EnvFile = newKeys("Function.Test.EnvFile", "SF_RUN_ENV_FILE", "Sf.Test.EnvFile")
+	Genaiz.Function.Test.EnvVars = newKeys("Function.Test.EnvVar", "SF_RUN_ENV_VAR", "Sf.Test.EnvVar")
+	Genaiz.Function.Test.Image = newKeys("Function.Test.Image", "SF_RUN_IMAGE", "Sf.Test.Image")
+	Genaiz.Function.Test.MountInput = newKeys("Function.Test.Input", "SF_RUN_MOUNT_INPUT", "Sf.Test.Input")
+	Genaiz.Function.Test.MountOutput = newKeys("Function.Test.Output", "SF_RUN_MOUNT_OUTPUT", "Sf.Test.Output")
+	Genaiz.Function.Test.MountLog = newKeys("Function.Test.Log", "SF_RUN_MOUNT_LOG", "Sf.Test.Log")
+	Genaiz.Function.Test.MountVar = newKeys("Function.Test.Var", "SF_RUN_MOUNT_VAR", "Sf.Test.Var")
+	Genaiz.Function.Test.Prefix = newKeys("Function.Test.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Test.Prefix")
+	Genaiz.Solution.Create.ConfigType = newKeys("Solution.Create.ConfigType", "SN_CREATE_CONFIG_TYPE", "Sn.Create.ConfigType")
+	Genaiz.Solution.Create.Description = newKeys("Solution.Create.Description", "SN_CREATE_DESCRIPTION", "Sn.Create.Description")
+	Genaiz.Solution.Create.Handle = newKeys("Solution.Create.Handle", "SN_CREATE_HANDLE", "Sn.Create.Handle")
+	Genaiz.Solution.Create.Name = newKeys("Solution.Create.Name", "SN_CREATE_NAME", "Sn.Create.Name")
+	Genaiz.Solution.Create.Oem = newKeys("Solution.Create.Oem", "SN_CREATE_OEM", "Sn.Create.Oem")
+	Genaiz.Solution.Create.Version = newKeys("Solution.Create.Version", "SN_CREATE_VERSION", "Sn.Create.Version")
+	Genaiz.Solution.Create.Workflow.Description = newKeys("Solution.Create.Workflow.Description", "SN_CREATE_WORKFLOW_DESCRIPTION", "Sn.Create.Workflow.Description")
+	Genaiz.Solution.Create.Workflow.Handle = newKeys("Solution.Create.Workflow.Handle", "SN_CREATE_WORKFLOW_HANDLE", "Sn.Create.Workflow.Handle")
+	Genaiz.Solution.Create.Workflow.Name = newKeys("Solution.Create.Workflow.Name", "SN_CREATE_WORKFLOW_NAME", "Sn.Create.Workflow.Name")
+	Genaiz.Solution.Log.Format = newKeys("Solution.Log.Format", "SN_LOG_FORMAT", "Sn.Log.Format")
+	Genaiz.Solution.Log.Level = newKeys("Solution.Log.Level", "SN_LOG_LEVEL", "Sn.Log.Level")
+	Genaiz.Solution.Publish.Broker = newKeys("Solution.Publish.Broker", "SN_PUBLISH_BROKER", "Sn.Publish.Broker")
+	Genaiz.Solution.Publish.ConfigType = newKeys("Solution.Publish.ConfigType", "SN_PUBLISH_CONFIG_TYPE", "Sn.Publish.ConfigType")
+	Genaiz.Solution.Publish.Description = newKeys("Solution.Publish.Description", "SN_PUBLISH_DESCRIPTION", "Sn.Publish.Description")
+	Genaiz.Solution.Publish.Handle = newKeys("Solution.Publish.Handle", "SN_PUBLISH_HANDLE", "Sn.Publish.Handle")
+	Genaiz.Solution.Publish.Name = newKeys("Solution.Publish.Name", "SN_PUBLISH_NAME", "Sn.Publish.Name")
+	Genaiz.Solution.Publish.Oem = newKeys("Solution.Publish.Oem", "SN_PUBLISH_OEM", "Sn.Publish.Oem")
+	Genaiz.Solution.Publish.Version = newKeys("Solution.Publish.Version", "SN_PUBLISH_VERSION", "Sn.Publish.Version")
+	Genaiz.Workflow.Create.ConfigType = newKeys("Workflow.Create.ConfigType", "WF_CREATE_CONFIG_TYPE", "Wf.Create.ConfigType")
+	Genaiz.Workflow.Create.Description = newKeys("Workflow.Create.Description", "WF_CREATE_DESCRIPTION", "Wf.Create.Description")
+	Genaiz.Workflow.Create.Name = newKeys("Workflow.Create.Name", "WF_CREATE_NAME", "Wf.Create.Name")
+	Genaiz.Workflow.Delete.ConfigType = newKeys("Workflow.Delete.ConfigType", "WF_DELETE_CONFIG_TYPE", "Wf.Delete.ConfigType")
+	Genaiz.Workflow.Links.Add.ConfigType = newKeys("Workflow.Links.Add.ConfigType", "WF_LINKS_ADD_CONFIG_TYPE", "Wf.Links.Add.ConfigType")
+	Genaiz.Workflow.Links.Add.NoValidation = newKeys("Workflow.Links.Add.NoValidation", "WF_LINKS_ADD_NO_VALIDATION", "Wf.Links.Add.NoValidation")
+	Genaiz.Workflow.Links.Remove.ConfigType = newKeys("Workflow.Links.Remove.ConfigType", "WF_LINKS_RM_CONFIG_TYPE", "Wf.Links.Remove.ConfigType")
+	Genaiz.Workflow.Links.Remove.NoValidation = newKeys("Workflow.Links.Remove.NoValidation", "WF_LINKS_RM_NO_VALIDATION", "Wf.Links.Remove.NoValidation")
+	Genaiz.Workflow.Nodes.Add.ConfigType = newKeys("Workflow.Nodes.Add.ConfigType", "WF_NODES_ADD_CONFIG_TYPE", "Wf.Nodes.Add.ConfigType")
+	Genaiz.Workflow.Nodes.Add.Description = newKeys("Workflow.Nodes.Add.Description", "WF_NODES_ADD_DESCRIPTION", "Wf.Nodes.Add.Description")
+	Genaiz.Workflow.Nodes.Add.Deserialized = newKeys("Workflow.Nodes.Add.Deserialized", "WF_NODES_ADD_DESERIALIZED", "Wf.Nodes.Add.Deserialized")
+	Genaiz.Workflow.Nodes.Add.Handle = newKeys("Workflow.Nodes.Add.Handle", "WF_NODES_ADD_HANDLE", "Wf.Nodes.Add.Handle")
+	Genaiz.Workflow.Nodes.Add.Name = newKeys("Workflow.Nodes.Add.Name", "WF_NODES_ADD_NAME", "Wf.Nodes.Add.Name")
+	Genaiz.Workflow.Nodes.Add.Oem = newKeys("Workflow.Nodes.Add.Oem", "WF_NODES_ADD_OEM", "Wf.Nodes.Add.Oem")
+	Genaiz.Workflow.Nodes.Add.Sequence = newKeys("Workflow.Nodes.Add.Seq", "WF_NODES_ADD_SEQ", "Wf.Nodes.Add.Seq")
+	Genaiz.Workflow.Nodes.Add.Serialized = newKeys("Workflow.Nodes.Add.Serialized", "WF_NODES_ADD_SERIALIZED", "Wf.Nodes.Add.Serialized")
+	Genaiz.Workflow.Nodes.Add.Version = newKeys("Workflow.Nodes.Add.Version", "WF_NODES_ADD_VERSION", "Wf.Nodes.Add.Version")
+	Genaiz.Workflow.Nodes.Remove.ConfigType = newKeys("Workflow.Nodes.Remove.ConfigType", "WF_NODES_RM_CONFIG_TYPE", "Wf.Nodes.Remove.ConfigType")
 }
 
-func newKeys(docKey, envKey string) Keys {
+func newKeys(docKey, envKey string, pseudonyms ...string) Keys {
 	return Keys{
-		Doc: docKey,
-		Env: envKey,
+		Doc:        docKey,
+		Env:        envKey,
+		Pseudonyms: pseudonyms,
 	}
 }

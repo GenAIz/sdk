@@ -83,8 +83,9 @@ Feature: function init on empty folder
   Scenario: init empty example
     Given the scenario "create empty example solution" ran with condition "service_completed_successfully"
     And the following parameters
-      | path              | handle            | oem            | version |
-      | my-empty-solution | my-empty-function | com.genaiz.dev | 0.1.1   |
+      | path              | handle            | oem            | version | type     |
+      | my-empty-solution | my-empty-function | com.genaiz.dev | 0.1.1   | function |
     And the working dir <handle> created
+    And a Dockerfile created under <handle>
     When I run the command "sf init"
-    Then I should have a function under "<handle>" named "<handle>" with oem "<oem>" and version "<version>"
+    Then I should have a function under "<handle>" named "<handle>", with handle "<handle>", oem "<oem>", version "<version>" and type "<type>"

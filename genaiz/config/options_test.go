@@ -131,6 +131,7 @@ func TestOption_equals(t *testing.T) {
 		Short:        "shot",
 		Usage:        "usage",
 		Env:          "env",
+		Pseudonyms:   []string{"previousKey"},
 		DefaultValue: "default",
 	}
 
@@ -144,6 +145,8 @@ func TestOption_equals(t *testing.T) {
 	testOption.Usage = expectedOption.Usage
 	assert.False(t, expectedOption.Equals(testOption))
 	testOption.Env = expectedOption.Env
+	assert.False(t, expectedOption.Equals(testOption))
+	testOption.Pseudonyms = expectedOption.Pseudonyms
 	assert.False(t, expectedOption.Equals(testOption))
 	testOption.DefaultValue = expectedOption.DefaultValue
 	assert.True(t, expectedOption.Equals(testOption))

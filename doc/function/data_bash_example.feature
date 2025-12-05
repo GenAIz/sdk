@@ -18,7 +18,7 @@ Feature: data ports for the bash example
       | path            | inputPath       | inputHandle | inputName | inputDescription |
       | my-bash-example | run/in/readPort | readPort    | Read Port | Read Port Test   |
     And the workdir changes to "<path>"
-    When I run the command "sf data input add <inputPath> --name='<inputName>' --name='<inputDescription>'"
+    When I run the command "sf data input add <inputPath> --name='<inputName>' --description='<inputDescription>'"
     Then I should have an input port under "<path>" with handle "<inputHandle>", named "<inputName>" with description "<inputDescription>"
     And I should have an empty folder under "<inputPath>"
 

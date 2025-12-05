@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,6 +39,14 @@ func TestArgsOptionalFolder_InvalidName(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), expectedType)
 	assert.Contains(t, err.Error(), expectedInvalid)
+}
+
+func TestArgsSingleFolder(t *testing.T) {
+	var expectedArg = "arg"
+	var expectedArg2 = "arg2"
+
+	assert.Equal(t, expectedArg, ArgsOptionalSingle([]string{expectedArg}))
+	assert.Equal(t, strings.Join([]string{expectedArg, expectedArg2}, " "), ArgsOptionalSingle([]string{expectedArg, expectedArg2}))
 }
 
 func TestArgsFolderValidator_MultiArgs(t *testing.T) {

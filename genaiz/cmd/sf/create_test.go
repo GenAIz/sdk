@@ -122,6 +122,7 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 
 func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 	var calledCreate, calledInit, calledRecipe bool
+	var actualParams layout.RecipeParams
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -136,7 +137,7 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 			calledInit = true
 		}),
 		createTaskFactory: newCreateTaskCompleteStub(&calledCreate),
-		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
+		recipeTaskFactory: newRecipeTaskCompleteStub(&actualParams),
 	}
 
 	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
@@ -150,10 +151,14 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 	assert.True(t, calledCreate)
 	assert.False(t, calledRecipe)
 	assert.True(t, calledInit)
+	assert.Empty(t, actualParams.Parameters["mount-out"])
+	assert.Empty(t, actualParams.Parameters["mount-log"])
+	assert.Empty(t, actualParams.Parameters["mount-var"])
 }
 
 func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
-	var calledCreate, calledInit, calledRecipe bool
+	var calledCreate, calledInit bool
+	var actualParams layout.RecipeParams
 	var testCli = NewSfCli(nil, nil, nil)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -168,7 +173,7 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 			calledInit = true
 		}),
 		createTaskFactory: newCreateTaskCompleteStub(&calledCreate),
-		recipeTaskFactory: newRecipeTaskCompleteStub(&calledRecipe),
+		recipeTaskFactory: newRecipeTaskCompleteStub(&actualParams),
 	}
 
 	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
@@ -178,11 +183,17 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
+	testViper.Set(testExecutor.optionMountOutput.Key, "test/{timestamp}/out")
 	testLedger.Logger = &logrus.Logger{}
 	testExecutor.Proceed()
 	assert.True(t, calledCreate)
-	assert.True(t, calledRecipe)
 	assert.True(t, calledInit)
+	assert.True(t, strings.HasPrefix(actualParams.Parameters["mount_out"], "test/"))
+	assert.True(t, strings.HasSuffix(actualParams.Parameters["mount_out"], "/out"))
+	assert.True(t, strings.HasPrefix(actualParams.Parameters["mount_log"], "test/"))
+	assert.True(t, strings.HasSuffix(actualParams.Parameters["mount_log"], "/log"))
+	assert.True(t, strings.HasPrefix(actualParams.Parameters["mount_var"], "test/"))
+	assert.True(t, strings.HasSuffix(actualParams.Parameters["mount_var"], "/var"))
 }
 
 func TestNewCreate(t *testing.T) {
@@ -260,14 +271,14 @@ func newCreateTaskCompleteStub(flag *bool) CreateTaskFactory {
 	}
 }
 
-func newRecipeTaskCompleteStub(flag *bool) RecipeTaskFactory {
+func newRecipeTaskCompleteStub(actualParams *layout.RecipeParams) RecipeTaskFactory {
 	return func(paths ...string) *task.Task[layout.RecipeParams] {
 		return &task.Task[layout.RecipeParams]{
 			OnPrepare: func(params *layout.RecipeParams, state *task.State) error {
 				return nil
 			},
 			OnComplete: func(params *layout.RecipeParams, state *task.State) error {
-				*flag = true
+				*actualParams = *params
 				return nil
 			},
 		}

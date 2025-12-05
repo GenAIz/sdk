@@ -212,10 +212,10 @@ type functionModel struct {
 type PropSpec struct {
 	Key         string       `yaml:"key" json:"key"`
 	Name        string       `yaml:"name" json:"name"`
-	Description string       `yaml:"description" json:"description"`
+	Description string       `yaml:"description,omitempty" json:"description,omitempty"`
 	Type        PropSpecType `yaml:"type" json:"type"`
-	Value       string       `yaml:"value" json:"value"`
-	Values      []string     `yaml:"values" json:"values"`
+	Value       string       `yaml:"value,omitempty" json:"value,omitempty"`
+	Values      []string     `yaml:"values,omitempty" json:"values,omitempty"`
 }
 
 func (ps PropSpec) Validate(value any) error {

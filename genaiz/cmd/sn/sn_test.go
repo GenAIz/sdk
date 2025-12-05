@@ -6,8 +6,27 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 )
+
+func TestBaseExecutor_makeConfigParams_InvalidConfigType(t *testing.T) {
+	var testOption = cli.NewOptionBuilder().
+		WithKeys(&schema.Keys{Doc: "testKey"}).
+		BuildStringOption()
+	var testViper = viper.New()
+	var testExecutor = &BaseExecutor{
+		Ledger: config.NewBuilder().
+			WithViper(testViper).
+			Build(),
+	}
+
+	testViper.Set(testOption.Key, "invalid")
+	actual, err := testExecutor.makeConfigParams(testOption)
+	assert.Nil(t, actual)
+	assert.Error(t, err)
+}
 
 func TestNewSn(t *testing.T) {
 	var testViper = viper.New()

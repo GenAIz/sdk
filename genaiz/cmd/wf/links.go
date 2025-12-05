@@ -177,7 +177,7 @@ func (le *LinksExecutor) findFunctionByPath(path string) (*broker.Function, erro
 	var err error
 
 	if vp, err = le.Ledger.FindPathConfig(path); err == nil {
-		var object = vp.Get(schema.Genaiz.Function.Publish.Internal.Doc)
+		var object = schema.Genaiz.Function.Publish.Internal.GetObject(vp)
 		var result = broker.MapFunction(object)
 
 		if result == nil {

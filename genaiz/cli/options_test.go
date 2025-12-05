@@ -214,8 +214,8 @@ func Test_OptionsDockerLabel(t *testing.T) {
 func Test_OptionsDockerLegacy(t *testing.T) {
 	var testOption = Options.Docker.Legacy().BuildBoolOption()
 
-	assert.Equal(t, schema.Genaiz.Function.Build.Legacy.Doc, testOption.Key)
-	assert.Equal(t, schema.Genaiz.Function.Build.Legacy.Env, testOption.Env)
+	assert.Equal(t, schema.Genaiz.Function.Build.LegacyBuilder.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Function.Build.LegacyBuilder.Env, testOption.Env)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
 	assert.False(t, cast.ToBool(testOption.DefaultValue))

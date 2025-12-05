@@ -314,6 +314,7 @@ func Test_handleContainerAttach_KillPanic(t *testing.T) {
 		containerKillError:    errors.New("panic"),
 	}
 	var stubSignals = make(chan os.Signal, 128)
+	var gate = false
 
 	defer installSignalProvider(func() chan os.Signal {
 		return stubSignals
@@ -324,12 +325,19 @@ func Test_handleContainerAttach_KillPanic(t *testing.T) {
 		for {
 			if stubClient.containerAttachId != "" {
 				stubSignals <- syscall.SIGINT
+				gate = true
 				break
 			}
 		}
 	}()
 
 	assert.NoError(t, handleContainerAttach(testParams, testState))
+
+	for {
+		if gate {
+			break
+		}
+	}
 }
 
 func Test_handleContainerAttach_NoContainers(t *testing.T) {

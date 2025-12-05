@@ -80,6 +80,10 @@ func (pe *PublishExecutor) Display() {
 			var solutionKey = "solutionFile"
 
 			if solution != nil {
+				pe.Ledger.InitValue(pe.optionOem, solution.Oem)
+				pe.Ledger.InitValue(pe.optionHandle, solution.Handle)
+				pe.Ledger.InitValue(pe.optionDescription, solution.Description)
+				pe.Ledger.InitValue(pe.optionName, solution.Name)
 				pe.Ledger.InitValue(pe.optionVersion, solution.Version)
 				solutionKey = solution.Handle
 			}
@@ -87,9 +91,9 @@ func (pe *PublishExecutor) Display() {
 			layoutKeys[solutionKey] = pe.solutionReader.GetSolutionFile()
 
 			for key, vp := range pe.solutionReader.FindFunctionValues() {
-				var value *broker.Function
+				var value broker.Function
 
-				if err = vp.UnmarshalKey("Sf.Publish", &value); err == nil && value != nil {
+				if err = schema.Genaiz.Function.Publish.Internal.Unmarshall(vp, &value); err == nil {
 					layoutKeys[key] = value.Handle
 				} else {
 					pe.Ledger.Logger.Warnf("could not extract function publishing data from file %s", key)
@@ -151,32 +155,35 @@ func (pe *PublishExecutor) Proceed() {
 }
 
 func (pe *PublishExecutor) collectAndCall(fn func(*broker.SolutionPublishParams, []FunctionParams)) error {
-	var configParams = pe.makeConfigParams(pe.optionConfigType)
-	var reader = pe.solutionReader.WithConfigPath(pe.folderPath)
+	var configParams *shared.ConfigParams
 	var err error
 
-	if err = reader.Read(*configParams.ConfigType); err == nil {
-		if solution := reader.GetSolution(); solution != nil {
-			var fnParams []FunctionParams
-			var snParams *broker.SolutionPublishParams
+	if configParams, err = pe.makeConfigParams(pe.optionConfigType); err == nil {
+		var reader = pe.solutionReader.WithConfigPath(pe.folderPath)
 
-			for k, values := range reader.FindFunctionValues() {
-				var provisionParams = pe.makeFunctionProvisionParams(values, solution)
+		if err = reader.Read(*configParams.ConfigType); err == nil {
+			if solution := reader.GetSolution(); solution != nil {
+				var fnParams []FunctionParams
+				var snParams *broker.SolutionPublishParams
 
-				fnParams = append(fnParams, FunctionParams{
-					buildParams:     pe.makeFunctionBuildParams(filepath.Dir(k), values),
-					provisionParams: provisionParams,
-					publishParams:   pe.makeFunctionPublishParams(provisionParams),
-					pushParams:      pe.makeFunctionPushParams(),
-				})
+				for k, values := range reader.FindFunctionValues() {
+					var provisionParams = pe.makeFunctionProvisionParams(values, solution)
+
+					fnParams = append(fnParams, FunctionParams{
+						buildParams:     pe.makeFunctionBuildParams(filepath.Dir(k), values),
+						provisionParams: provisionParams,
+						publishParams:   pe.makeFunctionPublishParams(provisionParams),
+						pushParams:      pe.makeFunctionPushParams(),
+					})
+				}
+
+				fnParams = pe.filterPublishedFunctions(solution, fnParams)
+				snParams = pe.makeSolutionPublishParams(solution, fnParams)
+				fn(snParams, fnParams)
+				return nil
+			} else {
+				return fmt.Errorf("no solution could be read from [%s]", reader.GetSolutionFile())
 			}
-
-			fnParams = pe.filterPublishedFunctions(solution, fnParams)
-			snParams = pe.makeSolutionPublishParams(solution, fnParams)
-			fn(snParams, fnParams)
-			return nil
-		} else {
-			return fmt.Errorf("no solution could be read from [%s]", reader.GetSolutionFile())
 		}
 	}
 
@@ -208,7 +215,7 @@ func (pe *PublishExecutor) filterPublishedFunctions(solution *broker.Solution, f
 }
 
 func (pe *PublishExecutor) makeFunctionBuildParams(path string, vp *viper.Viper) *docker.BuildParams {
-	var confDockerContext = vp.GetString("Sf.DockerContext")
+	var confDockerContext = schema.Genaiz.Function.Build.Context.GetString(vp)
 
 	if confDockerContext == "" {
 		confDockerContext = path
@@ -219,9 +226,9 @@ func (pe *PublishExecutor) makeFunctionBuildParams(path string, vp *viper.Viper)
 			Context: pe.Context,
 		},
 		DockerContext: confDockerContext,
-		Dockerfile:    vp.GetString("Sf.Dockerfile"),
-		DockerTag:     vp.GetString("Sf.Build.Tag"),
-		DockerVersion: vp.GetString("Sf.Build.Version"),
+		Dockerfile:    schema.Genaiz.Function.Build.File.GetString(vp),
+		DockerTag:     schema.Genaiz.Function.Build.Tag.GetString(vp),
+		DockerVersion: schema.Genaiz.Function.Build.Version.GetString(vp),
 	}
 }
 

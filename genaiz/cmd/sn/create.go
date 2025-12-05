@@ -45,34 +45,46 @@ func (ce *CreateExecutor) Display() {
 }
 
 func (ce *CreateExecutor) Pretend() {
-	var configParams = ce.makeConfigParams(ce.optionConfigType)
-	var snParams = ce.makeSolutionParams(configParams)
-	var snWriter = config.NewSolutionWriter().Read(ce.Ledger, snParams.GetConfigPath())
-	var wfParams = ce.makeWorkflowParams(configParams)
-	var wfWriter = config.NewWorkflowWriter().Read(ce.Ledger, snParams.GetConfigPath())
-	var plan = task.NewPlan("Create", ce.Ledger.Logger)
+	var configParams *shared.ConfigParams
+	var err error
 
-	plan.ContinueOnFailure = true
-	plan.Sequence(
-		task.NewPretender(snParams, ce.solutionTaskFactory(snWriter)),
-		task.NewPretender(wfParams, ce.workflowTaskFactory(wfWriter)),
-	)
+	if configParams, err = ce.makeConfigParams(ce.optionConfigType); err == nil {
+		var snParams = ce.makeSolutionParams(configParams)
+		var snWriter = config.NewSolutionWriter().Read(ce.Ledger, snParams.GetConfigPath())
+		var wfParams = ce.makeWorkflowParams(configParams)
+		var wfWriter = config.NewWorkflowWriter().Read(ce.Ledger, snParams.GetConfigPath())
+		var plan = task.NewPlan("Create", ce.Ledger.Logger)
+
+		plan.ContinueOnFailure = true
+		plan.Sequence(
+			task.NewPretender(snParams, ce.solutionTaskFactory(snWriter)),
+			task.NewPretender(wfParams, ce.workflowTaskFactory(wfWriter)),
+		)
+	}
+
+	lang.HandleExit(err)
 }
 
 func (ce *CreateExecutor) Proceed() {
-	var configParams = ce.makeConfigParams(ce.optionConfigType)
-	var snParams = ce.makeSolutionParams(configParams)
-	var snWriter = config.NewSolutionWriter().Read(ce.Ledger, snParams.GetConfigPath())
-	var wfParams = ce.makeWorkflowParams(configParams)
-	var wfWriter = config.NewWorkflowWriter().Read(ce.Ledger, snParams.GetConfigPath())
-	var plan = task.NewPlan("Create", ce.Ledger.Logger)
+	var configParams *shared.ConfigParams
+	var err error
 
-	plan.ContinueOnFailure = true
-	plan.PrintReportsOnly = true
-	plan.Sequence(
-		task.NewWorker(snParams, ce.solutionTaskFactory(snWriter)),
-		task.NewWorker(wfParams, ce.workflowTaskFactory(wfWriter)),
-	)
+	if configParams, err = ce.makeConfigParams(ce.optionConfigType); err == nil {
+		var snParams = ce.makeSolutionParams(configParams)
+		var snWriter = config.NewSolutionWriter().Read(ce.Ledger, snParams.GetConfigPath())
+		var wfParams = ce.makeWorkflowParams(configParams)
+		var wfWriter = config.NewWorkflowWriter().Read(ce.Ledger, snParams.GetConfigPath())
+		var plan = task.NewPlan("Create", ce.Ledger.Logger)
+
+		plan.ContinueOnFailure = true
+		plan.PrintReportsOnly = true
+		plan.Sequence(
+			task.NewWorker(snParams, ce.solutionTaskFactory(snWriter)),
+			task.NewWorker(wfParams, ce.workflowTaskFactory(wfWriter)),
+		)
+	}
+
+	lang.HandleExit(err)
 }
 
 func (ce *CreateExecutor) makeSolutionParams(configParams *shared.ConfigParams) *broker.SolutionParams {

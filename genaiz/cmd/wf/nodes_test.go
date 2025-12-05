@@ -316,7 +316,7 @@ func TestNodesExecutor_Find(t *testing.T) {
 		var publishMap = map[string]any{
 			"sf": map[string]any{
 				"publish": map[string]any{
-					"handle": "test-handle",
+					"handle": expectedHandle,
 				},
 			},
 		}
@@ -329,6 +329,43 @@ func TestNodesExecutor_Find(t *testing.T) {
 				actualHandle, err = testExecutor.Find(testDir)
 				assert.NoError(t, err)
 				assert.Equal(t, expectedHandle+"-node", actualHandle)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestNodesExecutor_Find_HandleNotFound(t *testing.T) {
+	var testDir = t.TempDir()
+	var testPath = filepath.Join(testDir, "Genaiz.yaml")
+	var testLedger = config.NewBuilder().
+		WithViper(viper.New()).
+		Build()
+	var testExecutor = &NodesExecutor{
+		BaseExecutor: BaseExecutor{Ledger: testLedger},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testPath); err == nil {
+		var publishMap = map[string]any{
+			"sf": map[string]any{
+				"publish": map[string]any{
+					"oem": "test-oem",
+				},
+			},
+		}
+		var actualHandle string
+		var testBytes []byte
+
+		if testBytes, err = yaml.Marshal(publishMap); err == nil {
+			if _, err = fd.Write(testBytes); err == nil {
+				defer filez.CloseSilently(fd)
+				actualHandle, err = testExecutor.Find(testDir)
+				assert.NoError(t, err)
+				assert.Equal(t, testDir, actualHandle)
 				return
 			}
 		}
@@ -439,8 +476,9 @@ func TestNodesExecutor_Init_ConflictHandle(t *testing.T) {
 		var publishMap = map[string]any{
 			"sf": map[string]any{
 				"publish": map[string]any{
-					"oem":    "test-oem",
-					"handle": "test-handle",
+					"oem":     "test-oem",
+					"handle":  "test-handle",
+					"version": "1.1.0",
 				},
 			},
 		}
@@ -482,7 +520,9 @@ func TestNodesExecutor_Init_ConflictOem(t *testing.T) {
 		var publishMap = map[string]any{
 			"sf": map[string]any{
 				"publish": map[string]any{
-					"oem": "test-oem",
+					"oem":     "test-oem",
+					"handle":  "test-handle",
+					"version": "1.1.0",
 				},
 			},
 		}
@@ -523,8 +563,138 @@ func TestNodesExecutor_Init_ConflictVersion(t *testing.T) {
 		var publishMap = map[string]any{
 			"sf": map[string]any{
 				"publish": map[string]any{
+					"oem":     "oem",
 					"handle":  "test-handle",
 					"version": "1.1.0",
+				},
+			},
+		}
+		var actualHandle string
+		var testBytes []byte
+
+		defer filez.CloseSilently(fd)
+
+		if testBytes, err = yaml.Marshal(publishMap); err == nil {
+			if _, err = fd.Write(testBytes); err == nil {
+				testViper.Set(schema.Genaiz.Workflow.Nodes.Add.Handle.Doc, "test-handle")
+				testViper.Set(schema.Genaiz.Workflow.Nodes.Add.Version.Doc, "1.2.0")
+				actualHandle, err = testExecutor.Init(testDir)
+				assert.Error(t, err)
+				assert.Empty(t, actualHandle)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestNodesExecutor_Init_InvalidHandle(t *testing.T) {
+	var testDir = t.TempDir()
+	var testPath = filepath.Join(testDir, "Genaiz.yaml")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &NodesExecutor{
+		BaseExecutor: BaseExecutor{Ledger: testLedger},
+		NodesOptions: NewAddNodesOptions(),
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testPath); err == nil {
+		var publishMap = map[string]any{
+			"sf": map[string]any{
+				"publish": map[string]any{
+					"oem":     "oem",
+					"version": "1.1.0",
+				},
+			},
+		}
+		var actualHandle string
+		var testBytes []byte
+
+		defer filez.CloseSilently(fd)
+
+		if testBytes, err = yaml.Marshal(publishMap); err == nil {
+			if _, err = fd.Write(testBytes); err == nil {
+				testViper.Set(schema.Genaiz.Workflow.Nodes.Add.Handle.Doc, "test-handle")
+				testViper.Set(schema.Genaiz.Workflow.Nodes.Add.Version.Doc, "1.2.0")
+				actualHandle, err = testExecutor.Init(testDir)
+				assert.Error(t, err)
+				assert.Empty(t, actualHandle)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestNodesExecutor_Init_InvalidOem(t *testing.T) {
+	var testDir = t.TempDir()
+	var testPath = filepath.Join(testDir, "Genaiz.yaml")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &NodesExecutor{
+		BaseExecutor: BaseExecutor{Ledger: testLedger},
+		NodesOptions: NewAddNodesOptions(),
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testPath); err == nil {
+		var publishMap = map[string]any{
+			"sf": map[string]any{
+				"publish": map[string]any{
+					"handle":  "test-handle",
+					"version": "1.1.0",
+				},
+			},
+		}
+		var actualHandle string
+		var testBytes []byte
+
+		defer filez.CloseSilently(fd)
+
+		if testBytes, err = yaml.Marshal(publishMap); err == nil {
+			if _, err = fd.Write(testBytes); err == nil {
+				testViper.Set(schema.Genaiz.Workflow.Nodes.Add.Handle.Doc, "test-handle")
+				testViper.Set(schema.Genaiz.Workflow.Nodes.Add.Version.Doc, "1.2.0")
+				actualHandle, err = testExecutor.Init(testDir)
+				assert.Error(t, err)
+				assert.Empty(t, actualHandle)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestNodesExecutor_Init_InvalidVersion(t *testing.T) {
+	var testDir = t.TempDir()
+	var testPath = filepath.Join(testDir, "Genaiz.yaml")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testExecutor = &NodesExecutor{
+		BaseExecutor: BaseExecutor{Ledger: testLedger},
+		NodesOptions: NewAddNodesOptions(),
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testPath); err == nil {
+		var publishMap = map[string]any{
+			"sf": map[string]any{
+				"publish": map[string]any{
+					"oem":    "oem",
+					"handle": "test-handle",
 				},
 			},
 		}

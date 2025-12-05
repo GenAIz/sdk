@@ -1,7 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://genaiz.com/genaiz.config.json",
-  "title": "Configuration",
+  "title": "GenAIz SDK",
   "description": "A configuration file for the GenAIz SDK",
   "type": "object",
   "patternProperties": {
@@ -22,6 +21,9 @@
         "logout": {
           "type": "object",
           "patternProperties": {
+            "^host$": {
+              "type": "string"
+            },
             "^username$": {
               "type": "string"
             }
@@ -41,6 +43,18 @@
             "^file$": {
               "type": "string"
             },
+            "^label$": {
+              "type": "boolean"
+            },
+            "^legacyBuilder$": {
+              "type": "boolean"
+            },
+            "^noCache$": {
+              "type": "boolean"
+            },
+            "^prune$": {
+              "type": "boolean"
+            },
             "^tag$": {
               "type": "string"
             },
@@ -59,7 +73,12 @@
               }
             },
             "^configType$": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "json",
+                "toml",
+                "yaml"
+              ]
             },
             "^handle$": {
               "type": "string"
@@ -90,6 +109,17 @@
             }
           }
         },
+        "env": {
+          "type": "object",
+          "patternProperties": {
+            "^context$": {
+              "type": "string"
+            },
+            "^file$": {
+              "type": "string"
+            }
+          }
+        },
         "init": {
           "type": "object",
           "patternProperties": {
@@ -100,7 +130,12 @@
               }
             },
             "^configType$": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "json",
+                "toml",
+                "yaml"
+              ]
             },
             "^handle$": {
               "type": "string"
@@ -137,8 +172,28 @@
                 "type": "string"
               }
             },
+            "^description$": {
+              "type": "string"
+            },
+            "^extras$": {
+              "type": "object"
+            },
             "^handle$": {
               "type": "string"
+            },
+            "^inputPorts$": {
+              "type": "object",
+              "patternProperties": {
+                "^description$": {
+                  "type": "string"
+                },
+                "^handle$": {
+                  "type": "string"
+                },
+                "^name$": {
+                  "type": "string"
+                }
+              }
             },
             "^name$": {
               "type": "string"
@@ -149,17 +204,182 @@
             "^oem$": {
               "type": "string"
             },
+            "^outputPorts": {
+              "type": "object",
+              "patternProperties": {
+                "^description$": {
+                  "type": "string"
+                },
+                "^handle$": {
+                  "type": "string"
+                },
+                "^name$": {
+                  "type": "string"
+                }
+              }
+            },
+            "^propSpecs": {
+              "type": "object",
+              "patternProperties": {
+                "^key$": {
+                  "type": "string"
+                },
+                "^name$": {
+                  "type": "string"
+                },
+                "^description$": {
+                  "type": "string"
+                },
+                "^type$": {
+                  "type": "string",
+                  "enum": [
+                    "bool",
+                    "double",
+                    "enum",
+                    "int",
+                    "string"
+                  ]
+                },
+                "^value$": {
+                  "type": "string"
+                },
+                "^values$": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
             "^rebuild$": {
               "type": "boolean"
             },
             "^type$": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "connector",
+                "function",
+                "trigger"
+              ]
             },
             "^version$": {
               "type": "string"
+            }
+          }
+        },
+        "run": {
+          "type": "object",
+          "patternProperties": {
+            "^envFile$": {
+              "type": "string"
             },
-            "^extras$": {
-              "type": "object"
+            "^envVars$": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "^image$": {
+              "type": "string"
+            },
+            "^mountInput$": {
+              "type": "string"
+            },
+            "^mountLog$": {
+              "type": "string"
+            },
+            "^mountOutput$": {
+              "type": "string"
+            },
+            "^mountVar$": {
+              "type": "string"
+            },
+            "^prefix$": {
+              "type": "string"
+            }
+          }
+        },
+        "start": {
+          "type": "object",
+          "patternProperties": {
+            "^envFile$": {
+              "type": "string"
+            },
+            "^envVars$": {
+              "type": "string"
+            },
+            "^image$": {
+              "type": "string"
+            },
+            "^mountInput$": {
+              "type": "string"
+            },
+            "^mountLog$": {
+              "type": "string"
+            },
+            "^mountOutput$": {
+              "type": "string"
+            },
+            "^mountVar$": {
+              "type": "string"
+            },
+            "^name$": {
+              "type": "string"
+            },
+            "^prefix$": {
+              "type": "string"
+            },
+            "^preserve$": {
+              "type": "boolean"
+            },
+            "^replace$": {
+              "type": "boolean"
+            }
+          }
+        },
+        "stop": {
+          "type": "object",
+          "patternProperties": {
+            "^image$": {
+              "type": "string"
+            },
+            "^name$": {
+              "type": "string"
+            },
+            "^prefix$": {
+              "type": "string"
+            },
+            "^preserve$": {
+              "type": "boolean"
+            }
+          }
+        },
+        "test": {
+          "type": "object",
+          "patternProperties": {
+            "^envFile$": {
+              "type": "string"
+            },
+            "^envVars$": {
+              "type": "string"
+            },
+            "^image$": {
+              "type": "string"
+            },
+            "^mountInput$": {
+              "type": "string"
+            },
+            "^mountLog$": {
+              "type": "string"
+            },
+            "^mountOutput$": {
+              "type": "string"
+            },
+            "^mountVar$": {
+              "type": "string"
+            },
+            "^prefix$": {
+              "type": "string"
             }
           }
         }
@@ -242,10 +462,224 @@
                         },
                         "version": {
                           "type": "string"
+                        },
+                        "seq": {
+                          "type": "integer"
                         }
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        },
+        "^create$": {
+          "type": "object",
+          "patternProperties": {
+            "^configType$": {
+              "type": "string"
+            },
+            "^description$": {
+              "type": "string"
+            },
+            "^handle$": {
+              "type": "string"
+            },
+            "^name$": {
+              "type": "string"
+            },
+            "^oem$": {
+              "type": "string"
+            },
+            "^version$": {
+              "type": "string"
+            },
+            "^workflows$": {
+              "type": "object",
+              "patternProperties": {
+                "^description$": {
+                  "type": "string"
+                },
+                "^handle$": {
+                  "type": "string"
+                },
+                "^name$": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "^log$": {
+          "type": "object",
+          "patternProperties": {
+            "^format$": {
+              "type": "string"
+            },
+            "^level$": {
+              "type": "string",
+              "enum": [
+                "debug",
+                "d",
+                "error",
+                "e",
+                "info",
+                "i",
+                "quiet",
+                "q",
+                "trace",
+                "t",
+                "warning",
+                "w"
+              ]
+            }
+          }
+        },
+        "^publish$": {
+          "type": "string",
+          "patternProperties": {
+            "^broker$": {
+              "type": "string"
+            },
+            "^configType$": {
+              "type": "string"
+            },
+            "^description$": {
+              "type": "string"
+            },
+            "^handle$": {
+              "type": "string"
+            },
+            "^name$": {
+              "type": "string"
+            },
+            "^oem$": {
+              "type": "string"
+            },
+            "^version$": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "^(?:wf|workflow)$": {
+      "type": "object",
+      "patternProperties": {
+        "^create$": {
+          "type": "object",
+          "patternProperties": {
+            "^configType$": {
+              "type": "string",
+              "enum": [
+                "json",
+                "toml",
+                "yaml"
+              ]
+            },
+            "^description$": {
+              "type": "string"
+            },
+            "^name$": {
+              "type": "string"
+            }
+          }
+        },
+        "^delete$": {
+          "type": "object",
+          "patternProperties": {
+            "^configType$": {
+              "type": "string",
+              "enum": [
+                "json",
+                "toml",
+                "yaml"
+              ]
+            }
+          }
+        },
+        "links": {
+          "type": "object",
+          "patternProperties": {
+            "^add$": {
+              "type": "object",
+              "patternProperties": {
+                "^configType$": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "toml",
+                    "yaml"
+                  ]
+                },
+                "^noValidation": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "^remove$": {
+              "type": "object",
+              "patternProperties": {
+                "^configType$": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "toml",
+                    "yaml"
+                  ]
+                },
+                "^noValidation": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "nodes": {
+          "type": "object",
+          "patternProperties": {
+            "^add$": {
+              "type": "object",
+              "patternProperties": {
+                "^configType$": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "toml",
+                    "yaml"
+                  ]
+                },
+                "^description$": {
+                  "type": "string"
+                },
+                "^handle$": {
+                  "type": "string"
+                },
+                "^name$": {
+                  "type": "string"
+                },
+                "^oem$": {
+                  "type": "string"
+                },
+                "^sequence$": {
+                  "type": "integer"
+                },
+                "^version$": {
+                  "type": "string"
+                }
+              }
+            },
+            "^remove$": {
+              "type": "object",
+              "patternProperties": {
+                "^configType$": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "toml",
+                    "yaml"
+                  ]
                 }
               }
             }

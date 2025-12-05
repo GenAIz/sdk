@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -26,4 +27,12 @@ func ArgsOptionalFolder(typeName string, maxSize int, validates config.Validates
 
 		return nil
 	}
+}
+
+func ArgsOptionalSingle(args []string) string {
+	if len(args) == 1 {
+		return args[0]
+	}
+
+	return strings.Join(args, " ")
 }
