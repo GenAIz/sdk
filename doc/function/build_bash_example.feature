@@ -7,8 +7,8 @@ Feature: function build with the bash example
     Given the following parameters
       | recipe       | configType | handle          | oem            | name            | type     | version |
       | bash-example | yaml       | my-bash-example | com.genaiz.dev | My Bash Example | function | 0.1.1   |
-    When I run the command "sf create <handle> --recipe=<recipe> --config-type=<configType> --handle=<handle> --oem=<oem> --name='<name>' --type=<type> --version=<version>"
-    Then I should have a function under "<handle>" named "<name>" with version "<version>"
+    When I run the command "sf create <handle> --recipe=<recipe> --config-type=<configType> --oem=<oem> --name='<name>' --type=<type> --version=<version>"
+    Then I should have a function under "<handle>" named "<name>", with handle "<handle>", oem "<oem>", version "<version>" and type "<type>"
 
   Scenario: build bash example bad context
     Given the following parameters

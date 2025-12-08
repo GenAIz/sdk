@@ -262,7 +262,9 @@ func (iw *InitWriter) WithVersion(value string) layout.ConfigWriter {
 }
 
 func (iw *InitWriter) Write(filepath string) error {
-	return iw.vp.WriteConfigAs(filepath)
+	var vpClean = schema.Normalize(iw.vp)
+
+	return vpClean.WriteConfigAs(filepath)
 }
 
 func (iw *InitWriter) setTag(oem string, handle string) {

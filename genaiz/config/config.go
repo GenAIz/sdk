@@ -248,8 +248,17 @@ func (lr *Ledger) Get(option *Option) any {
 		result = lr.viper.Get(option.Param)
 	}
 
-	if (result == nil || result == "" || result == option.DefaultValue) && option.DefaultGetter != nil {
-		result = option.DefaultGetter(lr)
+	if option.IsEmpty(result) {
+		for _, pseudo := range option.Pseudonyms {
+			if value := lr.viper.Get(pseudo); !option.IsEmpty(value) {
+				result = value
+				break
+			}
+		}
+
+		if option.IsEmpty(result) && option.DefaultGetter != nil {
+			result = option.DefaultGetter(lr)
+		}
 	}
 
 	if i := strings.Index(cast.ToString(result), "$"); i == 0 {

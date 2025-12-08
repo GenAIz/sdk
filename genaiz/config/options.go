@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -17,6 +18,7 @@ type Option struct {
 	Param         string            // Param is used from the shell
 	Short         string            // Short is the shortened one letter alias for param
 	Env           string            // Env is the environment string used to retrieve the config
+	Pseudonyms    []string          // Pseudonyms is an array of keys which are known to have contained the option value in previous versions
 	Usage         string            // Usage is the help string display for the parameter on the shell
 	DefaultGetter func(*Ledger) any // DefaultGetter should be called when GetString, GetInt and GetBool are called, it has priority over DefaultValue
 	DefaultSetter func(*Ledger) any // DefaultSetter should be called on cobra.OnInitialize with a reference to the Ledger
@@ -30,6 +32,7 @@ func (o *Option) Equals(other *Option) bool {
 		o.Param == other.Param &&
 		o.Short == other.Short &&
 		o.Env == other.Env &&
+		slices.Equal(o.Pseudonyms, other.Pseudonyms) &&
 		o.Usage == other.Usage &&
 		o.DefaultValue == other.DefaultValue
 }
@@ -65,20 +68,6 @@ func (o *Option) bindKeyFlag(viper *viper.Viper, flag *pflag.Flag) {
 	))
 }
 
-// GetEnvKey returns the Env value of the Option if it's defined, otherwise it will replace all '.' with '_' on the Key of the Option, capitalized. If no Key is defined, it returns the empty string
-func (o *Option) GetEnvKey() string {
-	if o.Env != "" {
-		return o.Env
-	}
-
-	if o.Key != "" {
-		return strings.ReplaceAll(
-			strings.ToUpper(o.Key), ".", "_")
-	}
-
-	return ""
-}
-
 // Default provides the default value of the Option when a Ledger.Get is processed or when Ledger.InitDefaults is invoked
 func (o *Option) Default(ledger *Ledger) {
 	var value any
@@ -110,6 +99,24 @@ func (o *Option) Defined(ledger *Ledger, set *pflag.FlagSet) {
 	}
 
 	o.bindKeyEnv(ledger.viper)
+}
+
+// GetEnvKey returns the Env value of the Option if it's defined, otherwise it will replace all '.' with '_' on the Key of the Option, capitalized. If no Key is defined, it returns the empty string
+func (o *Option) GetEnvKey() string {
+	if o.Env != "" {
+		return o.Env
+	}
+
+	if o.Key != "" {
+		return strings.ReplaceAll(
+			strings.ToUpper(o.Key), ".", "_")
+	}
+
+	return ""
+}
+
+func (o *Option) IsEmpty(value any) bool {
+	return value == nil || value == "" || value == o.DefaultValue
 }
 
 // BoolOption treats the value of an option as a boolean when defining its pflag.Flag and processing its Option.DefaultValue
@@ -231,7 +238,7 @@ func mapOptionsByKeyFunc(ledger *Ledger, toKey func(*Option) string, options ...
 	return result
 }
 
-// newListValues builds a new ListValue reference with values set to an empty slice
+// newListValue builds a new ListValue reference with values set to an empty slice
 func newListValue() *ListValue {
 	return &ListValue{
 		values: []string{},

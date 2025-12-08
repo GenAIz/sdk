@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -349,6 +350,19 @@ func TestLedger_FromWorkDirRelativeValue(t *testing.T) {
 	testFlags.StringVar(&testValue, expectedParam, "../path", "")
 	testLedger.FromWorkDir(testOption, testFlags)
 	assert.EqualValues(t, expectedValue, testValue)
+}
+
+func TestLedger_Get_ByPseudonym(t *testing.T) {
+	var expectedPseudo = "Yes"
+	var expectedValue = "expectTheExpected"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &Option{
+		Key:        "key",
+		Pseudonyms: []string{"No", expectedPseudo},
+	}
+
+	testViper.Set(expectedPseudo, expectedValue)
+	assert.Equal(t, expectedValue, cast.ToString(testLedger.Get(testOption)))
 }
 
 func TestLedger_GetBool(t *testing.T) {
@@ -694,12 +708,6 @@ func TestLedger_GetValue(t *testing.T) {
 	assert.EqualValues(t, expectedValue, testLedger.GetValue(testKey))
 }
 
-func TestLedger_GetWorkspaceEmpty(t *testing.T) {
-	var _, testLedger = newTestConfigs()
-
-	assert.Empty(t, testLedger.GetWorkspace())
-}
-
 func TestLedger_GetWorkspace(t *testing.T) {
 	var expectedValue = "value"
 	var testViper, testLedger = newTestConfigs()
@@ -714,24 +722,10 @@ func TestLedger_GetWorkspace(t *testing.T) {
 	assert.EqualValues(t, expectedValue, testLedger.GetWorkspace())
 }
 
-func TestLedger_InitNoConfig(t *testing.T) {
-	var buff bytes.Buffer
+func TestLedger_GetWorkspaceEmpty(t *testing.T) {
 	var _, testLedger = newTestConfigs()
 
-	testLedger.UserPath = t.TempDir()
-	testLedger.Init()
-	testLedger.LoggerFactory = func(ledger *Ledger) *logrus.Logger {
-		return &logrus.Logger{
-			Out:   io.Writer(&buff),
-			Level: logrus.DebugLevel,
-			Formatter: &easy.Formatter{
-				TimestampFormat: time.DateTime,
-				LogFormat:       "%msg%",
-			},
-		}
-	}
-	testLedger.InitLogging()
-	assert.Contains(t, buff.String(), "Could not")
+	assert.Empty(t, testLedger.GetWorkspace())
 }
 
 func TestLedger_Init(t *testing.T) {
@@ -762,6 +756,26 @@ func TestLedger_InitLogging(t *testing.T) {
 	testLedger.LogDebug("TestLedger_InitLogging")
 	testLedger.InitLogging()
 	assert.Empty(t, testLedger.loggers)
+}
+
+func TestLedger_InitNoConfig(t *testing.T) {
+	var buff bytes.Buffer
+	var _, testLedger = newTestConfigs()
+
+	testLedger.UserPath = t.TempDir()
+	testLedger.Init()
+	testLedger.LoggerFactory = func(ledger *Ledger) *logrus.Logger {
+		return &logrus.Logger{
+			Out:   io.Writer(&buff),
+			Level: logrus.DebugLevel,
+			Formatter: &easy.Formatter{
+				TimestampFormat: time.DateTime,
+				LogFormat:       "%msg%",
+			},
+		}
+	}
+	testLedger.InitLogging()
+	assert.Contains(t, buff.String(), "Could not")
 }
 
 func TestLedger_InitValue(t *testing.T) {

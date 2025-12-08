@@ -7,7 +7,6 @@ import (
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -19,15 +18,19 @@ type BaseExecutor struct {
 	folderPath string
 }
 
-func (be BaseExecutor) makeConfigParams(option *config.StringOption) *shared.ConfigParams {
-	var configType, err = be.Ledger.GetConfigType(option)
+func (be BaseExecutor) makeConfigParams(option *config.StringOption) (*shared.ConfigParams, error) {
+	var configType *shared.ConfigType
+	var err error
 
-	lang.HandleExit(err)
-	return &shared.ConfigParams{
-		ConfigName:   be.Ledger.ConfigName,
-		ConfigType:   configType,
-		ConfigFolder: be.folderPath,
+	if configType, err = be.Ledger.GetConfigType(option); err == nil {
+		return &shared.ConfigParams{
+			ConfigName:   be.Ledger.ConfigName,
+			ConfigType:   configType,
+			ConfigFolder: be.folderPath,
+		}, nil
 	}
+
+	return nil, err
 }
 
 type Cli struct {

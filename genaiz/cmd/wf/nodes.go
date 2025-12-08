@@ -143,12 +143,12 @@ func (ne *NodesExecutor) Find(path string) (string, error) {
 	var err error
 
 	if vp, err = ne.Ledger.FindPathConfig(path); err == nil {
-		var handle = vp.GetString(schema.Genaiz.Function.Publish.Handle.Doc)
+		var handle = schema.Genaiz.Function.Publish.Handle.GetString(vp)
 
-		return handle + "-node", nil
-	}
-
-	if !errorz.IsPathError(err) {
+		if handle != "" {
+			return handle + "-node", nil
+		}
+	} else if !errorz.IsPathError(err) {
 		return "", err
 	}
 
@@ -160,9 +160,21 @@ func (ne *NodesExecutor) Init(path string) (string, error) {
 	var err error
 
 	if vp, err = ne.Ledger.FindPathConfig(path); err == nil {
-		var oem = vp.GetString(schema.Genaiz.Function.Publish.Oem.Doc)
-		var handle = vp.GetString(schema.Genaiz.Function.Publish.Handle.Doc)
-		var version = vp.GetString(schema.Genaiz.Function.Publish.Version.Doc)
+		var handle = schema.Genaiz.Function.Publish.Handle.GetString(vp)
+		var oem = schema.Genaiz.Function.Publish.Oem.GetString(vp)
+		var version = schema.Genaiz.Function.Publish.Version.GetString(vp)
+
+		if !config.Validation.Handle(handle) {
+			return "", fmt.Errorf("function under path [%s] has no valid handle", path)
+		}
+
+		if !config.Validation.Oem(oem) {
+			return "", fmt.Errorf("function under path [%s] has no valid oem", path)
+		}
+
+		if !config.Validation.Version(version) {
+			return "", fmt.Errorf("function under path [%s] has no valid version", path)
+		}
 
 		if err = ne.initPathOption(path, oem, ne.optionSfOem); err == nil {
 			if err = ne.initPathOption(path, handle, ne.optionSfHandle); err == nil {

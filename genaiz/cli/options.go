@@ -145,7 +145,7 @@ var (
 			},
 			Legacy: func() OptionBuilder {
 				return NewOptionBuilder().
-					WithKeys(&schema.Genaiz.Function.Build.Legacy).
+					WithKeys(&schema.Genaiz.Function.Build.LegacyBuilder).
 					WithParam("legacy-builder").
 					WithUsage("enables legacy building using the Moby library instead of the Docker Buildx plugin").
 					WithDefaultValue("false")
@@ -662,10 +662,12 @@ type optionBuilder struct {
 func (ob *optionBuilder) BuildOption() *config.Option {
 	var optionValidator config.Validates
 	var optionKey, optionEnv string
+	var optionPseudonyms []string
 
 	if ob.keys != nil {
 		optionKey = ob.keys.Doc
 		optionEnv = ob.keys.Env
+		optionPseudonyms = ob.keys.Pseudonyms
 	}
 
 	if ob.validated && ob.validator != nil {
@@ -682,6 +684,7 @@ func (ob *optionBuilder) BuildOption() *config.Option {
 		Param:         ob.param,
 		Short:         ob.short,
 		Usage:         strings.Join(ob.usages, ", "),
+		Pseudonyms:    optionPseudonyms,
 		Validator:     optionValidator,
 		DefaultGetter: ob.defaultGetter,
 		DefaultSetter: ob.defaultSetter,
