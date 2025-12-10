@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz dk create --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz dk create">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$/" />
+    <go_parameters value="-tags dev" />
+    <parameters value="dk create datalink-1 --oem=com.genaiz.dev --version=0.1.1 --name=&quot;Data Link&quot; --description=&quot;Link Description&quot; --pretend" />
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>

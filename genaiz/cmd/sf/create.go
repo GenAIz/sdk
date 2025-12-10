@@ -101,6 +101,7 @@ func (ce *CreateExecutor) makeCreateBuilder(ledger *config.Ledger, sfCli *Cli) l
 		publishInputPortsKeys:  &schema.Genaiz.Function.Publish.InputPorts,
 		publishOutputPortsKeys: &schema.Genaiz.Function.Publish.OutputPorts,
 		publishPropSpecsKeys:   &schema.Genaiz.Function.Publish.PropSpecs,
+		publishSourcesKeys:     &schema.Genaiz.Function.Publish.DataSources,
 		vp:                     viper.New(),
 	}
 

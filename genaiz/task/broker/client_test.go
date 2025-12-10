@@ -30,7 +30,8 @@ type stubBridge struct {
 	jsonRequest bool
 	cookie      *http.Cookie
 	err         error
-	params      map[string]string
+	formData    map[string]string
+	queryParams map[string]string
 	result      any
 	response    responseBridge
 	timeout     time.Duration
@@ -56,24 +57,29 @@ func (s *stubBridge) Form() requestBridge {
 	return s
 }
 
+func (s *stubBridge) FormData(formData map[string]string) requestBridge {
+	s.formData = formData
+	return s
+}
+
 func (s *stubBridge) Json() requestBridge {
 	s.jsonRequest = true
-	return s
-}
-
-func (s *stubBridge) Params(params map[string]string) requestBridge {
-	s.params = params
-	return s
-}
-
-func (s *stubBridge) Resulting(result any) requestBridge {
-	s.result = result
 	return s
 }
 
 func (s *stubBridge) Post(url string) (responseBridge, error) {
 	s.url = url
 	return s.response, s.err
+}
+
+func (s *stubBridge) QueryParams(queryParams map[string]string) requestBridge {
+	s.queryParams = queryParams
+	return s
+}
+
+func (s *stubBridge) Resulting(result any) requestBridge {
+	s.result = result
+	return s
 }
 
 func (s *stubBridge) Timeout() time.Duration {
@@ -115,6 +121,80 @@ func (s stubResponse) StatusCode() int {
 type testStruct struct {
 	field1 string
 	field2 int
+}
+
+func TestClient_ListDataLinks(t *testing.T) {
+	var expectedToken = "token"
+	var expectedDataLinks = []DataLink{
+		{
+			Id: int64(37),
+		},
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[[]DataLink]{
+				Data: expectedDataLinks,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListDataLinks("oem", "handle", DataLinkFlags.Active)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDataLinks, actual)
+}
+
+func TestClient_ListDataLinks_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.ListDataLinks("oem", "handle", DataLinkFlags.Active)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_ListDataLinks_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListDataLinks("oem", "handle", DataLinkFlags.Active)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_ListDataLinks_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.ListDataLinks("oem", "handle", DataLinkFlags.Active)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_ListDataLinks_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListDataLinks("oem", "handle", DataLinkFlags.Active)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_ListDataLinksUrl(t *testing.T) {
+	var expectedHost = "host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.ListDataLinksUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
 func TestClient_Login(t *testing.T) {
@@ -216,7 +296,7 @@ func TestClient_Logout(t *testing.T) {
 	var err = testClient.Logout(expectedSessionId)
 
 	assert.NoError(t, err)
-	assert.Equal(t, expectedSessionId, testBridge.params["id"])
+	assert.Equal(t, expectedSessionId, testBridge.formData["id"])
 	assert.Equal(t, expectedSessionToken, testBridge.cookie.Value)
 }
 
@@ -538,7 +618,7 @@ func TestClient_ProvisionFunction(t *testing.T) {
 	assert.Equal(t, expectedAuth, actual.Auth)
 	assert.NotEmpty(t, testBridge.cookie)
 	assert.Equal(t, expectedToken, testBridge.cookie.Value)
-	assert.NoError(t, json.Unmarshal([]byte(testBridge.params["model"]), &actualModel))
+	assert.NoError(t, json.Unmarshal([]byte(testBridge.formData["model"]), &actualModel))
 	assert.Equal(t, testFunction.Name, actualModel.Name)
 	assert.Equal(t, testFunction.Description, actualModel.Description)
 	assert.Equal(t, testFunction.Oem, actualModel.Oem)
@@ -571,6 +651,80 @@ func TestClient_ProvisionFunctionUrl(t *testing.T) {
 	assert.Contains(t, testClient.ProvisionFunctionUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
+func TestClient_PublishDataLink(t *testing.T) {
+	var expectedToken = "token"
+	var expectedDataLink = DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "version",
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[DataLink]{
+				Data: expectedDataLink,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.PublishDataLink(&expectedDataLink)
+	assert.NoError(t, err)
+	assert.Equal(t, &expectedDataLink, actual)
+}
+
+func TestClient_PublishDataLink_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.PublishDataLink(&DataLink{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_PublishDataLink_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.PublishDataLink(&DataLink{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_PublishDataLink_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.PublishDataLink(&DataLink{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_PublishDataLink_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.PublishDataLink(&DataLink{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_PublishDataLinkUrl(t *testing.T) {
+	var expectedHost = "host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.PublishDataLinkUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
+}
+
 func TestClient_PublishFunction(t *testing.T) {
 	var expectedToken = "token"
 	var testFunction = &Function{
@@ -599,8 +753,8 @@ func TestClient_PublishFunction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, testBridge.cookie)
 	assert.Equal(t, expectedToken, testBridge.cookie.Value)
-	assert.Equal(t, cast.ToString(testFunction.Id), testBridge.params["id"])
-	assert.Equal(t, testFunction.Digest, testBridge.params["digest"])
+	assert.Equal(t, cast.ToString(testFunction.Id), testBridge.formData["id"])
+	assert.Equal(t, testFunction.Digest, testBridge.formData["digest"])
 	assert.Equal(t, testFunction.Id, actual.Id)
 	assert.Equal(t, testFunction.Name, actual.Name)
 	assert.Equal(t, testFunction.Description, actual.Description)
@@ -678,7 +832,7 @@ func TestClient_PublishSolution(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, testBridge.cookie)
 	assert.Equal(t, expectedToken, testBridge.cookie.Value)
-	assert.NoError(t, json.Unmarshal([]byte(testBridge.params["solution"]), &serialized))
+	assert.NoError(t, json.Unmarshal([]byte(testBridge.formData["solution"]), &serialized))
 	assert.Equal(t, testSolution.Description, serialized.Description)
 	assert.Equal(t, testSolution.Handle, serialized.Handle)
 	assert.Equal(t, testSolution.Name, serialized.Name)

@@ -9,6 +9,7 @@ The concepts and design related to the Orchestrator and GenAIz platform should b
 ## [Smart Functions](function/index.md)
 * [genaiz function build](function/build.md)
 * [genaiz function create](function/create.md)
+* [genaiz function data](function/data.md)
 * [genaiz function init](function/init.md)
 * [genaiz function list](function/list.md)
 * [genaiz function prop](function/prop.md)

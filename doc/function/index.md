@@ -18,9 +18,9 @@
 
 * [build](build.md)
 * [create](create.md)
+* [data](data.md)
 * [init](init.md)
 * [list](list.md)
-* [data](data.md)
 * [prop](prop.md)
 * [publish](publish.md)
 * [run](run.md)

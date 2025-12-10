@@ -90,6 +90,64 @@ func Test_OptionsConfigsType(t *testing.T) {
 	assert.False(t, testOption.Validator("invalid"))
 }
 
+func Test_OptionsDataLinksDescription(t *testing.T) {
+	var testOption = Options.DataLinks.Description().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("A valid description"))
+}
+
+func Test_OptionsDataLinksHandle(t *testing.T) {
+	var testOption = Options.DataLinks.Handle().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("valid-handle"))
+	assert.False(t, testOption.Validator("__notValid"))
+}
+
+func Test_OptionsDataLinksName(t *testing.T) {
+	var testOption = Options.DataLinks.Name().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("valid name"))
+	assert.False(t, testOption.Validator("this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for "))
+}
+
+func Test_OptionsDataLinksNoValidation(t *testing.T) {
+	var testOption = Options.DataLinks.NoValidation().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsDataLinksOem(t *testing.T) {
+	var testOption = Options.DataLinks.Oem().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("valid.oem"))
+	assert.False(t, testOption.Validator("invalid.oem."))
+}
+
+func Test_OptionsDataLinksVersion(t *testing.T) {
+	var testOption = Options.DataLinks.Version().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("1.0.0"))
+	assert.False(t, testOption.Validator("1"))
+}
+
 func Test_OptionsDataPortsDesc(t *testing.T) {
 	var testOption = Options.DataPorts.Desc().BuildStringOption()
 

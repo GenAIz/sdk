@@ -30,6 +30,7 @@ type InitWriter struct {
 	publishInputPortsKeys  *schema.Keys
 	publishOutputPortsKeys *schema.Keys
 	publishPropSpecsKeys   *schema.Keys
+	publishSourcesKeys     *schema.Keys
 	removedInputPort       *broker.DataPort
 	removedOutputPort      *broker.DataPort
 	removedPropSpec        *broker.PropSpec
@@ -98,6 +99,14 @@ func (iw *InitWriter) BuildPropSpecs() (string, []broker.PropSpec) {
 
 func (iw *InitWriter) BuildPropSpecRemoved() (string, *broker.PropSpec) {
 	return iw.publishPropSpecsKeys.Doc, iw.removedPropSpec
+}
+
+func (iw *InitWriter) BuildSources() (string, []string) {
+	if list, ok := iw.vp.Get(iw.publishSourcesKeys.Doc).([]string); ok {
+		return iw.publishSourcesKeys.Doc, list
+	}
+
+	return iw.publishSourcesKeys.Doc, []string{}
 }
 
 func (iw *InitWriter) BuildType() (string, string) {
@@ -225,6 +234,14 @@ func (iw *InitWriter) WithPropSpecs(specs []broker.PropSpec) layout.ConfigWriter
 
 func (iw *InitWriter) WithPropSpecRemoved(spec *broker.PropSpec) layout.ConfigWriter {
 	iw.removedPropSpec = spec
+	return iw
+}
+
+func (iw *InitWriter) WithSources(sources []string) layout.ConfigWriter {
+	if len(sources) > 0 {
+		iw.vp.Set(iw.publishSourcesKeys.Doc, sources)
+	}
+
 	return iw
 }
 
@@ -450,6 +467,7 @@ func makeInitBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
 		publishInputPortsKeys:  &schema.Genaiz.Function.Publish.InputPorts,
 		publishOutputPortsKeys: &schema.Genaiz.Function.Publish.OutputPorts,
 		publishPropSpecsKeys:   &schema.Genaiz.Function.Publish.PropSpecs,
+		publishSourcesKeys:     &schema.Genaiz.Function.Publish.DataSources,
 		vp:                     viper.New(),
 	}
 

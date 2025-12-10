@@ -44,6 +44,8 @@ type ConfigWriter interface {
 
 	BuildPropSpecRemoved() (string, *broker.PropSpec)
 
+	BuildSources() (string, []string)
+
 	BuildType() (string, string)
 
 	BuildVersion() (string, string)
@@ -76,6 +78,8 @@ type ConfigWriter interface {
 
 	WithPropSpecRemoved(*broker.PropSpec) ConfigWriter
 
+	WithSources([]string) ConfigWriter
+
 	WithType(string) ConfigWriter
 
 	WithVar(string) ConfigWriter
@@ -86,6 +90,7 @@ type ConfigWriter interface {
 type InitParams struct {
 	CreateParams
 	Arches      []ArchType
+	DataSources []string
 	Handle      string
 	InputPorts  []broker.DataPort
 	Name        string
@@ -151,6 +156,7 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 			WithOutput(initState.DefaultOutput(params.MountOutput)).
 			WithOutputPorts(params.OutputPorts).
 			WithPropSpecs(params.PropSpecs).
+			WithSources(params.DataSources).
 			WithVar(initState.DefaultVar(params.MountOutput)).
 			WithVersion(params.Version).
 			Write(state.Output); err == nil {
@@ -177,6 +183,7 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 		var outputPortKey, outputPorts = writer.WithOutputPorts(params.OutputPorts).BuildOutputPorts()
 		var rmPropSpecKey, rmPropSpec = writer.BuildPropSpecRemoved()
 		var propSpecKey, propSpecs = writer.WithPropSpecs(params.PropSpecs).BuildPropSpecs()
+		var dataSourcesKey, dataSources = writer.BuildSources()
 
 		state.Logger.Debugf("Pretending to initialize [%s]", state.Output)
 		writer.WithHandle(params.Handle)
@@ -263,6 +270,12 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 					})
 				}
 			}
+		}
+
+		if len(dataSources) > 0 {
+			shared.PretendSlice(pretender, func() (string, []string) {
+				return dataSourcesKey, dataSources
+			})
 		}
 
 		state.Output = ""

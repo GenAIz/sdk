@@ -280,6 +280,29 @@ func TestInitWriter_BuildRemovedPropSpec(t *testing.T) {
 	assert.Equal(t, expectedPropSpec, *actualSpecs)
 }
 
+func TestInitWriter_BuildSources(t *testing.T) {
+	var expectedSources = []string{"expectedLink"}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishSourcesKeys: &schema.Genaiz.Function.Publish.DataSources,
+		vp:                 testViper,
+	}
+	var actualSources []string
+	var actualKey string
+
+	actualKey, actualSources = testWriter.WithSources(nil).BuildSources()
+	assert.Equal(t, testWriter.publishSourcesKeys.Doc, actualKey)
+	assert.Empty(t, actualSources)
+
+	actualKey, actualSources = testWriter.WithSources(expectedSources).BuildSources()
+	assert.Equal(t, testWriter.publishSourcesKeys.Doc, actualKey)
+	assert.Equal(t, expectedSources, actualSources)
+
+	testWriter.vp.Set(testWriter.publishSourcesKeys.Doc, "invalid slice")
+	actualKey, actualSources = testWriter.BuildSources()
+	assert.Empty(t, actualSources)
+}
+
 func TestInitWriter_BuildType(t *testing.T) {
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{

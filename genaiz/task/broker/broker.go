@@ -21,6 +21,10 @@ const (
 )
 
 var (
+	DataLinkFlags = &dataLinkFlags{
+		Active:   1 << 0,
+		Released: 1 << 1,
+	}
 	FunctionFlags = &functionFlags{
 		Active:       1 << 0,
 		Released:     1 << 1,
@@ -50,6 +54,24 @@ func (b Broker) GetClient() (Client, error) {
 	}
 
 	return clientFactory.Get(b.AuthFile, b.HostAddr)
+}
+
+type DataLink struct {
+	Id          int64      `json:"id,omitempty"`
+	Flags       int        `json:"flags,omitempty"`
+	Seq         int        `json:"seq,omitempty"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Oem         string     `json:"oem"`
+	Handle      string     `json:"handle"`
+	Fqdn        string     `json:"fqdn,omitempty"`
+	Version     string     `json:"version"`
+	PropSpecs   []PropSpec `json:"propSpecs,omitempty"`
+	SecretSpecs []PropSpec `json:"secretSpecs,omitempty"`
+}
+
+func (dl DataLink) IsActive() bool {
+	return (dl.Flags & DataLinkFlags.Active) == DataLinkFlags.Active
 }
 
 type DataPort struct {
@@ -187,6 +209,11 @@ func MapFunction(fn any) *Function {
 	}
 
 	return nil
+}
+
+type dataLinkFlags struct {
+	Active   int
+	Released int
 }
 
 type functionFlags struct {

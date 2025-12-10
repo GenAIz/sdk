@@ -10,6 +10,14 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
+func TestDataLink_IsActive(t *testing.T) {
+	var testLink = &DataLink{}
+
+	assert.False(t, testLink.IsActive())
+	testLink.Flags = DataLinkFlags.Active
+	assert.True(t, testLink.IsActive())
+}
+
 func TestFunction_asIdentity(t *testing.T) {
 	var actual *shared.Identity
 	var function = Function{

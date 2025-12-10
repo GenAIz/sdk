@@ -410,9 +410,8 @@ func (lr *Ledger) InitLogging() {
 // InitValue initializes the string value of a configuration on the Ledger, if the option does not resolve to a value or resolved to its default value.
 func (lr *Ledger) InitValue(option *StringOption, value string) {
 	var currentValue = lr.viper.GetString(option.Key)
-	var defValue = option.DefaultValue
 
-	if currentValue == "" || (defValue != nil && currentValue == defValue) {
+	if option.IsEmpty(currentValue) {
 		lr.viper.Set(option.Key, value)
 	}
 }
