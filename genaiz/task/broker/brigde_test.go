@@ -75,18 +75,7 @@ func TestRestyBridge_Form(t *testing.T) {
 	assert.Equal(t, "application/x-www-form-urlencoded", testBridge.request.ExpectResponseContentType)
 }
 
-func TestRestyBridge_Json(t *testing.T) {
-	var testResty = resty.New()
-	var testBridge = &restyBridge{
-		client:  testResty,
-		request: testResty.R(),
-	}
-
-	testBridge.Json()
-	assert.Equal(t, "application/json", testBridge.request.ExpectResponseContentType)
-}
-
-func TestRestyBridge_Params(t *testing.T) {
+func TestRestyBridge_FormData(t *testing.T) {
 	var expectedKey = "key"
 	var expectedValue = "value"
 	var testParams = map[string]string{expectedKey: expectedValue}
@@ -96,8 +85,19 @@ func TestRestyBridge_Params(t *testing.T) {
 		request: testResty.R(),
 	}
 
-	testBridge.Params(testParams)
+	testBridge.FormData(testParams)
 	assert.Equal(t, expectedValue, testBridge.request.FormData.Get(expectedKey))
+}
+
+func TestRestyBridge_Json(t *testing.T) {
+	var testResty = resty.New()
+	var testBridge = &restyBridge{
+		client:  testResty,
+		request: testResty.R(),
+	}
+
+	testBridge.Json()
+	assert.Equal(t, "application/json", testBridge.request.ExpectResponseContentType)
 }
 
 func TestRestyBridge_Post(t *testing.T) {
@@ -127,6 +127,20 @@ func TestRestyBridge_Post_Error(t *testing.T) {
 
 	_, err := testBridge.Post("invalid_protocol")
 	assert.Error(t, err)
+}
+
+func TestRestyBridge_QueryParams(t *testing.T) {
+	var expectedKey = "key"
+	var expectedValue = "value"
+	var testParams = map[string]string{expectedKey: expectedValue}
+	var testResty = resty.New()
+	var testBridge = &restyBridge{
+		client:  testResty,
+		request: testResty.R(),
+	}
+
+	testBridge.QueryParams(testParams)
+	assert.Equal(t, expectedValue, testBridge.request.QueryParams.Get(expectedKey))
 }
 
 func TestRestyBridge_Resulting(t *testing.T) {

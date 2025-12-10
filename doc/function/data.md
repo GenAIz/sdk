@@ -75,3 +75,9 @@ genaiz sf data output rm PORT|PATH
 
 * if the argument translates into an existing path, it will be compared with the value of `sf.run.output` and removed only if it shares a common ancestor with the path and the last folder as the handle.
 * the handle value is not validated. Removing something invalid produces a state that is valid, so no errors are raised.
+
+### data source
+
+#### data source add
+
+#### data source rm

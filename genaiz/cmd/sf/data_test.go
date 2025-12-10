@@ -467,5 +467,5 @@ func TestNewData(t *testing.T) {
 	var testCmd = NewData(testLedger, testCli)
 
 	assert.Empty(t, testCmd.Run)
-	assert.Equal(t, 2, len(testCmd.Commands()))
+	assert.Equal(t, 3, len(testCmd.Commands()))
 }

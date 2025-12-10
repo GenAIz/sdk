@@ -4,8 +4,7 @@ Feature: data ports for the bash example
   I should be able to create the bash example recipe, add an input port, add an output port and remove them both
 
   Scenario: create bash example
-    Given the scenario "create bash example solution" ran with condition "service_completed_successfully"
-    And the following parameters
+    Given the following parameters
       | recipe       | handle          | oem            | type     | version |
       | bash-example | my-bash-example | com.genaiz.dev | function | 1.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --version=<version>"

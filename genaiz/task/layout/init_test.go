@@ -34,6 +34,7 @@ type stubWriter struct {
 	propSpecs         []broker.PropSpec
 	rmPropSpec        *broker.PropSpec
 	sfType            string
+	sources           []string
 	version           string
 	writeErr          error
 }
@@ -89,6 +90,10 @@ func (s *stubWriter) BuildPropSpecs() (string, []broker.PropSpec) {
 
 func (s *stubWriter) BuildPropSpecRemoved() (string, *broker.PropSpec) {
 	return "", s.rmPropSpec
+}
+
+func (s *stubWriter) BuildSources() (string, []string) {
+	return "", s.sources
 }
 
 func (s *stubWriter) BuildType() (string, string) {
@@ -174,6 +179,11 @@ func (s *stubWriter) WithPropSpecs(specs []broker.PropSpec) ConfigWriter {
 
 func (s *stubWriter) WithPropSpecRemoved(spec *broker.PropSpec) ConfigWriter {
 	s.rmPropSpec = spec
+	return s
+}
+
+func (s *stubWriter) WithSources(sources []string) ConfigWriter {
+	s.sources = sources
 	return s
 }
 
@@ -337,6 +347,34 @@ func Test_handleLayoutInitPretend(t *testing.T) {
 	assert.Contains(t, output, testParams.MountOutput)
 	assert.Contains(t, output, testParams.OEM)
 	assert.Contains(t, output, testParams.Version)
+}
+
+func Test_handleLayoutInitPretend_dataSources(t *testing.T) {
+	var expectedDataSources = []string{"expectedDataSource", "expectedDataSource2"}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var testParams = &InitParams{}
+	var testWriter = &stubWriter{
+		sources: expectedDataSources,
+	}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedDataSources[0])
+	assert.Contains(t, output, expectedDataSources[1])
 }
 
 func Test_handleLayoutInitPretend_inputPorts(t *testing.T) {

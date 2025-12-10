@@ -61,6 +61,44 @@ var (
 					WithValidator(config.AnyOfEnumerated(shared.ConfigTypes))
 			},
 		},
+		DataLinks: dataLinkOptions{
+			Description: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("description").
+					WithUsage("description of the data link").
+					WithValidator(config.Validation.Blob)
+			},
+			Handle: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("handle").
+					WithUsage("handle of the data link").
+					WithValidator(config.Validation.Handle)
+			},
+			Name: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithUsage("name of the data link").
+					WithValidator(config.Validation.RequiredName)
+			},
+			NoValidation: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("no-validation").
+					WithUsage("if true, the data link used will only be validated on publishing to the broker").
+					WithDefaultValue("false")
+			},
+			Oem: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("oem").
+					WithUsage("oem of the data link").
+					WithValidator(config.Validation.Oem)
+			},
+			Version: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("version").
+					WithUsage("version of the data link").
+					WithValidator(config.Validation.Version)
+			},
+		},
 		DataPorts: dataPortOptions{
 			Desc: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -507,6 +545,7 @@ var (
 type cliOptions struct {
 	Accounts  accountOptions
 	Configs   configOptions
+	DataLinks dataLinkOptions
 	DataPorts dataPortOptions
 	Docker    dockerOptions
 	Functions functionOptions
@@ -528,6 +567,15 @@ type configOptions struct {
 	NoUpdate     func() OptionBuilder
 	SolutionPath func() OptionBuilder
 	Type         func() OptionBuilder
+}
+
+type dataLinkOptions struct {
+	Description  func() OptionBuilder
+	Handle       func() OptionBuilder
+	Name         func() OptionBuilder
+	NoValidation func() OptionBuilder
+	Oem          func() OptionBuilder
+	Version      func() OptionBuilder
 }
 
 type dataPortOptions struct {

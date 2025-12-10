@@ -28,6 +28,15 @@ type Document struct {
 			Username Keys
 		}
 	}
+	DataLink struct {
+		Create struct {
+			Description Keys
+			Handle      Keys
+			Name        Keys
+			Oem         Keys
+			Version     Keys
+		}
+	}
 	Function struct {
 		Build struct {
 			Context       Keys
@@ -81,6 +90,17 @@ type Document struct {
 					Name Keys
 				}
 			}
+			DataSourceAdd struct {
+				Handle       Keys
+				NoValidation Keys
+				Oem          Keys
+				Version      Keys
+			}
+			DataSourceRemove struct {
+				Handle  Keys
+				Oem     Keys
+				Version Keys
+			}
 			PropSpecAdd struct {
 				DefaultValue Keys
 				Description  Keys
@@ -98,6 +118,7 @@ type Document struct {
 			}
 
 			Arches      Keys
+			DataSources Keys
 			Description Keys
 			Extras      Keys
 			Handle      Keys
@@ -313,6 +334,11 @@ func init() {
 	Genaiz.Account.Login.Username = newKeys("Account.Login.Username", "GENAIZ_USERNAME", "Ac.Login.Username")
 	Genaiz.Account.Logout.Host = newKeys("Account.Logout.Host", "AC_LOGOUT_HOST", "Ac.Logout.Host")
 	Genaiz.Account.Logout.Username = newKeys("Account.Logout.Username", "GENAIZ_USERNAME", "Ac.Logout.Username")
+	Genaiz.DataLink.Create.Description = newKeys("DataLink.Create.Description", "DK_CREATE_DESC", "Dk.Create.Description")
+	Genaiz.DataLink.Create.Handle = newKeys("DataLink.Create.Handle", "")
+	Genaiz.DataLink.Create.Name = newKeys("DataLink.Create.Name", "DK_CREATE_NAME", "Dk.Create.Name")
+	Genaiz.DataLink.Create.Oem = newKeys("DataLink.Create.Oem", "DK_CREATE_OEM", "Dk.Create.Oem")
+	Genaiz.DataLink.Create.Version = newKeys("DataLink.Create.Version", "DK_CREATE_VERSION", "Dk.Create.Version")
 	Genaiz.Function.Build.Context = newKeys("Function.Build.Context", "SF_BUILD_CONTEXT", "Sf.Build.Context")
 	Genaiz.Function.Build.File = newKeys("Function.Build.File", "SF_BUILD_FILE", "Sf.Build.File")
 	Genaiz.Function.Build.Label = newKeys("Function.Build.Label", "SF_BUILD_LABEL", "Sf.Build.Label")
@@ -345,6 +371,7 @@ func init() {
 	Genaiz.Function.Init.Type = newKeys("Function.Init.Type", "SF_INIT_TYPE", "Sf.Init.Type")
 	Genaiz.Function.Init.Version = newKeys("Function.Init.Version", "SF_INIT_VERSION", "Sf.Init.Version")
 	Genaiz.Function.Publish.Arches = newKeys("Function.Publish.Arches", "SF_PUBLISH_ARCHES", "Sf.Publish.Arches")
+	Genaiz.Function.Publish.DataSources = newKeys("Function.Publish.DataSources", "SF_PUBLISH_DATA_SOURCES", "Sf.Publish.DataSources")
 	Genaiz.Function.Publish.Description = newKeys("Function.Publish.Description", "SF_PUBLISH_DESCRIPTION", "Sf.Publish.Description")
 	Genaiz.Function.Publish.Extras = newKeys("Function.Publish.Extras", "SF_PUBLISH_EXTRAS", "Sf.Publish.Extras")
 	Genaiz.Function.Publish.Handle = newKeys("Function.Publish.Handle", "SF_PUBLISH_HANDLE", "Sf.Publish.Handle")
@@ -358,6 +385,13 @@ func init() {
 	Genaiz.Function.Publish.Rebuild = newKeys("Function.Publish.Rebuild", "SF_PUBLISH_REBUILD", "Sf.Publish.Rebuild")
 	Genaiz.Function.Publish.Type = newKeys("Function.Publish.Type", "SF_PUBLISH_TYPE", "Sf.Publish.Type")
 	Genaiz.Function.Publish.Version = newKeys("Function.Publish.Version", "SF_PUBLISH_VERSION", "Sf.Publish.Version")
+	Genaiz.Function.Publish.DataSourceAdd.Handle = newKeys("Function.Publish.DataSourceAdd.Handle", "SF_PUBLISH_DATA_SRC_ADD_HANDLE", "Sf.Publish.DataSourceAdd.Handle")
+	Genaiz.Function.Publish.DataSourceAdd.NoValidation = newKeys("Function.Publish.DataSourceAdd.NoValidation", "SF_PUBLISH_DATA_SRC_ADD_NO_VALIDATION", "Sf.Publish.DataSourceAdd.NoValidation")
+	Genaiz.Function.Publish.DataSourceAdd.Oem = newKeys("Function.Publish.DataSourceAdd.Oem", "SF_PUBLISH_DATA_SRC_ADD_OEM", "Sf.Publish.DataSourceAdd.Oem")
+	Genaiz.Function.Publish.DataSourceAdd.Version = newKeys("Function.Publish.DataSourceAdd.Version", "SF_PUBLISH_DATA_SRC_ADD_VERSION", "Sf.Publish.DataSourceAdd.Version")
+	Genaiz.Function.Publish.DataSourceRemove.Handle = newKeys("Function.Publish.DataSourceRemove.Handle", "SF_PUBLISH_DATA_SRC_ADD_HANDLE", "Sf.Publish.DataSourceRemove.Handle")
+	Genaiz.Function.Publish.DataSourceRemove.Oem = newKeys("Function.Publish.DataSourceRemove.Oem", "SF_PUBLISH_DATA_SRC_ADD_OEM", "Sf.Publish.DataSourceRemove.Oem")
+	Genaiz.Function.Publish.DataSourceRemove.Version = newKeys("Function.Publish.DataSourceRemove.Version", "SF_PUBLISH_DATA_SRC_ADD_VERSION", "Sf.Publish.DataSourceRemove.Version")
 	Genaiz.Function.Publish.DataPortAdd.Input.Desc = newKeys("Function.Publish.DataPortAdd.Input.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC", "Sf.Publish.DataPortAdd.Input.Desc")
 	Genaiz.Function.Publish.DataPortAdd.Input.Name = newKeys("Function.Publish.DataPortAdd.Input.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME", "Sf.Publish.DataPortAdd.Input.Name")
 	Genaiz.Function.Publish.DataPortAdd.Output.Desc = newKeys("Function.Publish.DataPortAdd.Output.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC", "Sf.Publish.DataPortAdd.Output.Desc")

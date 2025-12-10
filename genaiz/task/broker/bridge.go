@@ -19,9 +19,11 @@ type requestBridge interface {
 
 	Form() requestBridge
 
+	FormData(map[string]string) requestBridge
+
 	Json() requestBridge
 
-	Params(map[string]string) requestBridge
+	QueryParams(map[string]string) requestBridge
 
 	Resulting(any) requestBridge
 
@@ -59,13 +61,13 @@ func (r *restyBridge) Form() requestBridge {
 	return r
 }
 
-func (r *restyBridge) Json() requestBridge {
-	r.request.SetExpectResponseContentType("application/json")
+func (r *restyBridge) FormData(params map[string]string) requestBridge {
+	r.request.SetFormData(params)
 	return r
 }
 
-func (r *restyBridge) Params(params map[string]string) requestBridge {
-	r.request.SetFormData(params)
+func (r *restyBridge) Json() requestBridge {
+	r.request.SetExpectResponseContentType("application/json")
 	return r
 }
 
@@ -77,6 +79,11 @@ func (r *restyBridge) Post(url string) (responseBridge, error) {
 	}
 
 	return resp, nil
+}
+
+func (r *restyBridge) QueryParams(args map[string]string) requestBridge {
+	r.request.SetQueryParams(args)
+	return r
 }
 
 func (r *restyBridge) Resulting(ref any) requestBridge {

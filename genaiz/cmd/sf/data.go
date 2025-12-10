@@ -282,11 +282,12 @@ func NewData(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
 	var dataExecFactory = newDataExecutorFactory(ledger, sfCli, dataInputOptions, dataOutputOptions)
 	var dataCmd = &cobra.Command{
 		Use:   "data",
-		Short: "Manages data port configurations for Smart Functions",
+		Short: "Manages data port and source configurations for Smart Functions",
 	}
 
 	dataCmd.AddCommand(data.NewDataInput(ledger, dataInputOptions.allDefiners(), dataExecFactory))
 	dataCmd.AddCommand(data.NewDataOutput(ledger, dataOutputOptions.allDefiners(), dataExecFactory))
+	dataCmd.AddCommand(NewSource(ledger, sfCli))
 	return dataCmd
 }
 

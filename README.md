@@ -75,6 +75,22 @@ genaiz sf build
 genaiz sf test
 ```
 
+#### Testing a simple function with Data Link Properties
+
+The following example creates a smart function **function-3**, without a parent solution. We then proceed to create and publish a data link **datalink-1** and add it to the smart function for provisioning on a broker.
+
+```bash
+genaiz sf create function-3 --oem="com.genaiz.dev" --version="0.2.0" \
+  --recipe="bash-example"
+cd function-3
+genaiz dk create datalink-1 --oem="com.genaiz.dev" --version="1.0.0" \
+  --description="My DataLink"
+cd function-3
+genaiz data source add com.genaiz.dev/datalink-1:1.0.0
+genaiz sf build
+genaiz sf publish
+```
+
 ## Development Guide
 
 ### Prerequisites
@@ -155,9 +171,11 @@ Design was modeled with a behavior driven approach focusing on user's usage stud
 * [Account Scenarios](doc/account/index.md)
   * [account (ac) login](doc/account/index.md#login)
   * [account (ac) logout](doc/account/index.md#logout)
+* [Data Link Scenarios](doc/datalink/index.md)
 * [Function Scenarios](doc/function/index.md)
   * [function (sf) build](doc/function/build.md)
   * [function (sf) create](doc/function/create.md)
+  * [function (sf) data](doc/function/data.md)
   * [function (sf) init](doc/function/init.md)
   * [function (sf) list](doc/function/list.md)
   * [function (sf) prop](doc/function/prop.md)

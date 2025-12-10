@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cast"
 	"resty.dev/v3"
 
 	"genaiz.com/genaiz-lib/lang/mapz"
@@ -27,6 +28,7 @@ const (
 	defaultTimeoutSeconds = 30
 
 	apiVersion1    version = "v1"
+	pathDataLink   path    = "datalink"
 	pathFunction   path    = "sf"
 	pathOidcDevice path    = "oidc/device"
 	pathOidcToken  path    = "oidc/token"
@@ -75,6 +77,10 @@ type Client interface {
 
 	GetTimeout() int
 
+	ListDataLinks(string, string, int) ([]DataLink, error)
+
+	ListDataLinksUrl() string
+
 	Login(string, []byte) (*AuthSession, error)
 
 	LoginUrl() string
@@ -96,6 +102,8 @@ type Client interface {
 	ProvisionFunction(*Function, map[string]any) (*shared.Identity, error)
 
 	ProvisionFunctionUrl() string
+
+	PublishDataLink(*DataLink) (*DataLink, error)
 
 	PublishFunction(*shared.Identity) (*Function, error)
 
@@ -167,6 +175,48 @@ func (c *client) GetTimeout() int {
 	return int(bridge.Timeout() / time.Second)
 }
 
+func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathDataLink, "list"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *[]DataLink
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[[]DataLink]{}).
+				QueryParams(map[string]string{
+					"oem":    oem,
+					"handle": handle,
+					"flags":  cast.ToString(flags),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *[]DataLink {
+					var payload = resp.Result().(*clientPayload[[]DataLink])
+
+					return &payload.Data
+				}); err == nil {
+					return *result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) ListDataLinksUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "list")
+}
+
 func (c *client) Login(username string, password []byte) (*AuthSession, error) {
 	var url string
 	var err error
@@ -178,7 +228,7 @@ func (c *client) Login(username string, password []byte) (*AuthSession, error) {
 		defer c.closeSilently(rb)
 		resp, err = rb.Json().
 			Resulting(&clientPayload[Session]{}).
-			Params(map[string]string{
+			FormData(map[string]string{
 				"email":    username,
 				"password": string(password),
 				"expiry":   strconv.FormatInt(int64(c.Expiry*60), 10),
@@ -209,7 +259,7 @@ func (c *client) Logout(sessionId string) error {
 		resp, err = rb.Json().
 			Cookie(c.makeCookie()).
 			Resulting(&clientPayload[Session]{}).
-			Params(map[string]string{
+			FormData(map[string]string{
 				"id": sessionId,
 			}).
 			Post(url)
@@ -241,7 +291,7 @@ func (c *client) OidcDeviceCode(deviceUrl string, deviceClient *DeviceClient) (*
 		defer c.closeSilently(rb)
 		resp, err = rb.Form().
 			Resulting(&DeviceAuth{}).
-			Params(map[string]string{
+			FormData(map[string]string{
 				"client_id": deviceClient.ClientId,
 				"scope":     deviceClient.ClientScope,
 			}).
@@ -298,7 +348,7 @@ func (c *client) OidcTokenCreate(tokenUrl string, deviceCode string, deviceClien
 		defer c.closeSilently(rb)
 		resp, err = rb.Form().
 			Resulting(&oauthResponse{}).
-			Params(map[string]string{
+			FormData(map[string]string{
 				"client_id":   deviceClient.ClientId,
 				"device_code": deviceCode,
 				"grant_type":  deviceClient.GrantType,
@@ -331,7 +381,7 @@ func (c *client) OidcTokenSession(tokenUrl, token string) (*AuthSession, error) 
 		resp, _ = rb.Json().
 			Cookie(c.makeCookie()).
 			Resulting(&clientPayload[Session]{}).
-			Params(map[string]string{
+			FormData(map[string]string{
 				"accessToken": token,
 			}).
 			Post(url)
@@ -389,7 +439,7 @@ func (c *client) ProvisionFunction(function *Function, extras map[string]any) (*
 				resp, err = rb.Json().
 					Cookie(c.makeCookie()).
 					Resulting(&clientPayload[provisionData]{}).
-					Params(map[string]string{
+					FormData(map[string]string{
 						"model": string(modelBytes),
 					}).
 					Post(url)
@@ -414,6 +464,44 @@ func (c *client) ProvisionFunctionUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "provision")
 }
 
+func (c *client) PublishDataLink(link *DataLink) (*DataLink, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathDataLink, "publish"); err == nil {
+			var modelBytes, _ = json.Marshal(link)
+			var rb = c.requestBridge()
+			var resp responseBridge
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[DataLink]{}).
+				FormData(map[string]string{
+					"model": string(modelBytes),
+				}).
+				Post(url)
+
+			if err == nil {
+				return resultOrError(resp, func(body any) *DataLink {
+					var payload = resp.Result().(*clientPayload[DataLink])
+
+					return &payload.Data
+				})
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) PublishDataLinkUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "publish")
+}
+
 func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 	if c.AuthToken != "" {
 		var url string
@@ -427,7 +515,7 @@ func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 			resp, err = rb.Json().
 				Cookie(c.makeCookie()).
 				Resulting(&clientPayload[publishingData]{}).
-				Params(map[string]string{
+				FormData(map[string]string{
 					"id":     identity.Id,
 					"digest": identity.Hash,
 				}).
@@ -464,7 +552,7 @@ func (c *client) PublishSolution(solution *Solution) (*shared.Identity, error) {
 			resp, err = rb.Json().
 				Cookie(c.makeCookie()).
 				Resulting(&clientPayload[solutionSlices]{}).
-				Params(map[string]string{
+				FormData(map[string]string{
 					"solution": string(solutionBytes),
 				}).
 				Post(url)
