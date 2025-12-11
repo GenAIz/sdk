@@ -78,6 +78,112 @@ genaiz sf data output rm PORT|PATH
 
 ### data source
 
+Data source is used to add data link addresses, as [FQDNV](index.md#fqdnv), to the list of data sources. A data source listed under a Smart Function may be used to establish a **Read-Only** connection while running the Smart Function.
+
 #### data source add
 
+```
+genaiz sf data source add [OEM/][HANDLE][:VERSION] \
+  --oem=OEM --handle=HANDLE --version=VERSION --no-validation
+```
+
+When invoking data source add, unless the [no-validation](#no-validation) option is used, the command will attempt verifying that the user has access to the specified data link, by querying the broker by oem and handle for a list of corresponding data links.
+
+If the version specified is not available, the command will return an error with a list of available data links if any were returned.
+
+##### Oem
+
+* needs to be specified with the FQDNV argument or with the oem option.
+* if the value of oem does not match a valid oem string, (see [oem validity](../index.md#handle-and-oem)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datasourceadd.oem] is invalid`
+
+##### Handle
+
+* needs to be specified with the FQDNV argument or with the handle option.
+* if the value of handle does not match a valid handle string, (see [handle validity](../index.md#handle-and-oem)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datasourceadd.handle] is invalid`
+
+##### Version
+
+* needs to be specified with the FQDNV argument or with the version option.
+* if the value of version does not match a valid version string, (see [version validity](../index.md#version)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datasourceadd.version] is invalid`
+
+##### no-validation
+
+* if specified, the command will not attempt verifying the validity of the FQDNV address added to the data source list.
+
 #### data source rm
+
+```
+genaiz sf data source rm [OEM/][HANDLE][:VERSION] \
+  --oem=OEM --handle=HANDLE --version=VERSION
+```
+
+##### Oem
+
+* needs to be specified with the FQDNV argument or with the oem option.
+* if the value of oem does not match a valid oem string, (see [oem validity](../index.md#handle-and-oem)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datasourceremove.oem] is invalid`
+
+##### Handle
+
+* needs to be specified with the FQDNV argument or with the handle option.
+* if the value of handle does not match a valid handle string, (see [handle validity](../index.md#handle-and-oem)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datasourceremove.handle] is invalid`
+
+##### Version
+
+* needs to be specified with the FQDNV argument or with the version option.
+* if the value of version does not match a valid version string, (see [version validity](../index.md#version)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datasourceremove.version] is invalid`
+
+### data store
+
+Data store is used to add data link addresses, as [FQDNV](index.md#fqdnv), to the list of data stores. A data store listed under a Smart Function may be used to establish a **Read/Write** connection while running the Smart Function.
+
+#### data store add
+
+```
+genaiz sf data store add [OEM/][HANDLE][:VERSION] \
+  --oem=OEM --handle=HANDLE --version=VERSION --no-validation
+```
+
+When invoking data store add, unless the [no-validation](#no-validation) option is used, the command will attempt verifying that the user has access to the specified data link, by querying the broker by oem and handle for a list of corresponding data links.
+
+If the version specified is not available, the command will return an error with a list of available data links if any were returned.
+
+##### Oem
+
+* needs to be specified with the FQDNV argument or with the oem option.
+* if the value of oem does not match a valid oem string, (see [oem validity](../index.md#handle-and-oem)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datastoreadd.oem] is invalid`
+
+##### Handle
+
+* needs to be specified with the FQDNV argument or with the handle option.
+* if the value of handle does not match a valid handle string, (see [handle validity](../index.md#handle-and-oem)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datastoreadd.handle] is invalid`
+
+##### Version
+
+* needs to be specified with the FQDNV argument or with the version option.
+* if the value of version does not match a valid version string, (see [version validity](../index.md#version)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datastoreadd.version] is invalid`
+
+##### no-validation
+
+* if specified, the command will not attempt verifying the validity of the FQDNV address added to the data store list.
+
+#### data store rm
+
+```
+genaiz sf data store rm [OEM/][HANDLE][:VERSION] \
+  --oem=OEM --handle=HANDLE --version=VERSION
+```
+
+##### Oem
+
+* needs to be specified with the FQDNV argument or with the oem option.
+* if the value of oem does not match a valid oem string, (see [oem validity](../index.md#handle-and-oem)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datastoreremove.oem] is invalid`
+
+##### Handle
+
+* needs to be specified with the FQDNV argument or with the handle option.
+* if the value of handle does not match a valid handle string, (see [handle validity](../index.md#handle-and-oem)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datastoreremove.handle] is invalid`
+
+##### Version
+
+* needs to be specified with the FQDNV argument or with the version option.
+* if the value of version does not match a valid version string, (see [version validity](../index.md#version)), the command will return an error with the field and the invalid value: `value [...] for option [function.publish.datastoreremove.version] is invalid`

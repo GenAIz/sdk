@@ -288,6 +288,7 @@ func NewData(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
 	dataCmd.AddCommand(data.NewDataInput(ledger, dataInputOptions.allDefiners(), dataExecFactory))
 	dataCmd.AddCommand(data.NewDataOutput(ledger, dataOutputOptions.allDefiners(), dataExecFactory))
 	dataCmd.AddCommand(NewSource(ledger, sfCli))
+	dataCmd.AddCommand(NewStore(ledger, sfCli))
 	return dataCmd
 }
 

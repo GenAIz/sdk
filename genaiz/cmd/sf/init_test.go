@@ -303,6 +303,29 @@ func TestInitWriter_BuildSources(t *testing.T) {
 	assert.Empty(t, actualSources)
 }
 
+func TestInitWriter_BuildStores(t *testing.T) {
+	var expectedStores = []string{"expectedLink"}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishStoresKeys: &schema.Genaiz.Function.Publish.DataStores,
+		vp:                testViper,
+	}
+	var actualStores []string
+	var actualKey string
+
+	actualKey, actualStores = testWriter.WithStores(nil).BuildStores()
+	assert.Equal(t, testWriter.publishStoresKeys.Doc, actualKey)
+	assert.Empty(t, actualStores)
+
+	actualKey, actualStores = testWriter.WithStores(expectedStores).BuildStores()
+	assert.Equal(t, testWriter.publishStoresKeys.Doc, actualKey)
+	assert.Equal(t, expectedStores, actualStores)
+
+	testWriter.vp.Set(testWriter.publishStoresKeys.Doc, "invalid slice")
+	actualKey, actualStores = testWriter.BuildStores()
+	assert.Empty(t, actualStores)
+}
+
 func TestInitWriter_BuildType(t *testing.T) {
 	var testWriter = &InitWriter{
 		PublishOptions: &PublishOptions{

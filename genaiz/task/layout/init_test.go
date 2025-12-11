@@ -35,6 +35,7 @@ type stubWriter struct {
 	rmPropSpec        *broker.PropSpec
 	sfType            string
 	sources           []string
+	stores            []string
 	version           string
 	writeErr          error
 }
@@ -94,6 +95,10 @@ func (s *stubWriter) BuildPropSpecRemoved() (string, *broker.PropSpec) {
 
 func (s *stubWriter) BuildSources() (string, []string) {
 	return "", s.sources
+}
+
+func (s *stubWriter) BuildStores() (string, []string) {
+	return "", s.stores
 }
 
 func (s *stubWriter) BuildType() (string, string) {
@@ -184,6 +189,11 @@ func (s *stubWriter) WithPropSpecRemoved(spec *broker.PropSpec) ConfigWriter {
 
 func (s *stubWriter) WithSources(sources []string) ConfigWriter {
 	s.sources = sources
+	return s
+}
+
+func (s *stubWriter) WithStores(stores []string) ConfigWriter {
+	s.stores = stores
 	return s
 }
 
@@ -375,6 +385,34 @@ func Test_handleLayoutInitPretend_dataSources(t *testing.T) {
 
 	assert.Contains(t, output, expectedDataSources[0])
 	assert.Contains(t, output, expectedDataSources[1])
+}
+
+func Test_handleLayoutInitPretend_dataStores(t *testing.T) {
+	var expectedDataStores = []string{"expectedDataStore", "expectedDataStore2"}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var testParams = &InitParams{}
+	var testWriter = &stubWriter{
+		stores: expectedDataStores,
+	}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedDataStores[0])
+	assert.Contains(t, output, expectedDataStores[1])
 }
 
 func Test_handleLayoutInitPretend_inputPorts(t *testing.T) {

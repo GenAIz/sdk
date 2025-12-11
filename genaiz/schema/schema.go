@@ -101,6 +101,17 @@ type Document struct {
 				Oem     Keys
 				Version Keys
 			}
+			DataStoreAdd struct {
+				Handle       Keys
+				NoValidation Keys
+				Oem          Keys
+				Version      Keys
+			}
+			DataStoreRemove struct {
+				Handle  Keys
+				Oem     Keys
+				Version Keys
+			}
 			PropSpecAdd struct {
 				DefaultValue Keys
 				Description  Keys
@@ -119,6 +130,7 @@ type Document struct {
 
 			Arches      Keys
 			DataSources Keys
+			DataStores  Keys
 			Description Keys
 			Extras      Keys
 			Handle      Keys
@@ -372,6 +384,7 @@ func init() {
 	Genaiz.Function.Init.Version = newKeys("Function.Init.Version", "SF_INIT_VERSION", "Sf.Init.Version")
 	Genaiz.Function.Publish.Arches = newKeys("Function.Publish.Arches", "SF_PUBLISH_ARCHES", "Sf.Publish.Arches")
 	Genaiz.Function.Publish.DataSources = newKeys("Function.Publish.DataSources", "SF_PUBLISH_DATA_SOURCES", "Sf.Publish.DataSources")
+	Genaiz.Function.Publish.DataStores = newKeys("Function.Publish.DataStores", "SF_PUBLISH_DATA_STORES", "Sf.Publish.DataStores")
 	Genaiz.Function.Publish.Description = newKeys("Function.Publish.Description", "SF_PUBLISH_DESCRIPTION", "Sf.Publish.Description")
 	Genaiz.Function.Publish.Extras = newKeys("Function.Publish.Extras", "SF_PUBLISH_EXTRAS", "Sf.Publish.Extras")
 	Genaiz.Function.Publish.Handle = newKeys("Function.Publish.Handle", "SF_PUBLISH_HANDLE", "Sf.Publish.Handle")
@@ -389,9 +402,16 @@ func init() {
 	Genaiz.Function.Publish.DataSourceAdd.NoValidation = newKeys("Function.Publish.DataSourceAdd.NoValidation", "SF_PUBLISH_DATA_SRC_ADD_NO_VALIDATION", "Sf.Publish.DataSourceAdd.NoValidation")
 	Genaiz.Function.Publish.DataSourceAdd.Oem = newKeys("Function.Publish.DataSourceAdd.Oem", "SF_PUBLISH_DATA_SRC_ADD_OEM", "Sf.Publish.DataSourceAdd.Oem")
 	Genaiz.Function.Publish.DataSourceAdd.Version = newKeys("Function.Publish.DataSourceAdd.Version", "SF_PUBLISH_DATA_SRC_ADD_VERSION", "Sf.Publish.DataSourceAdd.Version")
-	Genaiz.Function.Publish.DataSourceRemove.Handle = newKeys("Function.Publish.DataSourceRemove.Handle", "SF_PUBLISH_DATA_SRC_ADD_HANDLE", "Sf.Publish.DataSourceRemove.Handle")
-	Genaiz.Function.Publish.DataSourceRemove.Oem = newKeys("Function.Publish.DataSourceRemove.Oem", "SF_PUBLISH_DATA_SRC_ADD_OEM", "Sf.Publish.DataSourceRemove.Oem")
-	Genaiz.Function.Publish.DataSourceRemove.Version = newKeys("Function.Publish.DataSourceRemove.Version", "SF_PUBLISH_DATA_SRC_ADD_VERSION", "Sf.Publish.DataSourceRemove.Version")
+	Genaiz.Function.Publish.DataSourceRemove.Handle = newKeys("Function.Publish.DataSourceRemove.Handle", "SF_PUBLISH_DATA_RM_ADD_HANDLE", "Sf.Publish.DataSourceRemove.Handle")
+	Genaiz.Function.Publish.DataSourceRemove.Oem = newKeys("Function.Publish.DataSourceRemove.Oem", "SF_PUBLISH_DATA_SRC_RM_OEM", "Sf.Publish.DataSourceRemove.Oem")
+	Genaiz.Function.Publish.DataSourceRemove.Version = newKeys("Function.Publish.DataSourceRemove.Version", "SF_PUBLISH_DATA_SRC_RM_VERSION", "Sf.Publish.DataSourceRemove.Version")
+	Genaiz.Function.Publish.DataStoreAdd.Handle = newKeys("Function.Publish.DataStoreAdd.Handle", "SF_PUBLISH_DATA_STR_ADD_HANDLE", "Sf.Publish.DataStoreAdd.Handle")
+	Genaiz.Function.Publish.DataStoreAdd.NoValidation = newKeys("Function.Publish.DataStoreAdd.NoValidation", "SF_PUBLISH_DATA_STR_ADD_NO_VALIDATION", "Sf.Publish.DataStoreAdd.NoValidation")
+	Genaiz.Function.Publish.DataStoreAdd.Oem = newKeys("Function.Publish.DataStoreAdd.Oem", "SF_PUBLISH_DATA_STR_ADD_OEM", "Sf.Publish.DataStoreAdd.Oem")
+	Genaiz.Function.Publish.DataStoreAdd.Version = newKeys("Function.Publish.DataStoreAdd.Version", "SF_PUBLISH_DATA_STR_ADD_VERSION", "Sf.Publish.DataStoreAdd.Version")
+	Genaiz.Function.Publish.DataStoreRemove.Handle = newKeys("Function.Publish.DataStoreRemove.Handle", "SF_PUBLISH_DATA_STR_RM_HANDLE", "Sf.Publish.DataStoreRemove.Handle")
+	Genaiz.Function.Publish.DataStoreRemove.Oem = newKeys("Function.Publish.DataStoreRemove.Oem", "SF_PUBLISH_DATA_STR_RM_OEM", "Sf.Publish.DataStoreRemove.Oem")
+	Genaiz.Function.Publish.DataStoreRemove.Version = newKeys("Function.Publish.DataStoreRemove.Version", "SF_PUBLISH_DATA_STR_RM_VERSION", "Sf.Publish.DataStoreRemove.Version")
 	Genaiz.Function.Publish.DataPortAdd.Input.Desc = newKeys("Function.Publish.DataPortAdd.Input.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC", "Sf.Publish.DataPortAdd.Input.Desc")
 	Genaiz.Function.Publish.DataPortAdd.Input.Name = newKeys("Function.Publish.DataPortAdd.Input.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME", "Sf.Publish.DataPortAdd.Input.Name")
 	Genaiz.Function.Publish.DataPortAdd.Output.Desc = newKeys("Function.Publish.DataPortAdd.Output.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC", "Sf.Publish.DataPortAdd.Output.Desc")
