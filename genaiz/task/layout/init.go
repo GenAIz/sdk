@@ -46,6 +46,8 @@ type ConfigWriter interface {
 
 	BuildSources() (string, []string)
 
+	BuildStores() (string, []string)
+
 	BuildType() (string, string)
 
 	BuildVersion() (string, string)
@@ -80,6 +82,8 @@ type ConfigWriter interface {
 
 	WithSources([]string) ConfigWriter
 
+	WithStores([]string) ConfigWriter
+
 	WithType(string) ConfigWriter
 
 	WithVar(string) ConfigWriter
@@ -91,6 +95,7 @@ type InitParams struct {
 	CreateParams
 	Arches      []ArchType
 	DataSources []string
+	DataStores  []string
 	Handle      string
 	InputPorts  []broker.DataPort
 	Name        string
@@ -157,6 +162,7 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 			WithOutputPorts(params.OutputPorts).
 			WithPropSpecs(params.PropSpecs).
 			WithSources(params.DataSources).
+			WithStores(params.DataStores).
 			WithVar(initState.DefaultVar(params.MountOutput)).
 			WithVersion(params.Version).
 			Write(state.Output); err == nil {
@@ -184,6 +190,7 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 		var rmPropSpecKey, rmPropSpec = writer.BuildPropSpecRemoved()
 		var propSpecKey, propSpecs = writer.WithPropSpecs(params.PropSpecs).BuildPropSpecs()
 		var dataSourcesKey, dataSources = writer.BuildSources()
+		var dataStoresKey, dataStores = writer.BuildStores()
 
 		state.Logger.Debugf("Pretending to initialize [%s]", state.Output)
 		writer.WithHandle(params.Handle)
@@ -275,6 +282,12 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 		if len(dataSources) > 0 {
 			shared.PretendSlice(pretender, func() (string, []string) {
 				return dataSourcesKey, dataSources
+			})
+		}
+
+		if len(dataStores) > 0 {
+			shared.PretendSlice(pretender, func() (string, []string) {
+				return dataStoresKey, dataStores
 			})
 		}
 

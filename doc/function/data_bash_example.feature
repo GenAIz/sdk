@@ -8,8 +8,7 @@ Feature: data ports for the bash example
       | recipe       | handle          | oem            | type     | version |
       | bash-example | my-bash-example | com.genaiz.dev | function | 1.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --version=<version>"
-    Then I should have a function under "<handle>" named "<handle>" with oem "<oem>" and version "<version>"
-    And I should have a function under "<handle>" named "<handle>" with type "<type>"
+    Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
 
   Scenario: add input data port by path
     Given the scenario "create bash example" ran with condition "service_completed_successfully"

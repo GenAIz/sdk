@@ -11,7 +11,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz/cli"
-	"genaiz.com/genaiz/cmd/sf/source"
+	"genaiz.com/genaiz/cmd/sf/store"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
@@ -20,43 +20,43 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
-type SourceExecutor struct {
+type StoreExecutor struct {
 	DataLinkExecutor
 
-	addParams      *broker.DataLinkParams
-	rmParams       *broker.DataLinkParams
-	innerSources   *config.ListOption
-	updatedSources []string
+	addParams     *broker.DataLinkParams
+	rmParams      *broker.DataLinkParams
+	innerStores   *config.ListOption
+	updatedStores []string
 
 	initTaskFactory      InitTaskFactory
 	listLinksTaskFactory ListLinksTaskFactory
 }
 
-func (se *SourceExecutor) Add(fqdnv string) error {
-	var dataSources = se.Ledger.GetList(se.innerSources)
+func (se *StoreExecutor) Add(fqdnv string) error {
+	var dataStores = se.Ledger.GetList(se.innerStores)
 	var params = se.makeDataLinkParams(fqdnv)
 	var value = params.ToString()
 
-	if slices.Contains(dataSources, value) {
-		return fmt.Errorf("data source [%s] is already configured", value)
+	if slices.Contains(dataStores, value) {
+		return fmt.Errorf("data store [%s] is already configured", value)
 	} else {
-		dataSources = append(dataSources, value)
+		dataStores = append(dataStores, value)
 	}
 
 	se.addParams = params
-	se.updatedSources = dataSources
+	se.updatedStores = dataStores
 	se.Cli.Exec(se.Ledger, se)
 	return nil
 }
 
-func (se *SourceExecutor) Display() {
+func (se *StoreExecutor) Display() {
 	var params *broker.DataLinkParams
 
 	if se.addParams != nil {
-		_, _ = fmt.Printf("Adding the following data source:\n")
+		_, _ = fmt.Printf("Adding the following data store:\n")
 		params = se.addParams
 	} else if se.rmParams != nil {
-		_, _ = fmt.Printf("Removing the following data source:\n")
+		_, _ = fmt.Printf("Removing the following data store:\n")
 		params = se.rmParams
 	}
 
@@ -71,10 +71,10 @@ func (se *SourceExecutor) Display() {
 	}
 }
 
-func (se *SourceExecutor) Pretend() {
+func (se *StoreExecutor) Pretend() {
 	var builder = makeInitBuilder(se.Ledger, se.Cli)
 	var initParams = se.makeInitParams()
-	var plan = task.NewPlan("DataSource", se.Ledger.Logger)
+	var plan = task.NewPlan("DataStore", se.Ledger.Logger)
 	var workers []task.Worker
 
 	if se.addParams != nil {
@@ -88,10 +88,10 @@ func (se *SourceExecutor) Pretend() {
 	plan.Sequence(workers...)
 }
 
-func (se *SourceExecutor) Proceed() {
+func (se *StoreExecutor) Proceed() {
 	var builder = makeInitBuilder(se.Ledger, se.Cli)
 	var initParams = se.makeInitParams()
-	var plan = task.NewPlan("DataSource", se.Ledger.Logger)
+	var plan = task.NewPlan("DataStore", se.Ledger.Logger)
 	var workers []task.Worker
 
 	if se.addParams != nil {
@@ -105,49 +105,48 @@ func (se *SourceExecutor) Proceed() {
 	plan.Sequence(workers...)
 }
 
-func (se *SourceExecutor) Remove(fqdnv string) {
-	var dataSources = se.Ledger.GetList(se.innerSources)
+func (se *StoreExecutor) Remove(fqdnv string) {
+	var dataStores = se.Ledger.GetList(se.innerStores)
 	var params = se.makeDataLinkParams(fqdnv)
 	var value = params.ToString()
 
 	se.rmParams = params
-	se.updatedSources = slices.DeleteFunc(dataSources, func(s string) bool {
+	se.updatedStores = slices.DeleteFunc(dataStores, func(s string) bool {
 		return strings.EqualFold(value, s)
 	})
 	se.Cli.Exec(se.Ledger, se)
 }
 
-func (se *SourceExecutor) makeInitParams() *layout.InitParams {
+func (se *StoreExecutor) makeInitParams() *layout.InitParams {
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
 			ConfigParams: shared.ConfigParams{
 				ConfigName: se.Ledger.ConfigName,
 			},
 		},
-		DataSources: se.updatedSources,
+		DataStores: se.updatedStores,
 	}
 }
 
-func NewSource(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
-	var addOptions = NewSourceAddOptions(sfCli)
-	var addCommand = source.NewAddSource(newSourceAddFactory(ledger, sfCli, addOptions))
-	var removeOptions = NewSourceRemoveOptions(sfCli)
-	var removeCommand = source.NewRemoveSource(newSourceRemoveFactory(ledger, sfCli, removeOptions))
-	var sourceCmd = &cobra.Command{
-		Use:     "source",
-		Aliases: []string{"src"},
-		Short:   "Manages data source configurations for Smart Functions",
+func NewStore(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
+	var addOptions = NewStoreAddOptions(sfCli)
+	var addCommand = store.NewAddStore(newStoreAddFactory(ledger, sfCli, addOptions))
+	var removeOptions = NewStoreRemoveOptions(sfCli)
+	var removeCommand = store.NewRemoveStore(newStoreRemoveFactory(ledger, sfCli, removeOptions))
+	var storeCmd = &cobra.Command{
+		Use:     "store",
+		Aliases: []string{"str"},
+		Short:   "Manages data Store configurations for Smart Functions",
 	}
 
 	ledger.Register(addCommand, addOptions.addDefiners()...)
-	ledger.Register(removeCommand, removeOptions.removeDefiners()...)
-	sourceCmd.AddCommand(addCommand)
-	sourceCmd.AddCommand(removeCommand)
-	return sourceCmd
+	storeCmd.AddCommand(addCommand)
+	storeCmd.AddCommand(removeCommand)
+	return storeCmd
 }
 
-func NewSourceExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, options *DataLinkOptions) *SourceExecutor {
-	return &SourceExecutor{
+func NewStoreExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, options *DataLinkOptions) *StoreExecutor {
+	return &StoreExecutor{
 		DataLinkExecutor: DataLinkExecutor{
 			BaseExecutor: BaseExecutor{
 				Context: ctx,
@@ -157,8 +156,8 @@ func NewSourceExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, o
 			DataLinkOptions: options,
 		},
 
-		innerSources: cli.NewOptionBuilder().
-			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
+		innerStores: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataStores).
 			BuildListOption(),
 
 		initTaskFactory:      layout.NewInitTask,
@@ -166,7 +165,7 @@ func NewSourceExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, o
 	}
 }
 
-func NewSourceAddOptions(sfCli *Cli) *DataLinkOptions {
+func NewStoreAddOptions(sfCli *Cli) *DataLinkOptions {
 	var parentOpt = cli.Options.Configs.SolutionPath().
 		WithKeys(&schema.Genaiz.Function.Init.SolutionPath).
 		WithDefaultGetter(func(ledger *config.Ledger) any {
@@ -175,22 +174,22 @@ func NewSourceAddOptions(sfCli *Cli) *DataLinkOptions {
 
 	return &DataLinkOptions{
 		optionHandle: cli.Options.DataLinks.Handle().
-			WithKeys(&schema.Genaiz.Function.Publish.DataSourceAdd.Handle).
+			WithKeys(&schema.Genaiz.Function.Publish.DataStoreAdd.Handle).
 			BuildStringOption(),
 		optionOem: cli.Options.DataLinks.Oem().
-			WithKeys(&schema.Genaiz.Function.Publish.DataSourceAdd.Oem).
+			WithKeys(&schema.Genaiz.Function.Publish.DataStoreAdd.Oem).
 			WithDefaultGetter(sfCli.ParentOem(parentOpt)).
 			BuildStringOption(),
 		optionVersion: cli.Options.DataLinks.Version().
-			WithKeys(&schema.Genaiz.Function.Publish.DataSourceAdd.Version).
+			WithKeys(&schema.Genaiz.Function.Publish.DataStoreAdd.Version).
 			BuildStringOption(),
 		optionNoValidation: cli.Options.DataLinks.NoValidation().
-			WithKeys(&schema.Genaiz.Function.Publish.DataSourceAdd.NoValidation).
+			WithKeys(&schema.Genaiz.Function.Publish.DataStoreAdd.NoValidation).
 			BuildBoolOption(),
 	}
 }
 
-func NewSourceRemoveOptions(sfCli *Cli) *DataLinkOptions {
+func NewStoreRemoveOptions(sfCli *Cli) *DataLinkOptions {
 	var parentOpt = cli.Options.Configs.SolutionPath().
 		WithKeys(&schema.Genaiz.Function.Init.SolutionPath).
 		WithDefaultGetter(func(ledger *config.Ledger) any {
@@ -199,26 +198,26 @@ func NewSourceRemoveOptions(sfCli *Cli) *DataLinkOptions {
 
 	return &DataLinkOptions{
 		optionHandle: cli.Options.DataLinks.Handle().
-			WithKeys(&schema.Genaiz.Function.Publish.DataSourceRemove.Handle).
+			WithKeys(&schema.Genaiz.Function.Publish.DataStoreRemove.Handle).
 			BuildStringOption(),
 		optionOem: cli.Options.DataLinks.Oem().
-			WithKeys(&schema.Genaiz.Function.Publish.DataSourceRemove.Oem).
+			WithKeys(&schema.Genaiz.Function.Publish.DataStoreRemove.Oem).
 			WithDefaultGetter(sfCli.ParentOem(parentOpt)).
 			BuildStringOption(),
 		optionVersion: cli.Options.DataLinks.Version().
-			WithKeys(&schema.Genaiz.Function.Publish.DataSourceRemove.Version).
+			WithKeys(&schema.Genaiz.Function.Publish.DataStoreRemove.Version).
 			BuildStringOption(),
 	}
 }
 
-func newSourceAddFactory(ledger *config.Ledger, sfCli *Cli, addOptions *DataLinkOptions) source.AddExecutorFactory {
-	return func(cmd *cobra.Command) source.AddExecutor {
-		return NewSourceExecutor(cmd.Context(), ledger, sfCli, addOptions)
+func newStoreAddFactory(ledger *config.Ledger, sfCli *Cli, addOptions *DataLinkOptions) store.AddExecutorFactory {
+	return func(cmd *cobra.Command) store.AddExecutor {
+		return NewStoreExecutor(cmd.Context(), ledger, sfCli, addOptions)
 	}
 }
 
-func newSourceRemoveFactory(ledger *config.Ledger, sfCli *Cli, removeOptions *DataLinkOptions) source.RemoveExecutorFactory {
-	return func(cmd *cobra.Command) source.RemoveExecutor {
-		return NewSourceExecutor(cmd.Context(), ledger, sfCli, removeOptions)
+func newStoreRemoveFactory(ledger *config.Ledger, sfCli *Cli, removeOptions *DataLinkOptions) store.RemoveExecutorFactory {
+	return func(cmd *cobra.Command) store.RemoveExecutor {
+		return NewStoreExecutor(cmd.Context(), ledger, sfCli, removeOptions)
 	}
 }

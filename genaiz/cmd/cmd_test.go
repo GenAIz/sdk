@@ -20,6 +20,7 @@ type errorWriter struct {
 }
 
 func (ew errorWriter) Write(p []byte) (int, error) {
+	_ = p
 	return -1, errors.New("test")
 }
 

@@ -5,6 +5,8 @@
 * [Build bash example](build_bash_example.feature)
 * [Create bash example](create_bash_example.feature)
 * [Data bash example](data_bash_example.feature)
+* [Data source example](data_source_example.feature)
+* [Data store example](data_store_example.feature)
 * [Init empty example](init_empty_example.feature)
 * [List bash example](list_bash_example.feature)
 * [Prop bash example](prop_bash_example.feature)
@@ -75,6 +77,10 @@ There should also be a mechanism for specifying environment variables using a .e
 - this should be provided by default by the SDK relying on the type field specified under the function publish configurations
 
 ## Validation
+
+### FQDNV
+
+See [Global Validation](../index.md#fqdnv)
 
 ### Handle and OEM
 

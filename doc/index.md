@@ -39,6 +39,13 @@ The concepts and design related to the Orchestrator and GenAIz platform should b
 > [!CAUTION]
 > Descriptions currently do not support any kind of official templating engine. If changes do occur, then the validity will depend on the Templating engine selected.
 
+### FQDNV
+
+For Fully Qualified Domain Name and Version.
+
+* Is simply a composition of [OEM](#handle-and-oem)/[HANDLE](#handle-and-oem):[VERSION](#version)
+* Each component needs to be valid or needs to be accounted for the command requiring the field. (Through options if necessary)
+
 ### Handle and OEM
 
 * Can only have letters (upper or lower case), digits, dots, dashes and underscores.
