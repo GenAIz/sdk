@@ -25,6 +25,7 @@ type StoreExecutor struct {
 
 	addParams     *broker.DataLinkParams
 	rmParams      *broker.DataLinkParams
+	innerType     *config.StringOption
 	innerStores   *config.ListOption
 	updatedStores []string
 
@@ -33,20 +34,25 @@ type StoreExecutor struct {
 }
 
 func (se *StoreExecutor) Add(fqdnv string) error {
-	var dataStores = se.Ledger.GetList(se.innerStores)
-	var params = se.makeDataLinkParams(fqdnv)
-	var value = params.ToString()
+	var err error
 
-	if slices.Contains(dataStores, value) {
-		return fmt.Errorf("data store [%s] is already configured", value)
-	} else {
-		dataStores = append(dataStores, value)
+	if err = se.validateConnector(se.innerType); err == nil {
+		var dataStores = se.Ledger.GetList(se.innerStores)
+		var params = se.makeDataLinkParams(fqdnv)
+		var value = params.ToString()
+
+		if slices.Contains(dataStores, value) {
+			return fmt.Errorf("data store [%s] is already configured", value)
+		} else {
+			dataStores = append(dataStores, value)
+		}
+
+		se.addParams = params
+		se.updatedStores = dataStores
+		se.Cli.Exec(se.Ledger, se)
 	}
 
-	se.addParams = params
-	se.updatedStores = dataStores
-	se.Cli.Exec(se.Ledger, se)
-	return nil
+	return err
 }
 
 func (se *StoreExecutor) Display() {
@@ -140,6 +146,7 @@ func NewStore(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
 	}
 
 	ledger.Register(addCommand, addOptions.addDefiners()...)
+	ledger.Register(removeCommand, removeOptions.removeDefiners()...)
 	storeCmd.AddCommand(addCommand)
 	storeCmd.AddCommand(removeCommand)
 	return storeCmd
@@ -156,6 +163,9 @@ func NewStoreExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, op
 			DataLinkOptions: options,
 		},
 
+		innerType: cli.Options.Functions.Type().
+			WithKeys(&schema.Genaiz.Function.Publish.Type).
+			BuildStringOption(),
 		innerStores: cli.NewOptionBuilder().
 			WithKeys(&schema.Genaiz.Function.Publish.DataStores).
 			BuildListOption(),

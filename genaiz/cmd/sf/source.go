@@ -25,6 +25,7 @@ type SourceExecutor struct {
 
 	addParams      *broker.DataLinkParams
 	rmParams       *broker.DataLinkParams
+	innerType      *config.StringOption
 	innerSources   *config.ListOption
 	updatedSources []string
 
@@ -33,20 +34,25 @@ type SourceExecutor struct {
 }
 
 func (se *SourceExecutor) Add(fqdnv string) error {
-	var dataSources = se.Ledger.GetList(se.innerSources)
-	var params = se.makeDataLinkParams(fqdnv)
-	var value = params.ToString()
+	var err error
 
-	if slices.Contains(dataSources, value) {
-		return fmt.Errorf("data source [%s] is already configured", value)
-	} else {
-		dataSources = append(dataSources, value)
+	if err = se.validateConnector(se.innerType); err == nil {
+		var dataSources = se.Ledger.GetList(se.innerSources)
+		var params = se.makeDataLinkParams(fqdnv)
+		var value = params.ToString()
+
+		if slices.Contains(dataSources, value) {
+			return fmt.Errorf("data source [%s] is already configured", value)
+		} else {
+			dataSources = append(dataSources, value)
+		}
+
+		se.addParams = params
+		se.updatedSources = dataSources
+		se.Cli.Exec(se.Ledger, se)
 	}
 
-	se.addParams = params
-	se.updatedSources = dataSources
-	se.Cli.Exec(se.Ledger, se)
-	return nil
+	return err
 }
 
 func (se *SourceExecutor) Display() {
@@ -157,6 +163,9 @@ func NewSourceExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, o
 			DataLinkOptions: options,
 		},
 
+		innerType: cli.Options.Functions.Type().
+			WithKeys(&schema.Genaiz.Function.Publish.Type).
+			BuildStringOption(),
 		innerSources: cli.NewOptionBuilder().
 			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
 			BuildListOption(),

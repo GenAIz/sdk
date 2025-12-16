@@ -23,17 +23,20 @@ import (
 type SolutionPublishTaskFactory func() *task.Task[broker.SolutionPublishParams]
 
 type FunctionOptions struct {
-	innerInputPorts   *config.Option
-	innerOutputPorts  *config.Option
-	innerPropSpecs    *config.Option
-	optionArches      *config.ListOption
-	optionExtras      *config.Option
-	optionDescription *config.StringOption
-	optionHandle      *config.StringOption
-	optionName        *config.StringOption
-	optionOem         *config.StringOption
-	optionType        *config.StringOption
-	optionVersion     *config.StringOption
+	innerDataSources     *config.ListOption
+	innerDataStores      *config.ListOption
+	innerInputPorts      *config.Option
+	innerOutputPorts     *config.Option
+	innerOutboundProxies *config.Option
+	innerPropSpecs       *config.Option
+	optionArches         *config.ListOption
+	optionExtras         *config.Option
+	optionDescription    *config.StringOption
+	optionHandle         *config.StringOption
+	optionName           *config.StringOption
+	optionOem            *config.StringOption
+	optionType           *config.StringOption
+	optionVersion        *config.StringOption
 }
 
 type FunctionParams struct {
@@ -236,6 +239,7 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 	var ledger = config.NewBuilder().WithViper(vp).Build()
 	var options = NewFunctionOptions(solution)
 	var inputPorts = broker.ListDataPorts(ledger.Get(options.innerInputPorts))
+	var outboundProxies = broker.ListProxies(ledger.Get(options.innerOutboundProxies))
 	var outputPorts = broker.ListDataPorts(ledger.Get(options.innerOutputPorts))
 	var propSpecs = broker.ListPropSpecs(ledger.Get(options.innerPropSpecs))
 
@@ -246,17 +250,20 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 			AuthFile: pe.Ledger.AuthFile,
 			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
-		Arches:      ledger.GetList(options.optionArches),
-		Extras:      pe.makeProvisionExtras(ledger, options.optionExtras),
-		Description: ledger.GetString(options.optionDescription),
-		Handle:      ledger.GetString(options.optionHandle),
-		InputPorts:  inputPorts,
-		Name:        ledger.GetString(options.optionName),
-		Oem:         ledger.GetString(options.optionOem),
-		OutputPorts: outputPorts,
-		PropSpecs:   propSpecs,
-		Type:        ledger.GetString(options.optionType),
-		Version:     ledger.GetString(options.optionVersion),
+		Arches:          ledger.GetList(options.optionArches),
+		Extras:          pe.makeProvisionExtras(ledger, options.optionExtras),
+		DataSources:     ledger.GetList(options.innerDataSources),
+		DataStores:      ledger.GetList(options.innerDataStores),
+		Description:     ledger.GetString(options.optionDescription),
+		Handle:          ledger.GetString(options.optionHandle),
+		InputPorts:      inputPorts,
+		Name:            ledger.GetString(options.optionName),
+		Oem:             ledger.GetString(options.optionOem),
+		OutboundProxies: outboundProxies,
+		OutputPorts:     outputPorts,
+		PropSpecs:       propSpecs,
+		Type:            ledger.GetString(options.optionType),
+		Version:         ledger.GetString(options.optionVersion),
 	}
 }
 
@@ -397,8 +404,17 @@ func NewFunctionOptions(solution *broker.Solution) *FunctionOptions {
 		}).BuildStringOption()
 
 	return &FunctionOptions{
+		innerDataSources: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
+			BuildListOption(),
+		innerDataStores: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataStores).
+			BuildListOption(),
 		innerInputPorts: cli.NewOptionBuilder().
 			WithKeys(&schema.Genaiz.Function.Publish.InputPorts).
+			BuildOption(),
+		innerOutboundProxies: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.OutboundProxies).
 			BuildOption(),
 		innerOutputPorts: cli.NewOptionBuilder().
 			WithKeys(&schema.Genaiz.Function.Publish.OutputPorts).

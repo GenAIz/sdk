@@ -112,6 +112,11 @@ type Document struct {
 				Oem     Keys
 				Version Keys
 			}
+			OutboundProxyAdd struct {
+				Inactive Keys
+				Tcp      Keys
+				Udp      Keys
+			}
 			PropSpecAdd struct {
 				DefaultValue Keys
 				Description  Keys
@@ -128,22 +133,23 @@ type Document struct {
 				Name            Keys
 			}
 
-			Arches      Keys
-			DataSources Keys
-			DataStores  Keys
-			Description Keys
-			Extras      Keys
-			Handle      Keys
-			InputPorts  Keys
-			Internal    Keys
-			Name        Keys
-			NoUpdate    Keys
-			Oem         Keys
-			OutputPorts Keys
-			PropSpecs   Keys
-			Rebuild     Keys
-			Type        Keys
-			Version     Keys
+			Arches          Keys
+			DataSources     Keys
+			DataStores      Keys
+			Description     Keys
+			Extras          Keys
+			Handle          Keys
+			InputPorts      Keys
+			Internal        Keys
+			Name            Keys
+			NoUpdate        Keys
+			Oem             Keys
+			OutboundProxies Keys
+			OutputPorts     Keys
+			PropSpecs       Keys
+			Rebuild         Keys
+			Type            Keys
+			Version         Keys
 		}
 		Run struct {
 			EnvFile     Keys
@@ -394,6 +400,7 @@ func init() {
 	Genaiz.Function.Publish.NoUpdate = newKeys("Function.Publish.NoUpdate", "SF_PUBLISH_NO_UPDATE", "Sf.Publish.NoUpdate")
 	Genaiz.Function.Publish.Oem = newKeys("Function.Publish.Oem", "SF_PUBLISH_OEM", "Sf.Publish.Oem")
 	Genaiz.Function.Publish.OutputPorts = newKeys("Function.Publish.OutputPorts", "", "Sf.Publish.OutputPorts")
+	Genaiz.Function.Publish.OutboundProxies = newKeys("Function.Publish.OutboundProxies", "", "Sf.Publish.OutboundProxies")
 	Genaiz.Function.Publish.PropSpecs = newKeys("Function.Publish.PropSpecs", "", "Sf.Publish.PropSpecs")
 	Genaiz.Function.Publish.Rebuild = newKeys("Function.Publish.Rebuild", "SF_PUBLISH_REBUILD", "Sf.Publish.Rebuild")
 	Genaiz.Function.Publish.Type = newKeys("Function.Publish.Type", "SF_PUBLISH_TYPE", "Sf.Publish.Type")
@@ -416,6 +423,9 @@ func init() {
 	Genaiz.Function.Publish.DataPortAdd.Input.Name = newKeys("Function.Publish.DataPortAdd.Input.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME", "Sf.Publish.DataPortAdd.Input.Name")
 	Genaiz.Function.Publish.DataPortAdd.Output.Desc = newKeys("Function.Publish.DataPortAdd.Output.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC", "Sf.Publish.DataPortAdd.Output.Desc")
 	Genaiz.Function.Publish.DataPortAdd.Output.Name = newKeys("Function.Publish.DataPortAdd.Output.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME", "Sf.Publish.DataPortAdd.Output.Name")
+	Genaiz.Function.Publish.OutboundProxyAdd.Inactive = newKeys("Function.Publish.OutboundProxyAdd.Inactive", "SF_PUBLISH_OUTBOUND_PROXY_ADD_INACTIVE", "Sf.Publish.OutboundProxyAdd.Inactive")
+	Genaiz.Function.Publish.OutboundProxyAdd.Tcp = newKeys("Function.Publish.OutboundProxyAdd.Tcp", "SF_PUBLISH_OUTBOUND_PROXY_ADD_TCP", "Sf.Publish.OutboundProxyAdd.Tcp")
+	Genaiz.Function.Publish.OutboundProxyAdd.Udp = newKeys("Function.Publish.OutboundProxyAdd.Udp", "SF_PUBLISH_OUTBOUND_PROXY_ADD_UDP", "Sf.Publish.OutboundProxyAdd.Udp")
 	Genaiz.Function.Publish.PropSpecAdd.DefaultValue = newKeys("Function.Publish.PropSpecAdd.DefaultValue", "SF_PUBLISH_PROP_SPEC_ADD_DEFAULT_VALUE", "Sf.Publish.PropSpecAdd.DefaultValue")
 	Genaiz.Function.Publish.PropSpecAdd.Description = newKeys("Function.Publish.PropSpecAdd.Description", "SF_PUBLISH_PROP_SPEC_ADD_DESCRIPTION", "Sf.Publish.PropSpecAdd.Description")
 	Genaiz.Function.Publish.PropSpecAdd.EnumValue = newKeys("Function.Publish.PropSpecAdd.EnumValue", "SF_PUBLISH_PROP_SPEC_ADD_ENUM_VALUE", "Sf.Publish.PropSpecAdd.EnumValue")

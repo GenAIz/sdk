@@ -94,15 +94,18 @@ func (ce *CreateExecutor) Proceed() {
 func (ce *CreateExecutor) makeCreateBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
 	var dockerTag = ledger.GetString(sfCli.optionDockerTag)
 	var result = &InitWriter{
-		PublishOptions:         NewPublishOptions(sfCli),
-		RunOptions:             NewRunOptions(sfCli),
-		buildTagKeys:           &schema.Genaiz.Function.Build.Tag,
-		buildVersionKeys:       &schema.Genaiz.Function.Build.Version,
-		publishInputPortsKeys:  &schema.Genaiz.Function.Publish.InputPorts,
-		publishOutputPortsKeys: &schema.Genaiz.Function.Publish.OutputPorts,
-		publishPropSpecsKeys:   &schema.Genaiz.Function.Publish.PropSpecs,
-		publishSourcesKeys:     &schema.Genaiz.Function.Publish.DataSources,
-		vp:                     viper.New(),
+		PublishOptions:             NewPublishOptions(sfCli),
+		RunOptions:                 NewRunOptions(sfCli),
+		buildFileKeys:              &schema.Genaiz.Function.Build.File,
+		buildTagKeys:               &schema.Genaiz.Function.Build.Tag,
+		buildVersionKeys:           &schema.Genaiz.Function.Build.Version,
+		publishInputPortsKeys:      &schema.Genaiz.Function.Publish.InputPorts,
+		publishOutboundProxiesKeys: &schema.Genaiz.Function.Publish.OutboundProxies,
+		publishOutputPortsKeys:     &schema.Genaiz.Function.Publish.OutputPorts,
+		publishPropSpecsKeys:       &schema.Genaiz.Function.Publish.PropSpecs,
+		publishSourcesKeys:         &schema.Genaiz.Function.Publish.DataSources,
+		publishStoresKeys:          &schema.Genaiz.Function.Publish.OutboundProxies,
+		vp:                         viper.New(),
 	}
 
 	return result.WithTag(dockerTag)

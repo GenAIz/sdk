@@ -18,6 +18,7 @@ import (
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
 )
@@ -44,6 +45,7 @@ func TestSourceExecutor_Add(t *testing.T) {
 	var expectedVersion = "0.0.1"
 	var expectedLink = fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVersion)
 
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, layout.FunctionTypeConnector)
 	assert.NoError(t, testExecutor.Add(expectedLink))
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
@@ -73,6 +75,7 @@ func TestSourceExecutor_Add_Duplicate(t *testing.T) {
 	var expectedVersion = "0.0.1"
 	var expectedLink = fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVersion)
 
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, layout.FunctionTypeConnector)
 	testViper.Set(testExecutor.innerSources.Key, []string{expectedLink})
 	assert.Error(t, testExecutor.Add(expectedLink))
 	actual := testOutput.String()
@@ -102,9 +105,35 @@ func TestSourceExecutor_Add_InvalidOem(t *testing.T) {
 	var expectedLink = fmt.Sprintf("%s:%s", expectedHandle, expectedVersion)
 
 	defer patch.Unpatch()
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, layout.FunctionTypeConnector)
 	assert.NoError(t, testExecutor.Add(expectedLink))
 	assert.NotEmpty(t, patch.CalledWith)
 	assert.EqualValues(t, 1, patch.CalledWith)
+}
+
+func TestSourceExecutor_Add_InvalidType(t *testing.T) {
+	var testOutput = new(bytes.Buffer)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithOutput(io.Writer(testOutput)).
+		Build()
+	var testCli = &Cli{
+		BaseCli: cli.BaseCli{
+			Dry: func(ledger *config.Ledger) bool {
+				return true
+			},
+		},
+	}
+	var testOptions = NewSourceAddOptions(testCli)
+	var testCmd = &cobra.Command{}
+	var testExecutor = newSourceAddFactory(testLedger, testCli, testOptions)(testCmd)
+	var expectedHandle = "expected-handle"
+	var expectedVersion = "0.0.1"
+	var expectedLink = fmt.Sprintf("%s:%s", expectedHandle, expectedVersion)
+
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, layout.FunctionTypeFunction)
+	assert.ErrorIs(t, testExecutor.Add(expectedLink), errInvalidConnectorType)
 }
 
 func TestSourceExecutor_Pretend_Add(t *testing.T) {

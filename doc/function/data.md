@@ -78,7 +78,9 @@ genaiz sf data output rm PORT|PATH
 
 ### data source
 
-Data source is used to add data link addresses, as [FQDNV](index.md#fqdnv), to the list of data sources. A data source listed under a Smart Function may be used to establish a **Read-Only** connection while running the Smart Function.
+Data source is used to add data link addresses, as [FQDNV](index.md#fqdnv), to the list of data sources. A data source listed here a Smart Function may be used to establish a **Read-Only** connection while running the Smart Function.
+
+Data sources are only configurable on Connectors, the commands listed under will return an error if used on a Smart Function of another type: `Error: data links can only be configured for connector functions`
 
 #### data source add
 
@@ -135,6 +137,8 @@ genaiz sf data source rm [OEM/][HANDLE][:VERSION] \
 ### data store
 
 Data store is used to add data link addresses, as [FQDNV](index.md#fqdnv), to the list of data stores. A data store listed under a Smart Function may be used to establish a **Read/Write** connection while running the Smart Function.
+
+Data stores are only configurable on Connectors, the commands listed here will return an error if used on a Smart Function of another type: `Error: data links can only be configured for connector functions`
 
 #### data store add
 

@@ -19,17 +19,20 @@ var (
 
 type ProvisionParams struct {
 	Broker
-	Arches      []string
-	Description string
-	Extras      map[string]any
-	Handle      string
-	InputPorts  []DataPort
-	Name        string
-	Oem         string
-	OutputPorts []DataPort
-	PropSpecs   []PropSpec
-	Type        string
-	Version     string
+	Arches          []string
+	DataSources     []string
+	DataStores      []string
+	Description     string
+	Extras          map[string]any
+	Handle          string
+	InputPorts      []DataPort
+	Name            string
+	Oem             string
+	OutputPorts     []DataPort
+	OutboundProxies []Proxy
+	PropSpecs       []PropSpec
+	Type            string
+	Version         string
 }
 
 func (pp ProvisionParams) getExtras() map[string]any {
@@ -42,16 +45,19 @@ func (pp ProvisionParams) getExtras() map[string]any {
 
 func (pp ProvisionParams) asFunction() *Function {
 	return &Function{
-		Arches:      pp.Arches,
-		Description: pp.Description,
-		Handle:      pp.Handle,
-		InputPorts:  pp.InputPorts,
-		Name:        pp.Name,
-		Oem:         pp.Oem,
-		OutputPorts: pp.OutputPorts,
-		PropSpecs:   pp.PropSpecs,
-		Type:        strings.ToUpper(pp.Type),
-		Version:     pp.Version,
+		Arches:          pp.Arches,
+		DataSources:     pp.DataSources,
+		DataStores:      pp.DataStores,
+		Description:     pp.Description,
+		Handle:          pp.Handle,
+		InputPorts:      pp.InputPorts,
+		Name:            pp.Name,
+		Oem:             pp.Oem,
+		OutboundProxies: pp.OutboundProxies,
+		OutputPorts:     pp.OutputPorts,
+		PropSpecs:       pp.PropSpecs,
+		Type:            strings.ToUpper(pp.Type),
+		Version:         pp.Version,
 	}
 }
 

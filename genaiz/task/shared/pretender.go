@@ -13,6 +13,8 @@ import (
 type ConfigPretender interface {
 	PretendDeleteByField(string, string, string)
 
+	PretendDeleteBySelect(string, []ConfigSelect)
+
 	PretendDelete(string)
 
 	PretendSlice(string, []string)
@@ -20,20 +22,40 @@ type ConfigPretender interface {
 	PretendValue(string, string)
 }
 
-type keyValueFilePretender struct {
-	filename string
+type ConfigSelect struct {
+	Field string
+	Value string
+}
 
-	deleteByFieldFmt string
-	deleteFmt        string
-	pretendFmt       string
+type keyValueFilePretender struct {
+	filename   string
+	deleteFmt  string
+	pretendFmt string
+	selectFmt  string
 }
 
 func (kp keyValueFilePretender) PretendDeleteByField(key, field, value string) {
-	fmt.Printf(kp.deleteByFieldFmt+"\n", key, field, value, kp.filename)
+	var selection = fmt.Sprintf(" | "+kp.selectFmt, field, value)
+
+	fmt.Printf(kp.deleteFmt+"\n", key, selection, kp.filename)
+}
+
+func (kp keyValueFilePretender) PretendDeleteBySelect(key string, selects []ConfigSelect) {
+	var selection []string
+
+	for _, s := range selects {
+		if s.Field != "" && s.Value != "" {
+			selection = append(selection, fmt.Sprintf(kp.selectFmt, s.Field, s.Value))
+		}
+	}
+
+	if len(selection) > 0 {
+		fmt.Printf(kp.deleteFmt+"\n", key, " | "+strings.Join(selection, " | "))
+	}
 }
 
 func (kp keyValueFilePretender) PretendDelete(key string) {
-	fmt.Printf(kp.deleteFmt+"\n", key, kp.filename)
+	fmt.Printf(kp.deleteFmt+"\n", key, "", kp.filename)
 }
 
 func (kp keyValueFilePretender) PretendSlice(key string, slice []string) {
@@ -58,11 +80,10 @@ func NewConfigPretender(path string) ConfigPretender {
 		break
 	case ConfigTypeYaml:
 		return &keyValueFilePretender{
-			filename: path,
-
-			deleteByFieldFmt: "yq -i 'del(.%s | select(.%s == \"%s\"))' %s",
-			deleteFmt:        "yq -i 'del(.%s)' %s",
-			pretendFmt:       "yq -i e '.%s=\"%s\"' %s",
+			filename:   path,
+			deleteFmt:  "yq -i 'del(.%s%s)' %s",
+			pretendFmt: "yq -i e '.%s=\"%s\"' %s",
+			selectFmt:  "select(.%s == \"%s\")",
 		}
 	}
 
@@ -74,6 +95,14 @@ func PretendDeleteByField(pretender ConfigPretender, provider func() (string, st
 
 	if key != "" && field != "" && value != "" {
 		pretender.PretendDeleteByField(key, field, value)
+	}
+}
+
+func PretendDeleteBySelect(pretender ConfigPretender, provider func() (string, []ConfigSelect)) {
+	var key, selects = provider()
+
+	if key != "" && len(selects) > 0 {
+		pretender.PretendDeleteBySelect(key, selects)
 	}
 }
 
