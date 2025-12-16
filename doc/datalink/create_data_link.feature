@@ -6,9 +6,9 @@ Feature: data link create
   Scenario: create bash example
     Given the scenario "create bash example solution" ran with condition "service_completed_successfully"
     And the following parameters
-      | recipe       | handle          | oem            | name            | type     | version |
-      | bash-example | my-bash-example | com.genaiz.dev | My Bash Example | function | 0.1.1   |
-    When I run the command "sf create <handle> --oem=<oem> --name='<name>' --recipe=<recipe>"
+      | recipe       | handle            | oem            | name              | type      | version |
+      | bash-example | my-bash-connector | com.genaiz.dev | My Bash Connector | connector | 0.1.1   |
+    When I run the command "sf create <handle> --oem=<oem> --name='<name>' --recipe=<recipe> --type=<type>"
     Then I should have a function under "<handle>" named "<name>" with oem "<oem>", version "<version>" and type "<type>"
 
   Scenario: create data link invalid handle

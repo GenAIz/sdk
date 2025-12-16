@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/spf13/cast"
+
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/lang"
@@ -33,6 +35,10 @@ type ConfigWriter interface {
 	BuildName() (string, string)
 
 	BuildOem() (string, string)
+
+	BuildOutboundProxies() (string, []broker.Proxy)
+
+	BuildOutboundProxyRemoved() (string, *broker.Proxy)
 
 	BuildOutput() map[string]string
 
@@ -70,6 +76,10 @@ type ConfigWriter interface {
 
 	WithOem(string) ConfigWriter
 
+	WithOutboundProxies([]broker.Proxy) ConfigWriter
+
+	WithOutboundProxyRemoved(*broker.Proxy) ConfigWriter
+
 	WithOutput(string) ConfigWriter
 
 	WithOutputPorts([]broker.DataPort) ConfigWriter
@@ -93,19 +103,20 @@ type ConfigWriter interface {
 
 type InitParams struct {
 	CreateParams
-	Arches      []ArchType
-	DataSources []string
-	DataStores  []string
-	Handle      string
-	InputPorts  []broker.DataPort
-	Name        string
-	Type        FunctionType
-	MountInput  string
-	MountOutput string
-	OEM         string
-	OutputPorts []broker.DataPort
-	PropSpecs   []broker.PropSpec
-	Version     string
+	Arches          []ArchType
+	DataSources     []string
+	DataStores      []string
+	Handle          string
+	InputPorts      []broker.DataPort
+	Name            string
+	Type            FunctionType
+	MountInput      string
+	MountOutput     string
+	OEM             string
+	OutboundProxies []broker.Proxy
+	OutputPorts     []broker.DataPort
+	PropSpecs       []broker.PropSpec
+	Version         string
 }
 
 func NewInitTask(writer ConfigWriter) *task.Task[InitParams] {
@@ -158,6 +169,7 @@ func handleLayoutInitCreate(writer ConfigWriter, params *InitParams, state *task
 			WithInputPorts(params.InputPorts).
 			WithLog(initState.DefaultLog(params.MountOutput)).
 			WithOem(params.OEM).
+			WithOutboundProxies(params.OutboundProxies).
 			WithOutput(initState.DefaultOutput(params.MountOutput)).
 			WithOutputPorts(params.OutputPorts).
 			WithPropSpecs(params.PropSpecs).
@@ -189,8 +201,10 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 		var outputPortKey, outputPorts = writer.WithOutputPorts(params.OutputPorts).BuildOutputPorts()
 		var rmPropSpecKey, rmPropSpec = writer.BuildPropSpecRemoved()
 		var propSpecKey, propSpecs = writer.WithPropSpecs(params.PropSpecs).BuildPropSpecs()
-		var dataSourcesKey, dataSources = writer.BuildSources()
-		var dataStoresKey, dataStores = writer.BuildStores()
+		var dataSourcesKey, dataSources = writer.WithSources(params.DataSources).BuildSources()
+		var dataStoresKey, dataStores = writer.WithStores(params.DataStores).BuildStores()
+		var rmOutProxyKey, rmOutProxy = writer.BuildOutboundProxyRemoved()
+		var outProxiesKey, outProxies = writer.WithOutboundProxies(params.OutboundProxies).BuildOutboundProxies()
 
 		state.Logger.Debugf("Pretending to initialize [%s]", state.Output)
 		writer.WithHandle(params.Handle)
@@ -289,6 +303,35 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 			shared.PretendSlice(pretender, func() (string, []string) {
 				return dataStoresKey, dataStores
 			})
+		}
+
+		if rmOutProxy != nil {
+			shared.PretendDeleteBySelect(pretender, func() (string, []shared.ConfigSelect) {
+				return fmt.Sprintf("%s[]", rmOutProxyKey), []shared.ConfigSelect{
+					{
+						Field: "host",
+						Value: rmOutProxy.Host,
+					},
+					{
+						Field: "port",
+						Value: cast.ToString(rmOutProxy.Port),
+					},
+				}
+			})
+		} else if len(outProxies) > 0 {
+			pretender.PretendDelete(outProxiesKey)
+
+			for i, pr := range outProxies {
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].host", outProxiesKey, i), pr.Host
+				})
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].port", outProxiesKey, i), cast.ToString(pr.Port)
+				})
+				shared.PretendValue(pretender, func() (string, string) {
+					return fmt.Sprintf("%s[%d].flags", outProxiesKey, i), cast.ToString(pr.Flags)
+				})
+			}
 		}
 
 		state.Output = ""

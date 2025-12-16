@@ -245,6 +245,14 @@ var (
 					WithUsage("a list of architectures supported by the function. Supported: x86, x86_64, arm and arm64").
 					WithValidator(config.AllFromEnumerated(layout.ArchTypes))
 			},
+			DataSources: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.DataSources)
+			},
+			DataStores: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.DataStores)
+			},
 			Extras: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Publish.Extras)
@@ -296,6 +304,10 @@ var (
 					WithUsage("uniquely identifies the publisher of the function").
 					WithValidator(config.Validation.Oem)
 			},
+			OutboundProxies: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Publish.OutboundProxies)
+			},
 			Rebuild: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("rebuild").
@@ -329,6 +341,25 @@ var (
 				return NewOptionBuilder().
 					WithParam("it").
 					WithUsage("specify smart function value through input questions").
+					WithDefaultValue("false")
+			},
+		},
+		Proxies: proxyOptions{
+			Inactive: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("inactive").
+					WithUsage("sets whether the proxy is active or not").
+					WithDefaultValue("false")
+			},
+			Tcp: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("tcp").
+					WithUsage("sets the tcp flag for the proxy")
+			},
+			Udp: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("udp").
+					WithUsage("sets the udp flag for the proxy").
 					WithDefaultValue("false")
 			},
 		},
@@ -542,6 +573,14 @@ var (
 	}
 )
 
+type accountOptions struct {
+	Host      func() OptionBuilder
+	NoBrowser func() OptionBuilder
+	Password  func() OptionBuilder
+	Refresh   func() OptionBuilder
+	Username  func() OptionBuilder
+}
+
 type cliOptions struct {
 	Accounts  accountOptions
 	Configs   configOptions
@@ -550,17 +589,10 @@ type cliOptions struct {
 	Docker    dockerOptions
 	Functions functionOptions
 	Modes     modeOptions
+	Proxies   proxyOptions
 	PropSpecs propSpecsOptions
 	Solutions solutionOptions
 	Workflows workflowOptions
-}
-
-type accountOptions struct {
-	Host      func() OptionBuilder
-	NoBrowser func() OptionBuilder
-	Password  func() OptionBuilder
-	Refresh   func() OptionBuilder
-	Username  func() OptionBuilder
 }
 
 type configOptions struct {
@@ -602,19 +634,22 @@ type dockerOptions struct {
 }
 
 type functionOptions struct {
-	Arches      func() OptionBuilder
-	Extras      func() OptionBuilder
-	Handle      func() OptionBuilder
-	MountInput  func() OptionBuilder
-	MountLog    func() OptionBuilder
-	MountOutput func() OptionBuilder
-	MountVar    func() OptionBuilder
-	Name        func() OptionBuilder
-	Oem         func() OptionBuilder
-	Rebuild     func() OptionBuilder
-	Recipe      func() OptionBuilder
-	Type        func() OptionBuilder
-	Version     func() OptionBuilder
+	Arches          func() OptionBuilder
+	DataSources     func() OptionBuilder
+	DataStores      func() OptionBuilder
+	Extras          func() OptionBuilder
+	Handle          func() OptionBuilder
+	MountInput      func() OptionBuilder
+	MountLog        func() OptionBuilder
+	MountOutput     func() OptionBuilder
+	MountVar        func() OptionBuilder
+	Name            func() OptionBuilder
+	Oem             func() OptionBuilder
+	OutboundProxies func() OptionBuilder
+	Rebuild         func() OptionBuilder
+	Recipe          func() OptionBuilder
+	Type            func() OptionBuilder
+	Version         func() OptionBuilder
 }
 
 type modeOptions struct {
@@ -629,6 +664,12 @@ type propSpecsOptions struct {
 	EnumValue       func() OptionBuilder
 	Name            func() OptionBuilder
 	Type            func() OptionBuilder
+}
+
+type proxyOptions struct {
+	Inactive func() OptionBuilder
+	Tcp      func() OptionBuilder
+	Udp      func() OptionBuilder
 }
 
 type solutionOptions struct {

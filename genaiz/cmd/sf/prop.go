@@ -123,7 +123,7 @@ func (pse *PropSpecExecutor) Pretend() {
 func (pse *PropSpecExecutor) Proceed() {
 	var builder = makeInitBuilder(pse.Ledger, pse.Cli)
 	var params = pse.makeInitParams()
-	var plan = task.NewPlan("Init", pse.Ledger.Logger)
+	var plan = task.NewPlan("PropSpec", pse.Ledger.Logger)
 
 	plan.PrintReportsOnly = true
 	builder.WithPropSpecRemoved(pse.removedPropSpec)

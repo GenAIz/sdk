@@ -2,14 +2,35 @@ package cli
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/config"
 )
+
+func ArgsHostAndPort(address string) (string, int, error) {
+	var host, portString string
+	var err error
+
+	if host, portString, err = net.SplitHostPort(address); err == nil {
+		var port int
+
+		if port, err = strconv.Atoi(portString); err == nil {
+			if port > 0 && port <= 65535 {
+				return host, port, nil
+			}
+
+			return "", -1, net.InvalidAddrError("invalid port")
+		}
+	}
+
+	return "", -1, err
+}
 
 func ArgsOptionalFolder(typeName string, maxSize int, validates config.Validates) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {

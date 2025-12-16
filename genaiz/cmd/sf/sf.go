@@ -7,6 +7,7 @@ package sf
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -20,13 +21,28 @@ import (
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
+)
+
+var (
+	errInvalidConnectorType = errors.New("data links can only be configured for connector functions")
 )
 
 type BaseExecutor struct {
 	Cli     *Cli
 	Context context.Context
 	Ledger  *config.Ledger
+}
+
+func (be *BaseExecutor) validateConnector(typeOption *config.StringOption) error {
+	var functionType = be.Ledger.GetString(typeOption)
+
+	if strings.ToLower(functionType) != layout.FunctionTypeConnector {
+		return errInvalidConnectorType
+	}
+
+	return nil
 }
 
 type EnvOptions struct {

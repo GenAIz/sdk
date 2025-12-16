@@ -171,6 +171,45 @@ func TestInitWriter_BuildOem(t *testing.T) {
 	assert.EqualValues(t, expectedOem, actualValue)
 }
 
+func TestInitWriter_BuildOutboundProxies(t *testing.T) {
+	var expectedProxy = broker.Proxy{Host: "expectedHost"}
+	var testProxies = []broker.Proxy{expectedProxy}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishOutboundProxiesKeys: &schema.Genaiz.Function.Publish.OutboundProxies,
+		vp:                         testViper,
+	}
+	var actualProxies []broker.Proxy
+	var actualKey string
+
+	actualKey, actualProxies = testWriter.WithOutboundProxies(nil).BuildOutboundProxies()
+	assert.Equal(t, testWriter.publishOutboundProxiesKeys.Doc, actualKey)
+	assert.Empty(t, actualProxies)
+
+	actualKey, actualProxies = testWriter.WithOutboundProxies(testProxies).BuildOutboundProxies()
+	assert.Equal(t, testWriter.publishOutboundProxiesKeys.Doc, actualKey)
+	assert.Equal(t, testProxies, actualProxies)
+}
+
+func TestInitWriter_BuildOutboundProxyRemoved(t *testing.T) {
+	var expectedProxy = &broker.Proxy{Host: "expectedHost"}
+	var testViper = viper.New()
+	var testWriter = &InitWriter{
+		publishOutboundProxiesKeys: &schema.Genaiz.Function.Publish.OutboundProxies,
+		vp:                         testViper,
+	}
+	var actualProxy *broker.Proxy
+	var actualKey string
+
+	actualKey, actualProxy = testWriter.BuildOutboundProxyRemoved()
+	assert.Equal(t, testWriter.publishOutboundProxiesKeys.Doc, actualKey)
+	assert.Empty(t, actualProxy)
+
+	actualKey, actualProxy = testWriter.WithOutboundProxyRemoved(expectedProxy).BuildOutboundProxyRemoved()
+	assert.Equal(t, testWriter.publishOutboundProxiesKeys.Doc, actualKey)
+	assert.Equal(t, expectedProxy, actualProxy)
+}
+
 func TestInitWriter_BuildOutput(t *testing.T) {
 	var expectedOutput = "output"
 	var expectedLog = "log"

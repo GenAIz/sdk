@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
@@ -19,25 +20,27 @@ import (
 )
 
 type stubWriter struct {
-	arches            []string
-	configFile        string
-	dest              string
-	handle            string
-	input             string
-	inputPorts        []broker.DataPort
-	inputPortRemoved  *broker.DataPort
-	name              string
-	oem               string
-	output            map[string]string
-	outputPorts       []broker.DataPort
-	outputPortRemoved *broker.DataPort
-	propSpecs         []broker.PropSpec
-	rmPropSpec        *broker.PropSpec
-	sfType            string
-	sources           []string
-	stores            []string
-	version           string
-	writeErr          error
+	arches               []string
+	configFile           string
+	dest                 string
+	handle               string
+	input                string
+	inputPorts           []broker.DataPort
+	inputPortRemoved     *broker.DataPort
+	name                 string
+	oem                  string
+	outboundProxies      []broker.Proxy
+	outboundProxyRemoved *broker.Proxy
+	output               map[string]string
+	outputPorts          []broker.DataPort
+	outputPortRemoved    *broker.DataPort
+	propSpecs            []broker.PropSpec
+	rmPropSpec           *broker.PropSpec
+	sfType               string
+	sources              []string
+	stores               []string
+	version              string
+	writeErr             error
 }
 
 func (s *stubWriter) Write(dest string) error {
@@ -71,6 +74,14 @@ func (s *stubWriter) BuildName() (string, string) {
 
 func (s *stubWriter) BuildOem() (string, string) {
 	return "", s.oem
+}
+
+func (s *stubWriter) BuildOutboundProxies() (string, []broker.Proxy) {
+	return "", s.outboundProxies
+}
+
+func (s *stubWriter) BuildOutboundProxyRemoved() (string, *broker.Proxy) {
+	return "", s.outboundProxyRemoved
 }
 
 func (s *stubWriter) BuildOutput() map[string]string {
@@ -155,6 +166,16 @@ func (s *stubWriter) WithName(name string) ConfigWriter {
 
 func (s *stubWriter) WithOem(oem string) ConfigWriter {
 	s.oem = oem
+	return s
+}
+
+func (s *stubWriter) WithOutboundProxies(proxies []broker.Proxy) ConfigWriter {
+	s.outboundProxies = proxies
+	return s
+}
+
+func (s *stubWriter) WithOutboundProxyRemoved(proxy *broker.Proxy) ConfigWriter {
+	s.outboundProxyRemoved = proxy
 	return s
 }
 
@@ -365,10 +386,8 @@ func Test_handleLayoutInitPretend_dataSources(t *testing.T) {
 		Logger: logrus.New(),
 		Output: "test.yaml",
 	}
-	var testParams = &InitParams{}
-	var testWriter = &stubWriter{
-		sources: expectedDataSources,
-	}
+	var testParams = &InitParams{DataSources: expectedDataSources}
+	var testWriter = &stubWriter{}
 	var stdoutRestore = os.Stdout
 	var r, w, _ = os.Pipe()
 
@@ -393,10 +412,8 @@ func Test_handleLayoutInitPretend_dataStores(t *testing.T) {
 		Logger: logrus.New(),
 		Output: "test.yaml",
 	}
-	var testParams = &InitParams{}
-	var testWriter = &stubWriter{
-		stores: expectedDataStores,
-	}
+	var testParams = &InitParams{DataStores: expectedDataStores}
+	var testWriter = &stubWriter{}
 	var stdoutRestore = os.Stdout
 	var r, w, _ = os.Pipe()
 
@@ -473,6 +490,60 @@ func Test_handleLayoutInitPretend_inputPortsRemoval(t *testing.T) {
 
 func Test_handleLayoutInitPretend_noConfig(t *testing.T) {
 	assert.ErrorIs(t, errorNoConfigFile, handleLayoutInitPretend(nil, &InitParams{}, &task.State{}))
+}
+
+func Test_handleLayoutInitPretend_outboundProxies(t *testing.T) {
+	var expectedProxy = broker.Proxy{
+		Host: "expectedHost",
+		Port: 37,
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var testParams = &InitParams{OutboundProxies: []broker.Proxy{expectedProxy}}
+	var testWriter = &stubWriter{}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedProxy.Host)
+	assert.Contains(t, output, cast.ToString(expectedProxy.Port))
+}
+
+func Test_handleLayoutInitPretend_outboundProxiesRemoval(t *testing.T) {
+	var expectedOutboundProxy = &broker.Proxy{Host: "expectedHost", Port: 37}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.yaml",
+	}
+	var testWriter = &stubWriter{outboundProxyRemoved: expectedOutboundProxy}
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	assert.NoError(t, handleLayoutInitPretend(testWriter, &InitParams{}, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedOutboundProxy.Host)
+	assert.Contains(t, output, cast.ToString(expectedOutboundProxy.Port))
 }
 
 func Test_handleLayoutInitPretend_outputPorts(t *testing.T) {

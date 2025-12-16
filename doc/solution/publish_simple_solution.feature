@@ -36,7 +36,7 @@ Feature: solution publish with simple solution
       | my-solution | workflow-1     | node-1 | Single Node | My Single Node | com.genaiz.dev | function-1     | 0.1.1           |
     And the workdir changes to "<solution>"
     When I run the command "wf nodes add <workflowHandle> <handle> --name='<name>' --description='<description>' --sf=<functionOem>/<functionHandle>:<functionVersion>"
-    Then I should have a workflow node under "<solution>" with handle "<handle>", oem "<oem>", description "<description" and smart function "<functionOem>/<functionHandle>:<functionVersion>"
+    Then I should have a workflow node under "<solution>" with handle "<handle>", oem "<oem>", description "<description>" and smart function "<functionOem>/<functionHandle>:<functionVersion>"
 
   Scenario: publish simple solution no session
     Given the scenario "build simple solution function" ran with condition "service_completed_successfully"

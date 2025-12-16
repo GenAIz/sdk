@@ -19,8 +19,28 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
+
+func TestBaseExecutor_validate(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testOption = cli.NewOptionBuilder().
+		WithKeys(&schema.Keys{Doc: "key"}).
+		BuildStringOption()
+	var testExecutor = &BaseExecutor{
+		Ledger: testLedger,
+	}
+
+	assert.ErrorIs(t, testExecutor.validateConnector(testOption), errInvalidConnectorType)
+	testViper.Set(testOption.Key, layout.FunctionTypeTrigger)
+	assert.ErrorIs(t, testExecutor.validateConnector(testOption), errInvalidConnectorType)
+	testViper.Set(testOption.Key, layout.FunctionTypeFunction)
+	assert.ErrorIs(t, testExecutor.validateConnector(testOption), errInvalidConnectorType)
+	testViper.Set(testOption.Key, layout.FunctionTypeConnector)
+	assert.NoError(t, testExecutor.validateConnector(testOption))
+}
 
 func TestCli_ContainerPrefix(t *testing.T) {
 	var testSfCli = NewSfCli(nil, nil, nil)

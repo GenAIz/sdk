@@ -4,6 +4,7 @@
 
 * [Create simple solution](create_simple_solution.feature)
 * [Publish simple solution](publish_simple_solution.feature)
+* [Publish connector solution](publish_connector_solution.feature)
 
 ## Commands
 

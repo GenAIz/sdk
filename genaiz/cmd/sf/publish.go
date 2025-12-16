@@ -129,6 +129,7 @@ func (pe *PublishExecutor) makeProvisionExtras() map[string]any {
 func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 	var nameDesc = pe.Ledger.GetString(pe.optionName)
 	var inputPorts = broker.ListDataPorts(pe.Ledger.Get(pe.innerInputPorts))
+	var outboundProxies = broker.ListProxies(pe.Ledger.Get(pe.optionOutboundProxies))
 	var outputPorts = broker.ListDataPorts(pe.Ledger.Get(pe.innerOutputPorts))
 	var propSpecs = broker.ListPropSpecs(pe.Ledger.Get(pe.innerPropSpecs))
 	var extraMap = pe.makeProvisionExtras()
@@ -138,17 +139,20 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 			AuthFile: pe.Ledger.AuthFile,
 			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
-		Arches:      pe.Ledger.GetList(pe.optionArches),
-		Extras:      extraMap,
-		Description: nameDesc,
-		Handle:      pe.Ledger.GetString(pe.optionHandle),
-		InputPorts:  inputPorts,
-		Name:        nameDesc,
-		Oem:         pe.Ledger.GetString(pe.optionOem),
-		OutputPorts: outputPorts,
-		PropSpecs:   propSpecs,
-		Type:        pe.Ledger.GetString(pe.optionType),
-		Version:     pe.Ledger.GetString(pe.optionVersion),
+		Arches:          pe.Ledger.GetList(pe.optionArches),
+		Extras:          extraMap,
+		DataSources:     pe.Ledger.GetList(pe.optionDataSources),
+		DataStores:      pe.Ledger.GetList(pe.optionDataStores),
+		Description:     nameDesc,
+		Handle:          pe.Ledger.GetString(pe.optionHandle),
+		InputPorts:      inputPorts,
+		Name:            nameDesc,
+		Oem:             pe.Ledger.GetString(pe.optionOem),
+		OutboundProxies: outboundProxies,
+		OutputPorts:     outputPorts,
+		PropSpecs:       propSpecs,
+		Type:            pe.Ledger.GetString(pe.optionType),
+		Version:         pe.Ledger.GetString(pe.optionVersion),
 	}
 }
 
@@ -197,16 +201,19 @@ func (pe *PublishExecutor) makePushParams() *docker.PushParams {
 }
 
 type PublishOptions struct {
-	optionArches   *config.ListOption
-	optionExtras   *config.Option
-	optionBroker   *config.StringOption
-	optionHandle   *config.StringOption
-	optionName     *config.StringOption
-	optionRebuild  *config.BoolOption
-	optionNoUpdate *config.BoolOption
-	optionOem      *config.StringOption
-	optionType     *config.StringOption
-	optionVersion  *config.StringOption
+	optionArches          *config.ListOption
+	optionDataSources     *config.ListOption
+	optionDataStores      *config.ListOption
+	optionExtras          *config.Option
+	optionBroker          *config.StringOption
+	optionHandle          *config.StringOption
+	optionName            *config.StringOption
+	optionOutboundProxies *config.Option
+	optionRebuild         *config.BoolOption
+	optionNoUpdate        *config.BoolOption
+	optionOem             *config.StringOption
+	optionType            *config.StringOption
+	optionVersion         *config.StringOption
 }
 
 func (po *PublishOptions) allDefiners() []config.Definer {
@@ -288,7 +295,10 @@ func NewPublishOptions(sfCli *Cli) *PublishOptions {
 		optionBroker: cli.Options.Solutions.Broker().
 			WithKeys(&schema.Genaiz.Solution.Publish.Broker).
 			BuildStringOption(),
-		// This is a hidden option, only available to the config file
+		optionDataSources: cli.Options.Functions.DataSources().
+			BuildListOption(),
+		optionDataStores: cli.Options.Functions.DataStores().
+			BuildListOption(),
 		optionExtras: cli.Options.Functions.Extras().
 			BuildOption(),
 		optionHandle: handleOpt,
@@ -305,6 +315,8 @@ func NewPublishOptions(sfCli *Cli) *PublishOptions {
 			WithKeys(&schema.Genaiz.Function.Publish.Oem).
 			WithDefaultGetter(sfCli.ParentOem(parentOpt)).
 			BuildStringOption(),
+		optionOutboundProxies: cli.Options.Functions.OutboundProxies().
+			BuildOption(),
 		optionRebuild: cli.Options.Functions.Rebuild().
 			WithKeys(&schema.Genaiz.Function.Publish.Rebuild).
 			BuildBoolOption(),

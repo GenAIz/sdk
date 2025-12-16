@@ -52,6 +52,35 @@ func TestKeyValueFilePretender_PretendDeleteByField(t *testing.T) {
 	assert.Contains(t, output, expectedValue)
 }
 
+func TestKeyValueFilePretender_PretendDeleteBySelect(t *testing.T) {
+	var expectedKey = "key"
+	var expectedField = "field"
+	var expectedValue = "value"
+	var testPretender = NewConfigPretender("config.yaml")
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	testPretender.PretendDeleteBySelect(expectedKey, []ConfigSelect{
+		{
+			Field: expectedField,
+			Value: expectedValue,
+		},
+	})
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, expectedKey)
+	assert.Contains(t, output, expectedField)
+	assert.Contains(t, output, expectedValue)
+}
+
 func TestKeyValueFilePretender_PretendSlice(t *testing.T) {
 	var expectedKey = "key"
 	var expectedValue = "value"
@@ -173,6 +202,68 @@ func TestPretendDeleteByField(t *testing.T) {
 	os.Stdout = w
 	PretendDeleteByField(testPretender, func() (string, string, string) {
 		return expectedKey, expectedField, expectedValue
+	})
+	_ = w.Close()
+	b, _ = io.ReadAll(r)
+	output = string(b)
+	assert.Contains(t, output, expectedKey)
+}
+
+func TestPretendDeleteBySelect(t *testing.T) {
+	var expectedField = "field"
+	var expectedKey = "key"
+	var expectedValue = "value"
+	var testPretender = NewConfigPretender("config.yaml")
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	PretendDeleteBySelect(testPretender, func() (string, []ConfigSelect) {
+		return "", []ConfigSelect{{Field: "", Value: ""}}
+	})
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+	assert.Empty(t, output)
+
+	r, w, _ = os.Pipe()
+	os.Stdout = w
+	PretendDeleteBySelect(testPretender, func() (string, []ConfigSelect) {
+		return expectedKey, nil
+	})
+	_ = w.Close()
+	b, _ = io.ReadAll(r)
+	output = string(b)
+	assert.Empty(t, output)
+
+	r, w, _ = os.Pipe()
+	os.Stdout = w
+	PretendDeleteBySelect(testPretender, func() (string, []ConfigSelect) {
+		return expectedKey, []ConfigSelect{{Field: "", Value: ""}}
+	})
+	_ = w.Close()
+	b, _ = io.ReadAll(r)
+	output = string(b)
+	assert.Empty(t, output)
+
+	r, w, _ = os.Pipe()
+	os.Stdout = w
+	PretendDeleteBySelect(testPretender, func() (string, []ConfigSelect) {
+		return expectedKey, []ConfigSelect{{Field: expectedField, Value: ""}}
+	})
+	_ = w.Close()
+	b, _ = io.ReadAll(r)
+	output = string(b)
+	assert.Empty(t, output)
+
+	r, w, _ = os.Pipe()
+	os.Stdout = w
+	PretendDeleteBySelect(testPretender, func() (string, []ConfigSelect) {
+		return expectedKey, []ConfigSelect{{Field: expectedField, Value: expectedValue}}
 	})
 	_ = w.Close()
 	b, _ = io.ReadAll(r)

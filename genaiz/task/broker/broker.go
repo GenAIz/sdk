@@ -30,6 +30,11 @@ var (
 		Released:     1 << 1,
 		Provisioning: 1 << 2,
 	}
+	ProxyFlags = &proxyFlags{
+		Active:      1 << 0,
+		ProtocolTcp: 1 << 1,
+		ProtocolUdp: 1 << 2,
+	}
 	PropSpecTypes = enumz.NewEnumType(PropSpecTypeBoolean, PropSpecTypeDouble,
 		PropSpecTypeEnum, PropSpecTypeInt, PropSpecTypeString)
 
@@ -40,8 +45,6 @@ var (
 	ErrorPropIllegalEnum      = errors.New("illegal enum value")
 	ErrorWorkflowNodeNotFound = errors.New("workflow node not found")
 )
-
-type PropSpecType = string
 
 type Broker struct {
 	AuthFile string
@@ -72,6 +75,11 @@ type DataLink struct {
 
 func (dl DataLink) IsActive() bool {
 	return (dl.Flags & DataLinkFlags.Active) == DataLinkFlags.Active
+}
+
+type dataLinkFlags struct {
+	Active   int
+	Released int
 }
 
 type DataPort struct {
@@ -132,23 +140,26 @@ type Error struct {
 }
 
 type Function struct {
-	Id          int // Id is assigned by a publishing Broker and refers to the Smart Function release cycle
-	Arches      []string
-	Description string
-	Flags       int
-	Fqdn        string
-	Handle      string
-	Img         string
-	InputPorts  []DataPort
-	Digest      string
-	ImgDigest   string
-	Name        string
-	Oem         string
-	OutputPorts []DataPort
-	PropSpecs   []PropSpec
-	Seq         int
-	Type        string
-	Version     string
+	Id              int // Id is assigned by a publishing Broker and refers to the Smart Function release cycle
+	Arches          []string
+	DataSources     []string
+	DataStores      []string
+	Description     string
+	Flags           int
+	Fqdn            string
+	Handle          string
+	Img             string
+	InputPorts      []DataPort
+	Digest          string
+	ImgDigest       string
+	Name            string
+	Oem             string
+	OutboundProxies []Proxy
+	OutputPorts     []DataPort
+	PropSpecs       []PropSpec
+	Seq             int
+	Type            string
+	Version         string
 }
 
 func (f Function) FindDataPortByHandle(handle string) *DataPort {
@@ -178,16 +189,19 @@ func (f Function) asIdentity() *shared.Identity {
 
 func (f Function) toModel() *functionModel {
 	return &functionModel{
-		Description: f.Description,
-		Handle:      f.Handle,
-		ImgDigest:   f.ImgDigest,
-		InputPorts:  f.InputPorts,
-		Name:        f.Name,
-		Oem:         f.Oem,
-		OutputPorts: f.OutputPorts,
-		PropSpecs:   f.PropSpecs,
-		Type:        f.Type,
-		Version:     f.Version,
+		DataSources:     f.DataSources,
+		DataStores:      f.DataStores,
+		Description:     f.Description,
+		Handle:          f.Handle,
+		ImgDigest:       f.ImgDigest,
+		InputPorts:      f.InputPorts,
+		Name:            f.Name,
+		Oem:             f.Oem,
+		OutboundProxies: f.OutboundProxies,
+		OutputPorts:     f.OutputPorts,
+		PropSpecs:       f.PropSpecs,
+		Type:            f.Type,
+		Version:         f.Version,
 	}
 }
 
@@ -195,11 +209,14 @@ func MapFunction(fn any) *Function {
 	if fnMap, ok := fn.(map[string]interface{}); ok {
 		var result = &Function{}
 
+		result.DataSources = cast.ToStringSlice(fnMap["datasources"])
+		result.DataStores = cast.ToStringSlice(fnMap["datastores"])
 		result.Handle = cast.ToString(fnMap["handle"])
 		result.Name = cast.ToString(fnMap["name"])
 		result.Oem = cast.ToString(fnMap["oem"])
 		result.Type = cast.ToString(fnMap["type"])
 		result.PropSpecs = ListPropSpecs(fnMap["propspecs"])
+		result.OutboundProxies = ListProxies(fnMap["outboundproxies"])
 		result.OutputPorts = ListDataPorts(fnMap["outputports"])
 		result.InputPorts = ListDataPorts(fnMap["inputports"])
 		result.Description = cast.ToString(fnMap["description"])
@@ -211,11 +228,6 @@ func MapFunction(fn any) *Function {
 	return nil
 }
 
-type dataLinkFlags struct {
-	Active   int
-	Released int
-}
-
 type functionFlags struct {
 	Active       int
 	Released     int
@@ -224,17 +236,22 @@ type functionFlags struct {
 
 // functionModel provides a transport definition for provisioning smart functions
 type functionModel struct {
-	Description string     `json:"description"`
-	Handle      string     `json:"handle"`
-	ImgDigest   string     `json:"imgDigest"`
-	InputPorts  []DataPort `json:"inputPorts,omitempty"`
-	Name        string     `json:"name"`
-	Oem         string     `json:"oem"`
-	OutputPorts []DataPort `json:"outputPorts,omitempty"`
-	PropSpecs   []PropSpec `json:"propSpecs,omitempty"`
-	Type        string     `json:"type"`
-	Version     string     `json:"version"`
+	Description     string     `json:"description"`
+	DataSources     []string   `json:"dataSources"`
+	DataStores      []string   `json:"dataStores"`
+	Handle          string     `json:"handle"`
+	ImgDigest       string     `json:"imgDigest"`
+	InputPorts      []DataPort `json:"inputPorts,omitempty"`
+	Name            string     `json:"name"`
+	Oem             string     `json:"oem"`
+	OutboundProxies []Proxy    `json:"outboundProxies"`
+	OutputPorts     []DataPort `json:"outputPorts,omitempty"`
+	PropSpecs       []PropSpec `json:"propSpecs,omitempty"`
+	Type            string     `json:"type"`
+	Version         string     `json:"version"`
 }
+
+type PropSpecType = string
 
 type PropSpec struct {
 	Key         string       `yaml:"key" json:"key"`
@@ -320,6 +337,80 @@ func ListPropSpecs(specs any) []PropSpec {
 	}
 
 	return result
+}
+
+type Proxy struct {
+	Host  string `json:"host"`
+	Port  int    `json:"port"`
+	Flags int    `json:"flags"`
+}
+
+func (p *Proxy) IsActive() bool {
+	return (p.Flags & ProxyFlags.Active) == ProxyFlags.Active
+}
+
+func (p *Proxy) IsTcp() bool {
+	return (p.Flags & ProxyFlags.ProtocolTcp) == ProxyFlags.ProtocolTcp
+}
+
+func (p *Proxy) IsUdp() bool {
+	return (p.Flags & ProxyFlags.ProtocolUdp) == ProxyFlags.ProtocolUdp
+}
+
+func (p *Proxy) IsEqual(host string, port int) bool {
+	return strings.EqualFold(p.Host, host) && p.Port == port
+}
+
+func (p *Proxy) SetActive(active bool) {
+	if active {
+		p.Flags |= ProxyFlags.Active
+	} else {
+		p.Flags &= ^ProxyFlags.Active
+	}
+}
+
+func (p *Proxy) SetTcp(enabled bool) {
+	if enabled {
+		p.Flags |= ProxyFlags.ProtocolTcp
+	} else {
+		p.Flags &= ^ProxyFlags.ProtocolTcp
+	}
+}
+
+func (p *Proxy) SetUdp(enabled bool) {
+	if enabled {
+		p.Flags |= ProxyFlags.ProtocolUdp
+	} else {
+		p.Flags &= ^ProxyFlags.ProtocolUdp
+	}
+}
+
+func ListProxies(proxies any) []Proxy {
+	var result []Proxy
+	var list []interface{}
+	var ok bool
+
+	if list, ok = proxies.([]interface{}); ok {
+		var proxyMap map[string]interface{}
+
+		for _, proxyInterface := range list {
+			if proxyMap, ok = proxyInterface.(map[string]interface{}); ok {
+				result = append(result, Proxy{
+					Host:  cast.ToString(proxyMap["host"]),
+					Port:  cast.ToInt(proxyMap["port"]),
+					Flags: cast.ToInt(proxyMap["flags"]),
+				})
+			}
+		}
+	}
+
+	return result
+}
+
+type proxyFlags struct {
+	Active      int
+	ProtocolTcp int
+	ProtocolUdp int
 }
 
 type provisionData struct {

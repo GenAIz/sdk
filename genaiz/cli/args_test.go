@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -10,6 +11,41 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/config"
 )
+
+func TestArgsHostAndPort(t *testing.T) {
+	var expectedHost = "0.0.0.0"
+	var expectedPort = 65535
+	var host, port, err = ArgsHostAndPort(fmt.Sprintf("%s:%d", expectedHost, expectedPort))
+
+	assert.Equal(t, expectedHost, host)
+	assert.Equal(t, expectedPort, port)
+	assert.NoError(t, err)
+}
+
+func TestArgsHostAndPort_PortRange(t *testing.T) {
+	var host, port, err = ArgsHostAndPort("a:65536")
+
+	assert.Empty(t, host)
+	assert.Equal(t, -1, port)
+	assert.Error(t, err)
+	assert.Equal(t, "invalid port", err.Error())
+}
+
+func TestArgsHostAndPort_PortStr(t *testing.T) {
+	var host, port, err = ArgsHostAndPort("a:a")
+
+	assert.Empty(t, host)
+	assert.Equal(t, -1, port)
+	assert.Error(t, err)
+}
+
+func TestArgsHostAndPort_SplitError(t *testing.T) {
+	var host, port, err = ArgsHostAndPort("a")
+
+	assert.Empty(t, host)
+	assert.Equal(t, -1, port)
+	assert.Error(t, err)
+}
 
 func TestArgsOptionalFolder(t *testing.T) {
 	var validator = ArgsOptionalFolder("test", 1, config.Validation.Handle)

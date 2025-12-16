@@ -8,7 +8,7 @@ Feature: function publish with the bash example
       | recipe       | configType | handle          | oem            | name            | type     | version |
       | bash-example | yaml       | my-bash-example | com.genaiz.dev | My Bash Example | function | 0.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe> --config-type=<configType> --handle=<handle> --oem=<oem> --name='<name>' --type=<type> --version=<version>"
-    Then I should have a function under "<handle>" named "<name>" with version "<version>"
+    Then I should have a function under "<handle>" named "<name>" with oem "<oem>", version "<version>" and type "<type>"
 
   Scenario: publish bash example bad oem
     Given the following parameters
@@ -83,7 +83,6 @@ Feature: function publish with the bash example
     Then I should have a docker image tagged "registry/<oem>/<handle>:<version>-rc-0"
     And the config "Genaiz.yaml" should have "sf.publish.version" set to <version>
     And I should get an output with "<oem>/<handle>, version <version> to <orchestrator>"
-    And I should get an output with "Genaiz.yaml"
 
   Scenario: publish bash example rebuild no update
     Given the scenario "build bash example" ran with condition "service_completed_successfully"

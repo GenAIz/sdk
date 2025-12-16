@@ -54,6 +54,71 @@ func TestFunction_FindDataPortByHandle(t *testing.T) {
 	assert.Equal(t, expectedDataPort, actual)
 }
 
+func TestMapFunction(t *testing.T) {
+	var testOutboundProxy = &Proxy{
+		Host: "expectedHost",
+		Port: 37,
+	}
+	var testPropSpec = &PropSpec{
+		Type: PropSpecTypeInt,
+		Key:  "test_key",
+		Name: "Test PropSpec",
+	}
+	var testOutPort = &DataPort{Handle: "test-out"}
+	var testInPort = &DataPort{Handle: "test-in"}
+	var testFunction = &Function{
+		DataSources:     []string{"source1"},
+		DataStores:      []string{"store1"},
+		Handle:          "testHandle",
+		Name:            "testName",
+		Oem:             "testOem",
+		Type:            "testType",
+		OutboundProxies: []Proxy{*testOutboundProxy},
+		OutputPorts:     []DataPort{*testOutPort},
+		InputPorts:      []DataPort{*testInPort},
+		PropSpecs:       []PropSpec{*testPropSpec},
+		Description:     "testDescription",
+		Version:         "testVersion",
+		Arches:          []string{"arch"},
+	}
+
+	assert.Empty(t, MapFunction("something"))
+	assert.Equal(t, testFunction, MapFunction(map[string]any{
+		"datasources": testFunction.DataSources,
+		"datastores":  testFunction.DataStores,
+		"handle":      testFunction.Handle,
+		"name":        testFunction.Name,
+		"oem":         testFunction.Oem,
+		"type":        testFunction.Type,
+		"outboundproxies": []interface{}{
+			map[string]any{
+				"host": testOutboundProxy.Host,
+				"port": testOutboundProxy.Port,
+			},
+		},
+		"outputports": []interface{}{
+			map[string]any{
+				"handle": testOutPort.Handle,
+			},
+		},
+		"inputports": []interface{}{
+			map[string]any{
+				"handle": testInPort.Handle,
+			},
+		},
+		"propspecs": []interface{}{
+			map[string]any{
+				"key":  testPropSpec.Key,
+				"type": testPropSpec.Type,
+				"name": testPropSpec.Name,
+			},
+		},
+		"description": testFunction.Description,
+		"version":     testFunction.Version,
+		"arches":      testFunction.Arches,
+	}))
+}
+
 func TestPropSpec_Validate(t *testing.T) {
 	var booleanSpec = &PropSpec{Type: PropSpecTypeBoolean}
 	var intSpec = &PropSpec{Type: PropSpecTypeInt}
@@ -137,54 +202,64 @@ func TestListPropSpecs(t *testing.T) {
 	assert.Equal(t, expectedSpecMap["type"], actualSpecs[0].Type)
 }
 
-func TestMapFunction(t *testing.T) {
-	var testPropSpec = &PropSpec{
-		Type: PropSpecTypeInt,
-		Key:  "test_key",
-		Name: "Test PropSpec",
-	}
-	var testOutPort = &DataPort{Handle: "test-out"}
-	var testInPort = &DataPort{Handle: "test-in"}
-	var testFunction = &Function{
-		Handle:      "testHandle",
-		Name:        "testName",
-		Oem:         "testOem",
-		Type:        "testType",
-		OutputPorts: []DataPort{*testOutPort},
-		InputPorts:  []DataPort{*testInPort},
-		PropSpecs:   []PropSpec{*testPropSpec},
-		Description: "testDescription",
-		Version:     "testVersion",
-		Arches:      []string{"arch"},
-	}
+func TestProxy_IsEqual(t *testing.T) {
+	var expectedHost = "host"
+	var expectedPort = 37
+	var testProxy = &Proxy{}
 
-	assert.Empty(t, MapFunction("something"))
-	assert.Equal(t, testFunction, MapFunction(map[string]any{
-		"handle": testFunction.Handle,
-		"name":   testFunction.Name,
-		"oem":    testFunction.Oem,
-		"type":   testFunction.Type,
-		"outputports": []interface{}{
-			map[string]any{
-				"handle": testOutPort.Handle,
-			},
-		},
-		"inputports": []interface{}{
-			map[string]any{
-				"handle": testInPort.Handle,
-			},
-		},
-		"propspecs": []interface{}{
-			map[string]any{
-				"key":  testPropSpec.Key,
-				"type": testPropSpec.Type,
-				"name": testPropSpec.Name,
-			},
-		},
-		"description": testFunction.Description,
-		"version":     testFunction.Version,
-		"arches":      testFunction.Arches,
-	}))
+	assert.False(t, testProxy.IsEqual(expectedHost, expectedPort))
+	testProxy.Host = expectedHost
+	assert.False(t, testProxy.IsEqual(expectedHost, expectedPort))
+	testProxy.Port = expectedPort
+	assert.True(t, testProxy.IsEqual(expectedHost, expectedPort))
+	testProxy.Host = ""
+	assert.False(t, testProxy.IsEqual(expectedHost, expectedPort))
+}
+
+func TestProxy_SetActive(t *testing.T) {
+	var testProxy = &Proxy{}
+
+	assert.False(t, testProxy.IsActive())
+	testProxy.SetActive(true)
+	assert.True(t, testProxy.IsActive())
+	testProxy.SetActive(false)
+	assert.False(t, testProxy.IsTcp())
+}
+
+func TestProxy_SetTcp(t *testing.T) {
+	var testProxy = &Proxy{}
+
+	assert.False(t, testProxy.IsTcp())
+	testProxy.SetTcp(true)
+	assert.True(t, testProxy.IsTcp())
+	testProxy.SetTcp(false)
+	assert.False(t, testProxy.IsTcp())
+}
+
+func TestProxy_SetUdp(t *testing.T) {
+	var testProxy = &Proxy{}
+
+	assert.False(t, testProxy.IsUdp())
+	testProxy.SetUdp(true)
+	assert.True(t, testProxy.IsUdp())
+	testProxy.SetUdp(false)
+	assert.False(t, testProxy.IsUdp())
+}
+
+func TestListProxies(t *testing.T) {
+	var expectedHost = "expectedHost"
+	var expectedPort = 37
+	var expectedProxyMap = map[string]any{
+		"host": expectedHost,
+		"port": expectedPort,
+	}
+	var actualProxies []Proxy
+
+	assert.Empty(t, ListProxies("notAList"))
+	actualProxies = ListProxies([]interface{}{expectedProxyMap, "notASpec"})
+	assert.Equal(t, 1, len(actualProxies))
+	assert.Equal(t, expectedProxyMap["host"], actualProxies[0].Host)
+	assert.Equal(t, expectedProxyMap["port"], actualProxies[0].Port)
 }
 
 func TestSolution_Merge(t *testing.T) {

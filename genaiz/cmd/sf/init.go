@@ -24,18 +24,20 @@ import (
 type InitWriter struct {
 	*PublishOptions
 	*RunOptions
-	buildFileKeys          *schema.Keys
-	buildTagKeys           *schema.Keys
-	buildVersionKeys       *schema.Keys
-	publishInputPortsKeys  *schema.Keys
-	publishOutputPortsKeys *schema.Keys
-	publishPropSpecsKeys   *schema.Keys
-	publishSourcesKeys     *schema.Keys
-	publishStoresKeys      *schema.Keys
-	removedInputPort       *broker.DataPort
-	removedOutputPort      *broker.DataPort
-	removedPropSpec        *broker.PropSpec
-	vp                     *viper.Viper
+	buildFileKeys              *schema.Keys
+	buildTagKeys               *schema.Keys
+	buildVersionKeys           *schema.Keys
+	publishInputPortsKeys      *schema.Keys
+	publishOutboundProxiesKeys *schema.Keys
+	publishOutputPortsKeys     *schema.Keys
+	publishPropSpecsKeys       *schema.Keys
+	publishSourcesKeys         *schema.Keys
+	publishStoresKeys          *schema.Keys
+	removedInputPort           *broker.DataPort
+	removedOutboundProxy       *broker.Proxy
+	removedOutputPort          *broker.DataPort
+	removedPropSpec            *broker.PropSpec
+	vp                         *viper.Viper
 }
 
 func (iw *InitWriter) BuildArches() (string, []string) {
@@ -68,6 +70,18 @@ func (iw *InitWriter) BuildName() (string, string) {
 
 func (iw *InitWriter) BuildOem() (string, string) {
 	return iw.optionOem.Key, iw.vp.GetString(iw.optionOem.Key)
+}
+
+func (iw *InitWriter) BuildOutboundProxies() (string, []broker.Proxy) {
+	if list, ok := iw.vp.Get(iw.publishOutboundProxiesKeys.Doc).([]broker.Proxy); ok {
+		return iw.publishOutboundProxiesKeys.Doc, list
+	}
+
+	return iw.publishOutboundProxiesKeys.Doc, []broker.Proxy{}
+}
+
+func (iw *InitWriter) BuildOutboundProxyRemoved() (string, *broker.Proxy) {
+	return iw.publishOutboundProxiesKeys.Doc, iw.removedOutboundProxy
 }
 
 func (iw *InitWriter) BuildOutput() map[string]string {
@@ -209,6 +223,19 @@ func (iw *InitWriter) WithOem(value string) layout.ConfigWriter {
 		iw.vp.Set(iw.optionOem.Key, value)
 	}
 
+	return iw
+}
+
+func (iw *InitWriter) WithOutboundProxies(proxies []broker.Proxy) layout.ConfigWriter {
+	if len(proxies) > 0 || iw.removedOutboundProxy != nil {
+		iw.vp.Set(iw.publishOutboundProxiesKeys.Doc, proxies)
+	}
+
+	return iw
+}
+
+func (iw *InitWriter) WithOutboundProxyRemoved(proxy *broker.Proxy) layout.ConfigWriter {
+	iw.removedOutboundProxy = proxy
 	return iw
 }
 
@@ -476,17 +503,18 @@ func makeInitBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
 	var dockerFile = ledger.GetString(sfCli.optionDockerFile)
 	var dockerTag = ledger.GetString(sfCli.optionDockerTag)
 	var result = &InitWriter{
-		PublishOptions:         NewPublishOptions(sfCli),
-		RunOptions:             NewRunOptions(sfCli),
-		buildFileKeys:          &schema.Genaiz.Function.Build.File,
-		buildTagKeys:           &schema.Genaiz.Function.Build.Tag,
-		buildVersionKeys:       &schema.Genaiz.Function.Build.Version,
-		publishInputPortsKeys:  &schema.Genaiz.Function.Publish.InputPorts,
-		publishOutputPortsKeys: &schema.Genaiz.Function.Publish.OutputPorts,
-		publishPropSpecsKeys:   &schema.Genaiz.Function.Publish.PropSpecs,
-		publishSourcesKeys:     &schema.Genaiz.Function.Publish.DataSources,
-		publishStoresKeys:      &schema.Genaiz.Function.Publish.DataStores,
-		vp:                     viper.New(),
+		PublishOptions:             NewPublishOptions(sfCli),
+		RunOptions:                 NewRunOptions(sfCli),
+		buildFileKeys:              &schema.Genaiz.Function.Build.File,
+		buildTagKeys:               &schema.Genaiz.Function.Build.Tag,
+		buildVersionKeys:           &schema.Genaiz.Function.Build.Version,
+		publishInputPortsKeys:      &schema.Genaiz.Function.Publish.InputPorts,
+		publishOutboundProxiesKeys: &schema.Genaiz.Function.Publish.OutboundProxies,
+		publishOutputPortsKeys:     &schema.Genaiz.Function.Publish.OutputPorts,
+		publishPropSpecsKeys:       &schema.Genaiz.Function.Publish.PropSpecs,
+		publishSourcesKeys:         &schema.Genaiz.Function.Publish.DataSources,
+		publishStoresKeys:          &schema.Genaiz.Function.Publish.DataStores,
+		vp:                         viper.New(),
 	}
 
 	if dockerFile != sfCli.optionDockerFile.DefaultGetter(ledger) {

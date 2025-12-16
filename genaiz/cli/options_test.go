@@ -353,6 +353,22 @@ func Test_OptionsFunctionsArches(t *testing.T) {
 	assert.False(t, testOption.Validator("invalid"))
 }
 
+func Test_OptionsFunctionsDataSources(t *testing.T) {
+	var testOption = Options.Functions.DataSources().BuildListOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	assert.Empty(t, testOption.Param)
+	assert.Empty(t, testOption.Usage)
+}
+
+func Test_OptionsFunctionsDataStores(t *testing.T) {
+	var testOption = Options.Functions.DataStores().BuildListOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	assert.Empty(t, testOption.Param)
+	assert.Empty(t, testOption.Usage)
+}
+
 func Test_OptionsFunctionsExtras(t *testing.T) {
 	var testOption = Options.Functions.Extras().BuildOption()
 
@@ -444,6 +460,14 @@ func Test_OptionsFunctionsOem(t *testing.T) {
 	assert.False(t, testOption.Validator("test-handle_"))
 	assert.False(t, testOption.Validator("test-handle_"))
 	assert.False(t, testOption.Validator(""))
+}
+
+func Test_OptionsFunctionsOutboundProxies(t *testing.T) {
+	var testOption = Options.Functions.OutboundProxies().BuildOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	assert.Empty(t, testOption.Param)
+	assert.Empty(t, testOption.Usage)
 }
 
 func Test_OptionsFunctionsRebuild(t *testing.T) {
@@ -557,6 +581,32 @@ func Test_OptionsPropSpecsType(t *testing.T) {
 	assert.True(t, testOption.Validator(broker.PropSpecTypeEnum))
 	assert.True(t, testOption.Validator(broker.PropSpecTypeInt))
 	assert.True(t, testOption.Validator(broker.PropSpecTypeString))
+}
+
+func Test_OptionsProxyInactive(t *testing.T) {
+	var testOption = Options.Proxies.Inactive().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsProxyTcp(t *testing.T) {
+	var testOption = Options.Proxies.Tcp().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsProxyUdp(t *testing.T) {
+	var testOption = Options.Proxies.Udp().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
 func Test_OptionsSolutionsBroker(t *testing.T) {
