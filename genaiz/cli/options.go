@@ -245,18 +245,6 @@ var (
 					WithUsage("a list of architectures supported by the function. Supported: x86, x86_64, arm and arm64").
 					WithValidator(config.AllFromEnumerated(layout.ArchTypes))
 			},
-			DataSources: func() OptionBuilder {
-				return NewOptionBuilder().
-					WithKeys(&schema.Genaiz.Function.Publish.DataSources)
-			},
-			DataStores: func() OptionBuilder {
-				return NewOptionBuilder().
-					WithKeys(&schema.Genaiz.Function.Publish.DataStores)
-			},
-			Extras: func() OptionBuilder {
-				return NewOptionBuilder().
-					WithKeys(&schema.Genaiz.Function.Publish.Extras)
-			},
 			Handle: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("handle").
@@ -303,10 +291,6 @@ var (
 					WithParam("oem").
 					WithUsage("uniquely identifies the publisher of the function").
 					WithValidator(config.Validation.Oem)
-			},
-			OutboundProxies: func() OptionBuilder {
-				return NewOptionBuilder().
-					WithKeys(&schema.Genaiz.Function.Publish.OutboundProxies)
 			},
 			Rebuild: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -634,22 +618,18 @@ type dockerOptions struct {
 }
 
 type functionOptions struct {
-	Arches          func() OptionBuilder
-	DataSources     func() OptionBuilder
-	DataStores      func() OptionBuilder
-	Extras          func() OptionBuilder
-	Handle          func() OptionBuilder
-	MountInput      func() OptionBuilder
-	MountLog        func() OptionBuilder
-	MountOutput     func() OptionBuilder
-	MountVar        func() OptionBuilder
-	Name            func() OptionBuilder
-	Oem             func() OptionBuilder
-	OutboundProxies func() OptionBuilder
-	Rebuild         func() OptionBuilder
-	Recipe          func() OptionBuilder
-	Type            func() OptionBuilder
-	Version         func() OptionBuilder
+	Arches      func() OptionBuilder
+	Handle      func() OptionBuilder
+	MountInput  func() OptionBuilder
+	MountLog    func() OptionBuilder
+	MountOutput func() OptionBuilder
+	MountVar    func() OptionBuilder
+	Name        func() OptionBuilder
+	Oem         func() OptionBuilder
+	Rebuild     func() OptionBuilder
+	Recipe      func() OptionBuilder
+	Type        func() OptionBuilder
+	Version     func() OptionBuilder
 }
 
 type modeOptions struct {

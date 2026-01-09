@@ -83,9 +83,14 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
-		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
-		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
+		innerDataSources:     &config.ListOption{Option: config.Option{Key: "innerDataSources"}},
+		innerDataStores:      &config.ListOption{Option: config.Option{Key: "innerDataStores"}},
+		innerExtras:          &config.Option{Key: "innerExtras"},
+		innerInputPorts:      &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts:     &config.Option{Key: "innerOutputPorts"},
+		innerOutboundProxies: &config.Option{Key: "innerOutboundProxies"},
+		innerPropSpecs:       &config.Option{Key: "innerSpecs"},
+		innerResultValues:    &config.ListOption{Option: config.Option{Key: "innerResultValues"}},
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -109,7 +114,7 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
-		testViper.Set(testExecutor.optionExtras.Key, map[string]any{expectedExtraKey: expectedExtraValue})
+		testViper.Set(testExecutor.innerExtras.Key, map[string]any{expectedExtraKey: expectedExtraValue})
 		testExecutor.Pretend()
 		assert.False(t, calledBuild)
 		assert.True(t, calledInspect)
@@ -138,9 +143,14 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
-		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
-		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
+		innerDataSources:     &config.ListOption{Option: config.Option{Key: "innerDataSources"}},
+		innerDataStores:      &config.ListOption{Option: config.Option{Key: "innerDataStores"}},
+		innerExtras:          &config.Option{Key: "innerExtras"},
+		innerInputPorts:      &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts:     &config.Option{Key: "innerOutputPorts"},
+		innerOutboundProxies: &config.Option{Key: "innerOutboundProxies"},
+		innerPropSpecs:       &config.Option{Key: "innerSpecs"},
+		innerResultValues:    &config.ListOption{Option: config.Option{Key: "innerResultValues"}},
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -189,9 +199,14 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
-		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
-		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
+		innerDataSources:     &config.ListOption{Option: config.Option{Key: "innerDataSources"}},
+		innerDataStores:      &config.ListOption{Option: config.Option{Key: "innerDataStores"}},
+		innerExtras:          &config.Option{Key: "innerExtras"},
+		innerInputPorts:      &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts:     &config.Option{Key: "innerOutputPorts"},
+		innerOutboundProxies: &config.Option{Key: "innerOutboundProxies"},
+		innerPropSpecs:       &config.Option{Key: "innerSpecs"},
+		innerResultValues:    &config.ListOption{Option: config.Option{Key: "innerResultValues"}},
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -241,9 +256,14 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
-		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
-		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
+		innerDataSources:     &config.ListOption{Option: config.Option{Key: "innerDataSources"}},
+		innerDataStores:      &config.ListOption{Option: config.Option{Key: "innerDataStores"}},
+		innerExtras:          &config.Option{Key: "innerExtras"},
+		innerInputPorts:      &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts:     &config.Option{Key: "innerOutputPorts"},
+		innerOutboundProxies: &config.Option{Key: "innerOutboundProxies"},
+		innerPropSpecs:       &config.Option{Key: "innerSpecs"},
+		innerResultValues:    &config.ListOption{Option: config.Option{Key: "innerResultValues"}},
 
 		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
 		initTaskFactory:      newInitTaskPretendStub(&calledInit),
@@ -295,9 +315,14 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
-		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
-		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
+		innerDataSources:     &config.ListOption{Option: config.Option{Key: "innerDataSources"}},
+		innerDataStores:      &config.ListOption{Option: config.Option{Key: "innerDataStores"}},
+		innerExtras:          &config.Option{Key: "innerExtras"},
+		innerInputPorts:      &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts:     &config.Option{Key: "innerOutputPorts"},
+		innerOutboundProxies: &config.Option{Key: "innerOutboundProxies"},
+		innerPropSpecs:       &config.Option{Key: "innerSpecs"},
+		innerResultValues:    &config.ListOption{Option: config.Option{Key: "innerResultValues"}},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -354,9 +379,14 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
-		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
-		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
+		innerDataSources:     &config.ListOption{Option: config.Option{Key: "innerDataSources"}},
+		innerDataStores:      &config.ListOption{Option: config.Option{Key: "innerDataStores"}},
+		innerExtras:          &config.Option{Key: "innerExtras"},
+		innerInputPorts:      &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts:     &config.Option{Key: "innerOutputPorts"},
+		innerOutboundProxies: &config.Option{Key: "innerOutboundProxies"},
+		innerPropSpecs:       &config.Option{Key: "innerSpecs"},
+		innerResultValues:    &config.ListOption{Option: config.Option{Key: "innerResultValues"}},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -416,9 +446,14 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
-		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
-		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
+		innerDataSources:     &config.ListOption{Option: config.Option{Key: "innerDataSources"}},
+		innerDataStores:      &config.ListOption{Option: config.Option{Key: "innerDataStores"}},
+		innerExtras:          &config.Option{Key: "innerExtras"},
+		innerInputPorts:      &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts:     &config.Option{Key: "innerOutputPorts"},
+		innerOutboundProxies: &config.Option{Key: "innerOutboundProxies"},
+		innerPropSpecs:       &config.Option{Key: "innerSpecs"},
+		innerResultValues:    &config.ListOption{Option: config.Option{Key: "innerResultValues"}},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -472,9 +507,14 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		},
 		PublishOptions: NewPublishOptions(testCli),
 
-		innerInputPorts:  &config.Option{Key: "innerInputPorts"},
-		innerOutputPorts: &config.Option{Key: "innerOutputPorts"},
-		innerPropSpecs:   &config.Option{Key: "innerSpecs"},
+		innerDataSources:     &config.ListOption{Option: config.Option{Key: "innerDataSources"}},
+		innerDataStores:      &config.ListOption{Option: config.Option{Key: "innerDataStores"}},
+		innerExtras:          &config.Option{Key: "innerExtras"},
+		innerInputPorts:      &config.Option{Key: "innerInputPorts"},
+		innerOutputPorts:     &config.Option{Key: "innerOutputPorts"},
+		innerOutboundProxies: &config.Option{Key: "innerOutboundProxies"},
+		innerPropSpecs:       &config.Option{Key: "innerSpecs"},
+		innerResultValues:    &config.ListOption{Option: config.Option{Key: "innerResultValues"}},
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		initTaskFactory: newInitTaskCompleteStub(func(params *layout.InitParams) {
@@ -524,12 +564,14 @@ func TestPublishExecutor_makeProvisionExtras(t *testing.T) {
 			Cli:    testCli,
 		},
 		PublishOptions: NewPublishOptions(testCli),
+
+		innerExtras: &config.Option{Key: "innerExtras"},
 	}
 	var expectedExtraKey = "extra"
 	var expectedExtraValue = 37
 	var actual map[string]any
 
-	testViper.Set(testExecutor.optionExtras.Key, map[string]any{expectedExtraKey: expectedExtraValue})
+	testViper.Set(testExecutor.innerExtras.Key, map[string]any{expectedExtraKey: expectedExtraValue})
 	actual = testExecutor.makeProvisionExtras()
 	assert.Equal(t, expectedExtraValue, actual[expectedExtraKey])
 }

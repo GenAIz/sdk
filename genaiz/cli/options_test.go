@@ -353,30 +353,6 @@ func Test_OptionsFunctionsArches(t *testing.T) {
 	assert.False(t, testOption.Validator("invalid"))
 }
 
-func Test_OptionsFunctionsDataSources(t *testing.T) {
-	var testOption = Options.Functions.DataSources().BuildListOption()
-
-	assert.NotEmpty(t, testOption.Key)
-	assert.Empty(t, testOption.Param)
-	assert.Empty(t, testOption.Usage)
-}
-
-func Test_OptionsFunctionsDataStores(t *testing.T) {
-	var testOption = Options.Functions.DataStores().BuildListOption()
-
-	assert.NotEmpty(t, testOption.Key)
-	assert.Empty(t, testOption.Param)
-	assert.Empty(t, testOption.Usage)
-}
-
-func Test_OptionsFunctionsExtras(t *testing.T) {
-	var testOption = Options.Functions.Extras().BuildOption()
-
-	assert.NotEmpty(t, testOption.Key)
-	assert.Empty(t, testOption.Param)
-	assert.Empty(t, testOption.Usage)
-}
-
 func Test_OptionsFunctionsHandle(t *testing.T) {
 	var testOption = Options.Functions.Handle().BuildStringOption()
 
@@ -460,14 +436,6 @@ func Test_OptionsFunctionsOem(t *testing.T) {
 	assert.False(t, testOption.Validator("test-handle_"))
 	assert.False(t, testOption.Validator("test-handle_"))
 	assert.False(t, testOption.Validator(""))
-}
-
-func Test_OptionsFunctionsOutboundProxies(t *testing.T) {
-	var testOption = Options.Functions.OutboundProxies().BuildOption()
-
-	assert.NotEmpty(t, testOption.Key)
-	assert.Empty(t, testOption.Param)
-	assert.Empty(t, testOption.Usage)
 }
 
 func Test_OptionsFunctionsRebuild(t *testing.T) {

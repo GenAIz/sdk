@@ -31,6 +31,7 @@ type ProvisionParams struct {
 	OutputPorts     []DataPort
 	OutboundProxies []Proxy
 	PropSpecs       []PropSpec
+	ResultValues    []string
 	Type            string
 	Version         string
 }
@@ -56,6 +57,7 @@ func (pp ProvisionParams) asFunction() *Function {
 		OutboundProxies: pp.OutboundProxies,
 		OutputPorts:     pp.OutputPorts,
 		PropSpecs:       pp.PropSpecs,
+		ResultValues:    pp.ResultValues,
 		Type:            strings.ToUpper(pp.Type),
 		Version:         pp.Version,
 	}
