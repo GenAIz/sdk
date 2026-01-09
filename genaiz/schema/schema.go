@@ -30,10 +30,53 @@ type Document struct {
 	}
 	DataLink struct {
 		Create struct {
+			ConfigType  Keys
 			Description Keys
 			Handle      Keys
 			Name        Keys
 			Oem         Keys
+			UserDefined Keys
+			Version     Keys
+		}
+		PropSpecAdd struct {
+			ConfigType   Keys
+			DefaultValue Keys
+			Description  Keys
+			EnumValue    Keys
+			Handle       Keys
+			Name         Keys
+			Oem          Keys
+			Secret       Keys
+			Type         Keys
+			UserDefined  Keys
+			Version      Keys
+		}
+		PropSpecEdit struct {
+			ConfigType      Keys
+			DefaultValue    Keys
+			Description     Keys
+			EnumAddValue    Keys
+			EnumRemoveValue Keys
+			EnumValue       Keys
+			Handle          Keys
+			Name            Keys
+			Oem             Keys
+			UserDefined     Keys
+			Version         Keys
+		}
+		PropSpecRemove struct {
+			ConfigType  Keys
+			Handle      Keys
+			Name        Keys
+			Oem         Keys
+			UserDefined Keys
+			Version     Keys
+		}
+		Publish struct {
+			ConfigType  Keys
+			Handle      Keys
+			Oem         Keys
+			UserDefined Keys
 			Version     Keys
 		}
 	}
@@ -132,7 +175,6 @@ type Document struct {
 				EnumValue       Keys
 				Name            Keys
 			}
-
 			Arches          Keys
 			DataSources     Keys
 			DataStores      Keys
@@ -351,13 +393,54 @@ func init() {
 	Genaiz.Account.Login.Password = newKeys("p", "GENAIZ_PASSWORD")
 	Genaiz.Account.Login.Refresh = newKeys("Account.Login.Refresh", "AC_LOGIN_REFRESH", "Ac.Login.Refresh")
 	Genaiz.Account.Login.Username = newKeys("Account.Login.Username", "GENAIZ_USERNAME", "Ac.Login.Username")
+
 	Genaiz.Account.Logout.Host = newKeys("Account.Logout.Host", "AC_LOGOUT_HOST", "Ac.Logout.Host")
 	Genaiz.Account.Logout.Username = newKeys("Account.Logout.Username", "GENAIZ_USERNAME", "Ac.Logout.Username")
+
+	Genaiz.DataLink.Create.ConfigType = newKeys("DataLink.Create.ConfigType", "DK_CREATE_CONFIG_TYPE", "Dk.Create.ConfigType")
 	Genaiz.DataLink.Create.Description = newKeys("DataLink.Create.Description", "DK_CREATE_DESC", "Dk.Create.Description")
 	Genaiz.DataLink.Create.Handle = newKeys("DataLink.Create.Handle", "")
 	Genaiz.DataLink.Create.Name = newKeys("DataLink.Create.Name", "DK_CREATE_NAME", "Dk.Create.Name")
 	Genaiz.DataLink.Create.Oem = newKeys("DataLink.Create.Oem", "DK_CREATE_OEM", "Dk.Create.Oem")
+	Genaiz.DataLink.Create.UserDefined = newKeys("DataLink.Create.UserDefined", "DK_CREATE_USER_DEFINED", "Dk.Create.UserDefined")
 	Genaiz.DataLink.Create.Version = newKeys("DataLink.Create.Version", "DK_CREATE_VERSION", "Dk.Create.Version")
+
+	Genaiz.DataLink.PropSpecAdd.ConfigType = newKeys("DataLink.PropSpecAdd.ConfigType", "DK_CREATE_PROP_SPEC_ADD_CONFIG_TYPE", "Dk.PropSpecAdd.ConfigType")
+	Genaiz.DataLink.PropSpecAdd.DefaultValue = newKeys("DataLink.PropSpecAdd.DefaultValue", "DK_PROP_SPEC_ADD_DEFAULT_VALUE", "Dk.PropSpecAdd.DefaultValue")
+	Genaiz.DataLink.PropSpecAdd.Description = newKeys("DataLink.PropSpecAdd.Description", "DK_PROP_SPEC_ADD_DESCRIPTION", "Dk.PropSpecAdd.Description")
+	Genaiz.DataLink.PropSpecAdd.EnumValue = newKeys("DataLink.PropSpecAdd.EnumValue", "DK_PROP_SPEC_ADD_ENUM_VALUE", "Dk.PropSpecAdd.EnumValue")
+	Genaiz.DataLink.PropSpecAdd.Handle = newKeys("DataLink.PropSpecAdd.Handle", "DK_PROP_SPEC_ADD_HANDLE", "Dk.PropSpecAdd.Handle")
+	Genaiz.DataLink.PropSpecAdd.Name = newKeys("DataLink.PropSpecAdd.Name", "DK_PROP_SPEC_ADD_NAME", "Dk.PropSpecAdd.Name")
+	Genaiz.DataLink.PropSpecAdd.Oem = newKeys("DataLink.PropSpecAdd.Oem", "DK_PROP_SPEC_ADD_OEM", "Dk.PropSpecAdd.Oem")
+	Genaiz.DataLink.PropSpecAdd.Secret = newKeys("DataLink.PropSpecAdd.Secret", "DK_PROP_SPEC_ADD_SECRET", "Dk.PropSpecAdd.Secret")
+	Genaiz.DataLink.PropSpecAdd.Type = newKeys("DataLink.PropSpecAdd.Type", "DK_PROP_SPEC_ADD_TYPE", "Dk.PropSpecAdd.Type")
+	Genaiz.DataLink.PropSpecAdd.UserDefined = newKeys("DataLink.PropSpecAdd.UserDefined", "DK_PROP_SPEC_ADD_USER_DEFINED", "Dk.PropSpecAdd.UserDefined")
+	Genaiz.DataLink.PropSpecAdd.Version = newKeys("DataLink.PropSpecAdd.Version", "DK_PROP_SPEC_ADD_VERSION", "Dk.PropSpecAdd.Version")
+
+	Genaiz.DataLink.PropSpecEdit.ConfigType = newKeys("DataLink.PropSpecEdit.ConfigType", "DK_CREATE_PROP_SPEC_EDIT_CONFIG_TYPE", "Dk.PropSpecEdit.ConfigType")
+	Genaiz.DataLink.PropSpecEdit.DefaultValue = newKeys("DataLink.PropSpecEdit.DefaultValue", "DK_PROP_SPEC_EDIT_DEFAULT_VALUE", "Dk.PropSpecEdit.DefaultValue")
+	Genaiz.DataLink.PropSpecEdit.Description = newKeys("DataLink.PropSpecEdit.Description", "DK_PROP_SPEC_EDIT_DESCRIPTION", "Dk.PropSpecEdit.Description")
+	Genaiz.DataLink.PropSpecEdit.EnumValue = newKeys("DataLink.PropSpecEdit.EnumValue", "DK_PROP_SPEC_EDIT_ENUM_VALUE", "Dk.PropSpecEdit.EnumValue")
+	Genaiz.DataLink.PropSpecEdit.EnumAddValue = newKeys("DataLink.PropSpecEdit.EnumAddValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_ADD_VALUE", "Dk.PropSpecEdit.EnumAddValue")
+	Genaiz.DataLink.PropSpecEdit.EnumRemoveValue = newKeys("DataLink.PropSpecEdit.EnumRemoveValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_RM_VALUE", "Dk.PropSpecEdit.EnumRemoveValue")
+	Genaiz.DataLink.PropSpecEdit.Handle = newKeys("DataLink.PropSpecEdit.Handle", "DK_PROP_SPEC_EDIT_HANDLE", "Dk.PropSpecEdit.Handle")
+	Genaiz.DataLink.PropSpecEdit.Name = newKeys("DataLink.PropSpecEdit.Name", "DK_PROP_SPEC_EDIT_NAME", "Dk.PropSpecEdit.Name")
+	Genaiz.DataLink.PropSpecEdit.Oem = newKeys("DataLink.PropSpecEdit.Oem", "DK_PROP_SPEC_EDIT_OEM", "Dk.PropSpecEdit.Oem")
+	Genaiz.DataLink.PropSpecEdit.UserDefined = newKeys("DataLink.PropSpecEdit.UserDefined", "DK_PROP_SPEC_EDIT_USER_DEFINED", "Dk.PropSpecEdit.UserDefined")
+	Genaiz.DataLink.PropSpecEdit.Version = newKeys("DataLink.PropSpecEdit.Version", "DK_PROP_SPEC_EDIT_VERSION", "Dk.PropSpecEdit.Version")
+
+	Genaiz.DataLink.PropSpecRemove.ConfigType = newKeys("DataLink.PropSpecRemove.ConfigType", "DK_CREATE_PROP_SPEC_RM_CONFIG_TYPE", "Dk.PropSpecRemove.ConfigType")
+	Genaiz.DataLink.PropSpecRemove.Handle = newKeys("DataLink.PropSpecRemove.Handle", "DK_PROP_SPEC_RM_HANDLE", "Dk.PropSpecRemove.Handle")
+	Genaiz.DataLink.PropSpecRemove.Oem = newKeys("DataLink.PropSpecRemove.Oem", "DK_PROP_SPEC_RM_OEM", "Dk.PropSpecRemove.Oem")
+	Genaiz.DataLink.PropSpecRemove.UserDefined = newKeys("DataLink.PropSpecRemove.UserDefined", "DK_PROP_SPEC_RM_USER_DEFINED", "Dk.PropSpecRemove.UserDefined")
+	Genaiz.DataLink.PropSpecRemove.Version = newKeys("DataLink.PropSpecRemove.Version", "DK_PROP_SPEC_RM_VERSION", "Dk.PropSpecRemove.Version")
+
+	Genaiz.DataLink.Publish.ConfigType = newKeys("DataLink.Publish.ConfigType", "DK_PUBLISH_CONFIG_TYPE", "Dk.Publish.ConfigType")
+	Genaiz.DataLink.Publish.Handle = newKeys("DataLink.Publish.Handle", "DK_PUBLISH_HANDLE", "Dk.Publish.Handle")
+	Genaiz.DataLink.Publish.Oem = newKeys("DataLink.Publish.Oem", "DK_PUBLISH_OEM", "Dk.Publish.Oem")
+	Genaiz.DataLink.Publish.UserDefined = newKeys("DataLink.Publish.UserDefined", "DK_PUBLISH_USER_DEFINED", "Dk.Publish.UserDefined")
+	Genaiz.DataLink.Publish.Version = newKeys("DataLink.Publish.Version", "DK_PUBLISH_VERSION", "Dk.Publish.Version")
+
 	Genaiz.Function.Build.Context = newKeys("Function.Build.Context", "SF_BUILD_CONTEXT", "Sf.Build.Context")
 	Genaiz.Function.Build.File = newKeys("Function.Build.File", "SF_BUILD_FILE", "Sf.Build.File")
 	Genaiz.Function.Build.Label = newKeys("Function.Build.Label", "SF_BUILD_LABEL", "Sf.Build.Label")
@@ -366,6 +449,7 @@ func init() {
 	Genaiz.Function.Build.Prune = newKeys("Function.Build.Prune", "SF_BUILD_PRUNE", "Sf.Build.Prune")
 	Genaiz.Function.Build.Tag = newKeys("Function.Build.Tag", "SF_BUILD_TAG", "Sf.Build.Tag")
 	Genaiz.Function.Build.Version = newKeys("Function.Build.Version", "SF_BUILD_VERSION", "Sf.Build.Version")
+
 	Genaiz.Function.Create.Arches = newKeys("Function.Create.Arches", "SF_CREATE_ARCHES", "Sf.Create.Arches")
 	Genaiz.Function.Create.ConfigType = newKeys("Function.Create.ConfigType", "SF_CREATE_CONFIG_TYPE", "Sf.Create.ConfigType")
 	Genaiz.Function.Create.Handle = newKeys("Function.Create.Handle", "SF_CREATE_HANDLE", "Sf.Create.Handle")
@@ -377,8 +461,10 @@ func init() {
 	Genaiz.Function.Create.SolutionPath = newKeys("Function.Create.SolutionPath", "SF_CREATE_SN_PATH", "Sf.Create.SolutionPath")
 	Genaiz.Function.Create.Type = newKeys("Function.Create.Type", "SF_CREATE_TYPE", "Sf.Create.Type")
 	Genaiz.Function.Create.Version = newKeys("Function.Create.Version", "SF_CREATE_VERSION", "Sf.Create.Version")
+
 	Genaiz.Function.Env.Context = newKeys("Function.Env.Context", "SF_ENV_CONTEXT", "Sf.Env.Context")
 	Genaiz.Function.Env.File = newKeys("Function.Env.File", "SF_ENV_FILE", "Sf.Env.File")
+
 	Genaiz.Function.Init.Arches = newKeys("Function.Init.Arches", "SF_INIT_ARCHES", "Sf.Init.Arches")
 	Genaiz.Function.Init.ConfigType = newKeys("Function.Init.ConfigType", "SF_INIT_CONFIG_TYPE", "Sf.Init.ConfigType")
 	Genaiz.Function.Init.Handle = newKeys("Function.Init.Handle", "SF_INIT_HANDLE", "Sf.Init.Handle")
@@ -389,6 +475,7 @@ func init() {
 	Genaiz.Function.Init.SolutionPath = newKeys("Function.Init.SolutionPath", "SF_INIT_SN_PATH", "Sf.Init.SolutionPath")
 	Genaiz.Function.Init.Type = newKeys("Function.Init.Type", "SF_INIT_TYPE", "Sf.Init.Type")
 	Genaiz.Function.Init.Version = newKeys("Function.Init.Version", "SF_INIT_VERSION", "Sf.Init.Version")
+
 	Genaiz.Function.Publish.Arches = newKeys("Function.Publish.Arches", "SF_PUBLISH_ARCHES", "Sf.Publish.Arches")
 	Genaiz.Function.Publish.DataSources = newKeys("Function.Publish.DataSources", "SF_PUBLISH_DATA_SOURCES", "Sf.Publish.DataSources")
 	Genaiz.Function.Publish.DataStores = newKeys("Function.Publish.DataStores", "SF_PUBLISH_DATA_STORES", "Sf.Publish.DataStores")
@@ -407,38 +494,47 @@ func init() {
 	Genaiz.Function.Publish.ResultValues = newKeys("Function.Publish.ResultValues", "SF_PUBLISH_RESULT_VALUES", "Sf.Publish.ResultValues")
 	Genaiz.Function.Publish.Type = newKeys("Function.Publish.Type", "SF_PUBLISH_TYPE", "Sf.Publish.Type")
 	Genaiz.Function.Publish.Version = newKeys("Function.Publish.Version", "SF_PUBLISH_VERSION", "Sf.Publish.Version")
+
 	Genaiz.Function.Publish.DataSourceAdd.Handle = newKeys("Function.Publish.DataSourceAdd.Handle", "SF_PUBLISH_DATA_SRC_ADD_HANDLE", "Sf.Publish.DataSourceAdd.Handle")
 	Genaiz.Function.Publish.DataSourceAdd.NoValidation = newKeys("Function.Publish.DataSourceAdd.NoValidation", "SF_PUBLISH_DATA_SRC_ADD_NO_VALIDATION", "Sf.Publish.DataSourceAdd.NoValidation")
 	Genaiz.Function.Publish.DataSourceAdd.Oem = newKeys("Function.Publish.DataSourceAdd.Oem", "SF_PUBLISH_DATA_SRC_ADD_OEM", "Sf.Publish.DataSourceAdd.Oem")
 	Genaiz.Function.Publish.DataSourceAdd.Version = newKeys("Function.Publish.DataSourceAdd.Version", "SF_PUBLISH_DATA_SRC_ADD_VERSION", "Sf.Publish.DataSourceAdd.Version")
+
 	Genaiz.Function.Publish.DataSourceRemove.Handle = newKeys("Function.Publish.DataSourceRemove.Handle", "SF_PUBLISH_DATA_RM_ADD_HANDLE", "Sf.Publish.DataSourceRemove.Handle")
 	Genaiz.Function.Publish.DataSourceRemove.Oem = newKeys("Function.Publish.DataSourceRemove.Oem", "SF_PUBLISH_DATA_SRC_RM_OEM", "Sf.Publish.DataSourceRemove.Oem")
 	Genaiz.Function.Publish.DataSourceRemove.Version = newKeys("Function.Publish.DataSourceRemove.Version", "SF_PUBLISH_DATA_SRC_RM_VERSION", "Sf.Publish.DataSourceRemove.Version")
+
 	Genaiz.Function.Publish.DataStoreAdd.Handle = newKeys("Function.Publish.DataStoreAdd.Handle", "SF_PUBLISH_DATA_STR_ADD_HANDLE", "Sf.Publish.DataStoreAdd.Handle")
 	Genaiz.Function.Publish.DataStoreAdd.NoValidation = newKeys("Function.Publish.DataStoreAdd.NoValidation", "SF_PUBLISH_DATA_STR_ADD_NO_VALIDATION", "Sf.Publish.DataStoreAdd.NoValidation")
 	Genaiz.Function.Publish.DataStoreAdd.Oem = newKeys("Function.Publish.DataStoreAdd.Oem", "SF_PUBLISH_DATA_STR_ADD_OEM", "Sf.Publish.DataStoreAdd.Oem")
 	Genaiz.Function.Publish.DataStoreAdd.Version = newKeys("Function.Publish.DataStoreAdd.Version", "SF_PUBLISH_DATA_STR_ADD_VERSION", "Sf.Publish.DataStoreAdd.Version")
+
 	Genaiz.Function.Publish.DataStoreRemove.Handle = newKeys("Function.Publish.DataStoreRemove.Handle", "SF_PUBLISH_DATA_STR_RM_HANDLE", "Sf.Publish.DataStoreRemove.Handle")
 	Genaiz.Function.Publish.DataStoreRemove.Oem = newKeys("Function.Publish.DataStoreRemove.Oem", "SF_PUBLISH_DATA_STR_RM_OEM", "Sf.Publish.DataStoreRemove.Oem")
 	Genaiz.Function.Publish.DataStoreRemove.Version = newKeys("Function.Publish.DataStoreRemove.Version", "SF_PUBLISH_DATA_STR_RM_VERSION", "Sf.Publish.DataStoreRemove.Version")
+
 	Genaiz.Function.Publish.DataPortAdd.Input.Desc = newKeys("Function.Publish.DataPortAdd.Input.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC", "Sf.Publish.DataPortAdd.Input.Desc")
 	Genaiz.Function.Publish.DataPortAdd.Input.Name = newKeys("Function.Publish.DataPortAdd.Input.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME", "Sf.Publish.DataPortAdd.Input.Name")
 	Genaiz.Function.Publish.DataPortAdd.Output.Desc = newKeys("Function.Publish.DataPortAdd.Output.Desc", "SF_PUBLISH_DATA_PORT_ADD_DESC", "Sf.Publish.DataPortAdd.Output.Desc")
 	Genaiz.Function.Publish.DataPortAdd.Output.Name = newKeys("Function.Publish.DataPortAdd.Output.Name", "SF_PUBLISH_DATA_PORT_ADD_NAME", "Sf.Publish.DataPortAdd.Output.Name")
+
 	Genaiz.Function.Publish.OutboundProxyAdd.Inactive = newKeys("Function.Publish.OutboundProxyAdd.Inactive", "SF_PUBLISH_OUTBOUND_PROXY_ADD_INACTIVE", "Sf.Publish.OutboundProxyAdd.Inactive")
 	Genaiz.Function.Publish.OutboundProxyAdd.Tcp = newKeys("Function.Publish.OutboundProxyAdd.Tcp", "SF_PUBLISH_OUTBOUND_PROXY_ADD_TCP", "Sf.Publish.OutboundProxyAdd.Tcp")
 	Genaiz.Function.Publish.OutboundProxyAdd.Udp = newKeys("Function.Publish.OutboundProxyAdd.Udp", "SF_PUBLISH_OUTBOUND_PROXY_ADD_UDP", "Sf.Publish.OutboundProxyAdd.Udp")
+
 	Genaiz.Function.Publish.PropSpecAdd.DefaultValue = newKeys("Function.Publish.PropSpecAdd.DefaultValue", "SF_PUBLISH_PROP_SPEC_ADD_DEFAULT_VALUE", "Sf.Publish.PropSpecAdd.DefaultValue")
 	Genaiz.Function.Publish.PropSpecAdd.Description = newKeys("Function.Publish.PropSpecAdd.Description", "SF_PUBLISH_PROP_SPEC_ADD_DESCRIPTION", "Sf.Publish.PropSpecAdd.Description")
 	Genaiz.Function.Publish.PropSpecAdd.EnumValue = newKeys("Function.Publish.PropSpecAdd.EnumValue", "SF_PUBLISH_PROP_SPEC_ADD_ENUM_VALUE", "Sf.Publish.PropSpecAdd.EnumValue")
 	Genaiz.Function.Publish.PropSpecAdd.Name = newKeys("Function.Publish.PropSpecAdd.Name", "SF_PUBLISH_PROP_SPEC_ADD_NAME", "Sf.Publish.PropSpecAdd.Name")
 	Genaiz.Function.Publish.PropSpecAdd.Type = newKeys("Function.Publish.PropSpecAdd.Type", "SF_PUBLISH_PROP_SPEC_ADD_TYPE", "Sf.Publish.PropSpecAdd.Type")
+
 	Genaiz.Function.Publish.PropSpecEdit.DefaultValue = newKeys("Function.Publish.PropSpecEdit.DefaultValue", "SF_PUBLISH_PROP_SPEC_EDIT_DEFAULT_VALUE", "Sf.Publish.PropSpecEdit.DefaultValue")
 	Genaiz.Function.Publish.PropSpecEdit.Description = newKeys("Function.Publish.PropSpecEdit.Description", "SF_PUBLISH_PROP_SPEC_EDIT_DESCRIPTION", "Sf.Publish.PropSpecEdit.Description")
 	Genaiz.Function.Publish.PropSpecEdit.EnumAddValue = newKeys("Function.Publish.PropSpecEdit.EnumAddValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_ADD_VALUE", "Sf.Publish.PropSpecEdit.EnumAddValue")
 	Genaiz.Function.Publish.PropSpecEdit.EnumRemoveValue = newKeys("Function.Publish.PropSpecEdit.EnumRemoveValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_RM_VALUE", "Sf.Publish.PropSpecEdit.EnumRemoveValue")
 	Genaiz.Function.Publish.PropSpecEdit.EnumValue = newKeys("Function.Publish.PropSpecEdit.EnumValue", "SF_PUBLISH_PROP_SPEC_EDIT_ENUM_VALUE", "Sf.Publish.PropSpecEdit.EnumValue")
 	Genaiz.Function.Publish.PropSpecEdit.Name = newKeys("Function.Publish.PropSpecEdit.Name", "SF_PUBLISH_PROP_SPEC_EDIT_NAME", "Sf.Publish.PropSpecEdit.Name")
+
 	Genaiz.Function.Run.EnvFile = newKeys("Function.Run.EnvFile", "SF_RUN_ENV_FILE", "Sf.Run.EnvFile")
 	Genaiz.Function.Run.EnvVars = newKeys("Function.Run.EnvVar", "SF_RUN_ENV_VAR", "Sf.Run.EnvVar")
 	Genaiz.Function.Run.Image = newKeys("Function.Run.Image", "SF_RUN_IMAGE", "Sf.Run.Image")
@@ -447,6 +543,7 @@ func init() {
 	Genaiz.Function.Run.MountLog = newKeys("Function.Run.Log", "SF_RUN_MOUNT_LOG", "Sf.Run.Log")
 	Genaiz.Function.Run.MountVar = newKeys("Function.Run.Var", "SF_RUN_MOUNT_VAR", "Sf.Run.Var")
 	Genaiz.Function.Run.Prefix = newKeys("Function.Run.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Run.Prefix")
+
 	Genaiz.Function.Start.EnvFile = newKeys("Function.Start.EnvFile", "SF_RUN_ENV_FILE", "Sf.Start.EnvFile")
 	Genaiz.Function.Start.EnvVars = newKeys("Function.Start.EnvVar", "SF_RUN_ENV_VAR", "Sf.Start.EnvVar")
 	Genaiz.Function.Start.Image = newKeys("Function.Start.Image", "SF_RUN_IMAGE", "Sf.Start.Image")
@@ -458,10 +555,12 @@ func init() {
 	Genaiz.Function.Start.Prefix = newKeys("Function.Start.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Start.Prefix")
 	Genaiz.Function.Start.Preserve = newKeys("Function.Start.Preserve", "Sf_RUN_CONTAINER_PRESERVE", "Sf.Start.Preserve")
 	Genaiz.Function.Start.Replace = newKeys("Function.Start.Replace", "SF_RUN_REPLACE", "Sf.Start.Replace")
+
 	Genaiz.Function.Stop.Image = newKeys("Function.Stop.Image", "SF_RUN_IMAGE", "Sf.Stop.Image")
 	Genaiz.Function.Stop.Name = newKeys("Function.Stop.Name", "SF_RUN_CONTAINER_NAME", "Sf.Stop.Name")
 	Genaiz.Function.Stop.Prefix = newKeys("Function.Stop.Prefix", "Sf_RUN_CONTAINER_PREFIX", "Sf.Stop.Prefix")
 	Genaiz.Function.Stop.Preserve = newKeys("Function.Stop.Preserve", "Sf_RUN_CONTAINER_PRESERVE", "Sf.Stop.Preserve")
+
 	Genaiz.Function.Test.EnvFile = newKeys("Function.Test.EnvFile", "SF_RUN_ENV_FILE", "Sf.Test.EnvFile")
 	Genaiz.Function.Test.EnvVars = newKeys("Function.Test.EnvVar", "SF_RUN_ENV_VAR", "Sf.Test.EnvVar")
 	Genaiz.Function.Test.Image = newKeys("Function.Test.Image", "SF_RUN_IMAGE", "Sf.Test.Image")
@@ -470,6 +569,7 @@ func init() {
 	Genaiz.Function.Test.MountLog = newKeys("Function.Test.Log", "SF_RUN_MOUNT_LOG", "Sf.Test.Log")
 	Genaiz.Function.Test.MountVar = newKeys("Function.Test.Var", "SF_RUN_MOUNT_VAR", "Sf.Test.Var")
 	Genaiz.Function.Test.Prefix = newKeys("Function.Test.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Test.Prefix")
+
 	Genaiz.Solution.Create.ConfigType = newKeys("Solution.Create.ConfigType", "SN_CREATE_CONFIG_TYPE", "Sn.Create.ConfigType")
 	Genaiz.Solution.Create.Description = newKeys("Solution.Create.Description", "SN_CREATE_DESCRIPTION", "Sn.Create.Description")
 	Genaiz.Solution.Create.Handle = newKeys("Solution.Create.Handle", "SN_CREATE_HANDLE", "Sn.Create.Handle")
@@ -479,8 +579,10 @@ func init() {
 	Genaiz.Solution.Create.Workflow.Description = newKeys("Solution.Create.Workflow.Description", "SN_CREATE_WORKFLOW_DESCRIPTION", "Sn.Create.Workflow.Description")
 	Genaiz.Solution.Create.Workflow.Handle = newKeys("Solution.Create.Workflow.Handle", "SN_CREATE_WORKFLOW_HANDLE", "Sn.Create.Workflow.Handle")
 	Genaiz.Solution.Create.Workflow.Name = newKeys("Solution.Create.Workflow.Name", "SN_CREATE_WORKFLOW_NAME", "Sn.Create.Workflow.Name")
+
 	Genaiz.Solution.Log.Format = newKeys("Solution.Log.Format", "SN_LOG_FORMAT", "Sn.Log.Format")
 	Genaiz.Solution.Log.Level = newKeys("Solution.Log.Level", "SN_LOG_LEVEL", "Sn.Log.Level")
+
 	Genaiz.Solution.Publish.Broker = newKeys("Solution.Publish.Broker", "SN_PUBLISH_BROKER", "Sn.Publish.Broker")
 	Genaiz.Solution.Publish.ConfigType = newKeys("Solution.Publish.ConfigType", "SN_PUBLISH_CONFIG_TYPE", "Sn.Publish.ConfigType")
 	Genaiz.Solution.Publish.Description = newKeys("Solution.Publish.Description", "SN_PUBLISH_DESCRIPTION", "Sn.Publish.Description")
@@ -488,14 +590,18 @@ func init() {
 	Genaiz.Solution.Publish.Name = newKeys("Solution.Publish.Name", "SN_PUBLISH_NAME", "Sn.Publish.Name")
 	Genaiz.Solution.Publish.Oem = newKeys("Solution.Publish.Oem", "SN_PUBLISH_OEM", "Sn.Publish.Oem")
 	Genaiz.Solution.Publish.Version = newKeys("Solution.Publish.Version", "SN_PUBLISH_VERSION", "Sn.Publish.Version")
+
 	Genaiz.Workflow.Create.ConfigType = newKeys("Workflow.Create.ConfigType", "WF_CREATE_CONFIG_TYPE", "Wf.Create.ConfigType")
 	Genaiz.Workflow.Create.Description = newKeys("Workflow.Create.Description", "WF_CREATE_DESCRIPTION", "Wf.Create.Description")
 	Genaiz.Workflow.Create.Name = newKeys("Workflow.Create.Name", "WF_CREATE_NAME", "Wf.Create.Name")
+
 	Genaiz.Workflow.Delete.ConfigType = newKeys("Workflow.Delete.ConfigType", "WF_DELETE_CONFIG_TYPE", "Wf.Delete.ConfigType")
+
 	Genaiz.Workflow.Links.Add.ConfigType = newKeys("Workflow.Links.Add.ConfigType", "WF_LINKS_ADD_CONFIG_TYPE", "Wf.Links.Add.ConfigType")
 	Genaiz.Workflow.Links.Add.NoValidation = newKeys("Workflow.Links.Add.NoValidation", "WF_LINKS_ADD_NO_VALIDATION", "Wf.Links.Add.NoValidation")
 	Genaiz.Workflow.Links.Remove.ConfigType = newKeys("Workflow.Links.Remove.ConfigType", "WF_LINKS_RM_CONFIG_TYPE", "Wf.Links.Remove.ConfigType")
 	Genaiz.Workflow.Links.Remove.NoValidation = newKeys("Workflow.Links.Remove.NoValidation", "WF_LINKS_RM_NO_VALIDATION", "Wf.Links.Remove.NoValidation")
+
 	Genaiz.Workflow.Nodes.Add.ConfigType = newKeys("Workflow.Nodes.Add.ConfigType", "WF_NODES_ADD_CONFIG_TYPE", "Wf.Nodes.Add.ConfigType")
 	Genaiz.Workflow.Nodes.Add.Description = newKeys("Workflow.Nodes.Add.Description", "WF_NODES_ADD_DESCRIPTION", "Wf.Nodes.Add.Description")
 	Genaiz.Workflow.Nodes.Add.Deserialized = newKeys("Workflow.Nodes.Add.Deserialized", "WF_NODES_ADD_DESERIALIZED", "Wf.Nodes.Add.Deserialized")

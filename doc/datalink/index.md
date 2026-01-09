@@ -3,10 +3,13 @@
 ## Test Cases
 
 * [Create data link](create_data_link.feature)
+* [Prop data link](prop_data_link.feature)
 
 ## Commands
 
 * [create](create.md)
+* [prop](prop.md)
+* [publish](publish.md)
 
 ## Validation
 

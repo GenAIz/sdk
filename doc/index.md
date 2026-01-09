@@ -62,3 +62,28 @@ For Fully Qualified Domain Name and Version.
 
 * Must be a valid [Semantic Version](https://semver.org/) string.
 * Can not contain pre-release version identifiers as those are reserved by the broker.
+
+## Property Specification Validation
+
+### Property Key
+
+* The key of a property specification mirrors the string used to define conventional Environment Variables.
+* It must be composed only of capitalized alphanumeric characters and underscores; `[A-Z_][A-Z0-9_]*`
+* Keys can not be expanded into other keys. That is you can not define a key using the value of another one. For example, MY_KEY_$KEY_INDEX is not a valid key.
+
+### Property Name
+
+* A name can contain any kind of characters for as long as it does not extend to more than 255 characters.
+
+### Property Description
+
+* A description can extend to up to 4096 characters.
+
+### Property Types
+
+* Only "STRING", "INT", "BOOL", "DOUBLE" and "ENUM" are allowed.
+* Lower case strings will be capitalized on publishing and writing.
+
+### Property Enum Values
+
+* Enum values must have between 1 and 512 characters

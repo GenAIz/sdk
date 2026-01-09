@@ -84,7 +84,7 @@ func TestLedger_rollbackConfigs(t *testing.T) {
 }
 
 func TestLedger_AddConfigOption(t *testing.T) {
-	var _, testLedger = newTestConfigs()
+	var _, testLedger = newTestConfigsWithHome(t.TempDir())
 	var testPath = t.TempDir()
 	var expectedFile = filepath.Join(testPath, testLedger.ConfigName+".yaml")
 
@@ -108,8 +108,40 @@ func TestLedger_AddConfigOption(t *testing.T) {
 	}
 }
 
+func TestLedger_AddConfigOption_MultiFiles(t *testing.T) {
+	var _, testLedger = newTestConfigsWithHome(t.TempDir())
+	var testPath = t.TempDir()
+	var expectedFile = filepath.Join(testPath, testLedger.ConfigName+".yaml")
+	var fd *os.File
+	var err error
+
+	if err = os.MkdirAll(testLedger.UserPath, 0750); err == nil {
+		if fd, err = os.Create(filepath.Join(testLedger.UserPath, testLedger.ConfigName+".yaml")); err == nil {
+			if fd, err = os.Create(expectedFile); err == nil {
+				var testOption = &StringOption{
+					Option{
+						Key: "key",
+						DefaultGetter: func(ledger *Ledger) any {
+							return testPath
+						},
+					},
+				}
+
+				defer filez.CloseSilently(fd)
+				testLedger.Init()
+				testLedger.AddConfigOption(testOption)
+				testLedger.InitDefaults()
+				assert.EqualValues(t, expectedFile, testLedger.viper.ConfigFileUsed())
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
 func TestLedger_AddConfigOptionInvalidFile(t *testing.T) {
-	var _, testLedger = newTestConfigs()
+	var _, testLedger = newTestConfigsWithHome(t.TempDir())
 	var testPath = t.TempDir()
 	var testOption = &StringOption{
 		Option{
@@ -969,6 +1001,35 @@ func TestLedger_LogErrorNoLogger(t *testing.T) {
 	assert.True(t, strings.HasSuffix(buff.String(), expectedString))
 }
 
+func TestLedger_OverrideBool(t *testing.T) {
+	var expectedKey = "key"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &BoolOption{
+		Option{
+			Key: expectedKey,
+		},
+	}
+
+	testViper.Set(expectedKey, "True")
+	testLedger.OverrideBool(testOption, false)
+	assert.False(t, testLedger.GetBool(testOption))
+}
+
+func TestLedger_OverrideString(t *testing.T) {
+	var expectedKey = "key"
+	var expectedValue = "value"
+	var testViper, testLedger = newTestConfigs()
+	var testOption = &StringOption{
+		Option{
+			Key: expectedKey,
+		},
+	}
+
+	testViper.Set(expectedKey, "notValue")
+	testLedger.OverrideString(testOption, expectedValue)
+	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
+}
+
 func TestLedger_QueryMandatory(t *testing.T) {
 	var buff, _, testLedger = newTestConfigsWithInput(strings.NewReader("input"))
 	var expectedInput = "input"
@@ -1036,6 +1097,16 @@ func newTestConfigs() (*viper.Viper, *Ledger) {
 	return v, NewBuilder().
 		WithViper(v).
 		Build()
+}
+
+func newTestConfigsWithHome(home string) (*viper.Viper, *Ledger) {
+	var v = viper.New()
+
+	return v, NewBuilder().
+		WithViper(v).
+		WithUserPath(home).
+		Build()
+
 }
 
 func newTestConfigsWithBuffer() (*bytes.Buffer, *viper.Viper, *Ledger) {

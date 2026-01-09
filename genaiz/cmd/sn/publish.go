@@ -104,14 +104,17 @@ func (pe *PublishExecutor) Display() {
 				}
 			}
 
-			pe.Ledger.DisplayOptionsWithMap(&layoutKeys,
-				&pe.PublishOptions.optionConfigType.Option,
-				&pe.PublishOptions.optionOem.Option,
-				&pe.PublishOptions.optionHandle.Option,
-				&pe.PublishOptions.optionDescription.Option,
-				&pe.PublishOptions.optionName.Option,
-				&pe.PublishOptions.optionVersion.Option,
-			)
+			if len(layoutKeys) > 0 {
+				pe.Ledger.DisplayOptionsWithMap(&layoutKeys,
+					&pe.PublishOptions.optionConfigType.Option,
+					&pe.PublishOptions.optionOem.Option,
+					&pe.PublishOptions.optionHandle.Option,
+					&pe.PublishOptions.optionDescription.Option,
+					&pe.PublishOptions.optionName.Option,
+					&pe.PublishOptions.optionVersion.Option,
+				)
+				return
+			}
 		}
 	}
 

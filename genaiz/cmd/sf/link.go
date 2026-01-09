@@ -34,9 +34,11 @@ func (dle *DataLinkExecutor) makeDataLinkParams(fqdnv string) *broker.DataLinkPa
 		Broker: broker.Broker{
 			AuthFile: dle.Ledger.AuthFile,
 		},
-		Handle:       dle.Ledger.GetString(dle.optionHandle),
-		Oem:          dle.Ledger.GetString(dle.optionOem),
-		Version:      dle.Ledger.GetString(dle.optionVersion),
+		DataLink: &broker.DataLink{
+			Handle:  dle.Ledger.GetString(dle.optionHandle),
+			Oem:     dle.Ledger.GetString(dle.optionOem),
+			Version: dle.Ledger.GetString(dle.optionVersion),
+		},
 		NoValidation: validate,
 	}
 }

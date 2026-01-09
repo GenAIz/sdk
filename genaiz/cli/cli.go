@@ -8,6 +8,10 @@ import (
 	"genaiz.com/genaiz/config"
 )
 
+const (
+	DefaultValueForNil = "__internal_nil"
+)
+
 type Decisive func(*config.Ledger) bool
 
 type Interactive func(*config.Ledger, ...func()) bool

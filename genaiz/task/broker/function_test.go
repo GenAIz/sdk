@@ -17,25 +17,11 @@ import (
 
 type stubFunctionClient struct {
 	client
-	listLinkData      []DataLink
-	listLinkError     error
-	publishLinkData   *DataLink
-	publishLinkError  error
 	provisionError    error
 	provisionIdentity *shared.Identity
 	provisionExtras   map[string]any
 	publishError      error
 	publishFunction   *Function
-}
-
-func (sfc *stubFunctionClient) ListDataLinks(oem, handle string, flags int) ([]DataLink, error) {
-	_, _, _ = oem, handle, flags
-	return sfc.listLinkData, sfc.listLinkError
-}
-
-func (sfc *stubFunctionClient) PublishDataLink(publishLinkData *DataLink) (*DataLink, error) {
-	sfc.publishLinkData = publishLinkData
-	return sfc.publishLinkData, sfc.publishLinkError
 }
 
 func (sfc *stubFunctionClient) ProvisionFunction(function *Function, extras map[string]any) (*shared.Identity, error) {

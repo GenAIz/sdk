@@ -77,6 +77,8 @@ type Client interface {
 
 	GetTimeout() int
 
+	FindDataLink(string, string, string) (*DataLink, error)
+
 	ListDataLinks(string, string, int) ([]DataLink, error)
 
 	ListDataLinksUrl() string
@@ -173,6 +175,43 @@ func (c *client) GetTimeout() int {
 	var bridge = c.requestBridge()
 
 	return int(bridge.Timeout() / time.Second)
+}
+
+func (c *client) FindDataLink(oem, handle, version string) (*DataLink, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathDataLink, "getByFqdn"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *DataLink
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[DataLink]{}).
+				QueryParams(map[string]string{
+					"oem":     oem,
+					"handle":  handle,
+					"version": version,
+				}).Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *DataLink {
+					var payload = resp.Result().(*clientPayload[DataLink])
+
+					return &payload.Data
+				}); err == nil {
+					return result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
 }
 
 func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error) {

@@ -2,14 +2,208 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task/broker"
 )
+
+func Test_toDataLinkMapStruct(t *testing.T) {
+	var testLink = &broker.DataLink{
+		Handle:      "expectedHandle",
+		Oem:         "expectedOem",
+		Version:     "expectedVersion",
+		Name:        "expectedName",
+		Description: "expectedDescription",
+		PropSpecs: []broker.PropSpec{
+			{
+				Key: "expectedPropSpecKey",
+			},
+		},
+		SecretSpecs: []broker.PropSpec{
+			{
+				Key: "expectedSecretSpecKey",
+			},
+		},
+	}
+
+	actual := toDataLinkMapStruct(testLink)
+	assert.Equal(t, testLink.Handle, actual.Handle)
+	assert.Equal(t, testLink.Oem, actual.Oem)
+	assert.Equal(t, testLink.Version, actual.Version)
+	assert.Equal(t, testLink.Name, actual.Name)
+	assert.Equal(t, testLink.Description, actual.Description)
+	assert.Equal(t, testLink.PropSpecs, actual.PropSpecs)
+	assert.Equal(t, testLink.SecretSpecs, actual.SecretSpecs)
+}
+
+func TestDataLinksWriter_BuildDataLinks(t *testing.T) {
+	var testAdded = &broker.DataLink{Handle: "added"}
+	var testCurrent = []broker.DataLink{
+		{
+			Handle: "notRemoved",
+		},
+		{
+			Handle: "removed",
+		},
+	}
+	var testWriter = &DataLinksWriter{
+		DataLinksReader: DataLinksReader{current: testCurrent},
+		removedLinks: []*broker.DataLink{nil, {
+			Handle: "removed",
+		}},
+	}
+
+	key, actual := testWriter.WithDataLink(testAdded).BuildDataLinks()
+	assert.NotEmpty(t, key)
+	assert.Equal(t, 2, len(actual))
+	assert.Equal(t, testCurrent[0].Handle, actual[0].Handle)
+	assert.Equal(t, testAdded.Handle, actual[1].Handle)
+	assert.Empty(t, testWriter.removedLinks)
+}
+
+func TestDataLinksWriter_Read(t *testing.T) {
+	var testInput = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var testLedger = NewBuilder().WithViper(viper.New()).Build()
+	var testWriter = NewDataLinkWriter()
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testInput); err == nil {
+		var testBytes []byte
+		var expectedHandle = "expectedHandle"
+		var testLinks = map[string][]broker.DataLink{
+			"datalinks": {
+				{
+					Handle: expectedHandle,
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if testBytes, err = yaml.Marshal(testLinks); err == nil {
+			if _, err = fd.Write(testBytes); err == nil {
+				filez.CloseSilently(fd)
+				testLedger.InitLogging()
+				assert.NotNil(t, testWriter.Read(testLedger, testInput))
+				assert.NotEmpty(t, testWriter.current)
+				assert.Equal(t, expectedHandle, testWriter.current[0].Handle)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestDataLinksWriter_SyncDataLinks(t *testing.T) {
+	var addedLink = &broker.DataLink{Handle: "current", Oem: "current", Version: "next"}
+	var testWriter = &DataLinksWriter{
+		DataLinksReader: DataLinksReader{current: []broker.DataLink{
+			{
+				Handle:  "current",
+				Oem:     "current",
+				Version: "previous",
+			},
+		}},
+	}
+
+	actual := testWriter.WithDataLink(addedLink).
+		SyncDataLinks()
+	assert.NotEmpty(t, actual)
+	assert.Equal(t, actual[0].Version, testWriter.current[0].Version)
+}
+
+func TestDataLinksWriter_Write(t *testing.T) {
+	var output = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var expectedLink = &broker.DataLink{Handle: "expectedHandle"}
+	var testWriter = &DataLinksWriter{
+		DataLinksReader: DataLinksReader{
+			current: []broker.DataLink{*expectedLink},
+		},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(output); err == nil {
+		var fileBytes []byte
+		defer filez.CloseSilently(fd)
+
+		testWriter.SyncDataLinks()
+		assert.NoError(t, testWriter.Write(output))
+		filez.CloseSilently(fd)
+
+		if fileBytes, err = os.ReadFile(output); err == nil {
+			var datalinks map[string][]broker.DataLink
+
+			if err = yaml.Unmarshal(fileBytes, &datalinks); err == nil {
+				links, ok := datalinks["datalinks"]
+				assert.True(t, ok)
+				assert.Equal(t, 1, len(links))
+				assert.Equal(t, expectedLink.Handle, links[0].Handle)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestDataLinksWriter_Write_Empty(t *testing.T) {
+	var output = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var testWriter = &DataLinksWriter{
+		DataLinksReader: DataLinksReader{},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(output); err == nil {
+		var fileBytes []byte
+		defer filez.CloseSilently(fd)
+
+		assert.NoError(t, testWriter.Write(output))
+		filez.CloseSilently(fd)
+
+		if fileBytes, err = os.ReadFile(output); err == nil {
+			var datalinks map[string][]broker.DataLink
+
+			if err = yaml.Unmarshal(fileBytes, &datalinks); err == nil {
+				links, ok := datalinks["datalinks"]
+				assert.True(t, ok)
+				assert.Empty(t, links)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestDataLinksWriter_Write_PermissionError(t *testing.T) {
+	var output = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var testWriter = &DataLinksWriter{
+		DataLinksReader: DataLinksReader{},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(output); err == nil {
+		defer filez.CloseSilently(fd)
+
+		if err = os.Chmod(output, 0444); err == nil {
+			assert.Error(t, testWriter.Write(output))
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
 
 func TestSolutionWriter_BuildSolution(t *testing.T) {
 	var expectedName = "name"

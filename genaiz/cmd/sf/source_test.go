@@ -212,9 +212,11 @@ func TestSourceExecutor_Proceed_Add(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testOptions = NewSourceAddOptions(testCli)
 	var expectedParams = &broker.DataLinkParams{
-		Oem:     "expected.oem",
-		Handle:  "expected-handle",
-		Version: "1.0.9",
+		DataLink: &broker.DataLink{
+			Oem:     "expected.oem",
+			Handle:  "expected-handle",
+			Version: "1.0.9",
+		},
 	}
 	var testExecutor = &SourceExecutor{
 		DataLinkExecutor: DataLinkExecutor{
@@ -259,9 +261,11 @@ func TestSourceExecutor_Proceed_Remove(t *testing.T) {
 	var testCli = NewSfCli(nil, nil, nil)
 	var testOptions = NewSourceAddOptions(testCli)
 	var expectedParams = &broker.DataLinkParams{
-		Oem:     "expected.oem",
-		Handle:  "expected-handle",
-		Version: "1.0.9",
+		DataLink: &broker.DataLink{
+			Oem:     "expected.oem",
+			Handle:  "expected-handle",
+			Version: "1.0.9",
+		},
 	}
 	var testExecutor = &SourceExecutor{
 		DataLinkExecutor: DataLinkExecutor{

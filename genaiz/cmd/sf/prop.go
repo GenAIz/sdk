@@ -2,7 +2,6 @@ package sf
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cli/options"
 	"genaiz.com/genaiz/cmd/sf/prop"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
@@ -17,15 +17,6 @@ import (
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
-)
-
-const (
-	DefaultValueForNil = "__internal_nil"
-)
-
-var (
-	ErrorTypeConflict     = errors.New("properties spec type is invalid")
-	ErrorTypeEnumConflict = errors.New("the property spec type does not allow enum values")
 )
 
 type PropSpecExecutor struct {
@@ -193,10 +184,10 @@ func (pse *PropSpecExecutor) makeEditPropSpec(propSpec *broker.PropSpec) (*broke
 
 	// Edge case where the type was edited manually to something invalid in the config
 	if !config.AnyOfEnumerated(broker.PropSpecTypes)(result.Type) {
-		return nil, ErrorTypeConflict
+		return nil, options.ErrorPropSpecTypeConflict
 	}
 
-	if defaultValue != DefaultValueForNil {
+	if defaultValue != cli.DefaultValueForNil {
 		result.Value = defaultValue
 	}
 
@@ -216,14 +207,14 @@ func (pse *PropSpecExecutor) makeEditPropSpec(propSpec *broker.PropSpec) (*broke
 	}
 
 	if len(result.Values) > 0 && result.Type != broker.PropSpecTypeEnum {
-		return nil, ErrorTypeEnumConflict
+		return nil, options.ErrorPropSpecTypeEnumConflict
 	}
 
 	if name != "" {
 		result.Name = name
 	}
 
-	if description != DefaultValueForNil {
+	if description != cli.DefaultValueForNil {
 		result.Description = description
 	}
 
@@ -275,7 +266,7 @@ func (pso PropSpecOptions) editDefiners() []config.Definer {
 func NewProp(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
 	var addSpecOptions = NewAddSpecOptions()
 	var editSpecOptions = NewEditSpecOptions()
-	var addSpecCmd = prop.NewAddSpec(newPropAddExecutorFactory(ledger, sfCli, addSpecOptions), validateSpecKey)
+	var addSpecCmd = prop.NewAddSpec(newPropAddExecutorFactory(ledger, sfCli, addSpecOptions), config.Validation.ValidateEnvKey)
 	var rmPropCmd = prop.NewRemoveSpec(newPropRemoveExecutorFactory(ledger, sfCli))
 	var editPropCmd = prop.NewEditSpec(newPropEditExecutorFactory(ledger, sfCli, editSpecOptions))
 	var propCmd = &cobra.Command{
@@ -336,11 +327,11 @@ func NewEditSpecOptions() *PropSpecOptions {
 		optionDefaultValue: cli.Options.PropSpecs.DefaultValue().
 			WithKeys(&schema.Genaiz.Function.Publish.PropSpecEdit.DefaultValue).
 			// That is for allowing default-value="" for clearing it
-			WithDefaultValue(DefaultValueForNil).
+			WithDefaultValue(cli.DefaultValueForNil).
 			BuildStringOption(),
 		optionDescription: cli.Options.PropSpecs.Description().
 			WithKeys(&schema.Genaiz.Function.Publish.PropSpecEdit.Description).
-			WithDefaultValue(DefaultValueForNil).
+			WithDefaultValue(cli.DefaultValueForNil).
 			BuildStringOption(),
 		optionEnumAdd: cli.Options.PropSpecs.EnumAddValue().
 			WithKeys(&schema.Genaiz.Function.Publish.PropSpecEdit.EnumAddValue).
@@ -374,12 +365,4 @@ func newPropRemoveExecutorFactory(ledger *config.Ledger, sfCli *Cli) prop.Remove
 	return func(cmd *cobra.Command) prop.RemoveExecutor {
 		return NewPropSpecExecutor(cmd.Context(), ledger, sfCli, nil)
 	}
-}
-
-func validateSpecKey(key string) error {
-	if !config.Validation.EnvKey(key) {
-		return fmt.Errorf("[%s] is not a valid environment key", key)
-	}
-
-	return nil
 }
