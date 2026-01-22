@@ -25,12 +25,13 @@ type SolutionPublishTaskFactory func() *task.Task[broker.SolutionPublishParams]
 type FunctionOptions struct {
 	innerDataSources     *config.ListOption
 	innerDataStores      *config.ListOption
+	innerExtras          *config.Option
 	innerInputPorts      *config.Option
 	innerOutputPorts     *config.Option
 	innerOutboundProxies *config.Option
 	innerPropSpecs       *config.Option
+	innerResultValues    *config.ListOption
 	optionArches         *config.ListOption
-	optionExtras         *config.Option
 	optionDescription    *config.StringOption
 	optionHandle         *config.StringOption
 	optionName           *config.StringOption
@@ -251,7 +252,7 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 			HostAddr: pe.Ledger.GetString(pe.optionBroker),
 		},
 		Arches:          ledger.GetList(options.optionArches),
-		Extras:          pe.makeProvisionExtras(ledger, options.optionExtras),
+		Extras:          pe.makeProvisionExtras(ledger, options.innerExtras),
 		DataSources:     ledger.GetList(options.innerDataSources),
 		DataStores:      ledger.GetList(options.innerDataStores),
 		Description:     ledger.GetString(options.optionDescription),
@@ -410,6 +411,9 @@ func NewFunctionOptions(solution *broker.Solution) *FunctionOptions {
 		innerDataStores: cli.NewOptionBuilder().
 			WithKeys(&schema.Genaiz.Function.Publish.DataStores).
 			BuildListOption(),
+		innerExtras: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.Extras).
+			BuildOption(),
 		innerInputPorts: cli.NewOptionBuilder().
 			WithKeys(&schema.Genaiz.Function.Publish.InputPorts).
 			BuildOption(),
@@ -422,14 +426,15 @@ func NewFunctionOptions(solution *broker.Solution) *FunctionOptions {
 		innerPropSpecs: cli.NewOptionBuilder().
 			WithKeys(&schema.Genaiz.Function.Publish.PropSpecs).
 			BuildOption(),
+		innerResultValues: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.ResultValues).
+			BuildListOption(),
 		optionArches: cli.Options.Solutions.FunctionArches().
 			BuildListOption(),
 		optionDescription: cli.Options.Solutions.FunctionDesc().
 			WithDefaultGetter(func(ledger *config.Ledger) any {
 				return ledger.GetString(nameOption)
 			}).BuildStringOption(),
-		optionExtras: cli.Options.Functions.Extras().
-			BuildOption(),
 		optionHandle: handleOption,
 		optionName:   nameOption,
 		optionOem: cli.Options.Solutions.FunctionOem().

@@ -148,6 +148,7 @@ type Document struct {
 			OutputPorts     Keys
 			PropSpecs       Keys
 			Rebuild         Keys
+			ResultValues    Keys
 			Type            Keys
 			Version         Keys
 		}
@@ -403,6 +404,7 @@ func init() {
 	Genaiz.Function.Publish.OutboundProxies = newKeys("Function.Publish.OutboundProxies", "", "Sf.Publish.OutboundProxies")
 	Genaiz.Function.Publish.PropSpecs = newKeys("Function.Publish.PropSpecs", "", "Sf.Publish.PropSpecs")
 	Genaiz.Function.Publish.Rebuild = newKeys("Function.Publish.Rebuild", "SF_PUBLISH_REBUILD", "Sf.Publish.Rebuild")
+	Genaiz.Function.Publish.ResultValues = newKeys("Function.Publish.ResultValues", "SF_PUBLISH_RESULT_VALUES", "Sf.Publish.ResultValues")
 	Genaiz.Function.Publish.Type = newKeys("Function.Publish.Type", "SF_PUBLISH_TYPE", "Sf.Publish.Type")
 	Genaiz.Function.Publish.Version = newKeys("Function.Publish.Version", "SF_PUBLISH_VERSION", "Sf.Publish.Version")
 	Genaiz.Function.Publish.DataSourceAdd.Handle = newKeys("Function.Publish.DataSourceAdd.Handle", "SF_PUBLISH_DATA_SRC_ADD_HANDLE", "Sf.Publish.DataSourceAdd.Handle")

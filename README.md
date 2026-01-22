@@ -5,6 +5,7 @@ The GenAIz SDK is a tool for creating, building and publishing Smart Functions t
 * [Installation](#installation)
 * [Running the GenAIz CLI](#running-the-genaiz-cli)
   * [Quickstart Examples](#quickstart-examples)
+  * [Result Values](#result-values)
 * [Development Guide](#development-guide)
   * [Prerequisites](#prerequisites)
   * [Modules](#modules)
@@ -89,6 +90,31 @@ cd function-3
 genaiz data source add com.genaiz.dev/datalink-1:1.0.0
 genaiz sf build
 genaiz sf publish
+```
+
+### Result Values
+
+Support for result values is provided on `genaiz sf publish` only. From manually edited settings, for example:
+
+```yaml
+function:
+    build:
+        tag: com.genaiz/result-values
+        version: latest
+    publish:
+        handle: result-values
+        name: result-values
+        oem: com.genaiz
+        resultvalues:
+            - excel
+            - valid-set
+        type: function
+        version: 0.1.0
+    run:
+        input: run/in
+        log: run/{timestamp}/log
+        output: run/{timestamp}/out
+        var: run/{timestamp}/var
 ```
 
 ## Development Guide

@@ -157,6 +157,7 @@ type Function struct {
 	OutboundProxies []Proxy
 	OutputPorts     []DataPort
 	PropSpecs       []PropSpec
+	ResultValues    []string
 	Seq             int
 	Type            string
 	Version         string
@@ -200,6 +201,7 @@ func (f Function) toModel() *functionModel {
 		OutboundProxies: f.OutboundProxies,
 		OutputPorts:     f.OutputPorts,
 		PropSpecs:       f.PropSpecs,
+		ResultValues:    f.ResultValues,
 		Type:            f.Type,
 		Version:         f.Version,
 	}
@@ -207,22 +209,22 @@ func (f Function) toModel() *functionModel {
 
 func MapFunction(fn any) *Function {
 	if fnMap, ok := fn.(map[string]interface{}); ok {
-		var result = &Function{}
-
-		result.DataSources = cast.ToStringSlice(fnMap["datasources"])
-		result.DataStores = cast.ToStringSlice(fnMap["datastores"])
-		result.Handle = cast.ToString(fnMap["handle"])
-		result.Name = cast.ToString(fnMap["name"])
-		result.Oem = cast.ToString(fnMap["oem"])
-		result.Type = cast.ToString(fnMap["type"])
-		result.PropSpecs = ListPropSpecs(fnMap["propspecs"])
-		result.OutboundProxies = ListProxies(fnMap["outboundproxies"])
-		result.OutputPorts = ListDataPorts(fnMap["outputports"])
-		result.InputPorts = ListDataPorts(fnMap["inputports"])
-		result.Description = cast.ToString(fnMap["description"])
-		result.Version = cast.ToString(fnMap["version"])
-		result.Arches = cast.ToStringSlice(fnMap["arches"])
-		return result
+		return &Function{
+			Arches:          cast.ToStringSlice(fnMap["arches"]),
+			DataSources:     cast.ToStringSlice(fnMap["datasources"]),
+			DataStores:      cast.ToStringSlice(fnMap["datastores"]),
+			Description:     cast.ToString(fnMap["description"]),
+			Handle:          cast.ToString(fnMap["handle"]),
+			InputPorts:      ListDataPorts(fnMap["inputports"]),
+			Name:            cast.ToString(fnMap["name"]),
+			Oem:             cast.ToString(fnMap["oem"]),
+			OutboundProxies: ListProxies(fnMap["outboundproxies"]),
+			OutputPorts:     ListDataPorts(fnMap["outputports"]),
+			PropSpecs:       ListPropSpecs(fnMap["propspecs"]),
+			ResultValues:    cast.ToStringSlice(fnMap["resultvalues"]),
+			Type:            cast.ToString(fnMap["type"]),
+			Version:         cast.ToString(fnMap["version"]),
+		}
 	}
 
 	return nil
@@ -247,6 +249,7 @@ type functionModel struct {
 	OutboundProxies []Proxy    `json:"outboundProxies"`
 	OutputPorts     []DataPort `json:"outputPorts,omitempty"`
 	PropSpecs       []PropSpec `json:"propSpecs,omitempty"`
+	ResultValues    []string   `json:"resultValues,omitempty"`
 	Type            string     `json:"type"`
 	Version         string     `json:"version"`
 }
