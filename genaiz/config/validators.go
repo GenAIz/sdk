@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -9,31 +10,6 @@ import (
 
 	"genaiz.com/genaiz/lang/enumz"
 )
-
-// Validates is a type def for a function taking a value returning valid or not valid
-type Validates func(value any) bool
-
-// validators provides Validates for various validation needs
-type validators struct {
-	Blob          Validates
-	Component     Validates
-	DirCreated    Validates
-	DirExists     Validates
-	DomainName    Validates
-	EnvKey        Validates
-	EnvKeyValue   Validates
-	FileExists    Validates
-	FolderName    Validates
-	Handle        Validates
-	HandlePort    Validates
-	Name          Validates
-	Oem           Validates
-	PropEnum      Validates
-	Repository    Validates
-	RequiredName  Validates
-	Version       Validates
-	VersionNumber Validates
-}
 
 var (
 	componentMaxSize  = stringMaxLength(128)
@@ -63,6 +39,40 @@ var (
 		VersionNumber: versionNumber,
 	}
 )
+
+// Validates is a type def for a function taking a value returning valid or not valid
+type Validates func(value any) bool
+
+// validators provides Validates for various validation needs
+type validators struct {
+	Blob          Validates
+	Component     Validates
+	DirCreated    Validates
+	DirExists     Validates
+	DomainName    Validates
+	EnvKey        Validates
+	EnvKeyValue   Validates
+	FileExists    Validates
+	FolderName    Validates
+	Handle        Validates
+	HandlePort    Validates
+	Name          Validates
+	Oem           Validates
+	PropEnum      Validates
+	Repository    Validates
+	RequiredName  Validates
+	Version       Validates
+	VersionNumber Validates
+}
+
+// ValidateEnvKey returns an error string if the provided key does respect validators.EnvKey
+func (v validators) ValidateEnvKey(key string) error {
+	if !v.EnvKey(key) {
+		return fmt.Errorf("[%s] is not a valid environment key", key)
+	}
+
+	return nil
+}
 
 // AllFromEnumerated creates a Validates which ensures all values from a slice are valid for the provided enum
 func AllFromEnumerated[T string](enum *enumz.EnumType[T]) Validates {

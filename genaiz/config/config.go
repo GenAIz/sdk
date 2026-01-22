@@ -148,7 +148,13 @@ func (lr *Ledger) rollbackConfigs() error {
 func (lr *Ledger) AddConfigOption(option *StringOption) {
 	lr.configurers = append(lr.configurers, func(ledger *Ledger) {
 		if path := ledger.GetString(option); path != "" {
-			lr.viper.AddConfigPath(path)
+			var fileUsed = lr.viper.ConfigFileUsed()
+
+			if fileUsed != "" {
+				lr.viper.SetConfigFile(filepath.Join(path, lr.ConfigName+"."+filez.GetFileType(fileUsed)))
+			} else {
+				lr.viper.AddConfigPath(path)
+			}
 
 			if err := lr.viper.MergeInConfig(); err != nil {
 				lr.LogDebug("could not merge config [%s]", path)
@@ -454,6 +460,18 @@ func (lr *Ledger) LogInfo(message string, args ...interface{}) {
 	}
 }
 
+// OverrideBool overrides the value of a BoolOption
+func (lr *Ledger) OverrideBool(option *BoolOption, value bool) {
+	lr.viper.Set(option.Key, value)
+}
+
+// OverrideString overrides the value of a StringOption, if the value is not empty
+func (lr *Ledger) OverrideString(option *StringOption, value string) {
+	if !option.IsEmpty(value) {
+		lr.viper.Set(option.Key, value)
+	}
+}
+
 // QueryMandatory queries the user for input using the provided message and will keep on asking until the input is not the empty string
 func (lr *Ledger) QueryMandatory(message string) string {
 	var buff = bufio.NewReader(lr.input)
@@ -528,22 +546,23 @@ type Builder struct {
 	Input         func() io.Reader
 	Output        func() io.Writer
 	TemplatePaths []string
+	UserPath      string
 }
 
 // Build builds a Ledger with the recorded Viper, Input and Output factory methods
 func (b *Builder) Build() *Ledger {
 	var templatePaths = b.TemplatePaths
 
-	home, err := os.UserHomeDir()
+	home, err := b.resolveUserPath()
 	cobra.CheckErr(err)
 	cwd, err := os.Getwd()
 	cobra.CheckErr(err)
-	templatePaths = append(templatePaths, filepath.Join(home, "/.local/genaiz/recipes"))
+	templatePaths = append(templatePaths, filepath.Join(home, ".local", "genaiz", "recipes"))
 
 	return &Ledger{
-		AuthFile:      filepath.Join(home, "/.cache/genaiz/.auth"),
+		AuthFile:      filepath.Join(home, ".cache", "genaiz", ".auth"),
 		ConfigName:    defaultConfigName,
-		UserPath:      filepath.Join(home, "/.config/genaiz"),
+		UserPath:      filepath.Join(home, ".config", "genaiz"),
 		TemplatePaths: templatePaths,
 		Timestamp:     time.Now(),
 		WorkDir:       cwd,
@@ -578,12 +597,26 @@ func (b *Builder) WithTemplates(paths ...string) *Builder {
 	return b
 }
 
+// WithUserPath overrides the default user path used by the ledger for the current user
+func (b *Builder) WithUserPath(path string) *Builder {
+	b.UserPath = path
+	return b
+}
+
 // WithViper replaces the way Viper is constructed when building a new Ledger
 func (b *Builder) WithViper(v *viper.Viper) *Builder {
 	b.Viper = func() *viper.Viper {
 		return v
 	}
 	return b
+}
+
+func (b *Builder) resolveUserPath() (string, error) {
+	if b.UserPath == "" {
+		return os.UserHomeDir()
+	}
+
+	return b.UserPath, nil
 }
 
 // NewBuilder returns a builder with the default viper.Viper static instance, STDIN and STDOUT

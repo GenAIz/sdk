@@ -3,7 +3,7 @@
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/" />
     <go_parameters value="-tags dev" />
-    <parameters value="dk create datalink-1 --oem=com.genaiz.dev --version=0.1.1 --name=&quot;Data Link&quot; --description=&quot;Link Description&quot; --dry" />
+    <parameters value="dk create com.genaiz/datalink-1:0.1.2 --name=&quot;Data Link&quot; --description=&quot;Link Description&quot; --dry" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

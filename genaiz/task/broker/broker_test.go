@@ -10,12 +10,124 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
+func TestDataLink_FindPropSpec(t *testing.T) {
+	var testKey = "testKey"
+	var testLink = &DataLink{}
+
+	assert.Nil(t, testLink.FindPropSpec(testKey))
+	testLink.PropSpecs = []PropSpec{{Key: testKey}}
+	assert.Equal(t, &testLink.PropSpecs[0], testLink.FindPropSpec(testKey))
+}
+
+func TestDataLink_FindSecretSpec(t *testing.T) {
+	var testKey = "testKey"
+	var testLink = &DataLink{}
+
+	assert.Nil(t, testLink.FindSecretSpec(testKey))
+	testLink.SecretSpecs = []PropSpec{{Key: testKey}}
+	assert.Equal(t, &testLink.SecretSpecs[0], testLink.FindSecretSpec(testKey))
+}
+
 func TestDataLink_IsActive(t *testing.T) {
 	var testLink = &DataLink{}
 
 	assert.False(t, testLink.IsActive())
 	testLink.Flags = DataLinkFlags.Active
 	assert.True(t, testLink.IsActive())
+}
+
+func TestDataLink_RemovePropSpec(t *testing.T) {
+	var testProp = &PropSpec{Key: "testKey"}
+	var testLink = &DataLink{PropSpecs: []PropSpec{*testProp}}
+
+	assert.Nil(t, testLink.RemovePropSpec("wrongKey"))
+	assert.Equal(t, testProp, testLink.RemovePropSpec(testProp.Key))
+}
+
+func TestDataLink_ReplacePropSpec(t *testing.T) {
+	var expectedStaying = "staying"
+	var replacement = &PropSpec{Key: "replaced", Name: "replacing"}
+	var testLink = &DataLink{PropSpecs: []PropSpec{
+		{
+			Key: "staying",
+		},
+	}}
+
+	testLink.ReplacePropSpec(replacement)
+	assert.Equal(t, 1, len(testLink.PropSpecs))
+	assert.Equal(t, expectedStaying, testLink.PropSpecs[0].Key)
+	testLink.PropSpecs = append(testLink.PropSpecs, PropSpec{Key: "replaced", Name: "replaced"})
+	testLink.ReplacePropSpec(replacement)
+	assert.Equal(t, 2, len(testLink.PropSpecs))
+	assert.Equal(t, replacement.Name, testLink.PropSpecs[0].Name)
+	assert.Equal(t, expectedStaying, testLink.PropSpecs[1].Key)
+}
+
+func TestDataLink_RemoveSecretSpec(t *testing.T) {
+	var testProp = &PropSpec{Key: "testKey"}
+	var testLink = &DataLink{SecretSpecs: []PropSpec{*testProp}}
+
+	assert.Nil(t, testLink.RemoveSecretSpec("wrongKey"))
+	assert.Equal(t, testProp, testLink.RemoveSecretSpec(testProp.Key))
+}
+
+func TestDataLink_ReplaceSecretSpec(t *testing.T) {
+	var expectedStaying = "staying"
+	var replacement = &PropSpec{Key: "replaced", Name: "replacing"}
+	var testLink = &DataLink{SecretSpecs: []PropSpec{
+		{
+			Key: "staying",
+		},
+	}}
+
+	testLink.ReplaceSecretSpec(replacement)
+	assert.Equal(t, 1, len(testLink.SecretSpecs))
+	assert.Equal(t, expectedStaying, testLink.SecretSpecs[0].Key)
+	testLink.SecretSpecs = append(testLink.SecretSpecs, PropSpec{Key: "replaced", Name: "replaced"})
+	testLink.ReplaceSecretSpec(replacement)
+	assert.Equal(t, 2, len(testLink.SecretSpecs))
+	assert.Equal(t, replacement.Name, testLink.SecretSpecs[0].Name)
+	assert.Equal(t, expectedStaying, testLink.SecretSpecs[1].Key)
+}
+
+func TestDataLink_Sanitize(t *testing.T) {
+	var testDataLink = &DataLink{
+		PropSpecs: []PropSpec{
+			{
+				Key:         "key",
+				Type:        "int",
+				Name:        "name",
+				Description: "description",
+				Value:       "value",
+				Values:      []string{"VALUE1", "VALUE2"},
+			},
+		},
+		SecretSpecs: []PropSpec{
+			{
+				Key:         "key",
+				Type:        "string",
+				Name:        "name",
+				Description: "description",
+				Value:       "value",
+				Values:      []string{"VALUE1", "VALUE2"},
+			},
+		},
+	}
+
+	actual := testDataLink.Sanitize()
+	assert.Equal(t, testDataLink.PropSpecs[0].Key, actual.PropSpecs[0].Key)
+	assert.Equal(t, "INT", actual.PropSpecs[0].Type)
+	assert.Equal(t, testDataLink.PropSpecs[0].Name, actual.PropSpecs[0].Name)
+	assert.Equal(t, testDataLink.PropSpecs[0].Description, actual.PropSpecs[0].Description)
+	assert.Equal(t, testDataLink.PropSpecs[0].Value, actual.PropSpecs[0].Value)
+	assert.Equal(t, testDataLink.PropSpecs[0].Values, actual.PropSpecs[0].Values)
+
+	assert.Equal(t, testDataLink.SecretSpecs[0].Key, actual.SecretSpecs[0].Key)
+	assert.Equal(t, "STRING", actual.SecretSpecs[0].Type)
+	assert.Equal(t, testDataLink.SecretSpecs[0].Name, actual.SecretSpecs[0].Name)
+	assert.Equal(t, testDataLink.SecretSpecs[0].Description, actual.SecretSpecs[0].Description)
+	assert.Equal(t, testDataLink.SecretSpecs[0].Value, actual.SecretSpecs[0].Value)
+	assert.Equal(t, testDataLink.SecretSpecs[0].Values, actual.SecretSpecs[0].Values)
 }
 
 func TestFunction_asIdentity(t *testing.T) {

@@ -19,14 +19,17 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/shared"
 )
 
 func TestCreateExecutor_Display(t *testing.T) {
+	var expectedUserPath = t.TempDir()
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
+		WithUserPath(expectedUserPath).
 		Build()
 	var testOptions = NewCreateOptions()
 	var expectedHandle = "dkHandle"
@@ -40,13 +43,15 @@ func TestCreateExecutor_Display(t *testing.T) {
 		},
 		CreateOptions: testOptions,
 
-		linkHandle: expectedHandle,
+		linkArgument: expectedHandle,
 	}
 
+	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testViper.Set(testOptions.optionDescription.Key, expectedDesc)
 	testViper.Set(testOptions.optionName.Key, expectedName)
 	testViper.Set(testOptions.optionOem.Key, expectedOem)
 	testViper.Set(testOptions.optionVersion.Key, expectedVersion)
+	testViper.Set(testOptions.optionUserDefined.Key, "True")
 	testExecutor.Display()
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
@@ -54,6 +59,8 @@ func TestCreateExecutor_Display(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionVersion.Param+`:[\s\t]*`+expectedVersion), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedDesc), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
+	assert.Regexp(t, regexp.MustCompile(`folder:[\s\t]*`+expectedUserPath+"/.config/genaiz"), actual)
 }
 
 func TestCreateExecutor_Pretend(t *testing.T) {
@@ -69,9 +76,10 @@ func TestCreateExecutor_Pretend(t *testing.T) {
 		},
 		CreateOptions: NewCreateOptions(),
 
-		linkHandle: "create-pretend",
+		linkArgument: "create-pretend",
 
-		publishLinkTaskFactory: newPublishLinkTaskPretendCapture(&calledParams),
+		createLinkTaskFactory:  newCreateLinkTaskPretendCapture(&calledParams),
+		dataLinksWriterFactory: newDataLinksWriterFactory(nil),
 	}
 
 	testViper.Set(testExecutor.optionDescription.Key, expectedDescription)
@@ -80,10 +88,35 @@ func TestCreateExecutor_Pretend(t *testing.T) {
 	testLedger.InitLogging()
 	testExecutor.Pretend()
 	assert.Equal(t, expectedDescription, calledParams.Description)
-	assert.Equal(t, testExecutor.linkHandle, calledParams.Handle)
-	assert.Equal(t, testExecutor.linkHandle, calledParams.Name)
+	assert.Equal(t, testExecutor.linkArgument, calledParams.Handle)
+	assert.Equal(t, testExecutor.linkArgument, calledParams.Name)
 	assert.Equal(t, expectedOem, calledParams.Oem)
 	assert.Equal(t, expectedVersion, calledParams.Version)
+}
+
+func TestCreateExecutor_Pretend_InvalidConfigType(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var calledParams broker.DataLinkParams
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &CreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		CreateOptions: NewCreateOptions(),
+
+		linkArgument: "create-pretend",
+
+		createLinkTaskFactory:  newCreateLinkTaskPretendCapture(&calledParams),
+		dataLinksWriterFactory: newDataLinksWriterFactory(nil),
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.optionConfigType.Key, "notValid")
+	testLedger.InitLogging()
+	testExecutor.Pretend()
+	assert.NotEmpty(t, patch.CalledWith)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestCreateExecutor_Proceed(t *testing.T) {
@@ -100,9 +133,10 @@ func TestCreateExecutor_Proceed(t *testing.T) {
 		},
 		CreateOptions: NewCreateOptions(),
 
-		linkHandle: "create-proceed",
+		linkArgument: "create-proceed",
 
-		publishLinkTaskFactory: newPublishLinkTaskCompleteCapture(&calledParams),
+		createLinkTaskFactory:  newCreateLinkTaskCompleteCapture(&calledParams),
+		dataLinksWriterFactory: newDataLinksWriterFactory(nil),
 	}
 
 	testViper.Set(testExecutor.optionDescription.Key, expectedDescription)
@@ -112,10 +146,35 @@ func TestCreateExecutor_Proceed(t *testing.T) {
 	testLedger.InitLogging()
 	testExecutor.Proceed()
 	assert.Equal(t, expectedDescription, calledParams.Description)
-	assert.Equal(t, testExecutor.linkHandle, calledParams.Handle)
+	assert.Equal(t, testExecutor.linkArgument, calledParams.Handle)
 	assert.Equal(t, expectedName, calledParams.Name)
 	assert.Equal(t, expectedOem, calledParams.Oem)
 	assert.Equal(t, expectedVersion, calledParams.Version)
+}
+
+func TestCreateExecutor_Proceed_InvalidConfigType(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var calledParams broker.DataLinkParams
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &CreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		CreateOptions: NewCreateOptions(),
+
+		linkArgument: "create-proceed",
+
+		createLinkTaskFactory:  newCreateLinkTaskCompleteCapture(&calledParams),
+		dataLinksWriterFactory: newDataLinksWriterFactory(nil),
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.optionConfigType.Key, "notValid")
+	testLedger.InitLogging()
+	testExecutor.Proceed()
+	assert.NotEmpty(t, patch.CalledWith)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestNewCreate(t *testing.T) {
@@ -198,8 +257,8 @@ func TestNewCreate_DisappearingWorkingDir(t *testing.T) {
 	}
 }
 
-func newPublishLinkTaskCompleteCapture(capture *broker.DataLinkParams) PublishLinkTaskFactory {
-	return func() *task.Task[broker.DataLinkParams] {
+func newCreateLinkTaskCompleteCapture(capture *broker.DataLinkParams) CreateLinkTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
 		return &task.Task[broker.DataLinkParams]{
 			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
 				return nil
@@ -212,8 +271,8 @@ func newPublishLinkTaskCompleteCapture(capture *broker.DataLinkParams) PublishLi
 	}
 }
 
-func newPublishLinkTaskPretendCapture(capture *broker.DataLinkParams) PublishLinkTaskFactory {
-	return func() *task.Task[broker.DataLinkParams] {
+func newCreateLinkTaskPretendCapture(capture *broker.DataLinkParams) CreateLinkTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
 		return &task.Task[broker.DataLinkParams]{
 			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
 				return nil
@@ -223,5 +282,19 @@ func newPublishLinkTaskPretendCapture(capture *broker.DataLinkParams) PublishLin
 				return nil
 			},
 		}
+	}
+}
+
+func newDataLinksWriterFactory(stubLink *broker.DataLink) dataLinksWriterFactory {
+	return func(*config.Ledger, string) *dataLinksWriter {
+		var stub = &dataLinksWriter{
+			DataLinksWriter: config.NewDataLinkWriter(),
+		}
+
+		if stubLink != nil {
+			stub.WithDataLink(stubLink)
+		}
+
+		return stub
 	}
 }

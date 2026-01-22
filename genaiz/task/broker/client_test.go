@@ -123,6 +123,68 @@ type testStruct struct {
 	field2 int
 }
 
+func TestClient_FindDataLink(t *testing.T) {
+	var expectedToken = "token"
+	var expectedDataLink = &DataLink{Id: int64(37)}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[DataLink]{
+				Data: *expectedDataLink,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.FindDataLink("oem", "handle", "version")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDataLink, actual)
+}
+
+func TestClient_FindDataLink_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.FindDataLink("oem", "handle", "version")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_FindDataLink_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.FindDataLink("oem", "handle", "version")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_FindDataLink_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.FindDataLink("oem", "handle", "version")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_FindDataLink_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.FindDataLink("oem", "handle", "version")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
 func TestClient_ListDataLinks(t *testing.T) {
 	var expectedToken = "token"
 	var expectedDataLinks = []DataLink{

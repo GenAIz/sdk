@@ -138,6 +138,14 @@ func Test_OptionsDataLinksOem(t *testing.T) {
 	assert.False(t, testOption.Validator("invalid.oem."))
 }
 
+func Test_OptionsDataLinksUserDefined(t *testing.T) {
+	var testOption = Options.DataLinks.UserDefined().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
 func Test_OptionsDataLinksVersion(t *testing.T) {
 	var testOption = Options.DataLinks.Version().BuildStringOption()
 
@@ -535,6 +543,15 @@ func Test_OptionsPropSpecsName(t *testing.T) {
 	assert.Empty(t, testOption.Key)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsPropSpecsSecret(t *testing.T) {
+	var testOption = Options.PropSpecs.Secret().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
 func Test_OptionsPropSpecsType(t *testing.T) {

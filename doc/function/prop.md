@@ -23,33 +23,33 @@ Property add is used to define a new property specification for the Smart Functi
 
 #### KEY
 
-* if the key does not match a valid Key string (see [KEY validity](#valid-keys)), the command will return an error with the offending key: `Error: [...] is not a valid environment key`
+* if the key does not match a valid Key string (see [KEY validity](../index.md#property-key)), the command will return an error with the offending key: `Error: [...] is not a valid environment key`
 * if the key is already used by another specification, an error will be returned with the offending key: `Error: the key [...] already exists`
 
 #### type
 
 * if the type is not specified the default type is "string"
-* if the type does not match a valid type string (see [type validity](#valid-types))
+* if the type does not match a valid type string (see [type validity](../index.md#property-types)), an error will be returned with the value: `Error: value [...] for option [sf.publish.propspecadd.type] is invalid`
 
 #### name
 
-* if the name does not match a valid name string (see [name validity](#valid-names)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecadd.name] is invalid`
+* if the name does not match a valid name string (see [name validity](../index.md#property-name)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecadd.name] is invalid`
 * if the resolved name is empty, name will default to the value [KEY](#key)
 
 #### description
 
-* if the description does not match a valid description string (see [description validity](#valid-description)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecadd.description] is invalid`
+* if the description does not match a valid description string (see [description validity](../index.md#property-description)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecadd.description] is invalid`
 * a description is optional and will be left empty if not specified
 
 #### default-value
 
-* a default value must always be valid according to the specified type
+* a default value must always be valid according to the specified [type](#type)
 * if default value is left empty, it will be interpreted as no default value and the property must be specified. 
 
 #### enum-value
 
 * can be specified multiple times or be a comma separated string of values
-* if an enum value does not match a valid enum string (see [enum validity](#valid-enum-values)), the command will return an error with the key of the field and the invalid value; `Error: value [n:...] for option [sf.publish.propspecadd.enumvalue] is invalid`
+* if an enum value does not match a valid enum string (see [enum validity](../index.md#property-enum-values)), the command will return an error with the key of the field and the invalid value; `Error: value [n:...] for option [sf.publish.propspecadd.enumvalue] is invalid`
 
 ### prop edit
 
@@ -74,12 +74,12 @@ There is a relationship between [enum-value](#enum-value-1), [add-enum-value](#a
 #### name
 
 * if the name is not specified, the field will not be modified
-* if the name does not match a valid name string (see [name validity](#valid-names)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecedit.name] is invalid`
+* if the name does not match a valid name string (see [name validity](../index.md#property-name)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecedit.name] is invalid`
 
 #### description
 
 * if the description is not specified, the field will not be modified
-* if the description does not match a valid description string (see [description validity](#valid-description)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecedit.description] is invalid`
+* if the description does not match a valid description string (see [description validity](../index.md#property-description)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecedit.description] is invalid`
 
 #### default-value
 
@@ -91,7 +91,7 @@ There is a relationship between [enum-value](#enum-value-1), [add-enum-value](#a
 
 * can be specified multiple times or be a comma separated string of values
 * if omitted, no new value will be added to the current set of enum values
-* if an enum value does not match a valid enum string (see [enum validity](#valid-enum-values)), the command will return an error with the key of the field and the invalid value; `Error: value [n:...] for option [sf.publish.propspecedit.enumvalue] is invalid`
+* if an enum value does not match a valid enum string (see [enum validity](../index.md#property-enum-values)), the command will return an error with the key of the field and the invalid value; `Error: value [n:...] for option [sf.publish.propspecedit.enumvalue] is invalid`
 * adding an enum value to a non-enum property specification will return an error: `Error: the property spec type does not allow enum values`
 
 #### rm-enum-value
@@ -151,28 +151,3 @@ context is a globally accepted options, which changes the working directory befo
 * if env-file is not specified, the default is .env under the current [context](#context)
 * if env-file does not exist, the command will create it if the context exists
 * if env-file can not be read or created due to permissions, the command will return an error: `Error: open ...: permission denied`
-
-### Specification Validation
-
-#### Valid Keys
-
-* The key of a property specification mirrors the string used to define conventional Environment Variables.
-* It must be composed only of capitalized alphanumeric characters and underscores; `[A-Z_][A-Z0-9_]*`
-* Keys can not be expanded into other keys. That is you can not define a key using the value of another one. For example, MY_KEY_$KEY_INDEX is not a valid key.
-
-#### Valid Names
-
-* A name can contain any kind of characters for as long as it does not extend to more than 255 characters.
-
-#### Valid Description
-
-* A description can extend to up to 4096 characters.
-
-#### Valid Types
-
-* Only "STRING", "INT", "BOOL", "DOUBLE" and "ENUM" are allowed.
-* Lower case strings will be capitalized on publishing and writing.
-
-#### Valid Enum Values
-
-* Enum values must have between 1 and 512 characters

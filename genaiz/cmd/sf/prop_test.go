@@ -14,6 +14,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cli/options"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
@@ -245,7 +246,7 @@ func TestPropSpecExecutor_Edit_IllegalEnumValue(t *testing.T) {
 			"type": broker.PropSpecTypeBoolean,
 		},
 	})
-	assert.ErrorIs(t, testExecutor.Edit(expectedKey), ErrorTypeEnumConflict)
+	assert.ErrorIs(t, testExecutor.Edit(expectedKey), options.ErrorPropSpecTypeEnumConflict)
 	actual := testOutput.String()
 	assert.Empty(t, actual)
 }
@@ -301,15 +302,15 @@ func TestPropSpecExecutor_Edit_TypeConflictError(t *testing.T) {
 	var expectedKey = "expectedKey"
 
 	testLedger.Register(testCmd, testOptions.editDefiners()...)
-	testViper.Set(testOptions.optionDefaultValue.Key, DefaultValueForNil)
-	testViper.Set(testOptions.optionDescription.Key, DefaultValueForNil)
+	testViper.Set(testOptions.optionDefaultValue.Key, cli.DefaultValueForNil)
+	testViper.Set(testOptions.optionDescription.Key, cli.DefaultValueForNil)
 	testViper.Set(testExecutor.innerPropSpecs.Key, []interface{}{
 		map[string]interface{}{
 			"key":  expectedKey,
 			"type": "_invalid",
 		},
 	})
-	assert.ErrorIs(t, testExecutor.Edit(expectedKey), ErrorTypeConflict)
+	assert.ErrorIs(t, testExecutor.Edit(expectedKey), options.ErrorPropSpecTypeConflict)
 	actual := testOutput.String()
 	assert.Empty(t, actual)
 }
@@ -443,12 +444,4 @@ func TestPropSpecExecutor_Remove_KeyNotFoundError(t *testing.T) {
 	assert.Error(t, testExecutor.Remove(expectedKey))
 	actual := testOutput.String()
 	assert.Empty(t, actual)
-}
-
-func Test_validateSpecKey(t *testing.T) {
-	assert.Error(t, validateSpecKey("..not a valid key"))
-	assert.Error(t, validateSpecKey("MyKEY"))
-	assert.Error(t, validateSpecKey("0_MY_KEY"))
-	assert.NoError(t, validateSpecKey("MY_KEY"))
-	assert.NoError(t, validateSpecKey("_MY_0_KEY_"))
 }

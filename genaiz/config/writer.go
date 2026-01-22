@@ -60,6 +60,111 @@ func (bw *BaseWriter) UpdatePath(vp *viper.Viper, path string) (*os.File, error)
 	return filez.CreateRecursive(filepath.Dir(path), filepath.Base(path))
 }
 
+// dataLinkMapsStruct exists because Marshalling can not be formatted appropriately with the
+// broker definition which relies on GO's standard yaml or json marshalling, there is no way to
+// ignore the int type, as it defaults to 0, which is never empty
+//
+// Note that the capitalization is still wrong, another dogma from Viper
+type dataLinkMapStruct struct {
+	Handle      string            `json:"handle" yaml:"handle"`
+	Oem         string            `json:"oem" yaml:"oem"`
+	Version     string            `json:"version" yaml:"version"`
+	Name        string            `json:"name" yaml:"name"`
+	Description string            `json:"description,omitempty" yaml:"description,omitempty"`
+	PropSpecs   []broker.PropSpec `json:"propSpecs,omitempty" yaml:"propSpecs,omitempty"`
+	SecretSpecs []broker.PropSpec `json:"secretSpecs,omitempty" yaml:"secretSpecs,omitempty"`
+}
+
+func toDataLinkMapStruct(dataLink *broker.DataLink) dataLinkMapStruct {
+	return dataLinkMapStruct{
+		Handle:      dataLink.Handle,
+		Oem:         dataLink.Oem,
+		Version:     dataLink.Version,
+		Name:        dataLink.Name,
+		Description: dataLink.Description,
+		PropSpecs:   dataLink.PropSpecs,
+		SecretSpecs: dataLink.SecretSpecs,
+	}
+}
+
+type DataLinksWriter struct {
+	DataLinksReader
+	addedLinks   []broker.DataLink
+	removedLinks []*broker.DataLink
+}
+
+func (dlw *DataLinksWriter) BuildDataLinks() (string, []broker.DataLink) {
+	var result []broker.DataLink
+
+	if len(dlw.removedLinks) == len(dlw.current) {
+		for i, link := range dlw.current {
+			if dlw.removedLinks[i] == nil {
+				result = append(result, link)
+			}
+		}
+
+		dlw.removedLinks = make([]*broker.DataLink, 0)
+	}
+
+	for _, link := range dlw.addedLinks {
+		result = append(result, link)
+	}
+
+	return "dataLinks", result
+}
+
+func (dlw *DataLinksWriter) Read(ledger *Ledger, input string) *DataLinksWriter {
+	dlw.DataLinksReader.Read(ledger, input)
+	return dlw
+}
+
+func (dlw *DataLinksWriter) SyncDataLinks() []*broker.DataLink {
+	dlw.removedLinks = make([]*broker.DataLink, len(dlw.current))
+
+	for _, added := range dlw.addedLinks {
+		for index, current := range dlw.current {
+			if current.IsRevision(added.Oem, added.Handle) {
+				dlw.removedLinks[index] = &current
+			}
+		}
+	}
+
+	return dlw.removedLinks
+}
+
+func (dlw *DataLinksWriter) WithDataLink(dataLink *broker.DataLink) broker.DataLinkWriter {
+	if dataLink != nil {
+		dlw.addedLinks = append(dlw.addedLinks, *dataLink)
+	}
+
+	return dlw
+}
+
+func (dlw *DataLinksWriter) Write(output string) error {
+	var key, dataLinks = dlw.BuildDataLinks()
+	var vp = viper.New()
+	var mapStructureLinks []dataLinkMapStruct
+
+	vp.SetConfigFile(output)
+	_ = vp.ReadInConfig()
+
+	for _, link := range dataLinks {
+		mapStructureLinks = append(mapStructureLinks, toDataLinkMapStruct(&link))
+	}
+
+	vp.Set(key, mapStructureLinks)
+
+	if err := vp.WriteConfigAs(output); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func NewDataLinkWriter() *DataLinksWriter {
+	return &DataLinksWriter{}
+}
+
 type SolutionWriter struct {
 	BaseWriter
 	updated   *broker.Solution

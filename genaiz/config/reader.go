@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/spf13/viper"
 
@@ -88,6 +90,69 @@ func (br *BaseReader) read(vp *viper.Viper) (*broker.Solution, error) {
 	}
 
 	return nil, err
+}
+
+type DataLinksReader struct {
+	current []broker.DataLink
+}
+
+func (dlr *DataLinksReader) GetDataLink(oem, handle, version string) *broker.DataLink {
+	if i := slices.IndexFunc(dlr.current, func(link broker.DataLink) bool {
+		return link.IsEqual(oem, handle, version)
+	}); i >= 0 {
+		return &dlr.current[i]
+	}
+
+	return nil
+}
+
+func (dlr *DataLinksReader) GetLatest(oem, handle string) *broker.DataLink {
+	var group []broker.DataLink
+
+	for _, link := range dlr.current {
+		if strings.EqualFold(link.Oem, oem) &&
+			strings.EqualFold(link.Handle, handle) {
+			group = append(group, link)
+		}
+	}
+
+	if len(group) > 0 {
+		return &group[len(group)-1]
+	}
+
+	return nil
+}
+
+func (dlr *DataLinksReader) Read(ledger *Ledger, input string) *DataLinksReader {
+	if links, err := dlr.ReadFile(input); err == nil {
+		dlr.current = append(dlr.current, links...)
+	} else {
+		ledger.Logger.Errorf("could not parse %s: %s", input, err)
+	}
+
+	return dlr
+}
+
+func (dlr *DataLinksReader) ReadFile(filePath string) ([]broker.DataLink, error) {
+	var vp = viper.New()
+	var err error
+
+	vp.SetConfigFile(filePath)
+
+	if err = vp.ReadInConfig(); err == nil {
+		var links []broker.DataLink
+
+		if err = vp.UnmarshalKey("dataLinks", &links); err == nil {
+			return links, nil
+		}
+	}
+
+	return nil, err
+}
+
+func (dlr *DataLinksReader) WithCurrent(dataLinks []broker.DataLink) *DataLinksReader {
+	dlr.current = dataLinks
+	return dlr
 }
 
 type SolutionReader struct {

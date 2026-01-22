@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 
@@ -92,6 +93,116 @@ func TestBaseReader_ReadFile(t *testing.T) {
 				actual, err = testReader.Read(expectedType)
 				assert.Error(t, err)
 				assert.Empty(t, actual)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestDataLinksReader_GetDataLink(t *testing.T) {
+	var expectedLink = &broker.DataLink{
+		Handle:  "testHandle",
+		Oem:     "testOem",
+		Version: "testVersion",
+	}
+	var testReader = &DataLinksReader{current: []broker.DataLink{*expectedLink}}
+
+	assert.Nil(t, testReader.GetDataLink("notOem", "notHandle", "notVersion"))
+	assert.Equal(t, expectedLink, testReader.GetDataLink(expectedLink.Oem, expectedLink.Handle, expectedLink.Version))
+}
+
+func TestDataLinksReader_GetLatest(t *testing.T) {
+	var expectedHandle = "expectedHandle"
+	var expectedOem = "expectedOem"
+	var expectedLinks = []broker.DataLink{
+		{
+			Handle:  expectedHandle,
+			Oem:     expectedOem,
+			Version: "firstVersion",
+		},
+		{
+			Handle:  expectedHandle,
+			Oem:     expectedOem,
+			Version: "secondVersion",
+		},
+	}
+	var testReader = &DataLinksReader{}
+
+	assert.Nil(t, testReader.GetLatest("notOem", "notHandle"))
+	testReader.WithCurrent(expectedLinks)
+	assert.Equal(t, &expectedLinks[1], testReader.GetLatest(expectedOem, expectedHandle))
+}
+
+func TestDataLinksReader_Read(t *testing.T) {
+	var testInput = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var testLedger = NewBuilder().WithViper(viper.New()).Build()
+	var testReader = &DataLinksReader{}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testInput); err == nil {
+		var testBytes []byte
+		var expectedHandle = "expectedHandle"
+		var testLinks = map[string][]broker.DataLink{
+			"datalinks": {
+				{
+					Handle: expectedHandle,
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if testBytes, err = yaml.Marshal(testLinks); err == nil {
+			if _, err = fd.Write(testBytes); err == nil {
+				filez.CloseSilently(fd)
+				testLedger.InitLogging()
+				testReader.Read(testLedger, testInput)
+				assert.NotEmpty(t, testReader.current)
+				assert.Equal(t, expectedHandle, testReader.current[0].Handle)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestDataLinkReader_Read_FileNotFound(t *testing.T) {
+	var testDir = filepath.Join(t.TempDir(), "notExist")
+	var testLedger = NewBuilder().WithViper(viper.New()).Build()
+	var testReader = &DataLinksReader{}
+
+	testLedger.InitLogging()
+	testReader.Read(testLedger, testDir)
+	assert.Empty(t, testReader.current)
+}
+
+func TestDataLinksReader_ReadFile_MarshallError(t *testing.T) {
+	var testInput = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var testReader = &DataLinksReader{}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testInput); err == nil {
+		var testBytes []byte
+		var testHandle = "testHandle"
+		var testLinks = map[string]string{
+			"datalinks": testHandle,
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if testBytes, err = yaml.Marshal(testLinks); err == nil {
+			if _, err = fd.Write(testBytes); err == nil {
+				var actual []broker.DataLink
+
+				filez.CloseSilently(fd)
+				actual, err = testReader.ReadFile(testInput)
+				assert.Nil(t, actual)
+				assert.Error(t, err)
 				return
 			}
 		}

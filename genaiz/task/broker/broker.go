@@ -39,10 +39,10 @@ var (
 		PropSpecTypeEnum, PropSpecTypeInt, PropSpecTypeString)
 
 	ErrorDataPortNotFound     = errors.New("data port not found")
-	ErrorPropIllegalBool      = errors.New("illegal bool value")
-	ErrorPropIllegalDouble    = errors.New("illegal double value")
-	ErrorPropIllegalInt       = errors.New("illegal int value")
-	ErrorPropIllegalEnum      = errors.New("illegal enum value")
+	ErrorPropIllegalBool      = errors.New("illegal default value for bool type")
+	ErrorPropIllegalDouble    = errors.New("illegal default value for double type")
+	ErrorPropIllegalInt       = errors.New("illegal default value for int type")
+	ErrorPropIllegalEnum      = errors.New("illegal default value for enum type")
 	ErrorWorkflowNodeNotFound = errors.New("workflow node not found")
 )
 
@@ -73,8 +73,115 @@ type DataLink struct {
 	SecretSpecs []PropSpec `json:"secretSpecs,omitempty"`
 }
 
-func (dl DataLink) IsActive() bool {
+func (dl *DataLink) FindPropSpec(key string) *PropSpec {
+	if i := slices.IndexFunc(dl.PropSpecs, func(spec PropSpec) bool {
+		return strings.EqualFold(spec.Key, key)
+	}); i >= 0 {
+		return &dl.PropSpecs[i]
+	}
+
+	return nil
+}
+
+func (dl *DataLink) FindSecretSpec(key string) *PropSpec {
+	if i := slices.IndexFunc(dl.SecretSpecs, func(spec PropSpec) bool {
+		return strings.EqualFold(spec.Key, key)
+	}); i >= 0 {
+		return &dl.SecretSpecs[i]
+	}
+
+	return nil
+}
+
+func (dl *DataLink) IsActive() bool {
 	return (dl.Flags & DataLinkFlags.Active) == DataLinkFlags.Active
+}
+
+func (dl *DataLink) IsEqual(oem, handle, version string) bool {
+	return dl.IsRevision(oem, handle) &&
+		strings.EqualFold(dl.Version, version)
+}
+
+func (dl *DataLink) IsRevision(oem, handle string) bool {
+	return strings.EqualFold(dl.Oem, oem) &&
+		strings.EqualFold(dl.Handle, handle)
+}
+
+func (dl *DataLink) RemovePropSpec(key string) *PropSpec {
+	if spec := dl.FindPropSpec(key); spec != nil {
+		var result = *spec
+
+		dl.PropSpecs = dl.removePropSpec(dl.PropSpecs, key)
+		return &result
+	}
+
+	return nil
+}
+
+func (dl *DataLink) RemoveSecretSpec(key string) *PropSpec {
+	if spec := dl.FindSecretSpec(key); spec != nil {
+		var result = *spec
+
+		dl.SecretSpecs = dl.removePropSpec(dl.SecretSpecs, key)
+		return &result
+	}
+
+	return nil
+}
+
+func (dl *DataLink) ReplacePropSpec(spec *PropSpec) {
+	if newSpecs, err := dl.replacePropSpec(dl.PropSpecs, spec); err == nil {
+		dl.PropSpecs = newSpecs
+	}
+}
+
+func (dl *DataLink) ReplaceSecretSpec(spec *PropSpec) {
+	if newSpecs, err := dl.replacePropSpec(dl.SecretSpecs, spec); err == nil {
+		dl.SecretSpecs = newSpecs
+	}
+}
+
+func (dl *DataLink) Sanitize() *DataLink {
+	var result = &DataLink{
+		Handle:      dl.Handle,
+		Oem:         dl.Oem,
+		Version:     dl.Version,
+		Seq:         dl.Seq,
+		Name:        dl.Name,
+		Description: dl.Description,
+	}
+
+	for _, spec := range dl.PropSpecs {
+		result.PropSpecs = append(result.PropSpecs, spec.Sanitize())
+	}
+
+	for _, spec := range dl.SecretSpecs {
+		result.SecretSpecs = append(result.SecretSpecs, spec.Sanitize())
+	}
+
+	return result
+}
+
+func (dl *DataLink) removePropSpec(specs []PropSpec, key string) []PropSpec {
+	return slices.DeleteFunc(specs, func(s PropSpec) bool {
+		return strings.EqualFold(key, s.Key)
+	})
+}
+
+func (dl *DataLink) replacePropSpec(specs []PropSpec, spec *PropSpec) ([]PropSpec, error) {
+	if spec != nil {
+		var replaced = []PropSpec{*spec}
+		var purged = dl.removePropSpec(specs, spec.Key)
+
+		if !slices.EqualFunc(specs, purged, func(spec2 PropSpec, spec PropSpec) bool {
+			return strings.EqualFold(spec2.Key, spec.Key)
+		}) {
+			// Put the replaced property at the head of the list, so we can spot it easier
+			return append(replaced, purged...), nil
+		}
+	}
+
+	return nil, errors.New("not found")
 }
 
 type dataLinkFlags struct {
@@ -263,6 +370,17 @@ type PropSpec struct {
 	Type        PropSpecType `yaml:"type" json:"type"`
 	Value       string       `yaml:"value,omitempty" json:"value,omitempty"`
 	Values      []string     `yaml:"values,omitempty" json:"values,omitempty"`
+}
+
+func (ps PropSpec) Sanitize() PropSpec {
+	return PropSpec{
+		Key:         ps.Key,
+		Name:        ps.Name,
+		Description: ps.Description,
+		Type:        strings.ToUpper(ps.Type),
+		Value:       ps.Value,
+		Values:      ps.Values,
+	}
 }
 
 func (ps PropSpec) Validate(value any) error {

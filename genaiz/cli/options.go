@@ -92,6 +92,11 @@ var (
 					WithUsage("oem of the data link").
 					WithValidator(config.Validation.Oem)
 			},
+			UserDefined: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("user-defined").
+					WithUsage("user defined implies writing the configurations under the $HOME/.config/genaiz folder")
+			},
 			Version: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("version").
@@ -382,6 +387,12 @@ var (
 					WithParam("name").
 					WithUsage("the name of the property, as human-readable text")
 			},
+			Secret: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("secret").
+					WithUsage("the property will be defined amongst the secret specifications, which can not have a default value").
+					WithDefaultValue("False")
+			},
 			Type: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("type").
@@ -591,6 +602,7 @@ type dataLinkOptions struct {
 	Name         func() OptionBuilder
 	NoValidation func() OptionBuilder
 	Oem          func() OptionBuilder
+	UserDefined  func() OptionBuilder
 	Version      func() OptionBuilder
 }
 
@@ -643,6 +655,7 @@ type propSpecsOptions struct {
 	EnumRemoveValue func() OptionBuilder
 	EnumValue       func() OptionBuilder
 	Name            func() OptionBuilder
+	Secret          func() OptionBuilder
 	Type            func() OptionBuilder
 }
 

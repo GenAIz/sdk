@@ -50,11 +50,19 @@ Feature: data link create
   Scenario: create data link for bash example
     Given the scenario "login bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder          | handle     | oem            | version |
-      | my-bash-example | datalink-1 | com.genaiz.dev | 1.0.0   |
-    And the workdir changes to "<folder>"
+      | configFile                       | handle     | oem            | version |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   |
+    And the user genaiz config folder is under <path>
     When I run the command "dk create <handle> --oem=<oem> --version=<version>"
-    Then I should have a datalink under "<folder>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
+    Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
+
+  Scenario: publish data link for bash example
+    Given the scenario "create data link for bash example" ran with condition "service_completed_successfully"
+    And the following parameters
+      | handle     | oem            | version |
+      | datalink-1 | com.genaiz.dev | 1.0.0   |
+    When I run the command "dk publish <oem>/<handle>:<version>"
+    Then I should have a datalink published to the orchestrator
 
   Scenario: add data source to bash example
     Given the scenario "create data link for bash example" ran with condition "service_completed_successfully"

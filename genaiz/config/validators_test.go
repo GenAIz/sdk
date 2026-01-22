@@ -126,3 +126,10 @@ func TestValidateVersion(t *testing.T) {
 	assert.False(t, validateVersion("03.0.0"))
 	assert.True(t, validateVersion("0.0.0"))
 }
+
+func TestValidators_ValidateEnvKey(t *testing.T) {
+	assert.Error(t, Validation.ValidateEnvKey("..Not/valid"))
+	assert.NoError(t, Validation.ValidateEnvKey("A_VALID_KEY"))
+	assert.Error(t, Validation.ValidateEnvKey("small_caps_are_not_valid"))
+	assert.NoError(t, Validation.ValidateEnvKey("_ANOTHER_VALID_KEY"))
+}
