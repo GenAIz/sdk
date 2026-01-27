@@ -31,15 +31,15 @@ type PropSpecExecutor struct {
 	removedPropSpec *broker.PropSpec
 	editedLink      *broker.DataLink
 
-	dataLinksWriterFactory dataLinksWriterFactory
+	dataLinksWriterFactory DataLinksWriterFactory
 	editLinkTaskFactory    EditLinkTaskFactory
 }
 
 func (pse *PropSpecExecutor) Add(handleArg, key string) error {
-	var writer *dataLinksWriter
+	var writer *DataLinksWriter
 	var err error
 
-	pse.initDataLinkOptions(handleArg)
+	pse.setOptions(pse.Ledger, handleArg)
 
 	if writer, err = pse.loadDataLinkWriter(); err == nil {
 		var oem = pse.Ledger.GetString(pse.optionOem)
@@ -109,10 +109,10 @@ func (pse *PropSpecExecutor) Display() {
 }
 
 func (pse *PropSpecExecutor) Edit(handleArg, key string) error {
-	var writer *dataLinksWriter
+	var writer *DataLinksWriter
 	var err error
 
-	pse.initDataLinkOptions(handleArg)
+	pse.setOptions(pse.Ledger, handleArg)
 
 	if writer, err = pse.loadDataLinkWriter(); err == nil {
 		var oem = pse.Ledger.GetString(pse.optionOem)
@@ -192,10 +192,10 @@ func (pse *PropSpecExecutor) Proceed() {
 }
 
 func (pse *PropSpecExecutor) Remove(handleArg, key string) error {
-	var writer *dataLinksWriter
+	var writer *DataLinksWriter
 	var err error
 
-	pse.initDataLinkOptions(handleArg)
+	pse.setOptions(pse.Ledger, handleArg)
 
 	if writer, err = pse.loadDataLinkWriter(); err == nil {
 		var oem = pse.Ledger.GetString(pse.optionOem)
@@ -203,8 +203,14 @@ func (pse *PropSpecExecutor) Remove(handleArg, key string) error {
 		var version = pse.Ledger.GetString(pse.optionVersion)
 
 		if pse.editedLink = writer.GetDataLink(oem, handle, version); pse.editedLink != nil {
-			pse.removedPropSpec = pse.editedLink.RemovePropSpec(key)
-			pse.Cli.Exec(pse.Ledger, pse)
+			if pse.removedPropSpec = pse.editedLink.RemovePropSpec(key); pse.removedPropSpec == nil {
+				pse.removedPropSpec = pse.editedLink.RemoveSecretSpec(key)
+			}
+
+			if pse.removedPropSpec != nil {
+				pse.Cli.Exec(pse.Ledger, pse)
+			}
+
 			return nil
 		}
 
@@ -214,15 +220,7 @@ func (pse *PropSpecExecutor) Remove(handleArg, key string) error {
 	return err
 }
 
-func (pse *PropSpecExecutor) initDataLinkOptions(handleArg string) {
-	var oem, handle, version = pse.parseDataLinkArgument(handleArg)
-
-	pse.Ledger.OverrideString(pse.optionHandle, handle)
-	pse.Ledger.OverrideString(pse.optionOem, oem)
-	pse.Ledger.OverrideString(pse.optionVersion, version)
-}
-
-func (pse *PropSpecExecutor) loadDataLinkWriter() (*dataLinksWriter, error) {
+func (pse *PropSpecExecutor) loadDataLinkWriter() (*DataLinksWriter, error) {
 	var configParams *shared.ConfigParams
 	var err error
 
@@ -245,11 +243,7 @@ func (pse *PropSpecExecutor) makeDataLinkParams(configParams shared.ConfigParams
 
 type PropSpecOptions struct {
 	options.PropSpecOptions
-	optionConfigType  *config.StringOption
-	optionHandle      *config.StringOption
-	optionOem         *config.StringOption
-	optionUserDefined *config.BoolOption
-	optionVersion     *config.StringOption
+	BaseOptions
 }
 
 func (pso PropSpecOptions) Definers() []config.Definer {
@@ -259,12 +253,7 @@ func (pso PropSpecOptions) Definers() []config.Definer {
 		result = pso.PropSpecOptions.Definers()
 	}
 
-	result = append(result,
-		pso.optionConfigType,
-		pso.optionOem,
-		pso.optionVersion,
-		pso.optionUserDefined,
-	)
+	result = append(result, pso.BaseOptions.allDefiners()...)
 	return result
 }
 
@@ -299,7 +288,7 @@ func NewPropSpecExecutor(ctx context.Context, ledger *config.Ledger, dkCli *Cli,
 		},
 		PropSpecOptions: options,
 
-		dataLinksWriterFactory: newDataLinksWriter,
+		dataLinksWriterFactory: NewDataLinksWriter,
 		editLinkTaskFactory:    broker.NewDataLinkEditTask,
 	}
 }
@@ -333,27 +322,29 @@ func NewAddSpecOptions(ledger *config.Ledger) *PropSpecOptions {
 
 	return &PropSpecOptions{
 		PropSpecOptions: propSpecOptions,
-		optionConfigType: cli.Options.Configs.Type().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.ConfigType).
-			WithDefaultValue("yaml").
-			BuildStringOption(),
-		optionHandle: cli.Options.DataLinks.Handle().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.Handle).
-			WithValidator(config.Validation.Handle).
-			BuildStringOption(),
-		optionOem: cli.Options.DataLinks.Oem().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.Oem).
-			WithValidator(config.Validation.Oem).
-			BuildStringOption(),
-		optionUserDefined: cli.Options.DataLinks.UserDefined().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.UserDefined).
-			WithDefaultValue("True").
-			BuildBoolOption(),
-		optionVersion: cli.Options.DataLinks.Version().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.Version).
-			WithValidator(config.Validation.Version).
-			Optional(true).
-			BuildStringOption(),
+		BaseOptions: BaseOptions{
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.ConfigType).
+				WithDefaultValue("yaml").
+				BuildStringOption(),
+			optionHandle: cli.Options.DataLinks.Handle().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.Handle).
+				WithValidator(config.Validation.Handle).
+				BuildStringOption(),
+			optionOem: cli.Options.DataLinks.Oem().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.Oem).
+				WithValidator(config.Validation.Oem).
+				BuildStringOption(),
+			optionUserDefined: cli.Options.DataLinks.UserDefined().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.UserDefined).
+				WithDefaultValue("True").
+				BuildBoolOption(),
+			optionVersion: cli.Options.DataLinks.Version().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecAdd.Version).
+				WithValidator(config.Validation.Version).
+				Optional(true).
+				BuildStringOption(),
+		},
 	}
 }
 
@@ -384,53 +375,57 @@ func NewEditSpecOptions() *PropSpecOptions {
 
 	return &PropSpecOptions{
 		PropSpecOptions: propSpecOptions,
-		optionConfigType: cli.Options.Configs.Type().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.ConfigType).
-			WithDefaultValue("yaml").
-			BuildStringOption(),
-		optionHandle: cli.Options.DataLinks.Handle().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.Handle).
-			WithValidator(config.Validation.Handle).
-			BuildStringOption(),
-		optionOem: cli.Options.DataLinks.Oem().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.Oem).
-			WithValidator(config.Validation.Oem).
-			BuildStringOption(),
-		optionUserDefined: cli.Options.DataLinks.UserDefined().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.UserDefined).
-			WithDefaultValue("True").
-			BuildBoolOption(),
-		optionVersion: cli.Options.DataLinks.Version().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.Version).
-			WithValidator(config.Validation.Version).
-			Optional(true).
-			BuildStringOption(),
+		BaseOptions: BaseOptions{
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.ConfigType).
+				WithDefaultValue("yaml").
+				BuildStringOption(),
+			optionHandle: cli.Options.DataLinks.Handle().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.Handle).
+				WithValidator(config.Validation.Handle).
+				BuildStringOption(),
+			optionOem: cli.Options.DataLinks.Oem().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.Oem).
+				WithValidator(config.Validation.Oem).
+				BuildStringOption(),
+			optionUserDefined: cli.Options.DataLinks.UserDefined().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.UserDefined).
+				WithDefaultValue("True").
+				BuildBoolOption(),
+			optionVersion: cli.Options.DataLinks.Version().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecEdit.Version).
+				WithValidator(config.Validation.Version).
+				Optional(true).
+				BuildStringOption(),
+		},
 	}
 }
 
 func NewRemoveSpecOptions() *PropSpecOptions {
 	return &PropSpecOptions{
-		optionConfigType: cli.Options.Configs.Type().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.ConfigType).
-			WithDefaultValue("yaml").
-			BuildStringOption(),
-		optionHandle: cli.Options.DataLinks.Handle().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.Handle).
-			WithValidator(config.Validation.Handle).
-			BuildStringOption(),
-		optionOem: cli.Options.DataLinks.Oem().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.Oem).
-			WithValidator(config.Validation.Oem).
-			BuildStringOption(),
-		optionUserDefined: cli.Options.DataLinks.UserDefined().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.UserDefined).
-			WithDefaultValue("True").
-			BuildBoolOption(),
-		optionVersion: cli.Options.DataLinks.Version().
-			WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.Version).
-			WithValidator(config.Validation.Version).
-			Optional(true).
-			BuildStringOption(),
+		BaseOptions: BaseOptions{
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.ConfigType).
+				WithDefaultValue("yaml").
+				BuildStringOption(),
+			optionHandle: cli.Options.DataLinks.Handle().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.Handle).
+				WithValidator(config.Validation.Handle).
+				BuildStringOption(),
+			optionOem: cli.Options.DataLinks.Oem().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.Oem).
+				WithValidator(config.Validation.Oem).
+				BuildStringOption(),
+			optionUserDefined: cli.Options.DataLinks.UserDefined().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.UserDefined).
+				WithDefaultValue("True").
+				BuildBoolOption(),
+			optionVersion: cli.Options.DataLinks.Version().
+				WithKeys(&schema.Genaiz.DataLink.PropSpecRemove.Version).
+				WithValidator(config.Validation.Version).
+				Optional(true).
+				BuildStringOption(),
+		},
 	}
 }
 

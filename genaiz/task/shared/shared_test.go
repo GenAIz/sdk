@@ -159,3 +159,30 @@ func TestConfigParams_ResolveConfigPath_ConfigTypeNone_FolderNotFound(t *testing
 	assert.Error(t, err)
 	assert.Empty(t, actual)
 }
+
+func TestConfigParams_ResolveOptionalType(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedName = "testName"
+	var testParams = &ConfigParams{
+		ConfigType:   lang.Ref(ConfigTypeYaml),
+		ConfigName:   expectedName,
+		ConfigFolder: testDir,
+	}
+	var actual, err = testParams.ResolveOptionalType(ConfigTypeYaml)
+
+	assert.NoError(t, err)
+	assert.Equal(t, testParams.GetConfigPath(), actual)
+}
+
+func TestConfigParams_ResolveOptionalType_NoConfigNameFound(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedName = "testName"
+	var testParams = &ConfigParams{
+		ConfigName:   expectedName,
+		ConfigFolder: testDir,
+	}
+	var actual, err = testParams.ResolveOptionalType(ConfigTypeJson)
+
+	assert.NoError(t, err)
+	assert.Equal(t, testParams.GetConfigPath()+"."+ConfigTypeJson, actual)
+}

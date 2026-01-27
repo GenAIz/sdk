@@ -24,11 +24,11 @@ type PublishExecutor struct {
 	linkArgument string
 
 	publishLinkTaskFactory PublishLinkTaskFactory
-	dataLinksWriterFactory dataLinksWriterFactory
+	dataLinksWriterFactory DataLinksWriterFactory
 }
 
 func (pe PublishExecutor) Display() {
-	pe.initDataLinkOptions()
+	pe.setOptions(pe.Ledger, pe.linkArgument)
 	pe.Ledger.DisplayOptionsWithMap(&map[string]string{
 		"folder": pe.getConfigPath(pe.optionUserDefined),
 	},
@@ -71,16 +71,8 @@ func (pe PublishExecutor) Proceed() {
 	lang.HandleExit(err)
 }
 
-func (pe PublishExecutor) initDataLinkOptions() {
-	var oem, handle, version = pe.parseDataLinkArgument(pe.linkArgument)
-
-	pe.Ledger.InitValue(pe.optionHandle, handle)
-	pe.Ledger.InitValue(pe.optionOem, oem)
-	pe.Ledger.InitValue(pe.optionVersion, version)
-}
-
 func (pe PublishExecutor) makeDataLinkParams(configParams shared.ConfigParams) *broker.DataLinkParams {
-	pe.initDataLinkOptions()
+	pe.setOptions(pe.Ledger, pe.linkArgument)
 	return &broker.DataLinkParams{
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
@@ -91,24 +83,20 @@ func (pe PublishExecutor) makeDataLinkParams(configParams shared.ConfigParams) *
 			Oem:     pe.Ledger.GetString(pe.optionOem),
 			Version: pe.Ledger.GetString(pe.optionVersion),
 		},
+		NewVersion: pe.Ledger.GetString(pe.optionPublishedVersion),
 	}
 }
 
 type PublishOptions struct {
-	optionConfigType  *config.StringOption
-	optionHandle      *config.StringOption
-	optionOem         *config.StringOption
-	optionUserDefined *config.BoolOption
-	optionVersion     *config.StringOption
+	BaseOptions
+	optionPublishedVersion *config.StringOption
 }
 
 func (po PublishOptions) allDefiners() []config.Definer {
-	return []config.Definer{
-		po.optionConfigType,
-		po.optionOem,
-		po.optionVersion,
-		po.optionUserDefined,
-	}
+	var definers = po.BaseOptions.allDefiners()
+
+	definers = append(definers, po.optionPublishedVersion)
+	return definers
 }
 
 func NewPublish(ledger *config.Ledger, dkCli *Cli) *cobra.Command {
@@ -154,30 +142,37 @@ func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, dkCli *Cli, 
 
 		linkArgument:           handle,
 		publishLinkTaskFactory: broker.NewDataLinkPublishTask,
-		dataLinksWriterFactory: newDataLinksWriter,
+		dataLinksWriterFactory: NewDataLinksWriter,
 	}
 }
 
 func NewPublishOptions() *PublishOptions {
 	return &PublishOptions{
-		optionConfigType: cli.Options.Configs.Type().
-			WithKeys(&schema.Genaiz.DataLink.Publish.ConfigType).
-			WithDefaultValue("yaml").
-			BuildStringOption(),
-		optionHandle: cli.Options.DataLinks.Handle().
-			WithKeys(&schema.Genaiz.DataLink.Publish.Handle).
-			WithValidator(config.Validation.Handle).
-			BuildStringOption(),
-		optionOem: cli.Options.DataLinks.Oem().
-			WithKeys(&schema.Genaiz.DataLink.Publish.Oem).
-			WithValidator(config.Validation.Oem).
-			BuildStringOption(),
-		optionUserDefined: cli.Options.DataLinks.UserDefined().
-			WithKeys(&schema.Genaiz.DataLink.Publish.UserDefined).
-			WithDefaultValue("True").
-			BuildBoolOption(),
-		optionVersion: cli.Options.DataLinks.Version().
-			WithKeys(&schema.Genaiz.DataLink.Publish.Version).
+		BaseOptions: BaseOptions{
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.DataLink.Publish.ConfigType).
+				WithDefaultValue("yaml").
+				BuildStringOption(),
+			optionHandle: cli.Options.DataLinks.Handle().
+				WithKeys(&schema.Genaiz.DataLink.Publish.Handle).
+				WithValidator(config.Validation.Handle).
+				BuildStringOption(),
+			optionOem: cli.Options.DataLinks.Oem().
+				WithKeys(&schema.Genaiz.DataLink.Publish.Oem).
+				WithValidator(config.Validation.Oem).
+				BuildStringOption(),
+			optionUserDefined: cli.Options.DataLinks.UserDefined().
+				WithKeys(&schema.Genaiz.DataLink.Publish.UserDefined).
+				WithDefaultValue("True").
+				BuildBoolOption(),
+			optionVersion: cli.Options.DataLinks.Version().
+				WithKeys(&schema.Genaiz.DataLink.Publish.Version).
+				WithValidator(config.Validation.Version).
+				Optional(true).
+				BuildStringOption(),
+		},
+		optionPublishedVersion: cli.Options.DataLinks.PublishedVersion().
+			WithKeys(&schema.Genaiz.DataLink.Publish.PublishedVersion).
 			WithValidator(config.Validation.Version).
 			Optional(true).
 			BuildStringOption(),

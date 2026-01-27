@@ -41,5 +41,5 @@ Feature: data link publish
     And the following parameters
       | handle     | oem            | version |
       | datalink-1 | com.genaiz.dev | 0.2.0   |
-    When I run the command "dk publish <oem>/handle --version=<version>"
-    Then I should have a datalink published to the orchestrator
+    When I run the command "dk publish <oem>/<handle> --version=<version>"
+    Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<version>"

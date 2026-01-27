@@ -73,9 +73,18 @@ type Document struct {
 			Version     Keys
 		}
 		Publish struct {
+			ConfigType       Keys
+			Handle           Keys
+			Oem              Keys
+			PublishedVersion Keys
+			UserDefined      Keys
+			Version          Keys
+		}
+		Sync struct {
 			ConfigType  Keys
 			Handle      Keys
 			Oem         Keys
+			Sequence    Keys
 			UserDefined Keys
 			Version     Keys
 		}
@@ -439,7 +448,15 @@ func init() {
 	Genaiz.DataLink.Publish.Handle = newKeys("DataLink.Publish.Handle", "DK_PUBLISH_HANDLE", "Dk.Publish.Handle")
 	Genaiz.DataLink.Publish.Oem = newKeys("DataLink.Publish.Oem", "DK_PUBLISH_OEM", "Dk.Publish.Oem")
 	Genaiz.DataLink.Publish.UserDefined = newKeys("DataLink.Publish.UserDefined", "DK_PUBLISH_USER_DEFINED", "Dk.Publish.UserDefined")
+	Genaiz.DataLink.Publish.PublishedVersion = newKeys("DataLink.Publish.PublishedVersion", "DK_PUBLISH_PUBLISHED_VERSION", "Dk.Publish.PublishedVersion")
 	Genaiz.DataLink.Publish.Version = newKeys("DataLink.Publish.Version", "DK_PUBLISH_VERSION", "Dk.Publish.Version")
+
+	Genaiz.DataLink.Sync.ConfigType = newKeys("DataLink.Sync.ConfigType", "DK_SYNC_CONFIG_TYPE", "Dk.Sync.ConfigType")
+	Genaiz.DataLink.Sync.Handle = newKeys("DataLink.Sync.Handle", "DK_SYNC_HANDLE", "Dk.Sync.Handle")
+	Genaiz.DataLink.Sync.Oem = newKeys("DataLink.Sync.Oem", "DK_SYNC_OEM", "Dk.Sync.Oem")
+	Genaiz.DataLink.Sync.Sequence = newKeys("DataLink.Sync.Sequence", "DK_SYNC_SEQUENCE", "Dk.Sync.Sequence")
+	Genaiz.DataLink.Sync.UserDefined = newKeys("DataLink.Sync.UserDefined", "DK_SYNC_USER_DEFINED", "Dk.Sync.UserDefined")
+	Genaiz.DataLink.Sync.Version = newKeys("DataLink.Sync.Version", "DK_SYNC_VERSION", "Dk.Sync.Version")
 
 	Genaiz.Function.Build.Context = newKeys("Function.Build.Context", "SF_BUILD_CONTEXT", "Sf.Build.Context")
 	Genaiz.Function.Build.File = newKeys("Function.Build.File", "SF_BUILD_FILE", "Sf.Build.File")

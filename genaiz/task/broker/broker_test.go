@@ -130,22 +130,6 @@ func TestDataLink_Sanitize(t *testing.T) {
 	assert.Equal(t, testDataLink.SecretSpecs[0].Values, actual.SecretSpecs[0].Values)
 }
 
-func TestFunction_asIdentity(t *testing.T) {
-	var actual *shared.Identity
-	var function = Function{
-		Id:      37,
-		Digest:  "digest",
-		Img:     "path",
-		Version: "version",
-	}
-
-	actual = function.asIdentity()
-	assert.Equal(t, function.Id, cast.ToInt(actual.Id))
-	assert.Equal(t, function.Digest, actual.Hash)
-	assert.Equal(t, function.Img, actual.Path)
-	assert.Equal(t, function.Version, actual.Version)
-}
-
 func TestFunction_FindDataPortByHandle(t *testing.T) {
 	var testHandle = "handle"
 	var testFunction = &Function{}
@@ -164,6 +148,47 @@ func TestFunction_FindDataPortByHandle(t *testing.T) {
 	}
 	actual := testFunction.FindDataPortByHandle(testHandle)
 	assert.Equal(t, expectedDataPort, actual)
+}
+
+func TestFunction_asIdentity(t *testing.T) {
+	var actual *shared.Identity
+	var function = Function{
+		Id:      37,
+		Digest:  "digest",
+		Img:     "path",
+		Version: "version",
+	}
+
+	actual = function.asIdentity()
+	assert.Equal(t, function.Id, cast.ToInt(actual.Id))
+	assert.Equal(t, function.Digest, actual.Hash)
+	assert.Equal(t, function.Img, actual.Path)
+	assert.Equal(t, function.Version, actual.Version)
+}
+
+func TestFunction_toModel(t *testing.T) {
+	var testPropSpec = &PropSpec{
+		Key:  "key",
+		Type: "string",
+	}
+	var testFunction = &Function{
+		Id:          37,
+		Handle:      "handle",
+		Oem:         "oem",
+		Version:     "version",
+		Name:        "name",
+		Description: "description",
+		PropSpecs:   []PropSpec{*testPropSpec},
+	}
+
+	actual := testFunction.toModel()
+	assert.Equal(t, testFunction.Handle, actual.Handle)
+	assert.Equal(t, testFunction.Oem, actual.Oem)
+	assert.Equal(t, testFunction.Version, actual.Version)
+	assert.Equal(t, testFunction.Name, actual.Name)
+	assert.Equal(t, testFunction.Description, actual.Description)
+	assert.Equal(t, testPropSpec.Key, actual.PropSpecs[0].Key)
+	assert.Equal(t, "STRING", actual.PropSpecs[0].Type)
 }
 
 func TestMapFunction(t *testing.T) {

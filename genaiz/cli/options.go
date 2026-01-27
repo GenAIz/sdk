@@ -92,6 +92,18 @@ var (
 					WithUsage("oem of the data link").
 					WithValidator(config.Validation.Oem)
 			},
+			PublishedVersion: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("new-version").
+					WithUsage("assigned a new version to the published datalink").
+					WithValidator(config.Validation.Version)
+			},
+			Sequence: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("sequence").
+					WithUsage("a sequence integer, usually for non-released datalinks").
+					WithValidator(config.Validation.VersionNumber)
+			},
 			UserDefined: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("user-defined").
@@ -597,13 +609,15 @@ type configOptions struct {
 }
 
 type dataLinkOptions struct {
-	Description  func() OptionBuilder
-	Handle       func() OptionBuilder
-	Name         func() OptionBuilder
-	NoValidation func() OptionBuilder
-	Oem          func() OptionBuilder
-	UserDefined  func() OptionBuilder
-	Version      func() OptionBuilder
+	Description      func() OptionBuilder
+	Handle           func() OptionBuilder
+	Name             func() OptionBuilder
+	NoValidation     func() OptionBuilder
+	Oem              func() OptionBuilder
+	PublishedVersion func() OptionBuilder
+	Sequence         func() OptionBuilder
+	UserDefined      func() OptionBuilder
+	Version          func() OptionBuilder
 }
 
 type dataPortOptions struct {

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
@@ -156,5 +157,45 @@ func newDataLinkOptions() *DataLinkOptions {
 		optionVersion: cli.NewOptionBuilder().
 			WithKeys(&schema.Keys{Doc: "version"}).
 			BuildStringOption(),
+	}
+}
+
+func newDataLinksWriterTestFactory(current []broker.DataLink) dk.DataLinksWriterFactory {
+	return func(ledger *config.Ledger, s string) *dk.DataLinksWriter {
+		var reader = &config.DataLinksReader{}
+
+		return &dk.DataLinksWriter{
+			DataLinksWriter: &config.DataLinksWriter{
+				DataLinksReader: *reader.WithCurrent(current),
+			},
+		}
+	}
+}
+
+func newSyncLinkCompleteCapture(capture *broker.DataLinkParams) SyncLinksTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *broker.DataLinkParams, state *task.State) error {
+				*capture = *params
+				return nil
+			},
+		}
+	}
+}
+
+func newSyncLinkPretendCapture(capture *broker.DataLinkParams) SyncLinksTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnPretend: func(params *broker.DataLinkParams, state *task.State) error {
+				*capture = *params
+				return nil
+			},
+		}
 	}
 }

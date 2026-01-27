@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang/enumz"
 )
@@ -81,30 +82,47 @@ func (cp ConfigParams) IsConfigTypeNone() bool {
 // ResolveConfigPath will return the path of an existing config file with a corresponding ErrorConfigFileExists if the file already exists, otherwise it'll return the path without any errors. The method can return errors of invalid paths.
 func (cp ConfigParams) ResolveConfigPath() (string, error) {
 	if cp.IsConfigTypeNone() {
-		var reset func()
-		var err error
-
-		if reset, err = dirz.ChangeWorkingDir(cp.ConfigFolder); err == nil {
-			defer reset()
-			var file string
-
-			if file, err = filez.FirstNamedFile(cp.GetConfigFile()); err == nil {
-				return filepath.Join(cp.ConfigFolder, file), ErrorConfigFileExists
-			}
-		}
-
-		return "", err
+		return cp.resolveConfigTypeless()
 	} else {
-		var result = cp.GetConfigPath()
+		return cp.sanitizeConfigPath(cp.GetConfigPath())
+	}
+}
 
-		if info, err := os.Stat(result); err == nil {
-			if info.IsDir() {
-				return "", ErrorConfigFileInvalid
-			}
+// ResolveOptionalType returns a path set to the provided defaultType if no other paths can be resolved within the parameters. ResolveConfigPath has some issues, because it changes the working directory on config type none and because it assumes the path must either exist or be created
+func (cp ConfigParams) ResolveOptionalType(defaultType string) (string, error) {
+	var path, err = cp.ResolveConfigPath()
 
-			return result, ErrorConfigFileExists
+	if errors.Is(err, errorz.LocalPathError) {
+		return cp.sanitizeConfigPath(cp.GetConfigPath() + "." + defaultType)
+	}
+
+	return path, err
+}
+
+func (cp ConfigParams) sanitizeConfigPath(path string) (string, error) {
+	if info, err := os.Stat(path); err == nil {
+		if info.IsDir() {
+			return "", ErrorConfigFileInvalid
 		}
 
-		return result, nil
+		return path, ErrorConfigFileExists
 	}
+
+	return path, nil
+}
+
+func (cp ConfigParams) resolveConfigTypeless() (string, error) {
+	var reset func()
+	var err error
+
+	if reset, err = dirz.ChangeWorkingDir(cp.ConfigFolder); err == nil {
+		defer reset()
+		var file string
+
+		if file, err = filez.FirstNamedFile(cp.GetConfigFile()); err == nil {
+			return filepath.Join(cp.ConfigFolder, file), ErrorConfigFileExists
+		}
+	}
+
+	return "", err
 }

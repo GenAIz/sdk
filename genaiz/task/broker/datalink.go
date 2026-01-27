@@ -43,6 +43,7 @@ type DataLinkParams struct {
 	Broker
 	shared.ConfigParams
 	*DataLink
+	NewVersion   string
 	NoValidation bool
 }
 
@@ -60,6 +61,12 @@ func (dlp DataLinkParams) ToString() string {
 	}
 
 	return ""
+}
+
+func (dlp DataLinkParams) ToPublished() string {
+	var oem, handle, ver = dlp.publishedFqdn()
+
+	return fmt.Sprintf("%s/%s:%s", oem, handle, ver)
 }
 
 func (dlp DataLinkParams) findDataLink(writer DataLinkWriter) (*DataLink, error) {
@@ -112,6 +119,20 @@ func (dlp DataLinkParams) isValid() bool {
 	return false
 }
 
+func (dlp DataLinkParams) publishedFqdn() (string, string, string) {
+	if dlp.DataLink != nil {
+		var resultVersion = dlp.NewVersion
+
+		if resultVersion == "" {
+			resultVersion = dlp.Version
+		}
+
+		return dlp.Oem, dlp.Handle, resultVersion
+	}
+
+	return "", "", ""
+}
+
 func NewDataLinkCreateTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
 	return &task.Task[DataLinkParams]{
 		Name:         "data-link-create",
@@ -128,6 +149,16 @@ func NewDataLinkEditTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
 		OnPrepare:  lang.Assists(writer, handleDataLinkEditContext),
 		OnComplete: lang.Assists(writer, handleDataLinkEditComplete),
 		OnPretend:  lang.Assists(writer, handleDataLinkEditPretend),
+	}
+}
+
+func NewDataLinkExportTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
+	return &task.Task[DataLinkParams]{
+		Name:         "data-link-export",
+		OnPrepare:    handleDataLinkExportContext,
+		OnComplete:   lang.Assists(writer, handleDataLinkExportComplete),
+		OnIncomplete: handleDataLinkCreateIncomplete,
+		OnPretend:    handleDataLinkExportPretend,
 	}
 }
 
@@ -185,6 +216,9 @@ func handleDataLinkCreateContext(writer DataLinkWriter, params *DataLinkParams, 
 				if _, err = os.Stat(state.Output); err != nil {
 					return err
 				}
+			} else if errors.Is(err, shared.ErrorConfigFileExists) {
+				state.Logger.Debugf("Found configuration file [%s]", state.Output)
+				return nil
 			}
 
 			return err
@@ -387,6 +421,108 @@ func handleDataLinkEditPretend(writer DataLinkWriter, params *DataLinkParams, st
 	return state.Error
 }
 
+func handleDataLinkExportContext(params *DataLinkParams, state *task.State) error {
+	if state.Output == "" {
+		if params.isValid() {
+			var err error
+
+			if state.Output, err = params.ResolveOptionalType(shared.ConfigTypeYaml); err == nil {
+				state.Logger.Debugf("Validating configuration file [%s]", state.Output)
+
+				if _, err = os.Stat(state.Output); err != nil {
+					return err
+				}
+			} else if errors.Is(err, shared.ErrorConfigFileExists) {
+				state.Logger.Debugf("Found configuration file [%s]", state.Output)
+				return nil
+			}
+
+			return err
+		}
+
+		return errDataLinkInvalid
+	}
+
+	return nil
+}
+
+func handleDataLinkExportComplete(writer DataLinkWriter, params *DataLinkParams, state *task.State) error {
+	if state.Output != "" {
+		var brokerClient Client
+		var sequence string
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var oem, handle, ver = params.ToFqdn()
+			var fqdnString = params.ToString()
+			var remote *DataLink
+
+			state.Logger.Debugf("Looking up for data link [%s]", fqdnString)
+
+			if params.Seq != 0 {
+				sequence = cast.ToString(params.Seq)
+				state.Logger.Debugf("Clamping on sequence version [%s]", sequence)
+			}
+
+			if remote, err = brokerClient.ExportDataLink(oem, handle, ver, sequence); err == nil {
+				writer.WithDataLink(remote).SyncDataLinks()
+
+				if err = writer.Write(state.Output); err == nil {
+					if sequence == "" {
+						state.Reportf("Imported data link [%s]", fqdnString)
+					} else {
+						state.Reportf("Imported data link [%s-rc%s]", fqdnString, sequence)
+					}
+
+					// Here: We'll need to create a shared.PropSpecState to be able to buffer Env vars for other tasks
+					return nil
+				}
+			}
+		}
+
+		return err
+	}
+
+	return shared.ErrorConfigFileInvalid
+}
+
+func handleDataLinkExportPretend(params *DataLinkParams, state *task.State) error {
+	if state.Output != "" {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var oem, handle, ver = params.ToFqdn()
+			var fqdnString = params.ToString()
+			var sequence string
+
+			if params.Seq == 0 {
+				state.Logger.Debugf("Pretending to export data link [%s]", fqdnString)
+			} else {
+				sequence = cast.ToString(params.Seq)
+				state.Logger.Debugf("Pretending to export data link [%s-rc%s]", fqdnString, sequence)
+			}
+
+			fmt.Printf("curl -X GET -H \"Accept: application/json\" \\\n")
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+			fmt.Printf("  -d oem=%s\\\n", oem)
+			fmt.Printf("  -d handle=%s\\\n", handle)
+			fmt.Printf("  -d version=%s\\\n", ver)
+
+			if sequence != "" {
+				fmt.Printf("  -d sequence=%s\\\n", sequence)
+			}
+
+			fmt.Printf("%s\n", brokerClient.ListDataLinksUrl())
+			return nil
+		}
+
+		return err
+	}
+
+	return state.Error
+}
+
 func handleDataLinkFindContext(params *DataLinkParams, state *task.State) error {
 	if state.Internal == nil {
 		if !params.isValid() {
@@ -450,20 +586,20 @@ func handleDataLinkFindPretend(params *DataLinkParams, state *task.State) error 
 func handleDataLinkPublishContext(writer DataLinkWriter, params *DataLinkParams, state *task.State) error {
 	if state.Output == "" {
 		var fqdn = params.ToString()
-		var dataLink *DataLink
 		var err error
 
 		state.Logger.Debugf("Finding local link definition for [%s]", fqdn)
 
-		if dataLink, err = params.findDataLink(writer); err == nil {
+		if _, err = params.findDataLink(writer); err == nil {
+			var pubOem, pubHandle, pubVersion = params.publishedFqdn()
 			var brokerClient Client
 
-			state.Logger.Debugf("Finding remote link definitions for [%s]", fqdn)
+			state.Logger.Debugf("Finding remote link definitions for [%s/%s:%s]", pubOem, pubHandle, pubVersion)
 
 			if brokerClient, err = params.GetClient(); err == nil {
 				var remoteLink *DataLink
 
-				if remoteLink, err = brokerClient.FindDataLink(dataLink.Oem, dataLink.Handle, dataLink.Version); err == nil {
+				if remoteLink, err = brokerClient.FindDataLink(pubOem, pubHandle, pubVersion); err == nil {
 					state.Output = cast.ToString(remoteLink.Id)
 					return errDataLinkConflict
 				}
@@ -485,13 +621,16 @@ func handleDataLinkPublishComplete(writer DataLinkWriter, params *DataLinkParams
 		var err error
 
 		if publishing, err = params.findDataLink(writer); err == nil {
-			var sanitized = publishing.Sanitize()
-
 			if brokerClient, err = params.GetClient(); err == nil {
+				var sanitized = publishing.Sanitize()
 				var result *DataLink
 
+				if params.NewVersion != "" {
+					sanitized.Version = params.NewVersion
+				}
+
 				state.Logger.Debugf("Publishing data link [%s] to broker [%s]",
-					params.ToString(), brokerClient.GetHostAddr())
+					params.ToPublished(), brokerClient.GetHostAddr())
 
 				if result, err = brokerClient.PublishDataLink(sanitized); err == nil {
 					state.Reportf("Published data link [%s/%s:%s], id [%d]",
@@ -516,8 +655,13 @@ func handleDataLinkPublishPretend(writer DataLinkWriter, params *DataLinkParams,
 
 		if localLink, err = params.findDataLink(writer); err == nil {
 			if brokerClient, err = params.GetClient(); err == nil {
-				var linkModel, _ = json.Marshal(localLink)
+				var linkModel []byte
 
+				if params.NewVersion != "" {
+					localLink.Version = params.NewVersion
+				}
+
+				linkModel, _ = json.Marshal(localLink)
 				state.Logger.Debugf("Pretending to publish data link [%s]", params.ToString())
 				fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 				fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())

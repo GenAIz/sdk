@@ -1,14 +1,15 @@
 package sf
 
 import (
-	"strings"
-
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type ListLinksTaskFactory func() *task.Task[broker.DataLinkParams]
+type SyncLinksTaskFactory func(broker.DataLinkWriter) *task.Task[broker.DataLinkParams]
 
 type DataLinkExecutor struct {
 	BaseExecutor
@@ -24,10 +25,10 @@ func (dle *DataLinkExecutor) makeDataLinkParams(fqdnv string) *broker.DataLinkPa
 	}
 
 	if fqdnv != "" {
-		oem, handle, version = parseFqdnv(fqdnv)
-		dle.Ledger.InitValue(dle.optionHandle, handle)
-		dle.Ledger.InitValue(dle.optionOem, oem)
-		dle.Ledger.InitValue(dle.optionVersion, version)
+		oem, handle, version = dk.ParseDataLinkArgument(fqdnv)
+		dle.Ledger.OverrideString(dle.optionHandle, handle)
+		dle.Ledger.OverrideString(dle.optionOem, oem)
+		dle.Ledger.OverrideString(dle.optionVersion, version)
 	}
 
 	return &broker.DataLinkParams{
@@ -40,6 +41,13 @@ func (dle *DataLinkExecutor) makeDataLinkParams(fqdnv string) *broker.DataLinkPa
 			Version: dle.Ledger.GetString(dle.optionVersion),
 		},
 		NoValidation: validate,
+	}
+}
+
+func (dle *DataLinkExecutor) makeSyncParams() *shared.ConfigParams {
+	return &shared.ConfigParams{
+		ConfigName:   dle.Ledger.ConfigName,
+		ConfigFolder: dle.Ledger.UserPath,
 	}
 }
 
@@ -65,24 +73,4 @@ func (dlo DataLinkOptions) removeDefiners() []config.Definer {
 		dlo.optionOem,
 		dlo.optionVersion,
 	}
-}
-
-func parseFqdnv(fqdnv string) (string, string, string) {
-	var parts = strings.SplitN(fqdnv, "/", 2)
-	var oem, handle, version string
-
-	if len(parts) == 2 {
-		oem, parts = parts[0], parts[1:]
-	}
-
-	if len(parts) == 1 {
-		parts = strings.SplitN(parts[0], ":", 2)
-		handle = parts[0]
-
-		if len(parts) == 2 {
-			version = parts[1]
-		}
-	}
-
-	return oem, handle, version
 }

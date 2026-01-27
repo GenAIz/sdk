@@ -526,6 +526,38 @@ func TestInitExecutor_Pretend(t *testing.T) {
 	}
 }
 
+func TestInitExecutor_Pretend_InvalidConfigType(t *testing.T) {
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var calledInit = false
+	var testCli = NewSfCli(nil, nil, nil)
+	var testExecutor = &InitExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+			Cli:    testCli,
+		},
+
+		InitOptions:     NewInitOptions(testCli),
+		initTaskFactory: newInitTaskPretendStub(&calledInit),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
+		var patch = mock.Patches{T: t}.OsExit(func(int) {})
+
+		defer patch.Unpatch()
+		filez.CloseSilently(fd)
+		testLedger.WorkDir = testDir
+		testViper.Set(testExecutor.optionConfigType.Key, "invalidType")
+		testExecutor.Pretend()
+		assert.False(t, calledInit)
+		assert.NotEmpty(t, patch.CalledWith)
+		assert.EqualValues(t, 1, patch.CalledWith)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
 func TestInitExecutor_Proceed(t *testing.T) {
 	var calledInit bool
 	var expectedHandle = "handleProceed"
@@ -569,7 +601,39 @@ func TestInitExecutor_Proceed(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestInitExecutor_ProceedInvalidOem(t *testing.T) {
+func TestInitExecutor_Proceed_InvalidConfigType(t *testing.T) {
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var calledInit = false
+	var testCli = NewSfCli(nil, nil, nil)
+	var testExecutor = &InitExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+			Cli:    testCli,
+		},
+
+		InitOptions:     NewInitOptions(testCli),
+		initTaskFactory: newInitTaskPretendStub(&calledInit),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
+		var patch = mock.Patches{T: t}.OsExit(func(int) {})
+
+		defer patch.Unpatch()
+		filez.CloseSilently(fd)
+		testLedger.WorkDir = testDir
+		testViper.Set(testExecutor.optionConfigType.Key, "invalidType")
+		testExecutor.Proceed()
+		assert.False(t, calledInit)
+		assert.NotEmpty(t, patch.CalledWith)
+		assert.EqualValues(t, 1, patch.CalledWith)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestInitExecutor_Proceed_InvalidOem(t *testing.T) {
 	var expectedHandle = "handleProceed"
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testDir = filepath.Join(t.TempDir(), expectedHandle)

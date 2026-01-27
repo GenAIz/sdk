@@ -68,43 +68,38 @@ func TestBaseExecutor_makeConfigParams_InvalidConfigType(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestBaseExecutor_parseDataLinkArgument(t *testing.T) {
-	var expectedOem = "oem"
-	var expectedHandle = "handle"
-	var expectedVersion = "version"
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testExecutor = &BaseExecutor{
-		Ledger: testLedger,
-	}
-
-	actualOem, actualHandle, actualVersion := testExecutor.parseDataLinkArgument(
-		fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVersion))
-	assert.Equal(t, expectedOem, actualOem)
-	assert.Equal(t, expectedHandle, actualHandle)
-	assert.Equal(t, expectedVersion, actualVersion)
-	actualOem, actualHandle, actualVersion = testExecutor.parseDataLinkArgument(
-		fmt.Sprintf("%s/%s", expectedOem, expectedHandle))
-	assert.Equal(t, expectedOem, actualOem)
-	assert.Equal(t, expectedHandle, actualHandle)
-	assert.Empty(t, actualVersion)
-	actualOem, actualHandle, actualVersion = testExecutor.parseDataLinkArgument(
-		fmt.Sprintf("%s:%s", expectedHandle, expectedVersion))
-	assert.Empty(t, actualOem)
-	assert.Equal(t, expectedHandle, actualHandle)
-	assert.Equal(t, expectedVersion, actualVersion)
-	actualOem, actualHandle, actualVersion = testExecutor.parseDataLinkArgument(expectedHandle)
-	assert.Empty(t, actualOem)
-	assert.Equal(t, expectedHandle, actualHandle)
-	assert.Empty(t, actualVersion)
-}
-
 func TestNewDk(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewDk(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 3, len(testCmd.Commands()))
+	assert.Equal(t, 4, len(testCmd.Commands()))
+}
+
+func Test_ParseDataLinkArgument(t *testing.T) {
+	var expectedOem = "oem"
+	var expectedHandle = "handle"
+	var expectedVersion = "version"
+
+	actualOem, actualHandle, actualVersion := ParseDataLinkArgument(
+		fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVersion))
+	assert.Equal(t, expectedOem, actualOem)
+	assert.Equal(t, expectedHandle, actualHandle)
+	assert.Equal(t, expectedVersion, actualVersion)
+	actualOem, actualHandle, actualVersion = ParseDataLinkArgument(
+		fmt.Sprintf("%s/%s", expectedOem, expectedHandle))
+	assert.Equal(t, expectedOem, actualOem)
+	assert.Equal(t, expectedHandle, actualHandle)
+	assert.Empty(t, actualVersion)
+	actualOem, actualHandle, actualVersion = ParseDataLinkArgument(
+		fmt.Sprintf("%s:%s", expectedHandle, expectedVersion))
+	assert.Empty(t, actualOem)
+	assert.Equal(t, expectedHandle, actualHandle)
+	assert.Equal(t, expectedVersion, actualVersion)
+	actualOem, actualHandle, actualVersion = ParseDataLinkArgument(expectedHandle)
+	assert.Empty(t, actualOem)
+	assert.Equal(t, expectedHandle, actualHandle)
+	assert.Empty(t, actualVersion)
 }
 
 func Test_newDataLinksWriter(t *testing.T) {
@@ -130,11 +125,11 @@ func Test_newDataLinksWriter(t *testing.T) {
 		if lb, err = yaml.Marshal(dataLinks); err == nil {
 			if _, err = fd.Write(lb); err == nil {
 				var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
-				var testWriter *dataLinksWriter
+				var testWriter *DataLinksWriter
 
 				filez.CloseSilently(fd)
 				testLedger.InitLogging()
-				testWriter = newDataLinksWriter(testLedger, testOutput)
+				testWriter = NewDataLinksWriter(testLedger, testOutput)
 				assert.Equal(t, &testLinks[0], testWriter.GetDataLink(testLinks[0].Oem, testLinks[0].Handle, testLinks[0].Version))
 				return
 			}
