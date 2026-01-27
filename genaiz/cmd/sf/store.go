@@ -11,6 +11,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/cmd/sf/store"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
@@ -29,8 +30,10 @@ type StoreExecutor struct {
 	innerStores   *config.ListOption
 	updatedStores []string
 
-	initTaskFactory      InitTaskFactory
-	listLinksTaskFactory ListLinksTaskFactory
+	initTaskFactory        InitTaskFactory
+	listLinksTaskFactory   ListLinksTaskFactory
+	syncLinksTaskFactory   SyncLinksTaskFactory
+	dataLinksWriterFactory dk.DataLinksWriterFactory
 }
 
 func (se *StoreExecutor) Add(fqdnv string) error {
@@ -84,6 +87,15 @@ func (se *StoreExecutor) Pretend() {
 	var workers []task.Worker
 
 	if se.addParams != nil {
+		var noValidation = se.Ledger.GetBool(se.optionNoValidation)
+
+		if !noValidation {
+			var syncConfigParams = se.makeSyncParams()
+			var dataLinkWriter = se.dataLinksWriterFactory(se.Ledger, syncConfigParams.GetConfigFile())
+
+			workers = append(workers, task.NewPretender(se.addParams, se.syncLinksTaskFactory(dataLinkWriter)))
+		}
+
 		workers = append(workers, task.NewPretender(se.addParams, se.listLinksTaskFactory()))
 		workers = append(workers, task.NewPretender(initParams, se.initTaskFactory(builder)))
 	} else {
@@ -101,6 +113,15 @@ func (se *StoreExecutor) Proceed() {
 	var workers []task.Worker
 
 	if se.addParams != nil {
+		var noValidation = se.Ledger.GetBool(se.optionNoValidation)
+
+		if !noValidation {
+			var syncConfigParams = se.makeSyncParams()
+			var dataLinkWriter = se.dataLinksWriterFactory(se.Ledger, syncConfigParams.GetConfigFile())
+
+			workers = append(workers, task.NewWorker(se.addParams, se.syncLinksTaskFactory(dataLinkWriter)))
+		}
+
 		workers = append(workers, task.NewWorker(se.addParams, se.listLinksTaskFactory()))
 		workers = append(workers, task.NewWorker(initParams, se.initTaskFactory(builder)))
 	} else if se.rmParams != nil {
@@ -170,8 +191,10 @@ func NewStoreExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, op
 			WithKeys(&schema.Genaiz.Function.Publish.DataStores).
 			BuildListOption(),
 
-		initTaskFactory:      layout.NewInitTask,
-		listLinksTaskFactory: broker.NewDataLinkFindTask,
+		initTaskFactory:        layout.NewInitTask,
+		listLinksTaskFactory:   broker.NewDataLinkFindTask,
+		syncLinksTaskFactory:   broker.NewDataLinkExportTask,
+		dataLinksWriterFactory: dk.NewDataLinksWriter,
 	}
 }
 

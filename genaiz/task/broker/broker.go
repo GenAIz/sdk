@@ -296,6 +296,12 @@ func (f Function) asIdentity() *shared.Identity {
 }
 
 func (f Function) toModel() *functionModel {
+	var sanitizedProps []PropSpec
+
+	for _, spec := range f.PropSpecs {
+		sanitizedProps = append(sanitizedProps, spec.Sanitize())
+	}
+
 	return &functionModel{
 		DataSources:     f.DataSources,
 		DataStores:      f.DataStores,
@@ -307,7 +313,7 @@ func (f Function) toModel() *functionModel {
 		Oem:             f.Oem,
 		OutboundProxies: f.OutboundProxies,
 		OutputPorts:     f.OutputPorts,
-		PropSpecs:       f.PropSpecs,
+		PropSpecs:       sanitizedProps,
 		ResultValues:    f.ResultValues,
 		Type:            f.Type,
 		Version:         f.Version,

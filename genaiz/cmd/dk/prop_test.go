@@ -66,11 +66,7 @@ func TestPropSpecExecutor_Add(t *testing.T) {
 			PropSpecOptions: &StubPropSpecOptions{buildPropSpec: &broker.PropSpec{
 				Key: expectedKey,
 			}},
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -114,11 +110,7 @@ func TestPropSpecExecutor_Add_Secret(t *testing.T) {
 				},
 				isSecret: true,
 			},
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -145,12 +137,8 @@ func TestPropSpecExecutor_Add_DataLinkBuildError(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			PropSpecOptions:   &StubPropSpecOptions{buildError: expectedError},
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			PropSpecOptions: &StubPropSpecOptions{buildError: expectedError},
+			BaseOptions:     makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -180,11 +168,7 @@ func TestPropSpecExecutor_Add_DataLinkDuplicated(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -203,11 +187,7 @@ func TestPropSpecExecutor_Add_DataLinkNotFound(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{}),
@@ -224,11 +204,7 @@ func TestPropSpecExecutor_Add_DataWriterError(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 	}
 
@@ -280,11 +256,7 @@ func TestPropSpecExecutor_Edit(t *testing.T) {
 			PropSpecOptions: &StubPropSpecOptions{buildPropSpec: &broker.PropSpec{
 				Key: expectedKey,
 			}},
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -317,12 +289,8 @@ func TestPropSpecExecutor_Edit_DataLinkBuildError(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			PropSpecOptions:   &StubPropSpecOptions{buildError: expectedError},
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			PropSpecOptions: &StubPropSpecOptions{buildError: expectedError},
+			BaseOptions:     makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -341,11 +309,7 @@ func TestPropSpecExecutor_Edit_DataLinkNotFound(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{}),
@@ -362,11 +326,7 @@ func TestPropSpecExecutor_Edit_DataWriterError(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 	}
 
@@ -398,11 +358,7 @@ func TestPropSpecExecutor_Edit_PropSpecNotFound(t *testing.T) {
 			},
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -446,11 +402,7 @@ func TestPropSpecExecutor_Edit_SecretSpec(t *testing.T) {
 			PropSpecOptions: &StubPropSpecOptions{buildPropSpec: &broker.PropSpec{
 				Key: expectedKey,
 			}},
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -495,11 +447,7 @@ func TestPropSpecExecutor_Edit_SecretSpecError(t *testing.T) {
 				Key:   expectedKey,
 				Value: "someValue",
 			}},
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -519,8 +467,10 @@ func TestPropSpecExecutor_Pretend(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: BaseOptions{
+				optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
+				optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			},
 		},
 
 		editedLink: &broker.DataLink{
@@ -553,8 +503,10 @@ func TestPropSpecExecutor_Pretend_InvalidConfigType(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: BaseOptions{
+				optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
+				optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			},
 		},
 	}
 
@@ -574,8 +526,10 @@ func TestPropSpecExecutor_Proceed(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: BaseOptions{
+				optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
+				optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			},
 		},
 
 		editedLink: &broker.DataLink{
@@ -608,8 +562,10 @@ func TestPropSpecExecutor_Proceed_InvalidConfigType(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: BaseOptions{
+				optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
+				optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			},
 		},
 	}
 
@@ -653,11 +609,53 @@ func TestPropSpecExecutor_Remove(t *testing.T) {
 			PropSpecOptions: &StubPropSpecOptions{buildPropSpec: &broker.PropSpec{
 				Key: expectedKey,
 			}},
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
+		},
+
+		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
+	}
+
+	testViper.Set(testExecutor.optionOem.Key, testLink.Oem)
+	testViper.Set(testExecutor.optionVersion.Key, testLink.Version)
+	assert.NoError(t, testExecutor.Remove(testLink.Handle, expectedKey))
+	actual := testOutput.String()
+	assert.Contains(t, actual, expectedKey)
+}
+
+func TestPropSpecExecutor_Remove_Secret(t *testing.T) {
+	var expectedKey = "expectedKey"
+	var testOutput = new(bytes.Buffer)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithOutput(io.Writer(testOutput)).
+		Build()
+	var testLink = &broker.DataLink{
+		Handle:  "testHandle",
+		Oem:     "testOem",
+		Version: "testVersion",
+		SecretSpecs: []broker.PropSpec{
+			{
+				Key: expectedKey,
+			},
+		},
+	}
+	var testExecutor = &PropSpecExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+			Cli: &Cli{
+				BaseCli: cli.BaseCli{
+					Dry: func(ledger *config.Ledger) bool {
+						return true
+					},
+				},
+			},
+		},
+		PropSpecOptions: &PropSpecOptions{
+			PropSpecOptions: &StubPropSpecOptions{buildPropSpec: &broker.PropSpec{
+				Key: expectedKey,
+			}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testLink}),
@@ -678,11 +676,7 @@ func TestPropSpecExecutor_Remove_DataLinkNotFound(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 
 		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{}),
@@ -699,11 +693,7 @@ func TestPropSpecExecutor_Remove_DataWriterError(t *testing.T) {
 			Ledger: testLedger,
 		},
 		PropSpecOptions: &PropSpecOptions{
-			optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-			optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-			optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-			optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-			optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+			BaseOptions: makeTestBaseOptions(),
 		},
 	}
 
@@ -754,11 +744,21 @@ func TestNewProp(t *testing.T) {
 	assert.Equal(t, 3, len(testCmd.Commands()))
 }
 
-func newDataLinksWriterTestFactory(current []broker.DataLink) dataLinksWriterFactory {
-	return func(ledger *config.Ledger, s string) *dataLinksWriter {
+func makeTestBaseOptions() BaseOptions {
+	return BaseOptions{
+		optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
+		optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
+		optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
+		optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
+		optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+	}
+}
+
+func newDataLinksWriterTestFactory(current []broker.DataLink) DataLinksWriterFactory {
+	return func(ledger *config.Ledger, s string) *DataLinksWriter {
 		var reader = &config.DataLinksReader{}
 
-		return &dataLinksWriter{
+		return &DataLinksWriter{
 			DataLinksWriter: &config.DataLinksWriter{
 				DataLinksReader: *reader.WithCurrent(current),
 			},

@@ -285,9 +285,9 @@ func newCreateLinkTaskPretendCapture(capture *broker.DataLinkParams) CreateLinkT
 	}
 }
 
-func newDataLinksWriterFactory(stubLink *broker.DataLink) dataLinksWriterFactory {
-	return func(*config.Ledger, string) *dataLinksWriter {
-		var stub = &dataLinksWriter{
+func newDataLinksWriterFactory(stubLink *broker.DataLink) DataLinksWriterFactory {
+	return func(*config.Ledger, string) *DataLinksWriter {
+		var stub = &DataLinksWriter{
 			DataLinksWriter: config.NewDataLinkWriter(),
 		}
 

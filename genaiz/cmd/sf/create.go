@@ -50,45 +50,60 @@ func (ce *CreateExecutor) Display() {
 }
 
 func (ce *CreateExecutor) Pretend() {
-	var createParams = ce.makeCreateParams()
-	var initParams = makeInitParams(ce.Ledger, ce.InitOptions)
-	var recipeName = ce.Ledger.GetString(ce.optionRecipe)
-	var plan = task.NewPlan("Create", ce.Ledger.Logger)
-	var builder = ce.makeCreateBuilder(ce.Ledger, ce.Cli)
-	var workers []task.Worker
+	var createParams *layout.CreateParams
 
-	ce.Ledger.DisplayChangeDir()
-	workers = append(workers, task.NewPretender(createParams, ce.createTaskFactory()))
+	var err error
 
-	if recipeName != "" {
-		var recipeParams = ce.makeRecipeParams(recipeName, ce.FolderPath)
+	if createParams, err = ce.makeCreateParams(); err == nil {
+		var initParams = newInitParams(*createParams, ce.Ledger, ce.InitOptions)
+		var recipeName = ce.Ledger.GetString(ce.optionRecipe)
+		var plan = task.NewPlan("Create", ce.Ledger.Logger)
+		var builder = ce.makeCreateBuilder(ce.Ledger, ce.Cli)
+		var workers []task.Worker
 
-		workers = append(workers, task.NewPretender(recipeParams, ce.recipeTaskFactory(ce.Ledger.TemplatePaths...)))
+		ce.Ledger.DisplayChangeDir()
+		workers = append(workers, task.NewPretender(createParams, ce.createTaskFactory()))
+
+		if recipeName != "" {
+			var recipeParams = ce.makeRecipeParams(recipeName, ce.FolderPath)
+
+			workers = append(workers, task.NewPretender(recipeParams, ce.recipeTaskFactory(ce.Ledger.TemplatePaths...)))
+		}
+
+		workers = append(workers, task.NewPretender(initParams, ce.initTaskFactory(builder)))
+		plan.Sequence(workers...)
+		return
 	}
 
-	workers = append(workers, task.NewPretender(initParams, ce.initTaskFactory(builder)))
-	plan.Sequence(workers...)
+	lang.HandleExit(err)
 }
 
 func (ce *CreateExecutor) Proceed() {
-	var builder = ce.makeCreateBuilder(ce.Ledger, ce.Cli)
-	var createParams = ce.makeCreateParams()
-	var initParams = makeInitParams(ce.Ledger, ce.InitOptions)
-	var recipeName = ce.Ledger.GetString(ce.optionRecipe)
-	var plan = task.NewPlan("Create", ce.Ledger.Logger)
-	var workers = []task.Worker{
-		task.NewWorker(createParams, ce.createTaskFactory()),
+	var createParams *layout.CreateParams
+	var err error
+
+	if createParams, err = ce.makeCreateParams(); err == nil {
+		var initParams = newInitParams(*createParams, ce.Ledger, ce.InitOptions)
+		var builder = ce.makeCreateBuilder(ce.Ledger, ce.Cli)
+		var recipeName = ce.Ledger.GetString(ce.optionRecipe)
+		var plan = task.NewPlan("Create", ce.Ledger.Logger)
+		var workers = []task.Worker{
+			task.NewWorker(createParams, ce.createTaskFactory()),
+		}
+
+		if recipeName != "" {
+			var recipeParams = ce.makeRecipeParams(recipeName, ce.FolderPath)
+
+			workers = append(workers, task.NewWorker(recipeParams, ce.recipeTaskFactory(ce.Ledger.TemplatePaths...)))
+		}
+
+		workers = append(workers, task.NewWorker(initParams, ce.initTaskFactory(builder)))
+		plan.PrintReportsOnly = true
+		plan.Sequence(workers...)
+		return
 	}
 
-	if recipeName != "" {
-		var recipeParams = ce.makeRecipeParams(recipeName, ce.FolderPath)
-
-		workers = append(workers, task.NewWorker(recipeParams, ce.recipeTaskFactory(ce.Ledger.TemplatePaths...)))
-	}
-
-	workers = append(workers, task.NewWorker(initParams, ce.initTaskFactory(builder)))
-	plan.PrintReportsOnly = true
-	plan.Sequence(workers...)
+	lang.HandleExit(err)
 }
 
 func (ce *CreateExecutor) makeCreateBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
@@ -111,17 +126,16 @@ func (ce *CreateExecutor) makeCreateBuilder(ledger *config.Ledger, sfCli *Cli) l
 	return result.WithTag(dockerTag)
 }
 
-func (ce *CreateExecutor) makeCreateParams() *layout.CreateParams {
-	var configType, err = ce.Ledger.GetConfigType(ce.optionConfigType)
+func (ce *CreateExecutor) makeCreateParams() (*layout.CreateParams, error) {
+	var params *layout.CreateParams
+	var err error
 
-	lang.HandleExit(err)
-	return &layout.CreateParams{
-		ConfigParams: shared.ConfigParams{
-			ConfigName:   ce.Ledger.ConfigName,
-			ConfigType:   configType,
-			ConfigFolder: ce.FolderPath,
-		},
+	if params, err = newCreateParams(ce.Ledger, ce.optionConfigType); err == nil {
+		params.ConfigFolder = ce.FolderPath
+		return params, nil
 	}
+
+	return nil, err
 }
 
 func (ce *CreateExecutor) makeRecipeParams(recipeName string, folderPath string) *layout.RecipeParams {
@@ -282,4 +296,20 @@ func NewCreateOptions(sfCli *Cli) *CreateOptions {
 			WithKeys(&schema.Genaiz.Function.Create.Recipe).
 			BuildStringOption(),
 	}
+}
+
+func newCreateParams(ledger *config.Ledger, configTypeOption *config.StringOption) (*layout.CreateParams, error) {
+	var configType *shared.ConfigType
+	var err error
+
+	if configType, err = ledger.GetConfigType(configTypeOption); err == nil {
+		return &layout.CreateParams{
+			ConfigParams: shared.ConfigParams{
+				ConfigType: configType,
+				ConfigName: ledger.ConfigName,
+			},
+		}, nil
+	}
+
+	return nil, err
 }

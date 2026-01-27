@@ -106,9 +106,10 @@ func (ro *RunnerOptions) allDefiners() []config.Definer {
 func New(ledger *config.Ledger) *cobra.Command {
 	var options = NewRunnerOptions()
 	var root = &cobra.Command{
-		Use:     "genaiz",
-		Short:   "Genaiz SmartFunction Toolkit",
-		Version: version.GetVersion(),
+		Use:           "genaiz",
+		Short:         "Genaiz SmartFunction Toolkit",
+		Version:       version.GetVersion(),
+		SilenceErrors: true,
 	}
 
 	ledger.LoggerFactory = func(ledger *config.Ledger) *logrus.Logger {

@@ -11,7 +11,7 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
-type dataLinksWriterFactory func(*config.Ledger, string) *dataLinksWriter
+type DataLinksWriterFactory func(*config.Ledger, string) *DataLinksWriter
 
 type BaseExecutor struct {
 	Cli     *Cli
@@ -48,7 +48,61 @@ func (pe BaseExecutor) makeConfigParams(typeOption *config.StringOption, userOpt
 	return nil, err
 }
 
-func (pe BaseExecutor) parseDataLinkArgument(linkArgument string) (string, string, string) {
+type BaseOptions struct {
+	optionConfigType  *config.StringOption
+	optionHandle      *config.StringOption
+	optionOem         *config.StringOption
+	optionUserDefined *config.BoolOption
+	optionVersion     *config.StringOption
+}
+
+func (bo BaseOptions) allDefiners() []config.Definer {
+	return []config.Definer{
+		bo.optionConfigType,
+		bo.optionOem,
+		bo.optionVersion,
+		bo.optionUserDefined,
+	}
+}
+
+func (bo BaseOptions) setOptions(ledger *config.Ledger, fqdnv string) {
+	var oem, handle, version = ParseDataLinkArgument(fqdnv)
+
+	ledger.OverrideString(bo.optionHandle, handle)
+	ledger.OverrideString(bo.optionOem, oem)
+	ledger.OverrideString(bo.optionVersion, version)
+}
+
+type Cli struct {
+	cli.BaseCli
+}
+
+func NewDk(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Decisive) *cobra.Command {
+	var dkCli = NewDkCli(confirm, dry, pretend)
+	var dkCmd = &cobra.Command{
+		Use:     "datalink",
+		Aliases: []string{"dk"},
+		Short:   "Genaiz Data Link Toolkit",
+	}
+
+	dkCmd.AddCommand(NewCreate(ledger, dkCli))
+	dkCmd.AddCommand(NewProp(ledger, dkCli))
+	dkCmd.AddCommand(NewPublish(ledger, dkCli))
+	dkCmd.AddCommand(NewSync(ledger, dkCli))
+	return dkCmd
+}
+
+func NewDkCli(confirm cli.Interactive, dry, pretend cli.Decisive) *Cli {
+	return &Cli{
+		BaseCli: cli.BaseCli{
+			Confirm: confirm,
+			Dry:     dry,
+			Pretend: pretend,
+		},
+	}
+}
+
+func ParseDataLinkArgument(linkArgument string) (string, string, string) {
 	var oem, handle, version string
 
 	if linkArgument != "" {
@@ -76,40 +130,12 @@ func (pe BaseExecutor) parseDataLinkArgument(linkArgument string) (string, strin
 	return oem, handle, version
 }
 
-type Cli struct {
-	cli.BaseCli
-}
-
-func NewDk(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Decisive) *cobra.Command {
-	var dkCli = NewDkCli(confirm, dry, pretend)
-	var dkCmd = &cobra.Command{
-		Use:     "datalink",
-		Aliases: []string{"dk"},
-		Short:   "Genaiz Data Link Toolkit",
-	}
-
-	dkCmd.AddCommand(NewCreate(ledger, dkCli))
-	dkCmd.AddCommand(NewProp(ledger, dkCli))
-	dkCmd.AddCommand(NewPublish(ledger, dkCli))
-	return dkCmd
-}
-
-func NewDkCli(confirm cli.Interactive, dry, pretend cli.Decisive) *Cli {
-	return &Cli{
-		BaseCli: cli.BaseCli{
-			Confirm: confirm,
-			Dry:     dry,
-			Pretend: pretend,
-		},
-	}
-}
-
-type dataLinksWriter struct {
+type DataLinksWriter struct {
 	*config.DataLinksWriter
 }
 
-func newDataLinksWriter(ledger *config.Ledger, output string) *dataLinksWriter {
-	return &dataLinksWriter{
+func NewDataLinksWriter(ledger *config.Ledger, output string) *DataLinksWriter {
+	return &DataLinksWriter{
 		DataLinksWriter: config.NewDataLinkWriter().
 			Read(ledger, output),
 	}

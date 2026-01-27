@@ -11,6 +11,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/cmd/sf/source"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
@@ -29,8 +30,10 @@ type SourceExecutor struct {
 	innerSources   *config.ListOption
 	updatedSources []string
 
-	initTaskFactory      InitTaskFactory
-	listLinksTaskFactory ListLinksTaskFactory
+	initTaskFactory        InitTaskFactory
+	listLinksTaskFactory   ListLinksTaskFactory
+	syncLinksTaskFactory   SyncLinksTaskFactory
+	dataLinksWriterFactory dk.DataLinksWriterFactory
 }
 
 func (se *SourceExecutor) Add(fqdnv string) error {
@@ -84,6 +87,15 @@ func (se *SourceExecutor) Pretend() {
 	var workers []task.Worker
 
 	if se.addParams != nil {
+		var noValidation = se.Ledger.GetBool(se.optionNoValidation)
+
+		if !noValidation {
+			var syncConfigParams = se.makeSyncParams()
+			var dataLinkWriter = se.dataLinksWriterFactory(se.Ledger, syncConfigParams.GetConfigFile())
+
+			workers = append(workers, task.NewPretender(se.addParams, se.syncLinksTaskFactory(dataLinkWriter)))
+		}
+
 		workers = append(workers, task.NewPretender(se.addParams, se.listLinksTaskFactory()))
 		workers = append(workers, task.NewPretender(initParams, se.initTaskFactory(builder)))
 	} else {
@@ -95,12 +107,21 @@ func (se *SourceExecutor) Pretend() {
 }
 
 func (se *SourceExecutor) Proceed() {
+	var plan = task.NewPlan("DataSource", se.Ledger.Logger)
 	var builder = makeInitBuilder(se.Ledger, se.Cli)
 	var initParams = se.makeInitParams()
-	var plan = task.NewPlan("DataSource", se.Ledger.Logger)
 	var workers []task.Worker
 
 	if se.addParams != nil {
+		var noValidation = se.Ledger.GetBool(se.optionNoValidation)
+
+		if !noValidation {
+			var syncConfigParams = se.makeSyncParams()
+			var dataLinkWriter = se.dataLinksWriterFactory(se.Ledger, syncConfigParams.GetConfigFile())
+
+			workers = append(workers, task.NewWorker(se.addParams, se.syncLinksTaskFactory(dataLinkWriter)))
+		}
+
 		workers = append(workers, task.NewWorker(se.addParams, se.listLinksTaskFactory()))
 		workers = append(workers, task.NewWorker(initParams, se.initTaskFactory(builder)))
 	} else if se.rmParams != nil {
@@ -170,8 +191,10 @@ func NewSourceExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, o
 			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
 			BuildListOption(),
 
-		initTaskFactory:      layout.NewInitTask,
-		listLinksTaskFactory: broker.NewDataLinkFindTask,
+		initTaskFactory:        layout.NewInitTask,
+		listLinksTaskFactory:   broker.NewDataLinkFindTask,
+		syncLinksTaskFactory:   broker.NewDataLinkExportTask,
+		dataLinksWriterFactory: dk.NewDataLinksWriter,
 	}
 }
 

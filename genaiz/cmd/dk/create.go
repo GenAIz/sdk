@@ -21,11 +21,11 @@ type CreateExecutor struct {
 
 	linkArgument           string
 	createLinkTaskFactory  CreateLinkTaskFactory
-	dataLinksWriterFactory dataLinksWriterFactory
+	dataLinksWriterFactory DataLinksWriterFactory
 }
 
 func (ce CreateExecutor) Display() {
-	ce.initDataLinkOptions()
+	ce.initOptions(ce.Ledger, ce.linkArgument)
 	ce.Ledger.DisplayOptionsWithMap(&map[string]string{
 		"folder": ce.getConfigPath(ce.optionUserDefined),
 	},
@@ -70,17 +70,8 @@ func (ce CreateExecutor) Proceed() {
 	lang.HandleExit(err)
 }
 
-func (ce CreateExecutor) initDataLinkOptions() {
-	var oem, handle, version = ce.parseDataLinkArgument(ce.linkArgument)
-
-	ce.Ledger.OverrideString(ce.optionHandle, handle)
-	ce.Ledger.InitValue(ce.optionName, handle)
-	ce.Ledger.OverrideString(ce.optionOem, oem)
-	ce.Ledger.OverrideString(ce.optionVersion, version)
-}
-
 func (ce CreateExecutor) makeDataLinkParams(configParams shared.ConfigParams) *broker.DataLinkParams {
-	ce.initDataLinkOptions()
+	ce.initOptions(ce.Ledger, ce.linkArgument)
 	return &broker.DataLinkParams{
 		Broker: broker.Broker{
 			AuthFile: ce.Ledger.AuthFile,
@@ -97,25 +88,25 @@ func (ce CreateExecutor) makeDataLinkParams(configParams shared.ConfigParams) *b
 }
 
 type CreateOptions struct {
-	optionConfigType  *config.StringOption
+	BaseOptions
 	optionDescription *config.StringOption
-	optionHandle      *config.StringOption
 	optionName        *config.StringOption
-	optionOem         *config.StringOption
-	optionUserDefined *config.BoolOption
-	optionVersion     *config.StringOption
 }
 
 func (co CreateOptions) allDefiners() []config.Definer {
-	// Handle is not registered because it's a mandatory positional argument
-	return []config.Definer{
-		co.optionConfigType,
-		co.optionDescription,
-		co.optionName,
-		co.optionOem,
-		co.optionUserDefined,
-		co.optionVersion,
-	}
+	var definers = co.BaseOptions.allDefiners()
+
+	definers = append(definers, co.optionDescription, co.optionName)
+	return definers
+}
+
+func (co CreateOptions) initOptions(ledger *config.Ledger, linkArgument string) {
+	var oem, handle, version = ParseDataLinkArgument(linkArgument)
+
+	ledger.OverrideString(co.optionHandle, handle)
+	ledger.InitValue(co.optionName, handle)
+	ledger.OverrideString(co.optionOem, oem)
+	ledger.OverrideString(co.optionVersion, version)
 }
 
 func NewCreate(ledger *config.Ledger, dkCli *Cli) *cobra.Command {
@@ -161,38 +152,40 @@ func NewCreateExecutor(cmd *cobra.Command, ledger *config.Ledger, dkCli *Cli, ar
 
 		linkArgument:           arg,
 		createLinkTaskFactory:  broker.NewDataLinkCreateTask,
-		dataLinksWriterFactory: newDataLinksWriter,
+		dataLinksWriterFactory: NewDataLinksWriter,
 	}
 }
 
 func NewCreateOptions() *CreateOptions {
 	return &CreateOptions{
-		optionConfigType: cli.Options.Configs.Type().
-			WithKeys(&schema.Genaiz.DataLink.Create.ConfigType).
-			WithDefaultValue("yaml").
-			BuildStringOption(),
+		BaseOptions: BaseOptions{
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.DataLink.Create.ConfigType).
+				WithDefaultValue("yaml").
+				BuildStringOption(),
+			optionHandle: cli.Options.DataLinks.Handle().
+				WithKeys(&schema.Genaiz.DataLink.Create.Handle).
+				WithValidator(config.Validation.Handle).
+				BuildStringOption(),
+			optionOem: cli.Options.DataLinks.Oem().
+				WithKeys(&schema.Genaiz.DataLink.Create.Oem).
+				WithValidator(config.Validation.Oem).
+				BuildStringOption(),
+			optionUserDefined: cli.Options.DataLinks.UserDefined().
+				WithKeys(&schema.Genaiz.DataLink.Create.UserDefined).
+				WithDefaultValue("True").
+				BuildBoolOption(),
+			optionVersion: cli.Options.DataLinks.Version().
+				WithKeys(&schema.Genaiz.DataLink.Create.Version).
+				WithValidator(config.Validation.Version).
+				WithDefaultValue("1.0.0").
+				BuildStringOption(),
+		},
 		optionDescription: cli.Options.DataLinks.Description().
 			WithKeys(&schema.Genaiz.DataLink.Create.Description).
 			BuildStringOption(),
-		optionHandle: cli.Options.DataLinks.Handle().
-			WithKeys(&schema.Genaiz.DataLink.Create.Handle).
-			WithValidator(config.Validation.Handle).
-			BuildStringOption(),
 		optionName: cli.Options.DataLinks.Name().
 			WithKeys(&schema.Genaiz.DataLink.Create.Name).
-			BuildStringOption(),
-		optionOem: cli.Options.DataLinks.Oem().
-			WithKeys(&schema.Genaiz.DataLink.Create.Oem).
-			WithValidator(config.Validation.Oem).
-			BuildStringOption(),
-		optionUserDefined: cli.Options.DataLinks.UserDefined().
-			WithKeys(&schema.Genaiz.DataLink.Create.UserDefined).
-			WithDefaultValue("True").
-			BuildBoolOption(),
-		optionVersion: cli.Options.DataLinks.Version().
-			WithKeys(&schema.Genaiz.DataLink.Create.Version).
-			WithValidator(config.Validation.Version).
-			WithDefaultValue("1.0.0").
 			BuildStringOption(),
 	}
 }

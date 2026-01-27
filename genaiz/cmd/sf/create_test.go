@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
@@ -59,6 +60,34 @@ func TestCreatorExecutor_Display(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionRecipe.Param+`:[\s\t]*`+expectedRecipe), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionType.Param+`:[\s\t]*`+layout.FunctionTypeFunction), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionVersion.Param+`:[\s\t]*`+expectedVersion), actual)
+}
+
+func TestCreateExecutor_Pretend_InvalidConfigType(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var calledCreate, calledInit, calledRecipe bool
+	var testCli = NewSfCli(nil, nil, nil)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &CreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+			Cli:    testCli,
+		},
+		CreateOptions: NewCreateOptions(testCli),
+
+		initTaskFactory:   newInitTaskPretendStub(&calledInit),
+		createTaskFactory: newCreateTaskPretendStub(&calledCreate),
+		recipeTaskFactory: newRecipeTaskPretendStub(&calledRecipe),
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.optionConfigType.Key, "invalidType")
+	testExecutor.Pretend()
+	assert.False(t, calledCreate)
+	assert.False(t, calledRecipe)
+	assert.False(t, calledInit)
+	assert.NotEmpty(t, patch.CalledWith)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
@@ -118,6 +147,30 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 	assert.True(t, calledCreate)
 	assert.True(t, calledRecipe)
 	assert.True(t, calledInit)
+}
+
+func TestCreateExecutor_Proceed_InvalidConfigType(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var calledCreate, calledInit, calledRecipe bool
+	var testCli = NewSfCli(nil, nil, nil)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &CreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+			Cli:    testCli,
+		},
+		CreateOptions: NewCreateOptions(testCli),
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.optionConfigType.Key, "invalidType")
+	testExecutor.Proceed()
+	assert.False(t, calledCreate)
+	assert.False(t, calledRecipe)
+	assert.False(t, calledInit)
+	assert.NotEmpty(t, patch.CalledWith)
+	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {

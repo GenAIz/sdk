@@ -23,12 +23,19 @@ import (
 
 type stubDataLinkClient struct {
 	client
+	exportDataLink       *DataLink
+	exportDataLinkError  error
 	findDataLink         *DataLink
 	findDataLinkError    error
 	listDataLink         []DataLink
 	listDataLinkError    error
 	publishDataLink      *DataLink
 	publishDataLinkError error
+}
+
+func (sdc *stubDataLinkClient) ExportDataLink(oem, handle, version, sequence string) (*DataLink, error) {
+	_, _, _, _ = oem, handle, version, sequence
+	return sdc.exportDataLink, sdc.exportDataLinkError
 }
 
 func (sdc *stubDataLinkClient) FindDataLink(oem, handle, version string) (*DataLink, error) {
@@ -231,6 +238,27 @@ func TestDataLinkParam_isValid(t *testing.T) {
 	assert.True(t, testParams.isValid())
 }
 
+func TestDataLinkParam_publishFqdn(t *testing.T) {
+	var testParam = &DataLinkParams{}
+	var actualOem, actualHandle, actualVersion = testParam.publishedFqdn()
+
+	assert.Empty(t, actualOem, actualHandle, actualVersion)
+	testParam.DataLink = &DataLink{
+		Oem:     "expectedOem",
+		Handle:  "expectedHandle",
+		Version: "expectedVersion",
+	}
+	actualOem, actualHandle, actualVersion = testParam.publishedFqdn()
+	assert.Equal(t, testParam.DataLink.Oem, actualOem)
+	assert.Equal(t, testParam.DataLink.Handle, actualHandle)
+	assert.Equal(t, testParam.DataLink.Version, actualVersion)
+	testParam.NewVersion = "expectedNewVersion"
+	actualOem, actualHandle, actualVersion = testParam.publishedFqdn()
+	assert.Equal(t, testParam.DataLink.Oem, actualOem)
+	assert.Equal(t, testParam.DataLink.Handle, actualHandle)
+	assert.Equal(t, testParam.NewVersion, actualVersion)
+}
+
 func TestNewDataLinkCreateTask(t *testing.T) {
 	var testTask = NewDataLinkCreateTask(nil)
 
@@ -247,6 +275,16 @@ func TestNewDataLinkEditTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotEmpty(t, testTask.OnPrepare)
 	assert.NotEmpty(t, testTask.OnComplete)
+	assert.NotEmpty(t, testTask.OnPretend)
+}
+
+func TestNewDataLinkExportTask(t *testing.T) {
+	var testTask = NewDataLinkExportTask(nil)
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnPrepare)
+	assert.NotEmpty(t, testTask.OnComplete)
+	assert.NotEmpty(t, testTask.OnIncomplete)
 	assert.NotEmpty(t, testTask.OnPretend)
 }
 
@@ -387,7 +425,7 @@ func Test_handleDataLinkCreateContext_FileExists(t *testing.T) {
 
 	if fd, err := os.Create(filepath.Join(testDir, "Genaiz.json")); err == nil {
 		filez.CloseSilently(fd)
-		assert.ErrorIs(t, handleDataLinkCreateContext(testWriter, testParams, testState), shared.ErrorConfigFileExists)
+		assert.NoError(t, handleDataLinkCreateContext(testWriter, testParams, testState))
 	} else {
 		assert.Fail(t, err.Error())
 	}
@@ -805,6 +843,401 @@ func Test_handleDataLinkEditPretend_OutputUnknown(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleDataLinkEditPretend(nil, &DataLinkParams{}, testState), testState.Error)
+}
+
+func Test_handleDataLinkExportContext(t *testing.T) {
+	var testDir = t.TempDir()
+	var testHandle = "testHandle"
+	var testOem = "testOem"
+	var testVersion = "testVersion"
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigFolder: testDir,
+			ConfigName:   "Genaiz",
+			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+		},
+		DataLink: &DataLink{
+			Handle:  testHandle,
+			Oem:     testOem,
+			Version: testVersion,
+		},
+	}
+
+	err := handleDataLinkExportContext(testParams, testState)
+	assert.True(t, errorz.IsPathError(err))
+}
+
+func Test_handleDataLinkExportContext_DirError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testHandle = "testHandle"
+	var testOem = "testOem"
+	var testVersion = "testVersion"
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigFolder: testDir,
+			ConfigName:   "Genaiz",
+			ConfigType:   lang.Ref(shared.ConfigTypeToml),
+		},
+		DataLink: &DataLink{
+			Handle:  testHandle,
+			Oem:     testOem,
+			Version: testVersion,
+		},
+	}
+
+	if err := os.MkdirAll(filepath.Join(testDir, "Genaiz.toml"), 0750); err == nil {
+		assert.ErrorIs(t, handleDataLinkExportContext(testParams, testState), shared.ErrorConfigFileInvalid)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleDataLinkExportContext_FileExists(t *testing.T) {
+	var testDir = t.TempDir()
+	var testHandle = "testHandle"
+	var testOem = "testOem"
+	var testVersion = "testVersion"
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigFolder: testDir,
+			ConfigName:   "Genaiz",
+			ConfigType:   lang.Ref(shared.ConfigTypeYaml),
+		},
+		DataLink: &DataLink{
+			Handle:  testHandle,
+			Oem:     testOem,
+			Version: testVersion,
+		},
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+		filez.CloseSilently(fd)
+		assert.NoError(t, handleDataLinkExportContext(testParams, testState))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleDataLinkExportContext_InvalidParams(t *testing.T) {
+	var testParams = &DataLinkParams{
+		DataLink: &DataLink{
+			Oem: "oem",
+		},
+	}
+
+	assert.ErrorIs(t, handleDataLinkExportContext(testParams, &task.State{}), errDataLinkInvalid)
+}
+
+func Test_handleDataLinkExportContext_OutputKnown(t *testing.T) {
+	var testState = &task.State{Output: "already known"}
+
+	assert.NoError(t, handleDataLinkExportContext(&DataLinkParams{}, testState))
+}
+
+func Test_handleDataLinkExportComplete(t *testing.T) {
+	var testDir = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var testWriter = &stubDataLinkWriter{}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: testDir,
+	}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			HostAddr: "testHost",
+		},
+		DataLink: &DataLink{
+			Handle:  "testHandle",
+			Oem:     "testOem",
+			Version: "testVersion",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{
+			exportDataLink: testParams.DataLink,
+		}
+
+		clt.AuthToken = "expectedToken"
+		clt.HostAddr = "expectedHostAddr"
+		return clt, nil
+	}
+
+	assert.NoError(t, handleDataLinkExportComplete(testWriter, testParams, testState))
+	assert.Equal(t, testDir, testWriter.writeOutput)
+	assert.Equal(t, 1, len(testWriter.dataLinks))
+	assert.Equal(t, testParams.DataLink, &testWriter.dataLinks[0])
+}
+
+func Test_handleDataLinkExportComplete_ClientError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testWriter = &stubDataLinkWriter{}
+	var testState = &task.State{Output: "known"}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, expectedError, handleDataLinkExportComplete(testWriter, testParams, testState))
+}
+
+func Test_handleDataLinkExportComplete_ExportError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var expectedToken = "expectedToken"
+	var expectedHostAddr = "expectedHost"
+	var testLink = &DataLink{
+		Handle:  "testHandle",
+		Oem:     "testOem",
+		Version: "testVersion",
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "known",
+	}
+	var testWriter = &stubDataLinkWriter{
+		dataLink: testLink,
+	}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataLink: testLink,
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{
+			exportDataLinkError: expectedError,
+		}
+
+		clt.AuthToken = expectedToken
+		clt.HostAddr = expectedHostAddr
+		return clt, nil
+	}
+
+	assert.ErrorIs(t, handleDataLinkExportComplete(testWriter, testParams, testState), expectedError)
+}
+
+func Test_handleDataLinkExportComplete_OutputUnknown(t *testing.T) {
+	assert.ErrorIs(t, handleDataLinkExportComplete(nil, &DataLinkParams{}, &task.State{}), shared.ErrorConfigFileInvalid)
+}
+
+func Test_handleDataLinkExportComplete_WithSequence(t *testing.T) {
+	var testDir = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var testWriter = &stubDataLinkWriter{}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: testDir,
+	}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			HostAddr: "testHost",
+		},
+		DataLink: &DataLink{
+			Handle:  "testHandle",
+			Oem:     "testOem",
+			Version: "testVersion",
+			Seq:     37,
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{
+			exportDataLink: testParams.DataLink,
+		}
+
+		clt.AuthToken = "expectedToken"
+		clt.HostAddr = "expectedHostAddr"
+		return clt, nil
+	}
+
+	assert.NoError(t, handleDataLinkExportComplete(testWriter, testParams, testState))
+	assert.Equal(t, testDir, testWriter.writeOutput)
+	assert.Equal(t, 1, len(testWriter.dataLinks))
+	assert.Equal(t, testParams.DataLink, &testWriter.dataLinks[0])
+	assert.Contains(t, testState.Reports[0], cast.ToString(testParams.DataLink.Seq))
+}
+
+func Test_handleDataLinkExportComplete_WriteError(t *testing.T) {
+	var testDir = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var expectedError = errors.New("expected")
+	var testWriter = &stubDataLinkWriter{writeError: expectedError}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: testDir,
+	}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			HostAddr: "testHost",
+		},
+		DataLink: &DataLink{
+			Handle:  "testHandle",
+			Oem:     "testOem",
+			Version: "testVersion",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{
+			exportDataLink: testParams.DataLink,
+		}
+
+		clt.AuthToken = "expectedToken"
+		clt.HostAddr = "expectedHostAddr"
+		return clt, nil
+	}
+
+	assert.ErrorIs(t, handleDataLinkExportComplete(testWriter, testParams, testState), expectedError)
+	assert.Equal(t, testDir, testWriter.writeOutput)
+	assert.Equal(t, 1, len(testWriter.dataLinks))
+	assert.Equal(t, testParams.DataLink, &testWriter.dataLinks[0])
+}
+
+func Test_handleDataLinkExportPretend(t *testing.T) {
+	var printedArgs []string
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {
+		for _, arg := range a {
+			printedArgs = append(printedArgs, cast.ToString(arg))
+		}
+	})
+	var expectedToken = "expectedToken"
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "known",
+	}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataLink: &DataLink{
+			Handle:  "testHandle",
+			Oem:     "testOem",
+			Version: "testVersion",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer patch.Unpatch()
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{}
+
+		clt.AuthToken = expectedToken
+		clt.HostAddr = "expectedHostAddr"
+		return clt, nil
+	}
+
+	assert.NoError(t, handleDataLinkExportPretend(testParams, testState))
+	assert.Contains(t, printedArgs, testParams.DataLink.Handle)
+	assert.Contains(t, printedArgs, testParams.DataLink.Oem)
+	assert.Contains(t, printedArgs, testParams.DataLink.Version)
+	assert.Contains(t, printedArgs, expectedToken)
+}
+
+func Test_handleDataLinkExportPretend_ClientError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{Output: "known"}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleDataLinkExportPretend(testParams, testState), expectedError)
+}
+
+func Test_handleDataLinkExportPretend_OutputUnknown(t *testing.T) {
+	var testState = &task.State{
+		Error: errors.New("expected"),
+	}
+
+	assert.ErrorIs(t, handleDataLinkExportPretend(&DataLinkParams{}, testState), testState.Error)
+}
+
+func Test_handleDataLinkExportPretend_WithSequence(t *testing.T) {
+	var printedArgs []string
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {
+		for _, arg := range a {
+			printedArgs = append(printedArgs, cast.ToString(arg))
+		}
+	})
+	var expectedToken = "expectedToken"
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "known",
+	}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataLink: &DataLink{
+			Handle:  "testHandle",
+			Oem:     "testOem",
+			Version: "testVersion",
+			Seq:     37,
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer patch.Unpatch()
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{}
+
+		clt.AuthToken = expectedToken
+		clt.HostAddr = "expectedHostAddr"
+		return clt, nil
+	}
+
+	assert.NoError(t, handleDataLinkExportPretend(testParams, testState))
+	assert.Contains(t, printedArgs, testParams.DataLink.Handle)
+	assert.Contains(t, printedArgs, testParams.DataLink.Oem)
+	assert.Contains(t, printedArgs, testParams.DataLink.Version)
+	assert.Contains(t, printedArgs, cast.ToString(testParams.DataLink.Seq))
+	assert.Contains(t, printedArgs, expectedToken)
 }
 
 func Test_handleDataLinkFindContext(t *testing.T) {
@@ -1292,6 +1725,52 @@ func Test_handleDataLinkPublishComplete_DataLinkError(t *testing.T) {
 	assert.ErrorIs(t, handleDataLinkPublishComplete(nil, &DataLinkParams{}, testTask), errDataLinkInvalid)
 }
 
+func Test_handleDataLinkPublishComplete_NewVersion(t *testing.T) {
+	var expectedToken = "expectedToken"
+	var expectedHostAddr = "expectedHost"
+	var expectedVersion = "expectedVersion"
+	var expectedLink = &DataLink{
+		Handle:  "testHandle",
+		Oem:     "testOem",
+		Version: expectedVersion,
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testWriter = &stubDataLinkWriter{
+		dataLink: expectedLink,
+	}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataLink: &DataLink{
+			Handle:  "testHandle",
+			Oem:     "testOem",
+			Version: "testVersion",
+		},
+		NewVersion: expectedVersion,
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{
+			publishDataLink: expectedLink,
+		}
+
+		clt.AuthToken = expectedToken
+		clt.HostAddr = expectedHostAddr
+		return clt, nil
+	}
+
+	assert.NoError(t, handleDataLinkPublishComplete(testWriter, testParams, testState))
+	assert.Equal(t, expectedLink, testState.Internal)
+}
+
 func Test_handleDataLinkPublishComplete_OutputKnown(t *testing.T) {
 	var testState = &task.State{
 		Output: "found a DataLink id",
@@ -1408,6 +1887,49 @@ func Test_handleDataLinkPublishPretend_DataLinkError(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleDataLinkPublishPretend(nil, &DataLinkParams{}, testTask), errDataLinkInvalid)
+}
+
+func Test_handleDataLinkPublishPretend_NewVersion(t *testing.T) {
+	var printedArgs []string
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {
+		for _, arg := range a {
+			printedArgs = append(printedArgs, cast.ToString(arg))
+		}
+	})
+	var testVersion = "testVersion"
+	var expectedVersion = "expectedVersion"
+	var testLink = &DataLink{
+		Handle:  "testHandle",
+		Oem:     "testOem",
+		Version: testVersion,
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testWriter = &stubDataLinkWriter{
+		dataLink: testLink,
+	}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataLink:   testLink,
+		NewVersion: expectedVersion,
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer patch.Unpatch()
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubDataLinkClient{}, nil
+	}
+
+	assert.NoError(t, handleDataLinkPublishPretend(testWriter, testParams, testState))
+	assert.Contains(t, printedArgs[1], expectedVersion)
+	assert.NotContains(t, printedArgs[1], testVersion)
 }
 
 func Test_handleDataLinkPublishPretend_OutputKnown(t *testing.T) {

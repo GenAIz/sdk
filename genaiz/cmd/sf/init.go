@@ -18,7 +18,6 @@ import (
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
-	"genaiz.com/genaiz/task/shared"
 )
 
 type InitWriter struct {
@@ -366,28 +365,41 @@ func (ie *InitExecutor) Display() {
 }
 
 func (ie *InitExecutor) Pretend() {
-	var params = ie.makeInitParams()
-	var builder = ie.makeInitBuilder()
+	if params, err := ie.makeInitParams(); err == nil {
+		var builder = ie.makeInitBuilder()
 
-	ie.Ledger.DisplayChangeDir()
-	ie.initTaskFactory(builder).Pretend(params, ie.Ledger.Logger)
+		ie.Ledger.DisplayChangeDir()
+		ie.initTaskFactory(builder).Pretend(params, ie.Ledger.Logger)
+	} else {
+		lang.HandleExit(err)
+	}
 }
 
 func (ie *InitExecutor) Proceed() {
-	var builder = ie.makeInitBuilder()
-	var params = ie.makeInitParams()
-	var plan = task.NewPlan("Init", ie.Ledger.Logger)
+	if params, err := ie.makeInitParams(); err == nil {
+		var builder = ie.makeInitBuilder()
+		var plan = task.NewPlan("Init", ie.Ledger.Logger)
 
-	plan.PrintReportsOnly = true
-	task.Single(plan, params, ie.initTaskFactory(builder))
+		plan.PrintReportsOnly = true
+		task.Single(plan, params, ie.initTaskFactory(builder))
+	} else {
+		lang.HandleExit(err)
+	}
 }
 
 func (ie *InitExecutor) makeInitBuilder() layout.ConfigWriter {
 	return makeInitBuilder(ie.Ledger, ie.Cli)
 }
 
-func (ie *InitExecutor) makeInitParams() *layout.InitParams {
-	return makeInitParams(ie.Ledger, ie.InitOptions)
+func (ie *InitExecutor) makeInitParams() (*layout.InitParams, error) {
+	var params *layout.CreateParams
+	var err error
+
+	if params, err = newCreateParams(ie.Ledger, ie.optionConfigType); err == nil {
+		return newInitParams(*params, ie.Ledger, ie.InitOptions), nil
+	}
+
+	return nil, err
 }
 
 type InitOptions struct {
@@ -524,38 +536,25 @@ func makeInitBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
 	return result.WithTag(dockerTag)
 }
 
-func makeInitParams(ledger *config.Ledger, initOptions *InitOptions) *layout.InitParams {
-	var archTypeStrings = ledger.GetList(initOptions.optionArches)
+func newInitParams(createParams layout.CreateParams, ledger *config.Ledger, initOptions *InitOptions) *layout.InitParams {
 	var functionTypeString = ledger.GetString(initOptions.optionType)
+	var functionType, _ = layout.FunctionTypes.FromString(functionTypeString)
+	var archTypeStrings = ledger.GetList(initOptions.optionArches)
 	var archTypes []layout.ArchType
-	var functionType *layout.FunctionType
-	var configType *shared.ConfigType
-	var err error
-
-	functionType, err = layout.FunctionTypes.FromString(functionTypeString)
-	lang.HandleExit(err)
-	configType, err = ledger.GetConfigType(initOptions.optionConfigType)
-	lang.HandleExit(err)
 
 	if len(archTypeStrings) > 0 {
-		archTypes, err = layout.ArchTypes.AllFromStrings(&archTypeStrings)
-		lang.HandleExit(err)
+		archTypes, _ = layout.ArchTypes.AllFromStrings(&archTypeStrings)
 	}
 
 	return &layout.InitParams{
-		CreateParams: layout.CreateParams{
-			ConfigParams: shared.ConfigParams{
-				ConfigType: configType,
-				ConfigName: ledger.ConfigName,
-			},
-		},
-		Arches:      archTypes,
-		Type:        *functionType,
-		Handle:      ledger.GetString(initOptions.optionHandle),
-		Name:        ledger.GetString(initOptions.optionName),
-		MountInput:  ledger.GetString(initOptions.optionMountInput),
-		MountOutput: ledger.GetString(initOptions.optionMountOutput),
-		OEM:         ledger.GetString(initOptions.optionOem),
-		Version:     ledger.GetString(initOptions.optionVersion),
+		CreateParams: createParams,
+		Arches:       archTypes,
+		Type:         *functionType,
+		Handle:       ledger.GetString(initOptions.optionHandle),
+		Name:         ledger.GetString(initOptions.optionName),
+		MountInput:   ledger.GetString(initOptions.optionMountInput),
+		MountOutput:  ledger.GetString(initOptions.optionMountOutput),
+		OEM:          ledger.GetString(initOptions.optionOem),
+		Version:      ledger.GetString(initOptions.optionVersion),
 	}
 }

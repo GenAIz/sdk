@@ -161,10 +161,60 @@ func TestSourceExecutor_Pretend_Add(t *testing.T) {
 		testLedger.WorkDir = testDir
 		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.optionNoValidation.Key, "True")
 		testExecutor.addParams = &broker.DataLinkParams{}
 		testExecutor.Pretend()
 		assert.True(t, calledInit)
 		assert.True(t, calledLinks)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestSourceExecutor_Pretend_AddWithValidation(t *testing.T) {
+	var calledInit, calledLinks bool
+	var syncCaptureParams broker.DataLinkParams
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = NewSfCli(nil, nil, nil)
+	var testOptions = NewSourceAddOptions(testCli)
+	var testExecutor = &SourceExecutor{
+		DataLinkExecutor: DataLinkExecutor{
+			BaseExecutor: BaseExecutor{
+				Cli:    testCli,
+				Ledger: testLedger,
+			},
+			DataLinkOptions: testOptions,
+		},
+
+		initTaskFactory:        newInitTaskPretendStub(&calledInit),
+		listLinksTaskFactory:   newListLinksTaskPretendStub(&calledLinks),
+		syncLinksTaskFactory:   newSyncLinkPretendCapture(&syncCaptureParams),
+		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{}),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
+		var expectedParams = &broker.DataLinkParams{
+			DataLink: &broker.DataLink{
+				Oem:     "expected.oem",
+				Handle:  "expected-handle",
+				Version: "1.0.9",
+			},
+		}
+
+		filez.CloseSilently(fd)
+		testLedger.InitLogging()
+		testLedger.WorkDir = testDir
+		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testExecutor.addParams = expectedParams
+		testExecutor.Pretend()
+		assert.True(t, calledInit)
+		assert.True(t, calledLinks)
+		assert.Equal(t, expectedParams.Oem, syncCaptureParams.Oem)
+		assert.Equal(t, expectedParams.Handle, syncCaptureParams.Handle)
+		assert.Equal(t, expectedParams.Version, syncCaptureParams.Version)
 	} else {
 		assert.Fail(t, err.Error())
 	}
@@ -243,11 +293,67 @@ func TestSourceExecutor_Proceed_Add(t *testing.T) {
 		testLedger.Logger = logrus.New()
 		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.optionNoValidation.Key, "True")
 		testExecutor.addParams = expectedParams
 		testExecutor.updatedSources = []string{expectedParams.ToString()}
 		testExecutor.Proceed()
 		assert.True(t, calledInit)
 		assert.True(t, calledLinks)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestSourceExecutor_Proceed_AddWithValidation(t *testing.T) {
+	var calledInit, calledLinks bool
+	var syncCaptureParams broker.DataLinkParams
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = NewSfCli(nil, nil, nil)
+	var testOptions = NewSourceAddOptions(testCli)
+	var expectedParams = &broker.DataLinkParams{
+		DataLink: &broker.DataLink{
+			Oem:     "expected.oem",
+			Handle:  "expected-handle",
+			Version: "1.0.9",
+		},
+	}
+	var testExecutor = &SourceExecutor{
+		DataLinkExecutor: DataLinkExecutor{
+			BaseExecutor: BaseExecutor{
+				Cli:    testCli,
+				Ledger: testLedger,
+			},
+			DataLinkOptions: testOptions,
+		},
+
+		initTaskFactory: newInitTaskCompleteStub(func(actual *layout.InitParams) {
+			calledInit = true
+			assert.Equal(t, []string{expectedParams.ToString()}, actual.DataSources)
+		}),
+		listLinksTaskFactory: newListLinksTaskCompleteStub(func(actual *broker.DataLinkParams) {
+			calledLinks = true
+			assert.Equal(t, expectedParams.ToString(), actual.ToString())
+		}),
+		syncLinksTaskFactory:   newSyncLinkCompleteCapture(&syncCaptureParams),
+		dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{}),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
+		filez.CloseSilently(fd)
+		testLedger.WorkDir = testDir
+		testLedger.Logger = logrus.New()
+		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
+		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testExecutor.addParams = expectedParams
+		testExecutor.updatedSources = []string{expectedParams.ToString()}
+		testExecutor.Proceed()
+		assert.True(t, calledInit)
+		assert.True(t, calledLinks)
+		assert.Equal(t, expectedParams.Oem, syncCaptureParams.Oem)
+		assert.Equal(t, expectedParams.Handle, syncCaptureParams.Handle)
+		assert.Equal(t, expectedParams.Version, syncCaptureParams.Version)
 	} else {
 		assert.Fail(t, err.Error())
 	}

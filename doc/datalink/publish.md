@@ -4,13 +4,11 @@
 genaiz dk publish [OEM/]HANDLE[:VERSION] [CONFIG_FOLDER] \
     --oem=OEM \ 
     --version=VERSION \
+    --published-version=VERSION \
     --config-type=YAML \
-    --user-defined
+    --user-defined \
 ```
 Publish will publish the structure of a locally defined datalink onto an Orchestrator. If the version is not yet present, it will be accepted, otherwise it needs to be incremented.
-
-> [!IMPORTANT]
-> The local version can only be modified manually for now. Or the structure of the datalink needs to be re-created
 
 ### Handle
 
@@ -27,6 +25,11 @@ Publish will publish the structure of a locally defined datalink onto an Orchest
 * if the version value is specified as part of the first argument, it will override the option regardless of validity.
 * if no version is specified the value will default to `1.0.0`
 * if the resolved version does not match a valid SemVer version string (see [version validity](index.md#version)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [datalink.publish.version] is invalid`
+
+### published-version
+
+* if specified, the datalink at [version](#version) will be published with a new version.
+* if the published version does not match a valid SemVer version string (see [version validity](index.md#version)), the command will return as error with the key of the field and the invalid value: `Error: value [...] for option [datalink.publish.publishedversion] is invalid`
 
 ### config_folder
 
