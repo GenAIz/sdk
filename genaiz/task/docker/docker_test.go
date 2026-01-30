@@ -18,6 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type stubDockerClient struct {
@@ -211,6 +213,26 @@ func TestNewClientState(t *testing.T) {
 	assert.Equal(t, 0, testState.GetImagesSize())
 	assert.False(t, testState.HasImages())
 	assert.Empty(t, testState.SelectLatestContainer())
+}
+
+func TestNewClientState_VarSpec(t *testing.T) {
+	var expectedKey = "testKey"
+	var expectedTaskState = &task.State{
+		Internal: shared.VarSpecTracking{
+			VarSpecs: []shared.VarSpec{
+				broker.PropSpec{
+					Key: expectedKey,
+				},
+			},
+		},
+	}
+	var testState = NewClientState(expectedTaskState)
+
+	assert.Empty(t, testState.containers)
+	assert.Empty(t, testState.images)
+	assert.Same(t, expectedTaskState, testState.state)
+	assert.NotEmpty(t, testState.VarSpecs)
+	assert.Equal(t, expectedKey, testState.VarSpecs[0].GetKey())
 }
 
 func TestClientState_DisplayString(t *testing.T) {

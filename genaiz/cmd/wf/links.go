@@ -177,14 +177,13 @@ func (le *LinksExecutor) findFunctionByPath(path string) (*broker.Function, erro
 	var err error
 
 	if vp, err = le.Ledger.FindPathConfig(path); err == nil {
-		var object = schema.Genaiz.Function.Publish.Internal.GetObject(vp)
-		var result = broker.MapFunction(object)
+		var function broker.Function
 
-		if result == nil {
+		if err = schema.Genaiz.Function.Publish.Internal.Unmarshall(vp, &function); err != nil {
 			return nil, fmt.Errorf("invalid function object found under path [%s]", path)
 		}
 
-		return result, nil
+		return &function, nil
 	}
 
 	return nil, err

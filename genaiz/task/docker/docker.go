@@ -17,6 +17,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/shared"
 )
 
 var (
@@ -74,6 +75,7 @@ func (cf *ClientFactory) Get() Client {
 }
 
 type clientTracking struct {
+	shared.VarSpecTracking
 	containers []container.Summary
 	images     []image.Summary
 }
@@ -143,17 +145,22 @@ func (cs *ClientState) SelectLatestContainer() *container.Summary {
 }
 
 func NewClientState(state *task.State) *ClientState {
-	var current, ok = state.Internal.(clientTracking)
 	var containers []container.Summary
 	var images []image.Summary
+	var varSpecs []shared.VarSpec
 
-	if ok {
-		containers = current.containers
-		images = current.images
+	if ct, ok := state.Internal.(clientTracking); ok {
+		containers = ct.containers
+		images = ct.images
+	} else if st, ok := state.Internal.(shared.VarSpecTracking); ok {
+		varSpecs = st.VarSpecs
 	}
 
 	return &ClientState{
 		clientTracking: clientTracking{
+			VarSpecTracking: shared.VarSpecTracking{
+				VarSpecs: varSpecs,
+			},
 			containers: containers,
 			images:     images,
 		},

@@ -10,7 +10,26 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/task"
 )
+
+type testSpec struct {
+	Key   string
+	Value string
+}
+
+func (t testSpec) GetDefaultValue() string {
+	return t.Value
+}
+
+func (t testSpec) GetKey() string {
+	return t.Key
+}
+
+func (t testSpec) Validate(value any) error {
+	_ = value
+	return nil
+}
 
 func TestIdentity_HasIdentifier(t *testing.T) {
 	var testIdentity = &Identity{}
@@ -185,4 +204,80 @@ func TestConfigParams_ResolveOptionalType_NoConfigNameFound(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, testParams.GetConfigPath()+"."+ConfigTypeJson, actual)
+}
+
+func TestNewVarSpecState(t *testing.T) {
+	var expectedPropSpec = testSpec{
+		Key:   "propKey",
+		Value: "propValue",
+	}
+	var testState = &task.State{
+		Internal: VarSpecTracking{
+			VarSpecs: []VarSpec{
+				expectedPropSpec,
+			},
+		},
+	}
+	var testVarSpecState = NewVarSpecState(testState)
+
+	assert.Equal(t, expectedPropSpec.Key, testVarSpecState.VarSpecs[0].GetKey())
+	assert.Equal(t, expectedPropSpec.Value, testVarSpecState.VarSpecs[0].GetDefaultValue())
+}
+
+func TestVarSpecState_AddSpecs(t *testing.T) {
+	var expectedPropSpec = testSpec{
+		Key:   "propKey",
+		Value: "propValue",
+	}
+	var testState = &task.State{}
+	var testVarSpecState = NewVarSpecState(testState)
+
+	testVarSpecState.AddSpecs([]VarSpec{expectedPropSpec})
+	assert.Equal(t, expectedPropSpec.Key, testVarSpecState.VarSpecs[0].GetKey())
+	assert.Equal(t, expectedPropSpec.Value, testVarSpecState.VarSpecs[0].GetDefaultValue())
+	actual := testState.Internal.(VarSpecTracking)
+	assert.Equal(t, expectedPropSpec.Key, actual.VarSpecs[0].GetKey())
+	assert.Equal(t, expectedPropSpec.Value, actual.VarSpecs[0].GetDefaultValue())
+}
+
+func TestVarSpecTracking_MergeSpecs(t *testing.T) {
+	var expectedPropSpec = testSpec{
+		Key:   "propKey",
+		Value: "propValue",
+	}
+	var expectedPropSpec2 = testSpec{
+		Key:   "propKey2",
+		Value: "propValue2",
+	}
+	var testState = &task.State{
+		Internal: VarSpecTracking{
+			VarSpecs: []VarSpec{
+				expectedPropSpec,
+			},
+		},
+	}
+	var testVarSpecState = NewVarSpecState(testState)
+
+	assert.NoError(t, testVarSpecState.MergeSpecs([]VarSpec{expectedPropSpec2}))
+	assert.Equal(t, expectedPropSpec.Key, testVarSpecState.VarSpecs[0].GetKey())
+	assert.Equal(t, expectedPropSpec.Value, testVarSpecState.VarSpecs[0].GetDefaultValue())
+	assert.Equal(t, expectedPropSpec2.Key, testVarSpecState.VarSpecs[1].GetKey())
+	assert.Equal(t, expectedPropSpec2.Value, testVarSpecState.VarSpecs[1].GetDefaultValue())
+}
+
+func TestVarSpecTracking_MergeSpecs_Duplicate(t *testing.T) {
+	var expectedPropSpec = testSpec{
+		Key:   "propKey",
+		Value: "propValue",
+	}
+	var testState = &task.State{
+		Internal: VarSpecTracking{
+			VarSpecs: []VarSpec{
+				expectedPropSpec,
+			},
+		},
+	}
+	var testVarSpecState = NewVarSpecState(testState)
+
+	assert.Error(t, testVarSpecState.MergeSpecs([]VarSpec{expectedPropSpec}))
 }

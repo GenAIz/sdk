@@ -259,6 +259,15 @@ func TestDataLinkParam_publishFqdn(t *testing.T) {
 	assert.Equal(t, testParam.NewVersion, actualVersion)
 }
 
+func TestNewDataLinkCollectTask(t *testing.T) {
+	var testTask = NewDataLinkCollectTask(nil)
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnPrepare)
+	assert.NotEmpty(t, testTask.OnComplete)
+	assert.NotEmpty(t, testTask.OnPretend)
+}
+
 func TestNewDataLinkCreateTask(t *testing.T) {
 	var testTask = NewDataLinkCreateTask(nil)
 
@@ -350,6 +359,208 @@ func Test_handleDataLinkAvailableError_InternalInvalid(t *testing.T) {
 
 func Test_handleDataLinkAvailableError_InternalNil(t *testing.T) {
 	assert.NoError(t, handleDataLinkAvailableError(&DataLinkParams{}, &task.State{}))
+}
+
+func Test_handleDataLinkCollectContext(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &DataLinkParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigFolder: t.TempDir(),
+			ConfigName:   "test",
+			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+		},
+		DataLink: &DataLink{
+			Oem:     "oem",
+			Handle:  "handle",
+			Version: "version",
+		},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.GetConfigPath()); err == nil {
+		defer filez.CloseSilently(fd)
+		assert.NoError(t, handleDataLinkCollectContext(testParams, testState))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleDataLinkCollectContext_NoConfig(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &DataLinkParams{
+		ConfigParams: shared.ConfigParams{
+			ConfigFolder: t.TempDir(),
+			ConfigName:   "test",
+			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+		},
+		DataLink: &DataLink{
+			Oem:     "oem",
+			Handle:  "handle",
+			Version: "version",
+		},
+	}
+
+	assert.NoError(t, handleDataLinkCollectContext(testParams, testState))
+}
+
+func Test_handleDataLinkCollectContext_NotValid(t *testing.T) {
+	var testParams = &DataLinkParams{
+		DataLink: &DataLink{
+			Oem:    "oem",
+			Handle: "handle",
+		},
+	}
+
+	assert.ErrorIs(t, handleDataLinkCollectContext(testParams, &task.State{}), errDataLinkInvalid)
+}
+
+func Test_handleDataLinkCollectContext_InputKnown(t *testing.T) {
+	var testState = &task.State{
+		Output: "known",
+	}
+
+	assert.NoError(t, handleDataLinkCollectContext(&DataLinkParams{}, testState))
+}
+
+func Test_handleDataLinkCollectComplete(t *testing.T) {
+	var expectedPropSpecKey = "propSpecKey"
+	var expectedPropSpecValue = "propSpecValue"
+	var expectedSecretSpecKey = "secretSpecKey"
+	var expectedSecretSpecValue = "secretSpecValue"
+	var expectedDataLink = &DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "version",
+		PropSpecs: []PropSpec{
+			{
+				Key:   expectedPropSpecKey,
+				Value: expectedPropSpecValue,
+			},
+		},
+		SecretSpecs: []PropSpec{
+			{
+				Key:   expectedSecretSpecKey,
+				Value: expectedSecretSpecValue,
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: filepath.Join(t.TempDir(), "test.yaml"),
+	}
+	var testWriter = &stubDataLinkWriter{
+		dataLink: expectedDataLink,
+	}
+
+	var testParams = &DataLinkParams{
+		DataLink: &DataLink{
+			Oem:     expectedDataLink.Oem,
+			Handle:  expectedDataLink.Handle,
+			Version: expectedDataLink.Version,
+		},
+	}
+
+	assert.NoError(t, handleDataLinkCollectComplete(testWriter, testParams, testState))
+	assert.NotNil(t, testState.Internal)
+	actual := testState.Internal.(shared.VarSpecTracking)
+	assert.Equal(t, expectedPropSpecKey, actual.VarSpecs[0].GetKey())
+	assert.Equal(t, expectedPropSpecValue, actual.VarSpecs[0].GetDefaultValue())
+	assert.Equal(t, expectedSecretSpecKey, actual.VarSpecs[1].GetKey())
+	assert.Equal(t, expectedSecretSpecValue, actual.VarSpecs[1].GetDefaultValue())
+}
+
+func Test_handleDataLinkCollectComplete_InputUnknown(t *testing.T) {
+	assert.ErrorIs(t, handleDataLinkCollectComplete(nil, &DataLinkParams{}, &task.State{}), shared.ErrorConfigFileInvalid)
+}
+
+func Test_handleDataLinkCollectComplete_LinkNotFound(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: filepath.Join(t.TempDir(), "test.yaml"),
+	}
+	var testWriter = &stubDataLinkWriter{}
+	var testParams = &DataLinkParams{
+		DataLink: &DataLink{
+			Oem:     "oem",
+			Handle:  "handle",
+			Version: "version",
+		},
+	}
+
+	assert.ErrorIs(t, handleDataLinkCollectComplete(testWriter, testParams, testState), errDataLinkNotFound)
+}
+
+func Test_handleDataLinkCollectPretend(t *testing.T) {
+	var expectedPropSpecKey = "propSpecKey"
+	var expectedPropSpecValue = "propSpecValue"
+	var expectedSecretSpecKey = "secretSpecKey"
+	var expectedSecretSpecValue = "secretSpecValue"
+	var expectedDataLink = &DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "version",
+		PropSpecs: []PropSpec{
+			{
+				Key:   expectedPropSpecKey,
+				Value: expectedPropSpecValue,
+			},
+		},
+		SecretSpecs: []PropSpec{
+			{
+				Key:   expectedSecretSpecKey,
+				Value: expectedSecretSpecValue,
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: filepath.Join(t.TempDir(), "test.yaml"),
+	}
+	var testWriter = &stubDataLinkWriter{
+		dataLink: expectedDataLink,
+	}
+
+	var testParams = &DataLinkParams{
+		DataLink: &DataLink{
+			Oem:     expectedDataLink.Oem,
+			Handle:  expectedDataLink.Handle,
+			Version: expectedDataLink.Version,
+		},
+	}
+
+	assert.NoError(t, handleDataLinkCollectPretend(testWriter, testParams, testState))
+	assert.NotNil(t, testState.Internal)
+	actual := testState.Internal.(shared.VarSpecTracking)
+	assert.Equal(t, expectedPropSpecKey, actual.VarSpecs[0].GetKey())
+	assert.Equal(t, expectedPropSpecValue, actual.VarSpecs[0].GetDefaultValue())
+	assert.Equal(t, expectedSecretSpecKey, actual.VarSpecs[1].GetKey())
+	assert.Equal(t, expectedSecretSpecValue, actual.VarSpecs[1].GetDefaultValue())
+}
+
+func Test_handleDataLinkCollectPretend_InputUnknown(t *testing.T) {
+	assert.ErrorIs(t, handleDataLinkCollectPretend(nil, &DataLinkParams{}, &task.State{}), shared.ErrorConfigFileInvalid)
+}
+
+func Test_handleDataLinkCollectPretend_LinkNotFound(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: filepath.Join(t.TempDir(), "test.yaml"),
+	}
+	var testWriter = &stubDataLinkWriter{}
+	var testParams = &DataLinkParams{
+		DataLink: &DataLink{
+			Oem:     "oem",
+			Handle:  "handle",
+			Version: "version",
+		},
+	}
+
+	assert.NoError(t, handleDataLinkCollectPretend(testWriter, testParams, testState))
 }
 
 func Test_handleDataLinkCreateContext(t *testing.T) {
@@ -939,6 +1150,19 @@ func Test_handleDataLinkExportContext_OutputKnown(t *testing.T) {
 
 func Test_handleDataLinkExportComplete(t *testing.T) {
 	var testDir = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var expectedPropSpecKey = "propSpecKey"
+	var expectedPropSpecValue = "propSpecValue"
+	var expectedDataLink = &DataLink{
+		Handle:  "expectedHandle",
+		Oem:     "expectedOem",
+		Version: "expectedVersion",
+		PropSpecs: []PropSpec{
+			{
+				Key:   expectedPropSpecKey,
+				Value: expectedPropSpecValue,
+			},
+		},
+	}
 	var testWriter = &stubDataLinkWriter{}
 	var testState = &task.State{
 		Logger: logrus.New(),
@@ -949,9 +1173,9 @@ func Test_handleDataLinkExportComplete(t *testing.T) {
 			HostAddr: "testHost",
 		},
 		DataLink: &DataLink{
-			Handle:  "testHandle",
-			Oem:     "testOem",
-			Version: "testVersion",
+			Handle:  expectedDataLink.Handle,
+			Oem:     expectedDataLink.Oem,
+			Version: expectedDataLink.Version,
 		},
 	}
 	var restoredFactory = clientFactory.Get
@@ -961,7 +1185,7 @@ func Test_handleDataLinkExportComplete(t *testing.T) {
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
 		var clt = &stubDataLinkClient{
-			exportDataLink: testParams.DataLink,
+			exportDataLink: expectedDataLink,
 		}
 
 		clt.AuthToken = "expectedToken"
@@ -972,7 +1196,12 @@ func Test_handleDataLinkExportComplete(t *testing.T) {
 	assert.NoError(t, handleDataLinkExportComplete(testWriter, testParams, testState))
 	assert.Equal(t, testDir, testWriter.writeOutput)
 	assert.Equal(t, 1, len(testWriter.dataLinks))
-	assert.Equal(t, testParams.DataLink, &testWriter.dataLinks[0])
+	assert.Equal(t, expectedDataLink.Handle, testWriter.dataLinks[0].Handle)
+	assert.Equal(t, expectedDataLink.Oem, testWriter.dataLinks[0].Oem)
+	assert.Equal(t, expectedDataLink.Version, testWriter.dataLinks[0].Version)
+	actual := testState.Internal.(shared.VarSpecTracking)
+	assert.Equal(t, expectedPropSpecKey, actual.VarSpecs[0].GetKey())
+	assert.Equal(t, expectedPropSpecValue, actual.VarSpecs[0].GetDefaultValue())
 }
 
 func Test_handleDataLinkExportComplete_ClientError(t *testing.T) {

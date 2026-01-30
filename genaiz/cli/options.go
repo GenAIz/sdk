@@ -303,6 +303,12 @@ var (
 					WithUsage("display name of the function to create").
 					WithValidator(config.Validation.Name)
 			},
+			NoPropSync: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("no-prop-sync").
+					WithUsage("disables property specification sync when creating a container").
+					WithDefaultValue("False")
+			},
 			Oem: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("oem").
@@ -651,6 +657,7 @@ type functionOptions struct {
 	MountOutput func() OptionBuilder
 	MountVar    func() OptionBuilder
 	Name        func() OptionBuilder
+	NoPropSync  func() OptionBuilder
 	Oem         func() OptionBuilder
 	Rebuild     func() OptionBuilder
 	Recipe      func() OptionBuilder

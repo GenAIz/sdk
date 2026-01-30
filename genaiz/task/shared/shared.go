@@ -2,13 +2,17 @@ package shared
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang/enumz"
+	"genaiz.com/genaiz/task"
 )
 
 const (
@@ -26,28 +30,6 @@ var (
 )
 
 type ConfigType = string
-
-// Identity is a shared data type which applies to an entity in a remote or local system. It's made to compare signatures between different sources. A source will typically need an Auth string to give access to the entity located on the provided Path and then return its Hash.
-type Identity struct {
-	Id      string // Id if there is a singular key integer to access the resource, it should be accessible for further requests
-	Flags   int    // Flags is a bitmask value reflecting states applicable to the Identity
-	Hash    string // Hash is a sha256 string which represents the signature of the Identity
-	Auth    string // Auth is the base64 encoded Private Authentication Token to access the Identity
-	Path    string // Path is a URL string representing the location of the Identity
-	Version string // Version is a revision string for comparing the same entities at different revisions
-}
-
-func (i Identity) HasIdentifier() bool {
-	return i.Id != ""
-}
-
-func (i Identity) HasRepoIdentifier() bool {
-	return i.HasIdentifier() && i.Hash != ""
-}
-
-func (i Identity) IsFlagSet(flag int) bool {
-	return i.Flags&flag == flag
-}
 
 type ConfigParams struct {
 	ConfigName   string
@@ -125,4 +107,77 @@ func (cp ConfigParams) resolveConfigTypeless() (string, error) {
 	}
 
 	return "", err
+}
+
+// Identity is a shared data type which applies to an entity in a remote or local system. It's made to compare signatures between different sources. A source will typically need an Auth string to give access to the entity located on the provided Path and then return its Hash.
+type Identity struct {
+	Id      string // Id if there is a singular key integer to access the resource, it should be accessible for further requests
+	Flags   int    // Flags is a bitmask value reflecting states applicable to the Identity
+	Hash    string // Hash is a sha256 string which represents the signature of the Identity
+	Auth    string // Auth is the base64 encoded Private Authentication Token to access the Identity
+	Path    string // Path is a URL string representing the location of the Identity
+	Version string // Version is a revision string for comparing the same entities at different revisions
+}
+
+func (i Identity) HasIdentifier() bool {
+	return i.Id != ""
+}
+
+func (i Identity) HasRepoIdentifier() bool {
+	return i.HasIdentifier() && i.Hash != ""
+}
+
+func (i Identity) IsFlagSet(flag int) bool {
+	return i.Flags&flag == flag
+}
+
+type VarSpec interface {
+	GetDefaultValue() string
+
+	GetKey() string
+
+	Validate(value any) error
+}
+
+type VarSpecTracking struct {
+	VarSpecs []VarSpec
+}
+
+func (vst *VarSpecTracking) MergeSpecs(mergeSpecs []VarSpec) error {
+	for _, spec := range mergeSpecs {
+		if slices.ContainsFunc(vst.VarSpecs, func(s VarSpec) bool {
+			return strings.EqualFold(spec.GetKey(), s.GetKey())
+		}) {
+			return fmt.Errorf("key [%s] has duplicated specification", spec.GetKey())
+		}
+	}
+
+	vst.VarSpecs = append(vst.VarSpecs, mergeSpecs...)
+	return nil
+}
+
+type VarSpecState struct {
+	VarSpecTracking
+	state *task.State
+}
+
+func (vss *VarSpecState) AddSpecs(varSpecs []VarSpec) {
+	vss.VarSpecs = append(vss.VarSpecs, varSpecs...)
+	vss.state.Internal = vss.VarSpecTracking
+}
+
+func NewVarSpecState(state *task.State) *VarSpecState {
+	var current, ok = state.Internal.(VarSpecTracking)
+	var specs []VarSpec
+
+	if ok {
+		specs = current.VarSpecs
+	}
+
+	return &VarSpecState{
+		VarSpecTracking: VarSpecTracking{
+			VarSpecs: specs,
+		},
+		state: state,
+	}
 }

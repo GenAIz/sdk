@@ -23,7 +23,7 @@ import (
 	"genaiz.com/genaiz/lang/signalz"
 	"genaiz.com/genaiz/lang/streamz"
 	"genaiz.com/genaiz/task"
-	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/shared"
 )
 
 const (
@@ -118,7 +118,7 @@ type ContainerParams struct {
 	MountVar    string
 	Name        string
 	Prefix      string
-	PropSpecs   []broker.PropSpec
+	VarSpecs    []shared.VarSpec
 }
 
 func (c *ContainerParams) GetEnvironment() map[string]string {
@@ -365,47 +365,49 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 	var err error
 
 	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
-		var envValues = makeEnvironmentValues(params.GetEnvironment(), params.PropSpecs)
+		if err = dockerState.MergeSpecs(params.VarSpecs); err == nil {
+			var envValues = makeEnvironmentValues(params.GetEnvironment(), dockerState.VarSpecs)
 
-		if err = validateEnvironmentValues(params.PropSpecs, envValues); err == nil {
-			var createConfig = &container.Config{
-				Env:   envValues,
-				Image: dockerImage,
-				Tty:   params.Interactive,
-			}
-			var resp container.CreateResponse
-			var mounts []mount.Mount
-
-			state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
-
-			if uid, gid := os.Getuid(), os.Getgid(); uid >= 0 && gid >= 0 {
-				state.Logger.Debugf("Runtime user selected: [%d:%d]", uid, gid)
-				createConfig.User = fmt.Sprintf("%d:%d", uid, gid)
-			} else {
-				state.Logger.Warningf("Could not determine a runtime user [%d:%d]", uid, gid)
-			}
-
-			if params.Dispose {
-				state.Logger.Debugf("Auto-Remove of container after start is enabled")
-			}
-
-			if mounts = makeContainerMounts(containerBinds); len(mounts) > 0 {
-				hostConfig.Mounts = mounts
-
-				for _, bind := range hostConfig.Mounts {
-					state.Logger.Debugf("Binding %s to %s", bind.Source, bind.Target)
+			if err = validateEnvironmentValues(dockerState.VarSpecs, envValues); err == nil {
+				var createConfig = &container.Config{
+					Env:   envValues,
+					Image: dockerImage,
+					Tty:   params.Interactive,
 				}
-			}
+				var resp container.CreateResponse
+				var mounts []mount.Mount
 
-			if resp, err = dockerClient.ContainerCreate(params.Context, createConfig, hostConfig,
-				nil, nil, containerName); err == nil {
-				for _, w := range resp.Warnings {
-					state.Logger.Warningf("%s", w)
+				state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
+
+				if uid, gid := os.Getuid(), os.Getgid(); uid >= 0 && gid >= 0 {
+					state.Logger.Debugf("Runtime user selected: [%d:%d]", uid, gid)
+					createConfig.User = fmt.Sprintf("%d:%d", uid, gid)
+				} else {
+					state.Logger.Warningf("Could not determine a runtime user [%d:%d]", uid, gid)
 				}
 
-				state.Output = resp.ID[0:12]
-				state.Logger.Debugf("Created docker container Id [%s]", state.Output)
-				return nil
+				if params.Dispose {
+					state.Logger.Debugf("Auto-Remove of container after start is enabled")
+				}
+
+				if mounts = makeContainerMounts(containerBinds); len(mounts) > 0 {
+					hostConfig.Mounts = mounts
+
+					for _, bind := range hostConfig.Mounts {
+						state.Logger.Debugf("Binding %s to %s", bind.Source, bind.Target)
+					}
+				}
+
+				if resp, err = dockerClient.ContainerCreate(params.Context, createConfig, hostConfig,
+					nil, nil, containerName); err == nil {
+					for _, w := range resp.Warnings {
+						state.Logger.Warningf("%s", w)
+					}
+
+					state.Output = resp.ID[0:12]
+					state.Logger.Debugf("Created docker container Id [%s]", state.Output)
+					return nil
+				}
 			}
 		}
 	}
@@ -421,12 +423,12 @@ func handleContainerCreatePretend(params *ContainerParams, state *task.State) er
 
 	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
 		var mountDefs = params.GetContainerMountBinds()
-		var envValues = makeEnvironmentValues(params.GetEnvironment(), params.PropSpecs)
+		var envValues = makeEnvironmentValues(params.GetEnvironment(), params.VarSpecs)
 		var mounts []mount.Mount
 
 		state.Logger.Debugf("Pretending to create a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
 
-		if err = validateEnvironmentValues(params.PropSpecs, envValues); err == nil {
+		if err = validateEnvironmentValues(params.VarSpecs, envValues); err == nil {
 			if mounts = makeContainerMounts(mountDefs); len(mounts) > 0 {
 				for _, bind := range mounts {
 					var readonly = ""
@@ -645,19 +647,19 @@ func makeContainerMounts(definitions []ContainerMountBind) []mount.Mount {
 	return result
 }
 
-func makeEnvironmentSpecs(propSpecs []broker.PropSpec) []string {
+func makeEnvironmentSpecs(propSpecs []shared.VarSpec) []string {
 	var result []string
 
 	result = append(result, EnvKeys...)
 
 	for _, spec := range propSpecs {
-		result = append(result, spec.Key)
+		result = append(result, spec.GetKey())
 	}
 
 	return result
 }
 
-func makeEnvironmentValues(envMap map[string]string, specs []broker.PropSpec) []string {
+func makeEnvironmentValues(envMap map[string]string, specs []shared.VarSpec) []string {
 	var allowedSpecs = makeEnvironmentSpecs(specs)
 	var merged = make(map[string]string)
 	var valueFunc = func(key string) string {
@@ -691,10 +693,10 @@ func makeEnvironmentValues(envMap map[string]string, specs []broker.PropSpec) []
 
 	for _, spec := range specs {
 		if !slices.ContainsFunc(result, func(s string) bool {
-			return strings.HasPrefix(s, spec.Key)
+			return strings.HasPrefix(s, spec.GetKey())
 		}) {
-			if spec.Value != "" {
-				result = append(result, fmt.Sprintf("%s=%s", spec.Key, spec.Value))
+			if spec.GetDefaultValue() != "" {
+				result = append(result, fmt.Sprintf("%s=%s", spec.GetKey(), spec.GetDefaultValue()))
 			}
 		}
 	}
@@ -702,26 +704,26 @@ func makeEnvironmentValues(envMap map[string]string, specs []broker.PropSpec) []
 	return result
 }
 
-func validateEnvironmentValues(propSpecs []broker.PropSpec, envValues []string) error {
+func validateEnvironmentValues(varSpecs []shared.VarSpec, envValues []string) error {
 	for _, pair := range envValues {
 		var keyValue = strings.SplitN(pair, "=", 2)
 
 		if len(keyValue) == 2 {
-			if i := slices.IndexFunc(propSpecs, func(spec broker.PropSpec) bool {
-				return spec.Key == keyValue[0]
+			if i := slices.IndexFunc(varSpecs, func(spec shared.VarSpec) bool {
+				return spec.GetKey() == keyValue[0]
 			}); i >= 0 {
-				if err := propSpecs[i].Validate(keyValue[1]); err != nil {
+				if err := varSpecs[i].Validate(keyValue[1]); err != nil {
 					return fmt.Errorf("env key [%s] is not valid: %s", keyValue[0], err)
 				}
 			}
 		}
 	}
 
-	for _, spec := range propSpecs {
+	for _, spec := range varSpecs {
 		if !slices.ContainsFunc(envValues, func(s string) bool {
-			return strings.HasPrefix(s, spec.Key)
+			return strings.HasPrefix(s, spec.GetKey())
 		}) {
-			return fmt.Errorf("property [%s] is not specified and is mandatory", spec.Key)
+			return fmt.Errorf("property [%s] is not specified and is mandatory", spec.GetKey())
 		}
 	}
 

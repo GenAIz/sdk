@@ -25,6 +25,7 @@ import (
 	"genaiz.com/genaiz-lib/mock/net"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/shared"
 )
 
 func TestContainerMountPoint_MakeMount(t *testing.T) {
@@ -634,8 +635,8 @@ func Test_handleContainerCreate_ValidationError(t *testing.T) {
 		EnvVars: map[string]string{
 			"NOT_LEGAL": "value",
 		},
-		PropSpecs: []broker.PropSpec{
-			{
+		VarSpecs: []shared.VarSpec{
+			broker.PropSpec{
 				Key: "LEGAL",
 			},
 		},
@@ -718,8 +719,8 @@ func Test_handleContainerCreatePretend_ValidationError(t *testing.T) {
 		EnvVars: map[string]string{
 			"LEGAL": "value",
 		},
-		PropSpecs: []broker.PropSpec{
-			{
+		VarSpecs: []shared.VarSpec{
+			&broker.PropSpec{
 				Key:  "LEGAL",
 				Type: broker.PropSpecTypeInt,
 			},
@@ -1155,7 +1156,7 @@ func Test_makeEnvironmentValues(t *testing.T) {
 	testEnvMap[OutputMount.EnvVar] = expectedOutputOverride
 	testEnvMap[envProgressFile] = expectedProgressOverride
 	testEnvMap[notResolvedSpec.Key] = expectedNotResolvedValue
-	actual = makeEnvironmentValues(testEnvMap, []broker.PropSpec{expectedSpec, notExpectedSpec, foreignSpec, notResolvedSpec})
+	actual = makeEnvironmentValues(testEnvMap, []shared.VarSpec{expectedSpec, notExpectedSpec, foreignSpec, notResolvedSpec})
 	assert.Equal(t, 10, len(actual))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s", envResultFile, VarMount.MountPath, filepath.Base(EnvFileMap[envResultFile])))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s", envStatusFile, VarMount.MountPath, filepath.Base(EnvFileMap[envStatusFile])))

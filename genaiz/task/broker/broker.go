@@ -378,6 +378,14 @@ type PropSpec struct {
 	Values      []string     `yaml:"values,omitempty" json:"values,omitempty"`
 }
 
+func (ps PropSpec) GetDefaultValue() string {
+	return ps.Value
+}
+
+func (ps PropSpec) GetKey() string {
+	return ps.Key
+}
+
 func (ps PropSpec) Sanitize() PropSpec {
 	return PropSpec{
 		Key:         ps.Key,
@@ -413,6 +421,10 @@ func (ps PropSpec) Validate(value any) error {
 	return err
 }
 
+func (ps PropSpec) VarSpec() shared.VarSpec {
+	return ps
+}
+
 func FindPropSpec(specs any, key string) *PropSpec {
 	var result *PropSpec
 	var list []interface{}
@@ -441,6 +453,7 @@ func FindPropSpec(specs any, key string) *PropSpec {
 	return result
 }
 
+// ListPropSpecs is deprecated, viper.UnmarshallKey was overlooked, see schema.Keys.Unmarshall
 func ListPropSpecs(specs any) []PropSpec {
 	var result []PropSpec
 	var list []interface{}

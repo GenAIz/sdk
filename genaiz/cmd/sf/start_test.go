@@ -2,6 +2,7 @@ package sf
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
 )
 
@@ -93,15 +95,79 @@ func TestStartExecutor_Display(t *testing.T) {
 	}
 }
 
+func TestStartExecutor_Pretend(t *testing.T) {
+	var calledBuild bool
+	var calledCreate, calledStart int
+	var capturedDataLinkParams broker.DataLinkParams
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = &Cli{
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
+	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
+	var testExecutor = &StartExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:    testCli,
+			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
+		},
+		StartOptions: newStartTestOptions(),
+
+		buildTaskFactory:     newBuildTaskPretendStub(&calledBuild),
+		containerTaskFactory: newContainerTaskPretendStub(&calledCreate),
+		startTaskFactory:     newContainerTaskPretendStub(&calledStart),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
+		testViper.Set(testExecutor.innerSources.Key, []string{fmt.Sprintf("%s/%s:%s",
+			testDataLink.Oem, testDataLink.Handle, testDataLink.Version)})
+		testLedger.InitLogging()
+		testExecutor.Pretend()
+		assert.False(t, calledBuild)
+		assert.EqualValues(t, 1, calledStart)
+		assert.Equal(t, testDataLink, capturedDataLinkParams.DataLink)
+	} else {
+		assert.NoError(t, err)
+	}
+}
+
 func TestStartExecutor_Pretend_EnvMapError(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testFile = filepath.Join(t.TempDir(), ".env-start")
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		StartOptions: newStartTestOptions(),
 
@@ -127,6 +193,7 @@ func TestStartExecutor_Pretend_EnvMapError(t *testing.T) {
 			assert.EqualValues(t, 0, calledCreate)
 			assert.EqualValues(t, 0, calledDispose)
 			assert.EqualValues(t, 0, calledStart)
+			assert.Empty(t, capturedDataLinkParams)
 			assert.True(t, patch.Called)
 			assert.EqualValues(t, 1, patch.CalledWith)
 			return
@@ -139,6 +206,7 @@ func TestStartExecutor_Pretend_EnvMapError(t *testing.T) {
 func TestStartExecutor_Pretend_NoDispose(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -148,10 +216,21 @@ func TestStartExecutor_Pretend_NoDispose(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		StartOptions: newStartTestOptions(),
 
@@ -174,6 +253,7 @@ func TestStartExecutor_Pretend_NoDispose(t *testing.T) {
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 0, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
+		assert.Empty(t, capturedDataLinkParams)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -182,6 +262,7 @@ func TestStartExecutor_Pretend_NoDispose(t *testing.T) {
 func TestStartExecutor_Pretend_RebuildImage(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -191,10 +272,21 @@ func TestStartExecutor_Pretend_RebuildImage(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		StartOptions: newStartTestOptions(),
 
@@ -218,6 +310,7 @@ func TestStartExecutor_Pretend_RebuildImage(t *testing.T) {
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 0, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
+		assert.Empty(t, capturedDataLinkParams)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -226,6 +319,7 @@ func TestStartExecutor_Pretend_RebuildImage(t *testing.T) {
 func TestStartExecutor_Pretend_Replace(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -235,10 +329,21 @@ func TestStartExecutor_Pretend_Replace(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		StartOptions: newStartTestOptions(),
 
@@ -261,6 +366,7 @@ func TestStartExecutor_Pretend_Replace(t *testing.T) {
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 1, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
+		assert.Empty(t, capturedDataLinkParams)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -312,6 +418,7 @@ func TestStartExecutor_Proceed_EnvMapError(t *testing.T) {
 func TestStartExecutor_Proceed_NoDispose(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -321,10 +428,21 @@ func TestStartExecutor_Proceed_NoDispose(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		StartOptions: newStartTestOptions(),
 
@@ -347,6 +465,7 @@ func TestStartExecutor_Proceed_NoDispose(t *testing.T) {
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 0, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
+		assert.Empty(t, capturedDataLinkParams)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -355,6 +474,7 @@ func TestStartExecutor_Proceed_NoDispose(t *testing.T) {
 func TestStartExecutor_Proceed_RebuildImage(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -364,10 +484,21 @@ func TestStartExecutor_Proceed_RebuildImage(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		StartOptions: newStartTestOptions(),
 
@@ -391,6 +522,7 @@ func TestStartExecutor_Proceed_RebuildImage(t *testing.T) {
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 0, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
+		assert.Empty(t, capturedDataLinkParams)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -399,6 +531,7 @@ func TestStartExecutor_Proceed_RebuildImage(t *testing.T) {
 func TestStartExecutor_Proceed_Replace(t *testing.T) {
 	var calledBuild bool
 	var calledCreate, calledDispose, calledStart int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -408,10 +541,21 @@ func TestStartExecutor_Proceed_Replace(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &StartExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		StartOptions: newStartTestOptions(),
 
@@ -434,6 +578,7 @@ func TestStartExecutor_Proceed_Replace(t *testing.T) {
 		assert.EqualValues(t, 1, calledCreate)
 		assert.EqualValues(t, 1, calledDispose)
 		assert.EqualValues(t, 1, calledStart)
+		assert.Empty(t, capturedDataLinkParams)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -592,6 +737,9 @@ func newStartTestOptions() *StartOptions {
 			optionMountVar: cli.Options.Functions.MountVar().
 				WithKeys(&schema.Genaiz.Function.Start.MountVar).
 				BuildStringOption(),
+			optionNoPropSync: cli.Options.Functions.NoPropSync().
+				WithKeys(&schema.Genaiz.Function.Run.NoPropSync).
+				BuildBoolOption(),
 			optionRunImage: cli.Options.Docker.Image().
 				WithKeys(&schema.Genaiz.Function.Start.Image).
 				BuildStringOption(),

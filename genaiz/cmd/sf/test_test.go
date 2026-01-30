@@ -18,6 +18,7 @@ import (
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
+	"genaiz.com/genaiz/task/broker"
 )
 
 func TestTestExecutor_Display(t *testing.T) {
@@ -88,6 +89,7 @@ func TestTestExecutor_Display(t *testing.T) {
 func TestTestExecutor_Pretend(t *testing.T) {
 	var calledBuild bool
 	var calledTest int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -97,10 +99,21 @@ func TestTestExecutor_Pretend(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &TestExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		RunOptions: newTestTestOptions(),
 
@@ -117,6 +130,7 @@ func TestTestExecutor_Pretend(t *testing.T) {
 		testExecutor.Pretend()
 		assert.False(t, calledBuild)
 		assert.EqualValues(t, 1, calledTest)
+		assert.Empty(t, capturedDataLinkParams)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -125,12 +139,24 @@ func TestTestExecutor_Pretend(t *testing.T) {
 func TestTestExecutor_Pretend_EnvMapError(t *testing.T) {
 	var calledBuild bool
 	var calledTest int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testFile = filepath.Join(t.TempDir(), ".env-test")
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &TestExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		RunOptions: newTestTestOptions(),
 
@@ -153,6 +179,7 @@ func TestTestExecutor_Pretend_EnvMapError(t *testing.T) {
 			assert.EqualValues(t, 0, calledTest)
 			assert.True(t, patch.Called)
 			assert.EqualValues(t, 1, patch.CalledWith)
+			assert.Empty(t, capturedDataLinkParams)
 			return
 		}
 	}
@@ -163,6 +190,7 @@ func TestTestExecutor_Pretend_EnvMapError(t *testing.T) {
 func TestTestExecutor_Pretend_WithBuild(t *testing.T) {
 	var calledBuild bool
 	var calledTest int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -172,10 +200,21 @@ func TestTestExecutor_Pretend_WithBuild(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &TestExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		RunOptions: newTestTestOptions(),
 
@@ -193,6 +232,7 @@ func TestTestExecutor_Pretend_WithBuild(t *testing.T) {
 		testExecutor.Pretend()
 		assert.True(t, calledBuild)
 		assert.EqualValues(t, 1, calledTest)
+		assert.Empty(t, capturedDataLinkParams)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -201,6 +241,7 @@ func TestTestExecutor_Pretend_WithBuild(t *testing.T) {
 func TestTestExecutor_Proceed(t *testing.T) {
 	var calledBuild bool
 	var calledTest int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -210,10 +251,21 @@ func TestTestExecutor_Proceed(t *testing.T) {
 		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &TestExecutor{
 		BaseExecutor: BaseExecutor{
 			Cli:    testCli,
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		RunOptions: newTestTestOptions(),
 
@@ -231,6 +283,7 @@ func TestTestExecutor_Proceed(t *testing.T) {
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
 		assert.EqualValues(t, 1, calledTest)
+		assert.Empty(t, capturedDataLinkParams)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -239,12 +292,24 @@ func TestTestExecutor_Proceed(t *testing.T) {
 func TestTestExecutor_Proceed_EnvMapError(t *testing.T) {
 	var calledBuild bool
 	var calledTest int
+	var capturedDataLinkParams broker.DataLinkParams
 	var testFile = filepath.Join(t.TempDir(), ".env-test")
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
 	var testExecutor = &TestExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
 		},
 		RunOptions: newTestTestOptions(),
 
@@ -267,6 +332,7 @@ func TestTestExecutor_Proceed_EnvMapError(t *testing.T) {
 			assert.EqualValues(t, 0, calledTest)
 			assert.True(t, patch.Called)
 			assert.EqualValues(t, 1, patch.CalledWith)
+			assert.Empty(t, capturedDataLinkParams)
 			return
 		}
 	}

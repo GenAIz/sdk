@@ -20,6 +20,7 @@ type StartTaskFactory func() *task.Task[docker.ContainerParams]
 
 type StartExecutor struct {
 	BaseExecutor
+	SyncExecutor
 	*StartOptions
 
 	buildTaskFactory     BuildTaskFactory
@@ -55,6 +56,7 @@ func (se *StartExecutor) Pretend() {
 		var buildParams = makeBuildParams(&se.BaseExecutor)
 		var params = se.makeStartParams(replace, envMap)
 		var plan = task.NewPlan("Start", se.Ledger.Logger)
+		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
 		if se.rebuildImage {
@@ -65,11 +67,14 @@ func (se *StartExecutor) Pretend() {
 			workers = append(workers, task.NewPretender(params, se.disposeTaskFactory()))
 		}
 
-		workers = append(workers,
-			task.NewPretender(params, se.containerTaskFactory()),
-			task.NewPretender(params, se.startTaskFactory()))
-		plan.Sequence(workers...)
-		return
+		if datalinkWorkers, err = makeSyncPretenders(se.Ledger, se.SyncExecutor, se.optionNoPropSync); err == nil {
+			workers = append(workers, datalinkWorkers...)
+			workers = append(workers,
+				task.NewPretender(params, se.containerTaskFactory()),
+				task.NewPretender(params, se.startTaskFactory()))
+			plan.Sequence(workers...)
+			return
+		}
 	}
 
 	lang.HandleExit(err)
@@ -84,6 +89,7 @@ func (se *StartExecutor) Proceed() {
 		var params = se.makeStartParams(replace, envMap)
 		var buildParams = makeBuildParams(&se.BaseExecutor)
 		var plan = task.NewPlan("Start", se.Ledger.Logger)
+		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
 		if se.rebuildImage {
@@ -94,12 +100,15 @@ func (se *StartExecutor) Proceed() {
 			workers = append(workers, task.NewWorker(params, se.disposeTaskFactory()))
 		}
 
-		workers = append(workers,
-			task.NewWorker(params, se.containerTaskFactory()),
-			task.NewWorker(params, se.startTaskFactory()))
-		plan.PrintReportsOnly = true
-		plan.Sequence(workers...)
-		return
+		if datalinkWorkers, err = makeSyncWorkers(se.Ledger, se.SyncExecutor, se.optionNoPropSync); err == nil {
+			workers = append(workers, datalinkWorkers...)
+			workers = append(workers,
+				task.NewWorker(params, se.containerTaskFactory()),
+				task.NewWorker(params, se.startTaskFactory()))
+			plan.PrintReportsOnly = true
+			plan.Sequence(workers...)
+			return
+		}
 	}
 
 	lang.HandleExit(err)
@@ -139,8 +148,8 @@ func (so *StartOptions) allDefiners() []config.Definer {
 	}
 }
 
-func NewStart(ledger *config.Ledger, cli *Cli) *cobra.Command {
-	var options = NewStartOptions(cli)
+func NewStart(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
+	var options = NewStartOptions(sfCli)
 	var start = &cobra.Command{
 		Use:     "start",
 		Short:   "Starts the Smart Function, creating a container if necessary",
@@ -157,7 +166,7 @@ func NewStart(ledger *config.Ledger, cli *Cli) *cobra.Command {
 			var imageFlag = cmd.Flags().Lookup(options.optionRunImage.Param)
 
 			options.rebuildImage = imageFlag.Value.String() == ""
-			cli.Exec(ledger, NewStartExecutor(cmd.Context(), ledger, cli, options))
+			sfCli.Exec(ledger, NewStartExecutor(cmd.Context(), ledger, sfCli, options))
 		},
 	}
 
@@ -165,13 +174,14 @@ func NewStart(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	return start
 }
 
-func NewStartExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *StartOptions) *StartExecutor {
+func NewStartExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, options *StartOptions) *StartExecutor {
 	return &StartExecutor{
 		BaseExecutor: BaseExecutor{
+			Cli:     sfCli,
 			Context: ctx,
 			Ledger:  ledger,
-			Cli:     cli,
 		},
+		SyncExecutor: makeSyncExecutor(),
 		StartOptions: options,
 
 		buildTaskFactory:     docker.NewBuildTask,
@@ -242,6 +252,9 @@ func NewStartOptions(sfCli *Cli) *StartOptions {
 						BuildStringOption())
 				}).
 				BuildStringOption(),
+			optionNoPropSync: cli.Options.Functions.NoPropSync().
+				WithKeys(&schema.Genaiz.Function.Run.NoPropSync).
+				BuildBoolOption(),
 			optionRunImage: cli.Options.Docker.Image().
 				WithKeys(&schema.Genaiz.Function.Start.Image).
 				WithDefaultGetter(sfCli.DefaultRunImage).

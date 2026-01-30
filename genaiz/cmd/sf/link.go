@@ -44,10 +44,14 @@ func (dle *DataLinkExecutor) makeDataLinkParams(fqdnv string) *broker.DataLinkPa
 	}
 }
 
-func (dle *DataLinkExecutor) makeSyncParams() *shared.ConfigParams {
-	return &shared.ConfigParams{
-		ConfigName:   dle.Ledger.ConfigName,
-		ConfigFolder: dle.Ledger.UserPath,
+func (dle *DataLinkExecutor) makeSyncParams(dataLinkParams *broker.DataLinkParams) *broker.DataLinkParams {
+	return &broker.DataLinkParams{
+		Broker: dataLinkParams.Broker,
+		ConfigParams: shared.ConfigParams{
+			ConfigName:   dle.Ledger.ConfigName,
+			ConfigFolder: dle.Ledger.UserPath,
+		},
+		DataLink: dataLinkParams.DataLink,
 	}
 }
 

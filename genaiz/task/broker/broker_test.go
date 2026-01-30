@@ -275,6 +275,20 @@ func TestPropSpec_Validate(t *testing.T) {
 	assert.NoError(t, enumSpec.Validate("value"))
 }
 
+func TestPropSpec_VarSpec(t *testing.T) {
+	var expectedSpec = &PropSpec{
+		Key:   "expectedKey",
+		Value: "expectedValue",
+		Type:  PropSpecTypeInt,
+	}
+	var actualSpec = expectedSpec.VarSpec()
+
+	assert.Equal(t, expectedSpec.Key, actualSpec.GetKey())
+	assert.Equal(t, expectedSpec.Value, actualSpec.GetDefaultValue())
+	assert.NoError(t, actualSpec.Validate(37))
+	assert.Error(t, actualSpec.Validate("test"))
+}
+
 func TestFindPropSpec(t *testing.T) {
 	var expectedKey = "expectedKey"
 	var expectedSpecMap = map[string]any{

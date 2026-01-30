@@ -90,10 +90,10 @@ func (se *StoreExecutor) Pretend() {
 		var noValidation = se.Ledger.GetBool(se.optionNoValidation)
 
 		if !noValidation {
-			var syncConfigParams = se.makeSyncParams()
+			var syncConfigParams = se.makeSyncParams(se.addParams)
 			var dataLinkWriter = se.dataLinksWriterFactory(se.Ledger, syncConfigParams.GetConfigFile())
 
-			workers = append(workers, task.NewPretender(se.addParams, se.syncLinksTaskFactory(dataLinkWriter)))
+			workers = append(workers, task.NewPretender(syncConfigParams, se.syncLinksTaskFactory(dataLinkWriter)))
 		}
 
 		workers = append(workers, task.NewPretender(se.addParams, se.listLinksTaskFactory()))
@@ -116,10 +116,10 @@ func (se *StoreExecutor) Proceed() {
 		var noValidation = se.Ledger.GetBool(se.optionNoValidation)
 
 		if !noValidation {
-			var syncConfigParams = se.makeSyncParams()
+			var syncConfigParams = se.makeSyncParams(se.addParams)
 			var dataLinkWriter = se.dataLinksWriterFactory(se.Ledger, syncConfigParams.GetConfigFile())
 
-			workers = append(workers, task.NewWorker(se.addParams, se.syncLinksTaskFactory(dataLinkWriter)))
+			workers = append(workers, task.NewWorker(syncConfigParams, se.syncLinksTaskFactory(dataLinkWriter)))
 		}
 
 		workers = append(workers, task.NewWorker(se.addParams, se.listLinksTaskFactory()))

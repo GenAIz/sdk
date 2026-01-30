@@ -16,6 +16,7 @@ import (
 
 type TestExecutor struct {
 	BaseExecutor
+	SyncExecutor
 	*RunOptions
 
 	buildTaskFactory BuildTaskFactory
@@ -30,8 +31,9 @@ func (te *TestExecutor) Pretend() {
 	var testParams *docker.ContainerParams
 	var err error
 
-	if testParams, err = makeRunParams(te.BaseExecutor, te.RunOptions); err == nil {
+	if testParams, err = newRunParams(te.BaseExecutor, te.RunOptions); err == nil {
 		var plan = task.NewPlan("Test", te.Ledger.Logger)
+		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
 		te.Ledger.DisplayChangeDir()
@@ -40,9 +42,12 @@ func (te *TestExecutor) Pretend() {
 			workers = append(workers, task.NewPretender(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
 		}
 
-		workers = append(workers, task.NewPretender(testParams, te.testTaskFactory()))
-		plan.Sequence(workers...)
-		return
+		if datalinkWorkers, err = makeSyncPretenders(te.Ledger, te.SyncExecutor, te.optionNoPropSync); err == nil {
+			workers = append(workers, datalinkWorkers...)
+			workers = append(workers, task.NewPretender(testParams, te.testTaskFactory()))
+			plan.Sequence(workers...)
+			return
+		}
 	}
 
 	lang.HandleExit(err)
@@ -52,24 +57,28 @@ func (te *TestExecutor) Proceed() {
 	var testParams *docker.ContainerParams
 	var err error
 
-	if testParams, err = makeRunParams(te.BaseExecutor, te.RunOptions); err == nil {
+	if testParams, err = newRunParams(te.BaseExecutor, te.RunOptions); err == nil {
 		var plan = task.NewPlan("Run", te.Ledger.Logger)
+		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
 		if te.RunOptions.rebuildImage {
 			workers = append(workers, task.NewWorker(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
 		}
 
-		workers = append(workers, task.NewWorker(testParams, te.testTaskFactory()))
-		plan.Sequence(workers...)
-		return
+		if datalinkWorkers, err = makeSyncWorkers(te.Ledger, te.SyncExecutor, te.optionNoPropSync); err == nil {
+			workers = append(workers, datalinkWorkers...)
+			workers = append(workers, task.NewWorker(testParams, te.testTaskFactory()))
+			plan.Sequence(workers...)
+			return
+		}
 	}
 
 	lang.HandleExit(err)
 }
 
-func NewTest(ledger *config.Ledger, cli *Cli) *cobra.Command {
-	var options = NewTestOptions(cli)
+func NewTest(ledger *config.Ledger, sfCLi *Cli) *cobra.Command {
+	var options = NewTestOptions(sfCLi)
 	var test = &cobra.Command{
 		Use:     "test",
 		Short:   "Runs a Smart Function attached to the current shell for testing",
@@ -86,7 +95,7 @@ func NewTest(ledger *config.Ledger, cli *Cli) *cobra.Command {
 			var imageFlag = cmd.Flags().Lookup(options.optionRunImage.Param)
 
 			options.rebuildImage = imageFlag.Value.String() == ""
-			cli.Exec(ledger, NewTestExecutor(cmd.Context(), ledger, cli, options))
+			sfCLi.Exec(ledger, NewTestExecutor(cmd.Context(), ledger, sfCLi, options))
 		},
 	}
 
@@ -94,14 +103,15 @@ func NewTest(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	return test
 }
 
-func NewTestExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *RunOptions) *TestExecutor {
+func NewTestExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, options *RunOptions) *TestExecutor {
 	return &TestExecutor{
 		BaseExecutor: BaseExecutor{
-			Cli:     cli,
+			Cli:     sfCli,
 			Context: ctx,
 			Ledger:  ledger,
 		},
-		RunOptions: options,
+		SyncExecutor: makeSyncExecutor(),
+		RunOptions:   options,
 
 		buildTaskFactory: docker.NewBuildTask,
 		testTaskFactory:  docker.NewTestTask,
@@ -167,6 +177,9 @@ func NewTestOptions(sfCli *Cli) *RunOptions {
 					BuildStringOption())
 			}).
 			BuildStringOption(),
+		optionNoPropSync: cli.Options.Functions.NoPropSync().
+			WithKeys(&schema.Genaiz.Function.Run.NoPropSync).
+			BuildBoolOption(),
 		optionRunImage: cli.Options.Docker.Image().
 			WithKeys(&schema.Genaiz.Function.Test.Image).
 			WithDefaultGetter(sfCli.DefaultRunImage).

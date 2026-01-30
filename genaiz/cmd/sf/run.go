@@ -2,10 +2,12 @@ package sf
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
@@ -13,12 +15,46 @@ import (
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
+type CollectTaskFactory func(broker.DataLinkWriter) *task.Task[broker.DataLinkParams]
+type ExportTaskFactory func(broker.DataLinkWriter) *task.Task[broker.DataLinkParams]
 type RunTaskFactory func() *task.Task[docker.ContainerParams]
+
+type SyncExecutor struct {
+	innerSources *config.ListOption
+	innerStores  *config.ListOption
+
+	collectTaskFactory     CollectTaskFactory
+	exportTaskFactory      ExportTaskFactory
+	dataLinksWriterFactory dk.DataLinksWriterFactory
+}
+
+func (se SyncExecutor) GetFunctionDataLinks(ledger *config.Ledger) []string {
+	var dataLink []string
+
+	dataLink = append(dataLink, ledger.GetList(se.innerSources)...)
+	dataLink = append(dataLink, ledger.GetList(se.innerStores)...)
+	return dataLink
+}
+
+func (se SyncExecutor) newBrokerParams(ledger *config.Ledger) *broker.Broker {
+	return &broker.Broker{
+		AuthFile: ledger.AuthFile,
+	}
+}
+
+func (se SyncExecutor) newConfigParams(ledger *config.Ledger) *shared.ConfigParams {
+	return &shared.ConfigParams{
+		ConfigName:   ledger.ConfigName,
+		ConfigFolder: ledger.UserPath,
+	}
+}
 
 type RunExecutor struct {
 	BaseExecutor
+	SyncExecutor
 	*RunOptions
 
 	buildTaskFactory BuildTaskFactory
@@ -33,8 +69,9 @@ func (re *RunExecutor) Pretend() {
 	var runParams *docker.ContainerParams
 	var err error
 
-	if runParams, err = makeRunParams(re.BaseExecutor, re.RunOptions); err == nil {
+	if runParams, err = newRunParams(re.BaseExecutor, re.RunOptions); err == nil {
 		var plan = task.NewPlan("Run", re.Ledger.Logger)
+		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
 		re.Ledger.DisplayChangeDir()
@@ -43,9 +80,12 @@ func (re *RunExecutor) Pretend() {
 			workers = append(workers, task.NewPretender(makeBuildParams(&re.BaseExecutor), re.buildTaskFactory()))
 		}
 
-		workers = append(workers, task.NewPretender(runParams, re.runTaskFactory()))
-		plan.Sequence(workers...)
-		return
+		if datalinkWorkers, err = makeSyncPretenders(re.Ledger, re.SyncExecutor, re.optionNoPropSync); err == nil {
+			workers = append(workers, datalinkWorkers...)
+			workers = append(workers, task.NewPretender(runParams, re.runTaskFactory()))
+			plan.Sequence(workers...)
+			return
+		}
 	}
 
 	lang.HandleExit(err)
@@ -55,18 +95,22 @@ func (re *RunExecutor) Proceed() {
 	var runParams *docker.ContainerParams
 	var err error
 
-	if runParams, err = makeRunParams(re.BaseExecutor, re.RunOptions); err == nil {
+	if runParams, err = newRunParams(re.BaseExecutor, re.RunOptions); err == nil {
 		var plan = task.NewPlan("Run", re.Ledger.Logger)
+		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
 		if re.rebuildImage {
 			workers = append(workers, task.NewWorker(makeBuildParams(&re.BaseExecutor), re.buildTaskFactory()))
 		}
 
-		workers = append(workers, task.NewWorker(runParams, re.runTaskFactory()))
-		plan.PrintReportsOnly = true
-		plan.Sequence(workers...)
-		return
+		if datalinkWorkers, err = makeSyncWorkers(re.Ledger, re.SyncExecutor, re.optionNoPropSync); err == nil {
+			workers = append(workers, datalinkWorkers...)
+			workers = append(workers, task.NewWorker(runParams, re.runTaskFactory()))
+			plan.PrintReportsOnly = true
+			plan.Sequence(workers...)
+			return
+		}
 	}
 
 	lang.HandleExit(err)
@@ -80,6 +124,7 @@ type RunOptions struct {
 	optionMountVar    *config.StringOption
 	optionRunImage    *config.StringOption
 	optionRunPrefix   *config.StringOption
+	optionNoPropSync  *config.BoolOption
 	rebuildImage      bool
 }
 
@@ -96,8 +141,8 @@ func (ro *RunOptions) allDefiners() []config.Definer {
 	}
 }
 
-func NewRun(ledger *config.Ledger, cli *Cli) *cobra.Command {
-	var options = NewRunOptions(cli)
+func NewRun(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
+	var options = NewRunOptions(sfCli)
 	var run = &cobra.Command{
 		Use:     "run",
 		Short:   "Runs a Smart Function detached from the current shell",
@@ -114,7 +159,7 @@ func NewRun(ledger *config.Ledger, cli *Cli) *cobra.Command {
 			var imageFlag = cmd.Flags().Lookup(options.optionRunImage.Param)
 
 			options.rebuildImage = imageFlag.Value.String() == ""
-			cli.Exec(ledger, NewRunExecutor(cmd.Context(), ledger, cli, options))
+			sfCli.Exec(ledger, NewRunExecutor(cmd.Context(), ledger, sfCli, options))
 		},
 	}
 
@@ -122,14 +167,15 @@ func NewRun(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	return run
 }
 
-func NewRunExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *RunOptions) *RunExecutor {
+func NewRunExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, options *RunOptions) *RunExecutor {
 	return &RunExecutor{
 		BaseExecutor: BaseExecutor{
-			Cli:     cli,
+			Cli:     sfCli,
 			Context: ctx,
 			Ledger:  ledger,
 		},
-		RunOptions: options,
+		SyncExecutor: makeSyncExecutor(),
+		RunOptions:   options,
 
 		buildTaskFactory: docker.NewBuildTask,
 		runTaskFactory:   docker.NewRunTask,
@@ -167,6 +213,9 @@ func NewRunOptions(sfCli *Cli) *RunOptions {
 			WithKeys(&schema.Genaiz.Function.Run.MountVar).
 			WithDefaultValue(runLayout.DirVar).
 			BuildStringOption(),
+		optionNoPropSync: cli.Options.Functions.NoPropSync().
+			WithKeys(&schema.Genaiz.Function.Run.NoPropSync).
+			BuildBoolOption(),
 		optionRunImage: cli.Options.Docker.Image().
 			WithKeys(&schema.Genaiz.Function.Run.Image).
 			WithDefaultGetter(sfCli.DefaultRunImage).
@@ -194,15 +243,122 @@ func displayRunOptions(be BaseExecutor, ro *RunOptions) {
 	be.Ledger.DisplayOptions(options...)
 }
 
-func makeRunParams(be BaseExecutor, ro *RunOptions) (*docker.ContainerParams, error) {
+func makeSyncExecutor() SyncExecutor {
+	return SyncExecutor{
+		innerSources: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
+			BuildListOption(),
+		innerStores: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataStores).
+			BuildListOption(),
+
+		collectTaskFactory:     broker.NewDataLinkCollectTask,
+		exportTaskFactory:      broker.NewDataLinkExportTask,
+		dataLinksWriterFactory: dk.NewDataLinksWriter,
+	}
+}
+
+func makeSyncPretenders(ledger *config.Ledger, se SyncExecutor, noSyncOption *config.BoolOption) ([]task.Worker, error) {
+	var datalinks = se.GetFunctionDataLinks(ledger)
+	var worker []task.Worker
+	var err error
+
+	if len(datalinks) > 0 {
+		var workerFactory func(*broker.DataLinkParams) task.Worker
+		var brokerParams = se.newBrokerParams(ledger)
+		var configParams = se.newConfigParams(ledger)
+
+		if ledger.GetBool(noSyncOption) {
+			workerFactory = func(params *broker.DataLinkParams) task.Worker {
+				var dataLinkWriter = se.dataLinksWriterFactory(ledger, params.GetConfigFile())
+
+				return task.NewPretender(params, se.collectTaskFactory(dataLinkWriter))
+			}
+		} else {
+			workerFactory = func(params *broker.DataLinkParams) task.Worker {
+				var dataLinkWriter = se.dataLinksWriterFactory(ledger, params.GetConfigFile())
+
+				return task.NewPretender(params, se.exportTaskFactory(dataLinkWriter))
+			}
+		}
+
+		return makeDataLinkWorkers(brokerParams, configParams, datalinks, workerFactory)
+	}
+
+	return worker, err
+}
+
+func makeSyncWorkers(ledger *config.Ledger, se SyncExecutor, noSyncOption *config.BoolOption) ([]task.Worker, error) {
+	var datalinks = se.GetFunctionDataLinks(ledger)
+	var worker []task.Worker
+	var err error
+
+	if len(datalinks) > 0 {
+		var workerFactory func(*broker.DataLinkParams) task.Worker
+		var brokerParams = se.newBrokerParams(ledger)
+		var configParams = se.newConfigParams(ledger)
+
+		if ledger.GetBool(noSyncOption) {
+			workerFactory = func(params *broker.DataLinkParams) task.Worker {
+				var dataLinkWriter = se.dataLinksWriterFactory(ledger, params.GetConfigFile())
+
+				return task.NewWorker(params, se.collectTaskFactory(dataLinkWriter))
+			}
+		} else {
+			workerFactory = func(params *broker.DataLinkParams) task.Worker {
+				var dataLinkWriter = se.dataLinksWriterFactory(ledger, params.GetConfigFile())
+
+				return task.NewWorker(params, se.exportTaskFactory(dataLinkWriter))
+			}
+		}
+
+		return makeDataLinkWorkers(brokerParams, configParams, datalinks, workerFactory)
+	}
+
+	return worker, err
+}
+
+func newDataLinkParams(oem, handle, version string, brokerParams *broker.Broker, configParams *shared.ConfigParams) *broker.DataLinkParams {
+	return &broker.DataLinkParams{
+		Broker:       *brokerParams,
+		ConfigParams: *configParams,
+		DataLink: &broker.DataLink{
+			Oem:     oem,
+			Handle:  handle,
+			Version: version,
+		},
+	}
+}
+
+func makeDataLinkWorkers(brokerParams *broker.Broker, configParams *shared.ConfigParams, dataLinks []string, workFactory func(*broker.DataLinkParams) task.Worker) ([]task.Worker, error) {
+	var result []task.Worker
+
+	for _, link := range dataLinks {
+		if o, h, v := dk.ParseDataLinkArgument(link); o != "" && h != "" && v != "" {
+			var params = newDataLinkParams(o, h, v, brokerParams, configParams)
+
+			result = append(result, workFactory(params))
+		} else {
+			return nil, fmt.Errorf("invalid datalink found [%s]", link)
+		}
+	}
+
+	return result, nil
+}
+
+func newRunParams(be BaseExecutor, ro *RunOptions) (*docker.ContainerParams, error) {
 	var envVars map[string]string
 	var err error
 
 	if envVars, err = ro.makeEnvMap(be.Ledger); err == nil {
-		var innerPropSpecs = be.Ledger.Get(cli.NewOptionBuilder().
-			WithKeys(&schema.Genaiz.Function.Publish.PropSpecs).
-			BuildOption())
-		var propSpecs = broker.ListPropSpecs(innerPropSpecs)
+		var propSpecs []broker.PropSpec
+		var varSpecs []shared.VarSpec
+
+		if err = be.Ledger.Unmarshal(schema.Genaiz.Function.Publish.PropSpecs, &propSpecs); err == nil {
+			for _, propSpec := range propSpecs {
+				varSpecs = append(varSpecs, propSpec.VarSpec())
+			}
+		}
 
 		return &docker.ContainerParams{
 			RunParams: docker.RunParams{
@@ -217,7 +373,7 @@ func makeRunParams(be BaseExecutor, ro *RunOptions) (*docker.ContainerParams, er
 			MountOutput: be.Ledger.GetPath(ro.optionMountOutput),
 			MountVar:    be.Ledger.GetPath(ro.optionMountVar),
 			Prefix:      be.Ledger.GetString(ro.optionRunPrefix),
-			PropSpecs:   propSpecs,
+			VarSpecs:    varSpecs,
 		}, nil
 	}
 
