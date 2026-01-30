@@ -11,29 +11,6 @@ type stubStruct struct {
 	A string
 }
 
-func TestKeys_GetObject(t *testing.T) {
-	var expectedValue = struct {
-		A string
-	}{A: "a Value"}
-	var testViper = viper.New()
-	var testKeys = &Keys{Doc: "key"}
-
-	testViper.Set(testKeys.Doc, expectedValue)
-	assert.Equal(t, expectedValue, testKeys.GetObject(testViper))
-}
-
-func TestKeys_GetObject_Pseudonyms(t *testing.T) {
-	var expectedPseudo = "yes"
-	var expectedValue = struct {
-		A string
-	}{A: "a Value"}
-	var testViper = viper.New()
-	var testKeys = &Keys{Doc: "key", Pseudonyms: []string{"no", expectedPseudo}}
-
-	testViper.Set(expectedPseudo, expectedValue)
-	assert.Equal(t, expectedValue, testKeys.GetObject(testViper))
-}
-
 func TestKeys_GetString(t *testing.T) {
 	var expectedValue = "value"
 	var testViper = viper.New()

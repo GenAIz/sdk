@@ -23,6 +23,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -1070,6 +1071,20 @@ func TestLedger_ToWorkDir(t *testing.T) {
 
 	testLedger.ToWorkDir(testOption, testFlagSet)
 	assert.EqualValues(t, testLedger.WorkDir, *testValue)
+}
+
+func TestLedger_Unmarshal(t *testing.T) {
+	var testKey = schema.Keys{Doc: "key"}
+	var testViper, testLedger = newTestConfigs()
+	var expectedStruct = &configStruct{
+		Key:   "expectedKey",
+		Value: "expectedValue",
+	}
+	var actualStruct *configStruct
+
+	testViper.Set(testKey.Doc, expectedStruct)
+	assert.NoError(t, testLedger.Unmarshal(testKey, &actualStruct))
+	assert.Equal(t, expectedStruct, actualStruct)
 }
 
 func TestLedger_ValidateValidatorNil(t *testing.T) {

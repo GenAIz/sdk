@@ -451,6 +451,14 @@ func Test_OptionsFunctionsName(t *testing.T) {
 	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
 }
 
+func Test_OptionsFunctionsNoPropSync(t *testing.T) {
+	var testOption = Options.Functions.NoPropSync().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsFunctionsOem(t *testing.T) {
 	var testOption = Options.Functions.Oem().BuildStringOption()
 

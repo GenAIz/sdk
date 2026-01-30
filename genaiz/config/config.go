@@ -26,6 +26,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -522,6 +523,11 @@ func (lr *Ledger) ToWorkDir(option *StringOption, flags *pflag.FlagSet) {
 	if flag := flags.Lookup(option.Param); flag != nil {
 		panicz.PanicIfError(flag.Value.Set(lr.WorkDir))
 	}
+}
+
+// Unmarshal returns the value of a schema.Keys as a struct or an error if it can not be cast as that struct
+func (lr *Ledger) Unmarshal(keys schema.Keys, value any) error {
+	return keys.Unmarshall(lr.viper, value)
 }
 
 // Validate returns the validity of an Option according its associated viper value. It does not query command flags

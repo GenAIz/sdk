@@ -211,6 +211,7 @@ type Document struct {
 			MountLog    Keys
 			MountOutput Keys
 			MountVar    Keys
+			NoPropSync  Keys
 			Prefix      Keys
 		}
 		Start struct {
@@ -222,6 +223,7 @@ type Document struct {
 			MountOutput Keys
 			MountVar    Keys
 			Name        Keys
+			NoPropSync  Keys
 			Prefix      Keys
 			Preserve    Keys
 			Replace     Keys
@@ -240,6 +242,7 @@ type Document struct {
 			MountLog    Keys
 			MountOutput Keys
 			MountVar    Keys
+			NoPropSync  Keys
 			Prefix      Keys
 		}
 	}
@@ -317,21 +320,6 @@ type Keys struct {
 	Pseudonyms []string // Pseudonyms is a list of alternate keys, which may refer to Doc in a structured document. Pseudonyms can be used to support key migrations between versions
 }
 
-// GetObject will look for a value in the provided viper.Viper registry using the Keys' Doc and Pseudonyms values.
-func (k Keys) GetObject(viper *viper.Viper) any {
-	var result any
-
-	if result = viper.Get(k.Doc); result == nil {
-		for _, pseudo := range k.Pseudonyms {
-			if result = viper.Get(pseudo); result != nil {
-				break
-			}
-		}
-	}
-
-	return result
-}
-
 // GetString will look for a string value in the provided viper.Viper registry using the Keys' Doc and Pseudonyms values. If no value is found it returns the provided defaultValue list, merged.
 func (k Keys) GetString(viper *viper.Viper, defaultValue ...string) string {
 	var result string
@@ -349,6 +337,7 @@ func (k Keys) GetString(viper *viper.Viper, defaultValue ...string) string {
 	return strings.Join(defaultValue, "")
 }
 
+// Unmarshall will look for a value in the provided viper.Viper registry using the Keys' Doc and Pseudonyms values.
 func (k Keys) Unmarshall(viper *viper.Viper, ref any) error {
 	var value any
 
@@ -559,6 +548,7 @@ func init() {
 	Genaiz.Function.Run.MountOutput = newKeys("Function.Run.Output", "SF_RUN_MOUNT_OUTPUT", "Sf.Run.Output")
 	Genaiz.Function.Run.MountLog = newKeys("Function.Run.Log", "SF_RUN_MOUNT_LOG", "Sf.Run.Log")
 	Genaiz.Function.Run.MountVar = newKeys("Function.Run.Var", "SF_RUN_MOUNT_VAR", "Sf.Run.Var")
+	Genaiz.Function.Run.NoPropSync = newKeys("Function.Run.NoPropSync", "SF_RUN_NO_PROP_SYNC", "Sf.Run.NoPropSync")
 	Genaiz.Function.Run.Prefix = newKeys("Function.Run.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Run.Prefix")
 
 	Genaiz.Function.Start.EnvFile = newKeys("Function.Start.EnvFile", "SF_RUN_ENV_FILE", "Sf.Start.EnvFile")
@@ -569,6 +559,7 @@ func init() {
 	Genaiz.Function.Start.MountLog = newKeys("Function.Start.Log", "SF_RUN_MOUNT_LOG", "Sf.Start.Log")
 	Genaiz.Function.Start.MountVar = newKeys("Function.Start.Var", "SF_RUN_MOUNT_VAR", "Sf.Start.Var")
 	Genaiz.Function.Start.Name = newKeys("Function.Start.Name", "SF_RUN_CONTAINER_NAME", "Sf.Start.Name")
+	Genaiz.Function.Start.NoPropSync = newKeys("Function.Start.NoPropSync", "SF_START_NO_PROP_SYNC", "Sf.Start.NoPropSync")
 	Genaiz.Function.Start.Prefix = newKeys("Function.Start.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Start.Prefix")
 	Genaiz.Function.Start.Preserve = newKeys("Function.Start.Preserve", "Sf_RUN_CONTAINER_PRESERVE", "Sf.Start.Preserve")
 	Genaiz.Function.Start.Replace = newKeys("Function.Start.Replace", "SF_RUN_REPLACE", "Sf.Start.Replace")
@@ -585,6 +576,7 @@ func init() {
 	Genaiz.Function.Test.MountOutput = newKeys("Function.Test.Output", "SF_RUN_MOUNT_OUTPUT", "Sf.Test.Output")
 	Genaiz.Function.Test.MountLog = newKeys("Function.Test.Log", "SF_RUN_MOUNT_LOG", "Sf.Test.Log")
 	Genaiz.Function.Test.MountVar = newKeys("Function.Test.Var", "SF_RUN_MOUNT_VAR", "Sf.Test.Var")
+	Genaiz.Function.Test.NoPropSync = newKeys("Function.Test.NoPropSync", "SF_TEST_NO_PROP_SYNC", "Sf.Test.NoPropSync")
 	Genaiz.Function.Test.Prefix = newKeys("Function.Test.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Test.Prefix")
 
 	Genaiz.Solution.Create.ConfigType = newKeys("Solution.Create.ConfigType", "SN_CREATE_CONFIG_TYPE", "Sn.Create.ConfigType")

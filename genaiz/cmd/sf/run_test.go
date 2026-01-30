@@ -2,12 +2,12 @@ package sf
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -18,6 +18,7 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
 )
 
@@ -86,6 +87,105 @@ func TestRunExecutor_Display(t *testing.T) {
 	}
 }
 
+func TestRunExecutor_Pretend(t *testing.T) {
+	var calledBuild, calledRun bool
+	var capturedDataLinkParams broker.DataLinkParams
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = &Cli{
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
+	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
+	var testExecutor = &RunExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:    testCli,
+			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
+		},
+		RunOptions: newRunTestOptions(),
+
+		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
+		runTaskFactory:   newRunTaskPretendStub(&calledRun),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
+		testViper.Set(testExecutor.innerSources.Key, []string{fmt.Sprintf("%s/%s:%s",
+			testDataLink.Oem, testDataLink.Handle, testDataLink.Version)})
+		testLedger.InitLogging()
+		testExecutor.Pretend()
+		assert.False(t, calledBuild)
+		assert.True(t, calledRun)
+		assert.Equal(t, testDataLink, capturedDataLinkParams.DataLink)
+	} else {
+		assert.NoError(t, err)
+	}
+}
+
+func TestRunExecutor_Pretend_DataLinkError(t *testing.T) {
+	var calledBuild, calledRun bool
+	var capturedDataLinkParams broker.DataLinkParams
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = &Cli{
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
+	}
+	var testExecutor = &RunExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:    testCli,
+			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{}),
+			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
+		},
+		RunOptions: newRunTestOptions(),
+
+		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
+		runTaskFactory:   newRunTaskPretendStub(&calledRun),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		var patch = mock.Patches{T: t}.OsExit(func(int) {})
+
+		defer patch.Unpatch()
+		defer filez.CloseSilently(fd)
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
+		testViper.Set(testExecutor.innerSources.Key, []string{"notValid/noVersion"})
+		testLedger.InitLogging()
+		testExecutor.Pretend()
+		assert.False(t, calledBuild)
+		assert.False(t, calledRun)
+		assert.NotEmpty(t, patch.CalledWith)
+		assert.EqualValues(t, 1, patch.CalledWith)
+	} else {
+		assert.NoError(t, err)
+	}
+}
+
 func TestRunExecutor_Pretend_EnvMapError(t *testing.T) {
 	var calledBuild, calledRun bool
 	var testFile = filepath.Join(t.TempDir(), ".env-test")
@@ -123,8 +223,61 @@ func TestRunExecutor_Pretend_EnvMapError(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestRunExecutor_Pretend_NoSync(t *testing.T) {
+	var calledBuild, calledRun bool
+	var capturedDataLinkParams broker.DataLinkParams
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = &Cli{
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
+	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
+	var testExecutor = &RunExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:    testCli,
+			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			collectTaskFactory:     newCollectLinkPretendCapture(&capturedDataLinkParams),
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+		},
+		RunOptions: newRunTestOptions(),
+
+		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
+		runTaskFactory:   newRunTaskPretendStub(&calledRun),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
+		testViper.Set(testExecutor.optionNoPropSync.Key, "True")
+		testViper.Set(testExecutor.innerSources.Key, []string{fmt.Sprintf("%s/%s:%s",
+			testDataLink.Oem, testDataLink.Handle, testDataLink.Version)})
+		testLedger.InitLogging()
+		testExecutor.Pretend()
+		assert.False(t, calledBuild)
+		assert.True(t, calledRun)
+		assert.Equal(t, testDataLink, capturedDataLinkParams.DataLink)
+	} else {
+		assert.NoError(t, err)
+	}
+}
+
 func TestRunExecutor_Pretend_RebuildImage(t *testing.T) {
 	var calledBuild, calledRun bool
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
@@ -139,6 +292,12 @@ func TestRunExecutor_Pretend_RebuildImage(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			collectTaskFactory:     newCollectLinkPretendCapture(&capturedDataLinkParams),
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{}),
+		},
 		RunOptions: newRunTestOptions(),
 
 		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
@@ -150,7 +309,8 @@ func TestRunExecutor_Pretend_RebuildImage(t *testing.T) {
 
 		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
-		testLedger.Logger = logrus.New()
+		testViper.Set(testExecutor.optionNoPropSync.Key, "True")
+		testLedger.InitLogging()
 		testExecutor.rebuildImage = true
 		testExecutor.Pretend()
 		assert.True(t, calledBuild)
@@ -178,6 +338,11 @@ func TestRunExecutor_Proceed(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{}),
+		},
 		RunOptions: newRunTestOptions(),
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
@@ -189,7 +354,7 @@ func TestRunExecutor_Proceed(t *testing.T) {
 
 		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
-		testLedger.Logger = logrus.New()
+		testLedger.InitLogging()
 		testExecutor.rebuildImage = true
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
@@ -234,6 +399,120 @@ func TestRunExecutor_Proceed_EnvMapError(t *testing.T) {
 	}
 
 	assert.NoError(t, err)
+}
+
+func TestRunExecutor_Proceed_NoSync(t *testing.T) {
+	var calledBuild, calledRun bool
+	var capturedDataLinkParams broker.DataLinkParams
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testCli = &Cli{
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
+	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
+	var testExecutor = &RunExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:    testCli,
+			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			collectTaskFactory:     newCollectLinkCompleteCapture(&capturedDataLinkParams),
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+		},
+		RunOptions: newRunTestOptions(),
+
+		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
+		runTaskFactory:   newRunTaskCompleteStub(&calledRun),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
+		testViper.Set(testExecutor.optionNoPropSync.Key, "True")
+		testViper.Set(testExecutor.innerStores.Key, []string{fmt.Sprintf("%s/%s:%s",
+			testDataLink.Oem, testDataLink.Handle, testDataLink.Version)})
+		testLedger.InitLogging()
+		testExecutor.Proceed()
+		assert.False(t, calledBuild)
+		assert.True(t, calledRun)
+		assert.Equal(t, testDataLink, capturedDataLinkParams.DataLink)
+	} else {
+		assert.NoError(t, err)
+	}
+}
+
+func TestRunExecutor_Proceed_SyncSpecs(t *testing.T) {
+	var calledBuild bool
+	var capturedContainerParams docker.ContainerParams
+	var capturedDataLinkParams broker.DataLinkParams
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testCli = &Cli{
+		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
+		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
+		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
+	}
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
+	var testPropSpec = &broker.PropSpec{
+		Key:   "key",
+		Value: "value",
+	}
+	var testExecutor = &RunExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:    testCli,
+			Ledger: testLedger,
+		},
+		SyncExecutor: SyncExecutor{
+			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
+			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
+			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
+			exportTaskFactory:      newExportLinkCompleteCapture(&capturedDataLinkParams),
+		},
+		RunOptions: newRunTestOptions(),
+
+		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
+		runTaskFactory:   newRunTaskCompleteCapture(&capturedContainerParams),
+	}
+
+	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
+		testViper.Set(testExecutor.innerStores.Key, []string{fmt.Sprintf("%s/%s:%s",
+			testDataLink.Oem, testDataLink.Handle, testDataLink.Version)})
+		testViper.Set(schema.Genaiz.Function.Publish.PropSpecs.Doc, []broker.PropSpec{*testPropSpec})
+		testLedger.InitLogging()
+		testExecutor.Proceed()
+		assert.False(t, calledBuild)
+		assert.Equal(t, testPropSpec.Key, capturedContainerParams.VarSpecs[0].GetKey())
+		assert.Equal(t, testPropSpec.Value, capturedContainerParams.VarSpecs[0].GetDefaultValue())
+		assert.Equal(t, testDataLink, capturedDataLinkParams.DataLink)
+	} else {
+		assert.NoError(t, err)
+	}
 }
 
 func TestRunOptions_allDefiners(t *testing.T) {
@@ -330,6 +609,21 @@ func newRunTaskCompleteStub(flag *bool) RunTaskFactory {
 	}
 }
 
+func newRunTaskCompleteCapture(capture *docker.ContainerParams) RunTaskFactory {
+	return func() *task.Task[docker.ContainerParams] {
+		return &task.Task[docker.ContainerParams]{
+			Name: "run_test",
+			OnPrepare: func(params *docker.ContainerParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *docker.ContainerParams, state *task.State) error {
+				*capture = *params
+				return nil
+			},
+		}
+	}
+}
+
 func newRunTestOptions() *RunOptions {
 	return &RunOptions{
 		EnvOptions: EnvOptions{
@@ -355,8 +649,67 @@ func newRunTestOptions() *RunOptions {
 		optionRunImage: cli.Options.Docker.Image().
 			WithKeys(&schema.Genaiz.Function.Run.Image).
 			BuildStringOption(),
+		optionNoPropSync: cli.Options.Functions.NoPropSync().
+			WithKeys(&schema.Genaiz.Function.Run.NoPropSync).
+			BuildBoolOption(),
 		optionRunPrefix: cli.Options.Docker.ContainerPrefix().
 			WithKeys(&schema.Genaiz.Function.Run.Prefix).
 			BuildStringOption(),
+	}
+}
+
+func newCollectLinkCompleteCapture(capture *broker.DataLinkParams) CollectTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *broker.DataLinkParams, state *task.State) error {
+				*capture = *params
+				return nil
+			},
+		}
+	}
+}
+
+func newCollectLinkPretendCapture(capture *broker.DataLinkParams) CollectTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnPretend: func(params *broker.DataLinkParams, state *task.State) error {
+				*capture = *params
+				return nil
+			},
+		}
+	}
+}
+
+func newExportLinkCompleteCapture(capture *broker.DataLinkParams) ExportTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *broker.DataLinkParams, state *task.State) error {
+				*capture = *params
+				return nil
+			},
+		}
+	}
+}
+
+func newExportLinkPretendCapture(capture *broker.DataLinkParams) ExportTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnPretend: func(params *broker.DataLinkParams, state *task.State) error {
+				*capture = *params
+				return nil
+			},
+		}
 	}
 }

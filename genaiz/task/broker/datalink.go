@@ -55,18 +55,18 @@ func (dlp DataLinkParams) ToFqdn() (string, string, string) {
 	return "", "", ""
 }
 
+func (dlp DataLinkParams) ToPublished() string {
+	var oem, handle, ver = dlp.publishedFqdn()
+
+	return fmt.Sprintf("%s/%s:%s", oem, handle, ver)
+}
+
 func (dlp DataLinkParams) ToString() string {
 	if dlp.DataLink != nil {
 		return fmt.Sprintf("%s/%s:%s", dlp.Oem, dlp.Handle, dlp.Version)
 	}
 
 	return ""
-}
-
-func (dlp DataLinkParams) ToPublished() string {
-	var oem, handle, ver = dlp.publishedFqdn()
-
-	return fmt.Sprintf("%s/%s:%s", oem, handle, ver)
 }
 
 func (dlp DataLinkParams) findDataLink(writer DataLinkWriter) (*DataLink, error) {
@@ -131,6 +131,15 @@ func (dlp DataLinkParams) publishedFqdn() (string, string, string) {
 	}
 
 	return "", "", ""
+}
+
+func NewDataLinkCollectTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
+	return &task.Task[DataLinkParams]{
+		Name:       "data-link-collect",
+		OnPrepare:  handleDataLinkCollectContext,
+		OnComplete: lang.Assists(writer, handleDataLinkCollectComplete),
+		OnPretend:  lang.Assists(writer, handleDataLinkCollectPretend),
+	}
 }
 
 func NewDataLinkCreateTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
@@ -199,6 +208,63 @@ func handleDataLinkAvailableError(params *DataLinkParams, state *task.State) err
 	}
 
 	return nil
+}
+
+func handleDataLinkCollectContext(params *DataLinkParams, state *task.State) error {
+	if state.Output == "" {
+		if params.isValid() {
+			var err error
+
+			state.Logger.Debugf("Validating configuration file [%s]", state.Output)
+
+			if state.Output, err = params.ResolveOptionalType(shared.ConfigTypeYaml); errors.Is(err, shared.ErrorConfigFileExists) {
+				return nil
+			}
+
+			return err
+		}
+
+		return errDataLinkInvalid
+	}
+
+	return nil
+}
+
+func handleDataLinkCollectComplete(writer DataLinkWriter, params *DataLinkParams, state *task.State) error {
+	if state.Output != "" {
+		var oem, handle, ver = params.ToFqdn()
+		var fqdnString = params.ToString()
+
+		state.Logger.Debugf("Looking up for data link [%s]", fqdnString)
+
+		if local := writer.GetDataLink(oem, handle, ver); local != nil {
+			persistVarSpecs(local, state)
+			state.Reportf("Collected data link [%s]", fqdnString)
+			return nil
+		}
+
+		return errDataLinkNotFound
+	}
+
+	return shared.ErrorConfigFileInvalid
+}
+
+func handleDataLinkCollectPretend(writer DataLinkWriter, params *DataLinkParams, state *task.State) error {
+	if state.Output != "" {
+		var oem, handle, ver = params.ToFqdn()
+		var fqdnString = params.ToString()
+
+		state.Logger.Debugf("Looking up for data link [%s]", fqdnString)
+
+		if local := writer.GetDataLink(oem, handle, ver); local != nil {
+			persistVarSpecs(local, state)
+			state.Logger.Debugf("Collected specs for data link [%s]", fqdnString)
+		}
+
+		return nil
+	}
+
+	return shared.ErrorConfigFileInvalid
 }
 
 func handleDataLinkCreateContext(writer DataLinkWriter, params *DataLinkParams, state *task.State) error {
@@ -465,6 +531,7 @@ func handleDataLinkExportComplete(writer DataLinkWriter, params *DataLinkParams,
 			}
 
 			if remote, err = brokerClient.ExportDataLink(oem, handle, ver, sequence); err == nil {
+				persistVarSpecs(remote, state)
 				writer.WithDataLink(remote).SyncDataLinks()
 
 				if err = writer.Write(state.Output); err == nil {
@@ -474,7 +541,7 @@ func handleDataLinkExportComplete(writer DataLinkWriter, params *DataLinkParams,
 						state.Reportf("Imported data link [%s-rc%s]", fqdnString, sequence)
 					}
 
-					// Here: We'll need to create a shared.PropSpecState to be able to buffer Env vars for other tasks
+					state.Output = ""
 					return nil
 				}
 			}
@@ -675,6 +742,21 @@ func handleDataLinkPublishPretend(writer DataLinkWriter, params *DataLinkParams,
 	}
 
 	return state.Error
+}
+
+func persistVarSpecs(spec *DataLink, state *task.State) {
+	var varSpecClient = shared.NewVarSpecState(state)
+	var varSpecs []shared.VarSpec
+
+	for _, s := range spec.PropSpecs {
+		varSpecs = append(varSpecs, s.VarSpec())
+	}
+
+	for _, s := range spec.SecretSpecs {
+		varSpecs = append(varSpecs, s.VarSpec())
+	}
+
+	varSpecClient.AddSpecs(varSpecs)
 }
 
 func pretendPropSpec(pretender shared.ConfigPretender, rootKey string, index int, specs []PropSpec) {
