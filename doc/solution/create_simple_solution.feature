@@ -56,6 +56,6 @@ Feature: solution create for a simple solution
     Given the following parameters
       | folder      | oem            | handle     | description          | name        | version | workflowDesc         | workflowHandle | workflowName |
       | my-solution | dev.genaiz.com | solution-1 | solution description | My Solution | 0.1.1   | workflow description | workflow-1     | workflow one |
-    When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --description='<description>' --name='<name>' --version=<version> --workflow-desc='<workflowDesc>' --workflowHandle='<workflowHandle>' --workflowName='<workflowName>'
+    When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --description='<description>' --name='<name>' --version=<version> --workflow-desc='<workflowDesc>' --workflowHandle='<workflowHandle>' --workflowName='<workflowName>'"
     Then I should have a solution under "<folder>" named "<name>" with oem "<oem>", handle "<handle>", description "<description>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDesc>"

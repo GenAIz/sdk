@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -246,7 +247,23 @@ func NewSfCli(confirm cli.Interactive, dry, pretend cli.Decisive) *Cli {
 
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerTag: cli.Options.Docker.Tag().
+			WithDefaultSetter(makeResolveSfTag()).
+			BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
+	}
+}
+
+func makeResolveSfTag() func(ledger *config.Ledger) any {
+	return func(ledger *config.Ledger) any {
+		var parent = filepath.Base(filepath.Dir(ledger.WorkDir))
+		var fn = filepath.Base(ledger.WorkDir)
+
+		if config.Validation.Oem(parent) && config.Validation.Handle(fn) {
+			// Should not set a default value that is not a valid tag
+			return fmt.Sprintf("%s/%s", parent, fn)
+		}
+
+		return ""
 	}
 }

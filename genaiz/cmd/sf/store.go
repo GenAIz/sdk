@@ -81,8 +81,8 @@ func (se *StoreExecutor) Display() {
 }
 
 func (se *StoreExecutor) Pretend() {
-	var builder = makeInitBuilder(se.Ledger, se.Cli)
 	var initParams = se.makeInitParams()
+	var writer = newInitWriter(se.Cli)
 	var plan = task.NewPlan("DataStore", se.Ledger.Logger)
 	var workers []task.Worker
 
@@ -97,9 +97,9 @@ func (se *StoreExecutor) Pretend() {
 		}
 
 		workers = append(workers, task.NewPretender(se.addParams, se.listLinksTaskFactory()))
-		workers = append(workers, task.NewPretender(initParams, se.initTaskFactory(builder)))
+		workers = append(workers, task.NewPretender(initParams, se.initTaskFactory(writer)))
 	} else {
-		workers = append(workers, task.NewPretender(initParams, se.initTaskFactory(builder)))
+		workers = append(workers, task.NewPretender(initParams, se.initTaskFactory(writer)))
 	}
 
 	plan.PrintReportsOnly = true
@@ -107,8 +107,8 @@ func (se *StoreExecutor) Pretend() {
 }
 
 func (se *StoreExecutor) Proceed() {
-	var builder = makeInitBuilder(se.Ledger, se.Cli)
 	var initParams = se.makeInitParams()
+	var writer = newInitWriter(se.Cli)
 	var plan = task.NewPlan("DataStore", se.Ledger.Logger)
 	var workers []task.Worker
 
@@ -123,9 +123,9 @@ func (se *StoreExecutor) Proceed() {
 		}
 
 		workers = append(workers, task.NewWorker(se.addParams, se.listLinksTaskFactory()))
-		workers = append(workers, task.NewWorker(initParams, se.initTaskFactory(builder)))
+		workers = append(workers, task.NewWorker(initParams, se.initTaskFactory(writer)))
 	} else if se.rmParams != nil {
-		workers = append(workers, task.NewWorker(initParams, se.initTaskFactory(builder)))
+		workers = append(workers, task.NewWorker(initParams, se.initTaskFactory(writer)))
 	}
 
 	plan.PrintReportsOnly = true
@@ -148,7 +148,8 @@ func (se *StoreExecutor) makeInitParams() *layout.InitParams {
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
 			ConfigParams: shared.ConfigParams{
-				ConfigName: se.Ledger.ConfigName,
+				ConfigName:   se.Ledger.ConfigName,
+				ConfigFolder: se.Ledger.WorkDir,
 			},
 		},
 		DataStores: se.updatedStores,

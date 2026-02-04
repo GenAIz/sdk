@@ -1,9 +1,10 @@
 # Smart Function Command Specs
 
-## Test Cases
+## Test Features
 
 * [Build bash example](build_bash_example.feature)
 * [Create bash example](create_bash_example.feature)
+* [Create child connector](create_child_connector.feature)
 * [Data bash example](data_bash_example.feature)
 * [Data source example](data_source_example.feature)
 * [Data store example](data_store_example.feature)

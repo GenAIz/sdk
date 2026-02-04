@@ -270,11 +270,13 @@ func TestRecipe_PrintInit_TemplateError(t *testing.T) {
 func TestRecipe_WriteFiles(t *testing.T) {
 	var testDir = t.TempDir()
 
-	if fd, err := os.CreateTemp(testDir, "genaiz-test-write-riles"); err == nil {
+	if fd, err := os.CreateTemp(testDir, "genaiz-test-write-files"); err == nil {
 		var testArtifact = Artifact{
 			Name: fd.Name(),
+			Dest: "notExisting",
 		}
 		var testRecipe = &recipe{
+			Path:      testDir,
 			Name:      "testRecipe_WriteFilesParseError",
 			Type:      TypeFunction,
 			Artifacts: []Artifact{testArtifact},
@@ -289,7 +291,37 @@ func TestRecipe_WriteFiles(t *testing.T) {
 	}
 }
 
-func TestRecipe_WriteFilesExecuteError(t *testing.T) {
+func TestRecipe_WriteFiles_DestExists(t *testing.T) {
+	var testDir = t.TempDir()
+	var fd *os.File
+	var err error
+
+	if fd, err = os.CreateTemp(testDir, "genaiz-test-write-files"); err == nil {
+		var testArtifact = Artifact{
+			Name: fd.Name(),
+			Dest: "exists",
+		}
+
+		if fd, err = os.Create(filepath.Join(testDir, testArtifact.Dest)); err == nil {
+			var testRecipe = &recipe{
+				Path:      testDir,
+				Name:      "testRecipe_WriteFilesParseError",
+				Type:      TypeFunction,
+				Artifacts: []Artifact{testArtifact},
+				parse: func(path string, t *template.Template) (*template.Template, error) {
+					return t.Parse("{{.test-}")
+				},
+			}
+
+			assert.NoError(t, testRecipe.WriteFiles(testDir, "instanceName", map[string]string{}))
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestRecipe_WriteFiles_ExecuteError(t *testing.T) {
 	var testDir = t.TempDir()
 	var testArtifact = Artifact{
 		Name: "testArtifact",
@@ -306,7 +338,7 @@ func TestRecipe_WriteFilesExecuteError(t *testing.T) {
 	assert.Error(t, testRecipe.WriteFiles(testDir, "instanceName", map[string]string{}))
 }
 
-func TestRecipe_WriteFilesParseError(t *testing.T) {
+func TestRecipe_WriteFiles_ParseError(t *testing.T) {
 	var testDir = t.TempDir()
 	var expectedError = errors.New("expected")
 	var testArtifact = Artifact{
@@ -325,7 +357,7 @@ func TestRecipe_WriteFilesParseError(t *testing.T) {
 	assert.ErrorIs(t, expectedError, err)
 }
 
-func TestRecipe_WriteFilesPathError(t *testing.T) {
+func TestRecipe_WriteFiles_PathError(t *testing.T) {
 	var testDir = t.TempDir()
 	var testArtifact = Artifact{
 		Name: "/_will_never_exist/testArtifact",
@@ -371,7 +403,7 @@ func TestNewEmbedded(t *testing.T) {
 				var dockerPath = filepath.Join(embeddedPath, entry.Name(), "Dockerfile.tmpl")
 
 				assert.EqualValues(t, "bash-example", testRecipe.Name)
-				assert.EqualValues(t, len(testRecipe.Artifacts), 2)
+				assert.EqualValues(t, len(testRecipe.Artifacts), 3)
 				assert.True(t, slices.ContainsFunc(testRecipe.Artifacts, func(a Artifact) bool {
 					return strings.EqualFold(a.Name, "app.sh.tmpl")
 				}))

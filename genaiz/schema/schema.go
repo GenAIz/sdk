@@ -111,6 +111,7 @@ type Document struct {
 			Oem          Keys
 			Recipe       Keys
 			SolutionPath Keys
+			Tag          Keys
 			Type         Keys
 			Version      Keys
 		}
@@ -465,6 +466,7 @@ func init() {
 	Genaiz.Function.Create.Oem = newKeys("Function.Create.Oem", "SF_CREATE_OEM", "Sf.Create.Oem")
 	Genaiz.Function.Create.Recipe = newKeys("Function.Create.Recipe", "SF_CREATE_RECIPE", "Sf.Create.Recipe")
 	Genaiz.Function.Create.SolutionPath = newKeys("Function.Create.SolutionPath", "SF_CREATE_SN_PATH", "Sf.Create.SolutionPath")
+	Genaiz.Function.Create.Tag = newKeys("Function.Create.Tag", "SF_CREATE_TAG", "Sf.Create.Tag")
 	Genaiz.Function.Create.Type = newKeys("Function.Create.Type", "SF_CREATE_TYPE", "Sf.Create.Type")
 	Genaiz.Function.Create.Version = newKeys("Function.Create.Version", "SF_CREATE_VERSION", "Sf.Create.Version")
 

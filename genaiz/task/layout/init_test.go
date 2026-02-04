@@ -4,15 +4,12 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz-lib/lang/dirz"
-	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
@@ -266,49 +263,74 @@ func Test_handleLayoutInitContext_needsConfig(t *testing.T) {
 	assert.Equal(t, "test.json", actual.Output)
 }
 
-func Test_handleLayoutInitContext_noConfig(t *testing.T) {
-	var actual = &task.State{Logger: logrus.New()}
+func Test_handleLayoutInitContext(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
 	var testParams = &InitParams{
 		CreateParams: CreateParams{
 			ConfigParams: shared.ConfigParams{
-				ConfigName: "test",
+				ConfigFolder: t.TempDir(),
+				ConfigName:   "test",
+				ConfigType:   lang.Ref(shared.ConfigTypeYaml),
 			},
 		},
 	}
 
-	assert.ErrorIs(t, errorNeedsConfigFile, handleLayoutInitContext(testParams, actual))
-	assert.Equal(t, "", actual.Output)
+	assert.NoError(t, handleLayoutInitContext(testParams, testState))
+	assert.Equal(t, testParams.GetConfigPath(), testState.Output)
 }
 
-func Test_handleLayoutInitContext(t *testing.T) {
-	var expectedDir = filepath.Join(t.TempDir(), "genaiz.init")
-	var expectedFile = "test.json"
-	var reset func()
+func Test_handleLayoutInitContext_dirError(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &InitParams{
+		CreateParams: CreateParams{
+			ConfigParams: shared.ConfigParams{
+				ConfigFolder: t.TempDir(),
+				ConfigName:   "test",
+				ConfigType:   lang.Ref(shared.ConfigTypeYaml),
+			},
+		},
+	}
+	var expectedPath = testParams.GetConfigPath()
 	var err error
 
-	if reset, err = dirz.CreateWorkingDir(expectedDir); err == nil {
-		defer reset()
-		defer filez.RemoveSilently(expectedDir)
-		var actual = &task.State{Logger: logrus.New()}
-		var testParams = &InitParams{
-			CreateParams: CreateParams{
-				ConfigParams: shared.ConfigParams{
-					ConfigName: "test",
-				},
-			},
-		}
-
-		if _, err = os.Create(filepath.Join(expectedDir, expectedFile)); err == nil {
-			assert.ErrorIs(t, errorNeedsConfigFile, handleLayoutInitContext(testParams, actual))
-			assert.Equal(t, expectedFile, actual.Output)
-		}
+	if err = os.MkdirAll(expectedPath, 0750); err == nil {
+		assert.ErrorIs(t, handleLayoutInitContext(testParams, testState), shared.ErrorConfigFileInvalid)
+		assert.Empty(t, testState.Output)
+	} else {
+		assert.Fail(t, err.Error())
 	}
-
-	assert.NoError(t, err)
 }
 
-func Test_handleLayoutInitCreate_noConfig(t *testing.T) {
-	assert.ErrorIs(t, errorNoConfigFile, handleLayoutInitCreate(nil, &InitParams{}, &task.State{}))
+func Test_handleLayoutInitContext_existsError(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &InitParams{
+		CreateParams: CreateParams{
+			ConfigParams: shared.ConfigParams{
+				ConfigFolder: t.TempDir(),
+				ConfigName:   "test",
+				ConfigType:   lang.Ref(shared.ConfigTypeYaml),
+			},
+		},
+	}
+	var expectedPath = testParams.GetConfigPath()
+	var err error
+
+	if _, err = os.Create(expectedPath); err == nil {
+		assert.ErrorIs(t, handleLayoutInitContext(testParams, testState), shared.ErrorConfigFileExists)
+		assert.Equal(t, expectedPath, testState.Output)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleLayoutInitContext_knownOutput(t *testing.T) {
+	assert.NoError(t, handleLayoutInitContext(&InitParams{}, &task.State{Output: "output"}))
 }
 
 func Test_handleLayoutInitCreate(t *testing.T) {
@@ -338,6 +360,10 @@ func Test_handleLayoutInitCreate(t *testing.T) {
 	assert.Equal(t, testParams.OEM, testWriter.oem)
 	assert.Equal(t, testParams.Version, testWriter.version)
 	assert.Equal(t, testState.Output, testWriter.dest)
+}
+
+func Test_handleLayoutInitCreate_noConfig(t *testing.T) {
+	assert.ErrorIs(t, errorNoConfigFile, handleLayoutInitCreate(nil, &InitParams{}, &task.State{}))
 }
 
 func Test_handleLayoutInitPretend(t *testing.T) {
@@ -683,25 +709,11 @@ func Test_handleLayoutInitPretend_propSpecsRemoval(t *testing.T) {
 	assert.Contains(t, output, expectedRemoveSpec.Key)
 }
 
-func Test_handleLayoutInitUpdate_createError(t *testing.T) {
-	var expectedError = errors.New("expected")
-	var testState = &task.State{
-		Logger: logrus.New(),
-		Output: "test.json",
-	}
-	var testWriter = &stubWriter{writeErr: expectedError}
-
-	assert.ErrorIs(t, handleLayoutInitUpdate(testWriter, &InitParams{}, testState), expectedError)
-}
-
-func Test_handleLayoutInitUpdate_noConfig(t *testing.T) {
-	assert.NoError(t, handleLayoutInitUpdate(nil, &InitParams{}, &task.State{}))
-}
-
 func Test_handleLayoutInitUpdate(t *testing.T) {
 	var testState = &task.State{
 		Logger: logrus.New(),
 		Output: "test.json",
+		Error:  shared.ErrorConfigFileExists,
 	}
 	var testParams = &InitParams{
 		Arches:      []ArchType{ArchTypeX86},
@@ -725,4 +737,20 @@ func Test_handleLayoutInitUpdate(t *testing.T) {
 	assert.Equal(t, testParams.OEM, testWriter.oem)
 	assert.Equal(t, testParams.Version, testWriter.version)
 	assert.Empty(t, testState.Output)
+}
+
+func Test_handleLayoutInitUpdate_createError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "test.json",
+		Error:  shared.ErrorConfigFileExists,
+	}
+	var testWriter = &stubWriter{writeErr: expectedError}
+
+	assert.ErrorIs(t, handleLayoutInitUpdate(testWriter, &InitParams{}, testState), expectedError)
+}
+
+func Test_handleLayoutInitUpdate_noConfig(t *testing.T) {
+	assert.NoError(t, handleLayoutInitUpdate(nil, &InitParams{}, &task.State{}))
 }

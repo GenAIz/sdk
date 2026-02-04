@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -238,13 +237,7 @@ var (
 					WithKeys(&schema.Genaiz.Function.Build.Tag).
 					WithParam("tag").
 					WithUsage("tag the smart function image locally, defaults to the work dir name").
-					WithValidator(config.Validation.Repository).
-					WithDefaultSetter(func(ledger *config.Ledger) any {
-						var parent = filepath.Base(filepath.Dir(ledger.WorkDir))
-						var fn = filepath.Base(ledger.WorkDir)
-
-						return fmt.Sprintf("%s/%s", parent, fn)
-					})
+					WithValidator(config.Validation.Repository)
 			},
 			Version: func() OptionBuilder {
 				return NewOptionBuilder().

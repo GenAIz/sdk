@@ -104,6 +104,7 @@ var (
 type Artifact struct {
 	File     []byte   // The content of the File, unprocessed, this will be processed with the Go template engine
 	Commands []string // An optional Command to run after the file has been processed
+	Dest     string   // Dest is checked to see if we should omit this Artifact, left empty will cause the recipe to overwrite what was there previously
 	Name     string   // Name of the artifact for the purpose of displaying
 }
 
@@ -260,20 +261,18 @@ func (r *recipe) WriteFiles(dest string, instanceName string, variables map[stri
 	maps.Copy(params, variables)
 
 	for _, artifact := range r.Artifacts {
-		var tpl = template.New(artifact.Name)
-		var artifactPath = filepath.Join(r.Path, artifact.Name)
-		var output = new(bytes.Buffer)
+		var processArtifact = true
 
-		if tpl, err = r.parse(artifactPath, tpl); err == nil {
-			if err = tpl.Execute(io.Writer(output), params); err == nil {
-				if err = os.WriteFile(artifact.Name, output.Bytes(), 0640); err == nil {
-					err = executeCommands(artifact.Commands, instanceName, variables)
-				}
+		if artifact.Dest != "" {
+			if _, err = os.Stat(filepath.Join(r.Path, artifact.Dest)); err == nil {
+				processArtifact = false
 			}
 		}
 
-		if err != nil {
-			break
+		if processArtifact {
+			if err = r.writeFile(&artifact, instanceName, params, variables); err != nil {
+				break
+			}
 		}
 	}
 
@@ -306,6 +305,23 @@ func (r *recipe) getKeyVariations() []string {
 	}
 
 	return result
+}
+
+func (r *recipe) writeFile(artifact *Artifact, instanceName string, params, variables map[string]string) error {
+	var tpl = template.New(artifact.Name)
+	var artifactPath = filepath.Join(r.Path, artifact.Name)
+	var output = new(bytes.Buffer)
+	var err error
+
+	if tpl, err = r.parse(artifactPath, tpl); err == nil {
+		if err = tpl.Execute(io.Writer(output), params); err == nil {
+			if err = os.WriteFile(artifact.Name, output.Bytes(), 0640); err == nil {
+				err = executeCommands(artifact.Commands, instanceName, variables)
+			}
+		}
+	}
+
+	return err
 }
 
 type Variation struct {

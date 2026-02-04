@@ -508,10 +508,13 @@ func TestInitExecutor_Pretend(t *testing.T) {
 		InitOptions:     NewInitOptions(testCli),
 		initTaskFactory: newInitTaskPretendStub(&calledInit),
 	}
+	var expectedFile = "Dockerfile2"
 
-	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
+	if fd, err := os.Create(filepath.Join(testDir, expectedFile)); err == nil {
 		filez.CloseSilently(fd)
+		t.Chdir(testDir)
 		testLedger.WorkDir = testDir
+		testViper.Set(testExecutor.Cli.optionDockerFile.Key, expectedFile)
 		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
 		testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
@@ -704,6 +707,39 @@ func TestNewInit(t *testing.T) {
 	} else {
 		assert.Fail(t, "no --dry content")
 	}
+}
+
+func TestNewInitOptions_publishedHandle(t *testing.T) {
+	var testCli = NewSfCli(nil, nil, nil)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testOptions = NewInitOptions(testCli)
+	var expectedHandle = "expectedHandle"
+
+	testViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedHandle)
+	assert.Equal(t, expectedHandle, testOptions.optionHandle.DefaultGetter(testLedger))
+}
+
+func TestNewInitOptions_publishedOem(t *testing.T) {
+	var testCli = NewSfCli(nil, nil, nil)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testOptions = NewInitOptions(testCli)
+	var expectedOem = "expectedOem"
+
+	testViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedOem)
+	assert.Equal(t, expectedOem, testOptions.optionOem.DefaultGetter(testLedger))
+}
+
+func TestNewInitOptions_publishedVersion(t *testing.T) {
+	var testCli = NewSfCli(nil, nil, nil)
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testOptions = NewInitOptions(testCli)
+	var expectedVersion = "expectedVersion"
+
+	testViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedVersion)
+	assert.Equal(t, expectedVersion, testOptions.optionVersion.DefaultGetter(testLedger))
 }
 
 func newInitTaskCompleteStub(checks func(params *layout.InitParams)) InitTaskFactory {

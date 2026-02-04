@@ -79,10 +79,10 @@ func (pe *PublishExecutor) Pretend() {
 	workers = append(workers, task.NewPretender(publishParams, pe.publishTaskFactory()))
 
 	if !noUpdate {
-		var builder = makeInitBuilder(pe.Ledger, pe.Cli)
+		var writer = newInitWriter(pe.Cli)
 		var initParams = pe.makePublishInitParams()
 
-		workers = append(workers, task.NewPretender(initParams, pe.initTaskFactory(builder)))
+		workers = append(workers, task.NewPretender(initParams, pe.initTaskFactory(writer)))
 	}
 
 	plan.ContinueOnFailure = true
@@ -111,10 +111,10 @@ func (pe *PublishExecutor) Proceed() {
 	)
 
 	if !noUpdate {
-		var builder = makeInitBuilder(pe.Ledger, pe.Cli)
+		var writer = newInitWriter(pe.Cli)
 		var initParams = pe.makePublishInitParams()
 
-		workers = append(workers, task.NewWorker(initParams, pe.initTaskFactory(builder)))
+		workers = append(workers, task.NewWorker(initParams, pe.initTaskFactory(writer)))
 	}
 
 	plan.PrintReportsOnly = true
@@ -175,7 +175,8 @@ func (pe *PublishExecutor) makePublishInitParams() *layout.InitParams {
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
 			ConfigParams: shared.ConfigParams{
-				ConfigName: pe.Ledger.ConfigName,
+				ConfigName:   pe.Ledger.ConfigName,
+				ConfigFolder: pe.Ledger.WorkDir,
 			},
 		},
 		Arches:  archTypes,

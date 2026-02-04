@@ -104,21 +104,21 @@ func (pse *PropSpecExecutor) Edit(key string) error {
 
 func (pse *PropSpecExecutor) Pretend() {
 	var params = pse.makeInitParams()
-	var builder = makeInitBuilder(pse.Ledger, pse.Cli)
+	var writer = newInitWriter(pse.Cli)
 
 	pse.Ledger.DisplayChangeDir()
-	builder.WithPropSpecRemoved(pse.removedPropSpec)
-	pse.initTaskFactory(builder).Pretend(params, pse.Ledger.Logger)
+	writer.WithPropSpecRemoved(pse.removedPropSpec)
+	pse.initTaskFactory(writer).Pretend(params, pse.Ledger.Logger)
 }
 
 func (pse *PropSpecExecutor) Proceed() {
-	var builder = makeInitBuilder(pse.Ledger, pse.Cli)
 	var params = pse.makeInitParams()
+	var writer = newInitWriter(pse.Cli)
 	var plan = task.NewPlan("PropSpec", pse.Ledger.Logger)
 
 	plan.PrintReportsOnly = true
-	builder.WithPropSpecRemoved(pse.removedPropSpec)
-	task.Single(plan, params, pse.initTaskFactory(builder))
+	writer.WithPropSpecRemoved(pse.removedPropSpec)
+	task.Single(plan, params, pse.initTaskFactory(writer))
 }
 
 func (pse *PropSpecExecutor) Remove(key string) error {
@@ -149,7 +149,8 @@ func (pse *PropSpecExecutor) makeInitParams() *layout.InitParams {
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
 			ConfigParams: shared.ConfigParams{
-				ConfigName: pse.Ledger.ConfigName,
+				ConfigName:   pse.Ledger.ConfigName,
+				ConfigFolder: pse.Ledger.WorkDir,
 			},
 		},
 		PropSpecs: pse.updatedPropSpecs,

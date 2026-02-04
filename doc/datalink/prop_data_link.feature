@@ -30,8 +30,8 @@ Feature: data link properties
   Scenario: add data link secret property
     Given the scenario "create data link" ran with condition "service_completed_successfully"
     And the following parameters
-      | configFile                       | handle     | oem            | version | key        |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   | SECRET_KEY |
+      | configFile                       | handle     | oem            | version | key        | type   |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   | SECRET_KEY | STRING |
     When I run the command "dk prop add <oem>/<handle>:<version> <key> --secret"
     Then I should have a "<type>" secret property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>"
 
@@ -62,7 +62,7 @@ Feature: data link properties
   Scenario: remove data link secret property
     Given the scenario "remove data link property" ran with condition "service_completed_successfully"
     And the following parameters
-      | configFile                       | handle     | oem            | version | key      |
+      | configFile                       | handle     | oem            | version | key        |
       | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   | SECRET_KEY |
     When I run the command "dk prop rm <oem>/<handle>:<version> <key>"
     Then I should not have a secret property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", for key "<key>"

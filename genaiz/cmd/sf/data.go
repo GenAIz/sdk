@@ -171,35 +171,35 @@ func (de *DataExecutor) Init(dataType, pathOrHandle string) (string, error) {
 
 func (de *DataExecutor) Pretend() {
 	var params = de.makeInitParams()
-	var builder = makeInitBuilder(de.Ledger, de.Cli)
+	var writer = newInitWriter(de.Cli)
 
 	for k := range de.updatedPorts {
 		if k == inputPortType {
-			builder.WithInputPortRemoved(de.removedPort)
+			writer.WithInputPortRemoved(de.removedPort)
 		} else if k == outputPortType {
-			builder.WithOutputPortRemoved(de.removedPort)
+			writer.WithOutputPortRemoved(de.removedPort)
 		}
 	}
 
 	de.Ledger.DisplayChangeDir()
-	de.initTaskFactory(builder).Pretend(params, de.Ledger.Logger)
+	de.initTaskFactory(writer).Pretend(params, de.Ledger.Logger)
 }
 
 func (de *DataExecutor) Proceed() {
-	var builder = makeInitBuilder(de.Ledger, de.Cli)
 	var params = de.makeInitParams()
+	var writer = newInitWriter(de.Cli)
 	var plan = task.NewPlan("Init", de.Ledger.Logger)
 
 	for k := range de.updatedPorts {
 		if k == inputPortType {
-			builder.WithInputPortRemoved(de.removedPort)
+			writer.WithInputPortRemoved(de.removedPort)
 		} else if k == outputPortType {
-			builder.WithOutputPortRemoved(de.removedPort)
+			writer.WithOutputPortRemoved(de.removedPort)
 		}
 	}
 
 	plan.PrintReportsOnly = true
-	task.Single(plan, params, de.initTaskFactory(builder))
+	task.Single(plan, params, de.initTaskFactory(writer))
 }
 
 func (de *DataExecutor) Remove(dataType, handle string) error {
@@ -256,7 +256,8 @@ func (de *DataExecutor) makeInitParams() *layout.InitParams {
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
 			ConfigParams: shared.ConfigParams{
-				ConfigName: de.Ledger.ConfigName,
+				ConfigName:   de.Ledger.ConfigName,
+				ConfigFolder: de.Ledger.WorkDir,
 			},
 		},
 		InputPorts:  inputPorts,

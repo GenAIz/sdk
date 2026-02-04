@@ -2,6 +2,7 @@ package sf
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -107,7 +108,7 @@ func (ce *CreateExecutor) Proceed() {
 }
 
 func (ce *CreateExecutor) makeCreateBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
-	var dockerTag = ledger.GetString(sfCli.optionDockerTag)
+	var dockerTag = ledger.GetString(ce.optionDockerTag)
 	var result = &InitWriter{
 		PublishOptions:             NewPublishOptions(sfCli),
 		RunOptions:                 NewRunOptions(sfCli),
@@ -185,14 +186,15 @@ func (ce *CreateExecutor) makeRecipeParamsMap(recipeOptions []*config.Option) ma
 type CreateOptions struct {
 	*InitOptions
 
-	optionRecipe *config.StringOption
+	optionDockerTag    *config.StringOption
+	optionRecipe       *config.StringOption
+	optionSolutionPath *config.StringOption
 }
 
 func (co *CreateOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		co.optionArches,
 		co.optionConfigType,
-		co.optionHandle,
 		co.optionName,
 		co.optionType,
 		co.optionInteractive,
@@ -200,6 +202,7 @@ func (co *CreateOptions) allDefiners() []config.Definer {
 		co.optionMountOutput,
 		co.optionOem,
 		co.optionRecipe,
+		co.optionSolutionPath,
 		co.optionVersion,
 	}
 }
@@ -245,13 +248,17 @@ func NewCreateExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opt
 }
 
 func NewCreateOptions(sfCli *Cli) *CreateOptions {
-	var parentOpt = cli.Options.Configs.SolutionPath().
+	var solutionOpt = cli.Options.Configs.SolutionPath().
 		WithKeys(&schema.Genaiz.Function.Create.SolutionPath).
 		WithDefaultGetter(func(ledger *config.Ledger) any {
 			return dirz.WorkingDirOrPanic()
 		}).BuildStringOption()
 	var handleOpt = cli.Options.Functions.Handle().
 		WithKeys(&schema.Genaiz.Function.Create.Handle).
+		BuildStringOption()
+	var oemOpt = cli.Options.Functions.Oem().
+		WithKeys(&schema.Genaiz.Function.Create.Oem).
+		WithDefaultGetter(sfCli.ParentOem(solutionOpt)).
 		BuildStringOption()
 
 	return &CreateOptions{
@@ -261,7 +268,7 @@ func NewCreateOptions(sfCli *Cli) *CreateOptions {
 				BuildListOption(),
 			optionConfigType: cli.Options.Configs.Type().
 				WithKeys(&schema.Genaiz.Function.Create.ConfigType).
-				WithDefaultGetter(sfCli.ParentConfigType(parentOpt)).
+				WithDefaultGetter(sfCli.ParentConfigType(solutionOpt)).
 				BuildStringOption(),
 			optionHandle: handleOpt,
 			optionInteractive: cli.Options.Modes.Interactive().
@@ -280,21 +287,24 @@ func NewCreateOptions(sfCli *Cli) *CreateOptions {
 				WithDefaultGetter(func(ledger *config.Ledger) any {
 					return ledger.GetString(handleOpt)
 				}).BuildStringOption(),
-			optionOem: cli.Options.Functions.Oem().
-				WithKeys(&schema.Genaiz.Function.Create.Oem).
-				WithDefaultGetter(sfCli.ParentOem(parentOpt)).
-				BuildStringOption(),
+			optionOem: oemOpt,
 			optionType: cli.Options.Functions.Type().
 				WithKeys(&schema.Genaiz.Function.Create.Type).
 				BuildStringOption(),
 			optionVersion: cli.Options.Functions.Version().
 				WithKeys(&schema.Genaiz.Function.Create.Version).
-				WithDefaultGetter(sfCli.ParentVersion(parentOpt)).
+				WithDefaultGetter(sfCli.ParentVersion(solutionOpt)).
 				BuildStringOption(),
 		},
+		optionDockerTag: cli.Options.Docker.Tag().
+			WithKeys(&schema.Genaiz.Function.Create.Tag).
+			WithDefaultGetter(makeResolveCreateTag(oemOpt, handleOpt)).
+			BuildStringOption(),
 		optionRecipe: cli.Options.Functions.Recipe().
 			WithKeys(&schema.Genaiz.Function.Create.Recipe).
+			WithDefaultValue("alpine-default").
 			BuildStringOption(),
+		optionSolutionPath: solutionOpt,
 	}
 }
 
@@ -312,4 +322,14 @@ func newCreateParams(ledger *config.Ledger, configTypeOption *config.StringOptio
 	}
 
 	return nil, err
+}
+
+func makeResolveCreateTag(oemOption *config.StringOption, handleOption *config.StringOption) func(*config.Ledger) any {
+	return func(ledger *config.Ledger) any {
+		var oem = ledger.GetString(oemOption)
+		var handle = ledger.GetString(handleOption)
+
+		// Unlike the SF resolution, create uses the values assigned to oem and handle, which could be made out of the working dir
+		return fmt.Sprintf("%s/%s", oem, handle)
+	}
 }
