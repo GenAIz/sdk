@@ -1,15 +1,10 @@
-name: bash-example
+name: alpine-default
 aliases:
-  - bash_ex
-  - bash_example
-  - bash.example
+  - alpine
+  - alpine_default
+  - alpine.default
 type: function
 artifacts:
-  - name: app.sh.tmpl
-    dest: app.sh
-    commands:
-      - "mv app.sh.tmpl app.sh"
-      - "chmod 0750 app.sh"
   - name: Dockerfile.tmpl
     dest: Dockerfile
     commands:

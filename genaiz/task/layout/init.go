@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cast"
 
-	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
@@ -15,8 +14,7 @@ import (
 )
 
 var (
-	errorNeedsConfigFile = errors.New("file should exists")
-	errorNoConfigFile    = errors.New("no config file found")
+	errorNoConfigFile = errors.New("no config file found")
 )
 
 type ConfigWriter interface {
@@ -135,20 +133,19 @@ func handleLayoutInitContext(params *InitParams, state *task.State) error {
 	state.Output = stringz.FirstNonEmpty(initState.GetConfigFile(), state.Output)
 
 	if state.Output == "" {
+		var err error
+
 		state.Logger.Debugf("Init finding a configuration file for writing")
 
-		if !params.IsConfigTypeNone() {
-			state.Output = params.GetConfigFile()
-		} else {
-			var file, _ = filez.FirstNamedFile(params.ConfigName)
-
-			if file == "" {
-				state.Logger.Errorf("could not find a configuration file for [%s]", params.ConfigName)
-			}
-
-			state.Output = file
-			return errorNeedsConfigFile
+		if state.Output, err = params.ResolveConfigPath(); err == nil {
+			state.Logger.Debugf("Validating configuration file [%s]", params.GetConfigFile())
+			initState.SetConfigFile(state.Output)
+		} else if errors.Is(err, shared.ErrorConfigFileExists) {
+			state.Logger.Debugf("Found configuration file [%s]", state.Output)
+			initState.SetConfigFile(state.Output)
 		}
+
+		return err
 	}
 
 	return nil
@@ -342,7 +339,8 @@ func handleLayoutInitPretend(writer ConfigWriter, params *InitParams, state *tas
 }
 
 func handleLayoutInitUpdate(writer ConfigWriter, params *InitParams, state *task.State) error {
-	if state.Output != "" {
+	if state.Output != "" &&
+		errors.Is(state.Error, shared.ErrorConfigFileExists) {
 		var err error
 
 		state.Logger.Debugf("Init updating existing [%s]", state.Output)

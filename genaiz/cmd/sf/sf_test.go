@@ -351,3 +351,48 @@ func TestNewSf(t *testing.T) {
 	assert.EqualValues(t, filepath.Join(testLedger.WorkDir, "dockerFile"),
 		testSf.PersistentFlags().Lookup(testDockerFileOption.Param).Value.String())
 }
+
+func TestNewSfCli(t *testing.T) {
+	var testDir = filepath.Join(t.TempDir(), "oem", "handle")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = NewSfCli(nil, nil, nil)
+	var err error
+
+	if err = os.MkdirAll(testDir, 0750); err == nil {
+		testLedger.WorkDir = testDir
+		assert.Equal(t, "oem/handle", testCli.optionDockerTag.DefaultSetter(testLedger))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestNewSfCli_invalidOem(t *testing.T) {
+	var testDir = filepath.Join(t.TempDir(), ".oem", "handle")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = NewSfCli(nil, nil, nil)
+	var err error
+
+	if err = os.MkdirAll(testDir, 0750); err == nil {
+		testLedger.WorkDir = testDir
+		assert.Empty(t, testCli.optionDockerTag.DefaultSetter(testLedger))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestNewSfCli_invalidHandle(t *testing.T) {
+	var testDir = filepath.Join(t.TempDir(), "oem", ".handle")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCli = NewSfCli(nil, nil, nil)
+	var err error
+
+	if err = os.MkdirAll(testDir, 0750); err == nil {
+		testLedger.WorkDir = testDir
+		assert.Empty(t, testCli.optionDockerTag.DefaultSetter(testLedger))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}

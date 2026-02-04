@@ -78,20 +78,20 @@ func (pe *ProxyExecutor) Display() {
 
 func (pe *ProxyExecutor) Pretend() {
 	var params = pe.makeInitParams()
-	var builder = makeInitBuilder(pe.Ledger, pe.Cli)
+	var writer = newInitWriter(pe.Cli)
 
-	builder.WithOutboundProxyRemoved(pe.removedProxy)
-	pe.initTaskFactory(builder).Pretend(params, pe.Ledger.Logger)
+	writer.WithOutboundProxyRemoved(pe.removedProxy)
+	pe.initTaskFactory(writer).Pretend(params, pe.Ledger.Logger)
 }
 
 func (pe *ProxyExecutor) Proceed() {
 	var params = pe.makeInitParams()
-	var builder = makeInitBuilder(pe.Ledger, pe.Cli)
+	var writer = newInitWriter(pe.Cli)
 	var plan = task.NewPlan("OutboundProxy", pe.Ledger.Logger)
 
 	plan.PrintReportsOnly = true
-	builder.WithOutboundProxyRemoved(pe.removedProxy)
-	task.Single(plan, params, pe.initTaskFactory(builder))
+	writer.WithOutboundProxyRemoved(pe.removedProxy)
+	task.Single(plan, params, pe.initTaskFactory(writer))
 }
 
 func (pe *ProxyExecutor) Remove(host string, port int) {
@@ -131,7 +131,8 @@ func (pe *ProxyExecutor) makeInitParams() *layout.InitParams {
 	return &layout.InitParams{
 		CreateParams: layout.CreateParams{
 			ConfigParams: shared.ConfigParams{
-				ConfigName: pe.Ledger.ConfigName,
+				ConfigName:   pe.Ledger.ConfigName,
+				ConfigFolder: pe.Ledger.WorkDir,
 			},
 		},
 		OutboundProxies: pe.updatedProxies,

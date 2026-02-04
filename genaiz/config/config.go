@@ -361,11 +361,6 @@ func (lr *Ledger) GetString(option *StringOption) string {
 	return result
 }
 
-// GetValue returns the value resolved by viper as bound with the provided key
-func (lr *Ledger) GetValue(key string) string {
-	return lr.viper.GetString(key)
-}
-
 // GetWorkspace returns the workspace path which should own the definition of the Ledger
 func (lr *Ledger) GetWorkspace() string {
 	if lr.workspace != nil {

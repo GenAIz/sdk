@@ -366,7 +366,7 @@ func (ie *InitExecutor) Display() {
 
 func (ie *InitExecutor) Pretend() {
 	if params, err := ie.makeInitParams(); err == nil {
-		var builder = ie.makeInitBuilder()
+		var builder = ie.newInitWriter()
 
 		ie.Ledger.DisplayChangeDir()
 		ie.initTaskFactory(builder).Pretend(params, ie.Ledger.Logger)
@@ -377,7 +377,7 @@ func (ie *InitExecutor) Pretend() {
 
 func (ie *InitExecutor) Proceed() {
 	if params, err := ie.makeInitParams(); err == nil {
-		var builder = ie.makeInitBuilder()
+		var builder = ie.newInitWriter()
 		var plan = task.NewPlan("Init", ie.Ledger.Logger)
 
 		plan.PrintReportsOnly = true
@@ -385,10 +385,6 @@ func (ie *InitExecutor) Proceed() {
 	} else {
 		lang.HandleExit(err)
 	}
-}
-
-func (ie *InitExecutor) makeInitBuilder() layout.ConfigWriter {
-	return makeInitBuilder(ie.Ledger, ie.Cli)
 }
 
 func (ie *InitExecutor) makeInitParams() (*layout.InitParams, error) {
@@ -400,6 +396,18 @@ func (ie *InitExecutor) makeInitParams() (*layout.InitParams, error) {
 	}
 
 	return nil, err
+}
+
+func (ie *InitExecutor) newInitWriter() layout.ConfigWriter {
+	var writer = newInitWriter(ie.Cli)
+	var dockerFile = ie.Ledger.GetString(ie.Cli.optionDockerFile)
+	var dockerTag = ie.Ledger.GetString(ie.Cli.optionDockerTag)
+
+	if dockerFile != ie.Cli.optionDockerFile.DefaultGetter(ie.Ledger) {
+		writer.WithDockerFile(dockerFile)
+	}
+
+	return writer.WithTag(dockerTag)
 }
 
 type InitOptions struct {
@@ -467,9 +475,7 @@ func NewInitOptions(sfCli *Cli) *InitOptions {
 		}).BuildStringOption()
 	var handleOpt = cli.Options.Functions.Handle().
 		WithKeys(&schema.Genaiz.Function.Init.Handle).
-		WithDefaultGetter(func(ledger *config.Ledger) any {
-			return dirz.WorkingDirBase()
-		}).
+		WithDefaultGetter(makeDefaultWithPublishedHandle()).
 		BuildStringOption()
 
 	return &InitOptions{
@@ -499,41 +505,16 @@ func NewInitOptions(sfCli *Cli) *InitOptions {
 			}).BuildStringOption(),
 		optionOem: cli.Options.Functions.Oem().
 			WithKeys(&schema.Genaiz.Function.Init.Oem).
-			WithDefaultGetter(sfCli.ParentOem(parentOpt)).
+			WithDefaultGetter(makeDefaultWithPublishedOem(sfCli, parentOpt)).
 			BuildStringOption(),
 		optionType: cli.Options.Functions.Type().
 			WithKeys(&schema.Genaiz.Function.Init.Type).
 			BuildStringOption(),
 		optionVersion: cli.Options.Functions.Version().
 			WithKeys(&schema.Genaiz.Function.Init.Version).
-			WithDefaultGetter(sfCli.ParentVersion(parentOpt)).
+			WithDefaultGetter(makeDefaultWithPublishedVersion(sfCli, parentOpt)).
 			BuildStringOption(),
 	}
-}
-
-func makeInitBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
-	var dockerFile = ledger.GetString(sfCli.optionDockerFile)
-	var dockerTag = ledger.GetString(sfCli.optionDockerTag)
-	var result = &InitWriter{
-		PublishOptions:             NewPublishOptions(sfCli),
-		RunOptions:                 NewRunOptions(sfCli),
-		buildFileKeys:              &schema.Genaiz.Function.Build.File,
-		buildTagKeys:               &schema.Genaiz.Function.Build.Tag,
-		buildVersionKeys:           &schema.Genaiz.Function.Build.Version,
-		publishInputPortsKeys:      &schema.Genaiz.Function.Publish.InputPorts,
-		publishOutboundProxiesKeys: &schema.Genaiz.Function.Publish.OutboundProxies,
-		publishOutputPortsKeys:     &schema.Genaiz.Function.Publish.OutputPorts,
-		publishPropSpecsKeys:       &schema.Genaiz.Function.Publish.PropSpecs,
-		publishSourcesKeys:         &schema.Genaiz.Function.Publish.DataSources,
-		publishStoresKeys:          &schema.Genaiz.Function.Publish.DataStores,
-		vp:                         viper.New(),
-	}
-
-	if dockerFile != sfCli.optionDockerFile.DefaultGetter(ledger) {
-		result.WithDockerFile(dockerFile)
-	}
-
-	return result.WithTag(dockerTag)
 }
 
 func newInitParams(createParams layout.CreateParams, ledger *config.Ledger, initOptions *InitOptions) *layout.InitParams {
@@ -556,5 +537,67 @@ func newInitParams(createParams layout.CreateParams, ledger *config.Ledger, init
 		MountOutput:  ledger.GetString(initOptions.optionMountOutput),
 		OEM:          ledger.GetString(initOptions.optionOem),
 		Version:      ledger.GetString(initOptions.optionVersion),
+	}
+}
+
+func newInitWriter(sfCli *Cli) *InitWriter {
+	return &InitWriter{
+		PublishOptions:             NewPublishOptions(sfCli),
+		RunOptions:                 NewRunOptions(sfCli),
+		buildFileKeys:              &schema.Genaiz.Function.Build.File,
+		buildTagKeys:               &schema.Genaiz.Function.Build.Tag,
+		buildVersionKeys:           &schema.Genaiz.Function.Build.Version,
+		publishInputPortsKeys:      &schema.Genaiz.Function.Publish.InputPorts,
+		publishOutboundProxiesKeys: &schema.Genaiz.Function.Publish.OutboundProxies,
+		publishOutputPortsKeys:     &schema.Genaiz.Function.Publish.OutputPorts,
+		publishPropSpecsKeys:       &schema.Genaiz.Function.Publish.PropSpecs,
+		publishSourcesKeys:         &schema.Genaiz.Function.Publish.DataSources,
+		publishStoresKeys:          &schema.Genaiz.Function.Publish.DataStores,
+		vp:                         viper.New(),
+	}
+}
+
+func makeDefaultWithPublishedHandle() func(*config.Ledger) any {
+	return func(ledger *config.Ledger) any {
+		var publishedOption = cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.Handle).
+			BuildStringOption()
+		var publishedHandle = ledger.GetString(publishedOption)
+
+		if publishedHandle != "" {
+			return publishedHandle
+		}
+
+		return dirz.WorkingDirBase()
+	}
+}
+
+func makeDefaultWithPublishedOem(sfCli *Cli, parentOpt *config.StringOption) func(*config.Ledger) any {
+	return func(ledger *config.Ledger) any {
+		var publishedOption = cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.Oem).
+			BuildStringOption()
+		var publishedOem = ledger.GetString(publishedOption)
+
+		if publishedOem != "" {
+			return publishedOem
+		}
+
+		return sfCli.ParentOem(parentOpt)(ledger)
+	}
+}
+
+func makeDefaultWithPublishedVersion(sfCli *Cli, parentOpt *config.StringOption) func(*config.Ledger) any {
+	return func(ledger *config.Ledger) any {
+		var publishedOption = cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.Version).
+			BuildStringOption()
+		var publishedVersion = ledger.GetString(publishedOption)
+
+		if publishedVersion != "" {
+			return publishedVersion
+		}
+
+		return sfCli.ParentVersion(parentOpt)(ledger)
 	}
 }

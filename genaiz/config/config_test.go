@@ -732,15 +732,6 @@ func TestLedger_GetStringValid(t *testing.T) {
 	assert.EqualValues(t, expectedValue, testLedger.GetString(testOption))
 }
 
-func TestLedger_GetValue(t *testing.T) {
-	var testKey = "key"
-	var expectedValue = "value"
-	var testViper, testLedger = newTestConfigs()
-
-	testViper.Set(testKey, expectedValue)
-	assert.EqualValues(t, expectedValue, testLedger.GetValue(testKey))
-}
-
 func TestLedger_GetWorkspace(t *testing.T) {
 	var expectedValue = "value"
 	var testViper, testLedger = newTestConfigs()

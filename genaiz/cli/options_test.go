@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -346,17 +345,12 @@ func Test_OptionsDockerReplace(t *testing.T) {
 }
 
 func Test_OptionsDockerTag(t *testing.T) {
-	var testDir = t.TempDir()
 	var testOption = Options.Docker.Tag().BuildStringOption()
-	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
-	var expectedTag = fmt.Sprintf("%s/%s", filepath.Base(filepath.Dir(testDir)), filepath.Base(testDir))
 
 	assert.Equal(t, schema.Genaiz.Function.Build.Tag.Doc, testOption.Key)
 	assert.Equal(t, schema.Genaiz.Function.Build.Tag.Env, testOption.Env)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
-	testLedger.WorkDir = testDir
-	assert.Equal(t, expectedTag, testOption.DefaultSetter(testLedger))
 }
 
 func Test_OptionsDockerVersion(t *testing.T) {
