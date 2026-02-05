@@ -171,7 +171,7 @@ var (
 					WithParam("env").
 					WithShort("e").
 					WithUsage("environment variables can be specified with a KEY=VALUE list or repeated options").
-					WithValidator(config.Validation.EnvKeyValue)
+					WithValidator(config.Validation.EnvKeyPairs)
 			},
 			FilePath: func() OptionBuilder {
 				return NewOptionBuilder().
