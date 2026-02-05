@@ -90,7 +90,7 @@ func (eo EnvOptions) parseEnvFile(filePath string) (map[string]string, error) {
 			}
 
 			parts := strings.SplitN(keyPair, "=", 2)
-			result[parts[0]] = strings.Trim(parts[1], "\"")
+			result[parts[0]] = strings.ReplaceAll(strings.Trim(parts[1], "\"'"), "\\n", "\n")
 		}
 	}
 

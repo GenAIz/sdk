@@ -26,6 +26,7 @@ var (
 		DirExists:     validateDirExists,
 		DomainName:    stringMatches(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`),
 		EnvKey:        envKeyString,
+		EnvKeyPairs:   validateEnvKeyPairs,
 		EnvKeyValue:   validateEnvKeyValue,
 		FileExists:    validateFileExists,
 		FolderName:    stringMatches(`^[a-zA-Z0-9\-._\/]+$`),
@@ -51,6 +52,7 @@ type validators struct {
 	DirExists     Validates
 	DomainName    Validates
 	EnvKey        Validates
+	EnvKeyPairs   Validates
 	EnvKeyValue   Validates
 	FileExists    Validates
 	FolderName    Validates
@@ -163,15 +165,8 @@ func validateDirExists(path any) bool {
 	return s != nil && s.IsDir()
 }
 
-// validateFileExists validates that a path exists and is not a directory
-func validateFileExists(path any) bool {
-	var s, _ = os.Stat(path.(string))
-
-	return s != nil && !s.IsDir()
-}
-
-// validateEnvKeyValue validates a list of pairs against the envKeyValueString pattern
-func validateEnvKeyValue(pairs any) bool {
+// validateEnvKeyPairs validates a list of pairs against the envKeyValueString pattern
+func validateEnvKeyPairs(pairs any) bool {
 	var list = cast.ToStringSlice(pairs)
 
 	for _, pair := range list {
@@ -181,6 +176,18 @@ func validateEnvKeyValue(pairs any) bool {
 	}
 
 	return true
+}
+
+// validateEnvKeyValue validates a single key value pair against the envKeyValueString pattern
+func validateEnvKeyValue(line any) bool {
+	return envKeyValueString(cast.ToString(line))
+}
+
+// validateFileExists validates that a path exists and is not a directory
+func validateFileExists(path any) bool {
+	var s, _ = os.Stat(path.(string))
+
+	return s != nil && !s.IsDir()
 }
 
 // validateRepository validates that a repository string can be accepted as a local docker <name>/<reference>
