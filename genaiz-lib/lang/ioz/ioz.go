@@ -9,9 +9,16 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"syscall"
 
-	"genaiz.com/genaiz/lang/signalz"
+	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/signalz"
+)
+
+var (
+	ErrorUntilAborted  = errors.New("process aborted")
+	ErrorUntilNotFound = errors.New("until expired without a result")
 )
 
 type Fork interface {
@@ -132,5 +139,59 @@ func Scan(reader io.ReadCloser, consumer func(string)) {
 
 	for scanner.Scan() {
 		consumer(scanner.Text())
+	}
+}
+
+type ProberProcessor[T any] func([]byte) (*T, error)
+
+// Prober wraps a bufio.Scanner preventing soft interruption from the OS while scanning. Typically, this is guards against SIGINT, but not SIGTERM or SIGKILL
+type Prober[T any] interface {
+	Until(io.ReadCloser) (*T, error)
+}
+
+type prober[T any] struct {
+	processor ProberProcessor[T]
+}
+
+func (p prober[T]) Until(reader io.ReadCloser) (*T, error) {
+	var channel = make(chan os.Signal, 1)
+	var scanner = bufio.NewScanner(reader)
+	var err, cancelledErr error
+	var result *T
+
+	signal.Notify(channel, os.Interrupt)
+
+	go func() {
+		var code = <-channel
+
+		if code == os.Interrupt {
+			fmt.Println("User cancelled process...")
+			cancelledErr = ErrorUntilAborted
+		}
+	}()
+
+	defer filez.CloseSilently(reader)
+	defer signalz.StopCatch(channel)
+
+	for scanner.Scan() {
+		if result, err = p.processor(scanner.Bytes()); err != nil {
+			break
+		}
+	}
+
+	if cancelledErr != nil {
+		return result, cancelledErr
+	}
+
+	if result == nil {
+		return nil, ErrorUntilNotFound
+	}
+
+	return result, err
+}
+
+func NewProber[T any](processor ProberProcessor[T]) Prober[T] {
+	return &prober[T]{
+		processor: processor,
 	}
 }

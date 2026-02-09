@@ -110,6 +110,34 @@ func TestPlan_Sequence_OnFailure(t *testing.T) {
 	assert.EqualValues(t, expectedError, actualError)
 }
 
+func TestPlan_Sequence_OnProgress(t *testing.T) {
+	var actualProgress interface{}
+	var expectedProgress = "progress"
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testParam = "param"
+	var testPlan = &Plan{
+		Logger:    testLogger,
+		OnSuccess: func(i interface{}) {},
+		OnProgress: func(i interface{}) {
+			actualProgress = i
+		},
+	}
+	var testWorker = NewWorker(&testParam, &Task[string]{
+		OnPrepare: func(params *string, state *State) error {
+			return nil
+		},
+		OnComplete: func(params *string, state *State) error {
+			state.Progress(expectedProgress)
+			return nil
+		},
+	})
+
+	defer patch.Unpatch()
+	testPlan.Sequence(testWorker)
+	assert.False(t, patch.Called)
+	assert.EqualValues(t, []string{expectedProgress}, actualProgress)
+}
+
 func TestPlan_Sequence_OnSuccess(t *testing.T) {
 	var actualOutput interface{}
 	var expectedOutput = "output"
@@ -190,6 +218,18 @@ func TestNewPlan_Success(t *testing.T) {
 	testPlan.OnSuccess(expectedOutput)
 	assert.NotEmpty(t, patch.CalledWith)
 	assert.Contains(t, patch.CalledWith, expectedOutput)
+}
+
+func TestNewPlanWithProgress(t *testing.T) {
+	var testPlan = NewPlanWithProgress("test", logrus.New())
+	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var expectedProgress = "progress"
+
+	defer patch.Unpatch()
+	assert.NotNil(t, testPlan.OnProgress)
+	testPlan.OnProgress([]string{expectedProgress})
+	assert.NotEmpty(t, patch.CalledWith)
+	assert.Contains(t, patch.CalledWith, expectedProgress)
 }
 
 func TestAttempt_Complete(t *testing.T) {

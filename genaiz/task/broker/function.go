@@ -135,6 +135,7 @@ func handleFunctionProvisionComplete(params *ProvisionParams, state *task.State)
 				identity.Hash = current.Hash
 			}
 
+			state.Progressf("Provisioned function [%s/%s]...", params.Oem, params.Handle)
 			state.Internal = identity
 			return nil
 		}

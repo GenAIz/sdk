@@ -132,6 +132,7 @@ func Test_handleFunctionProvisionComplete(t *testing.T) {
 	assert.NoError(t, handleFunctionProvisionComplete(testParams, testState))
 	assert.Empty(t, testState.Internal.(*shared.Identity).Hash)
 	assert.Equal(t, testIdentity.Id, testState.Internal.(*shared.Identity).Id)
+	assert.NotEmpty(t, testState.Progression)
 }
 
 func Test_handleFunctionProvisionComplete_ConflictingHashes(t *testing.T) {

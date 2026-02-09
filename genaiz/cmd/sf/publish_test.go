@@ -477,7 +477,8 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
-		testLedger.Logger = &logrus.Logger{}
+		testLedger.InitLogging()
+		testLedger.Logger.Level = logrus.DebugLevel
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
 		assert.True(t, calledInspect)

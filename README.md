@@ -14,6 +14,8 @@ The GenAIz SDK is a tool for creating, building and publishing Smart Functions t
 * [Troubleshooting](#troubleshooting)
   * [GoLang](#golang)
   * [Docker](#docker)
+* [Contributing](#contributing)
+* [License](#license)
 
 ## Installation
 
@@ -281,3 +283,18 @@ If all conditions are met, and you are not using Windows, write to `sdk 'at' gen
 * OS and version
 * If you can build with docker build
 * the output of the command with --log-level=debug
+
+## Contributing
+
+To contribute to this project, please follow these steps:
+
+1. Fork this repository to your personal account.
+2. Create a new branch for your feature or bug fix.
+3. Commit and push changes to your forked repository.
+4. Open a Pull Request (PR) to allow merging into the upstream repository.
+
+## License
+
+This project is licensed under a commercial license. Unauthorized duplication is prohibited.
+
+&copy; 2018 - 2026 GenAIz. All rights reserved.

@@ -56,8 +56,8 @@ Feature: function publish with the bash example
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the execution group "<docker_gid>"
     And the following parameters
-      | handle          | oem        |
-      | my-bash-example | com.genaiz |
+      | handle          | oem            |
+      | my-bash-example | com.genaiz.dev |
     When I run the command "sf build -c=<handle>"
     Then I should have a docker image tagged "<oem>/<handle>:latest"
 
@@ -75,8 +75,8 @@ Feature: function publish with the bash example
     And the scenario "login bash example" ran with condition "service_completed_successfully"
     And the registry is running with condition: "service_healthy"
     And the following parameters
-      | handle          | oem        | version |
-      | my-bash-example | com.genaiz | 0.1.2   |
+      | handle          | oem            | version |
+      | my-bash-example | com.genaiz.dev | 0.1.2   |
     And the execution group "<docker_gid>"
     And the workdir changes to "<handle>"
     When I run the command "sf publish --version=<version>"
