@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,13 +11,20 @@ import (
 	"github.com/docker/docker/api/types/registry"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/ioz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
 
 var (
-	errorSkipPush = errors.New("skipping push, due to existing repository hash")
+	errorConflictPush       = errors.New("smart function can not be provisioned")
+	errorIllegalPush        = errors.New("can not push function, because of inactive state")
+	errImproperPushResponse = errors.New("docker push failed without a proper response")
+	errorNeutralPush        = errors.New("smart function digest is already known")
+	errorNoBuild            = errors.New("smart function push called without an image built")
+	errorNoProvision        = errors.New("smart function push called without a provision")
+	errorSynchronizedPush   = errors.New("smart function repository digest is unknown")
 )
 
 type PushStatus struct {
@@ -56,24 +62,30 @@ func NewPushTask() *task.Task[PushParams] {
 }
 
 func handlePushContext(params *PushParams, state *task.State) error {
+	_ = params
+
+	if state.Output == "" {
+		return errorNoBuild
+	}
+
 	if state.Internal == nil {
-		return errors.New("push called without provisioning")
+		return errorNoProvision
 	} else {
 		var current = state.Internal.(*shared.Identity)
 
-		if !current.IsFlagSet(broker.FunctionFlags.Provisioning) {
-			state.Logger.Debugf("Function [%s] can not be pushed at this time", current.Hash)
-			return errorSkipPush
-		}
-
 		if current.Auth == "" {
-			state.Logger.Debugf("Function [%s] is already provisioned", current.Hash)
-			return errorSkipPush
-		}
-	}
+			if current.IsFlagSet(broker.FunctionFlags.Active) {
+				state.Logger.Debugf("Function [%s] is already provisioned", current.Path)
+				return errorNeutralPush
+			}
 
-	if state.Output == "" {
-		return errors.New("push called without a built image")
+			return errorIllegalPush
+		}
+
+		if !current.IsFlagSet(broker.FunctionFlags.Provisioning) {
+			state.Logger.Debugf("Function [%s] can not be pushed at this time", current.Path)
+			return errorConflictPush
+		}
 	}
 
 	return nil
@@ -96,33 +108,43 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 
 		if err = dockerClient.ImageTag(params.Context, state.Output, remote.Path); err == nil {
 			state.Logger.Debugf("Pushing smart function id [%s]", remote.Id)
+			state.Progress("Pushing smart function...")
 
 			if rd, err = dockerClient.ImagePush(params.Context, remote.Path, pushOptions); err == nil {
-				var output PushStatus
-				var scanner = bufio.NewScanner(rd)
-				defer filez.CloseSilently(rd)
+				var aux *PushStatusAux
+				var probe = ioz.NewProber[PushStatusAux](func(data []byte) (*PushStatusAux, error) {
+					var output PushStatus
 
-				for scanner.Scan() {
-					if err = json.Unmarshal(scanner.Bytes(), &output); err == nil {
+					if err = json.Unmarshal(data, &output); err == nil {
 						if !strings.Contains(output.Status, remote.Version) {
-							if output.ProgressDetail != nil {
+							if output.ProgressDetail != nil && output.Id != "" {
 								state.Logger.Debugf("%s: %s [%d:%d] %s", output.Id, output.Status,
 									output.ProgressDetail.Current, output.ProgressDetail.Total, output.Progress)
 							} else if output.Id != "" {
 								state.Logger.Debugf("%s: %s", output.Id, output.Status)
 							} else if output.Status != "" {
 								state.Logger.Debugf("%s", output.Status)
+							} else if output.Aux == nil {
+								state.Logger.Debugf("Unknown payload: [%s]", string(data))
 							}
 						}
 					} else {
 						state.Logger.Warningf("Could not parse json with error: %s", err)
-						state.Logger.Debugf("String: %s", scanner.Text())
+						state.Logger.Debugf("String: %s", string(data))
+						return nil, err
 					}
-				}
 
-				if output.Aux != nil {
-					remote.Hash = output.Aux.Digest
-					state.Logger.Infof("Provisioned smart function v%s [%s], %s, size: %d", remote.Version, remote.Id, remote.Hash, output.Aux.Size)
+					return output.Aux, nil
+				})
+
+				defer filez.CloseSilently(rd)
+
+				if aux, err = probe.Until(rd); err == nil {
+					remote.Hash = aux.Digest
+					state.Reportf("Pushed smart function v%s [%s], %s, size: %d", remote.Version, remote.Id, remote.Hash, aux.Size)
+					return nil
+				} else if errors.Is(err, ioz.ErrorUntilNotFound) {
+					err = errImproperPushResponse
 				}
 			}
 		}
@@ -131,18 +153,21 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 		return err
 	}
 
-	return errors.New("no provisioned image to push")
+	return errorNoProvision
 }
 
 func handlePushIncomplete(params *PushParams, state *task.State) error {
+	_ = params
 	state.Completed = true
 
-	if errors.Is(state.Error, errorSkipPush) && state.Internal != nil {
+	if errors.Is(state.Error, errorNeutralPush) && state.Internal != nil {
 		var remote = state.Internal.(*shared.Identity)
 
-		if remote.Hash != "" {
-			return nil
+		if remote.Hash == "" {
+			return errorSynchronizedPush
 		}
+
+		return nil
 	}
 
 	return state.Error
@@ -160,6 +185,5 @@ func handlePushPretend(params *PushParams, state *task.State) error {
 		return nil
 	}
 
-	state.Logger.Errorf("Could not pretend to push docker image for file [%s] under context [%s]", params.Dockerfile, params.DockerContext)
-	return errors.New("no provisioned image to push")
+	return errorNoProvision
 }

@@ -23,13 +23,23 @@ type Env struct {
 
 // State tracks the result(s) and state values of Task(s)' execution
 type State struct {
-	Abort     bool           // Abort indicates that any executing plan should exit without completing the rest of the tasks, usually done without an Error
-	Completed bool           // Indicates whether a Task completed, this could be completed with error, incomplete tasks may invalidate Plan execution or not
-	Error     error          // If a Task completed with an error it will be in this field, it should be mutually exclusive with Output
-	Internal  interface{}    // Internal is meant to allow tracking of structured task data
-	Logger    *logrus.Logger // A reference to the Logger used by the Task and its associated Plan if any
-	Output    string         // If a Task completed successfully, it may have stored a value in this field, it should be mutually exclusive with Error
-	Reports   []string       // reports can be used by a Task to print warnings or other user-bound information to STDOUT once all tasks are completed
+	Abort       bool           // Abort indicates that any executing plan should exit without completing the rest of the tasks, usually done without an Error
+	Completed   bool           // Indicates whether a Task completed, this could be completed with error, incomplete tasks may invalidate Plan execution or not
+	Error       error          // If a Task completed with an error it will be in this field, it should be mutually exclusive with Output
+	Internal    interface{}    // Internal is meant to allow tracking of structured task data
+	Logger      *logrus.Logger // A reference to the Logger used by the Task and its associated Plan if any
+	Output      string         // If a Task completed successfully, it may have stored a value in this field, it should be mutually exclusive with Error
+	Progression []string       // Progression can be used by a Task to print warnings or other user-bound information to STDOUT, once the task has completed
+	Reports     []string       // Reports can be used by a Task to print warnings or other user-bound information to STDOUT once all tasks are completed
+}
+
+func (s *State) Progress(message string) {
+	s.Progression = append(s.Progression, message)
+
+}
+
+func (s *State) Progressf(message string, a ...any) {
+	s.Progress(fmt.Sprintf(message, a...))
 }
 
 func (s *State) Report(message string) {

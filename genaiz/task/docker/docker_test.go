@@ -56,7 +56,13 @@ type stubDockerClient struct {
 	containerWaitError      chan error
 	imageList               []image.Summary
 	imageListError          error
+	imagePushError          error
+	imagePushOptions        image.PushOptions
+	imagePushPath           string
+	imagePushReader         io.ReadCloser
 	imageTagError           error
+	imageTagId              string
+	imageTagPath            string
 }
 
 func (s *stubDockerClient) ContainerAttach(ctx context.Context, id string, options container.AttachOptions) (types.HijackedResponse, error) {
@@ -163,11 +169,17 @@ func (s *stubDockerClient) ImagesPrune(context.Context, filters.Args) (image.Pru
 	panic("implement me")
 }
 
-func (s *stubDockerClient) ImagePush(context.Context, string, image.PushOptions) (io.ReadCloser, error) {
-	panic("implement me")
+func (s *stubDockerClient) ImagePush(ctx context.Context, imagePushPath string, imagePushOptions image.PushOptions) (io.ReadCloser, error) {
+	_ = ctx
+	s.imagePushPath = imagePushPath
+	s.imagePushOptions = imagePushOptions
+	return s.imagePushReader, s.imagePushError
 }
 
-func (s *stubDockerClient) ImageTag(context.Context, string, string) error {
+func (s *stubDockerClient) ImageTag(ctx context.Context, imageTagId string, imageTagPath string) error {
+	_ = ctx
+	s.imageTagId = imageTagId
+	s.imageTagPath = imageTagPath
 	return s.imageTagError
 }
 

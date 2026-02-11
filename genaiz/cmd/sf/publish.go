@@ -3,6 +3,7 @@ package sf
 import (
 	"context"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
@@ -97,7 +98,13 @@ func (pe *PublishExecutor) Proceed() {
 	var publishParams = pe.makePublishParams(provisionParams)
 	var pushParams = pe.makePushParams()
 	var workers []task.Worker
-	var plan = task.NewPlan("Publish", pe.Ledger.Logger)
+	var plan *task.Plan
+
+	if pe.Ledger.Logger.Level >= logrus.DebugLevel {
+		plan = task.NewPlan("Publish", pe.Ledger.Logger)
+	} else {
+		plan = task.NewPlanWithProgress("Publish", pe.Ledger.Logger)
+	}
 
 	if rebuild {
 		workers = append(workers, task.NewWorker(buildParams, pe.buildTaskFactory()))

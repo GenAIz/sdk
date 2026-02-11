@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -143,8 +144,14 @@ func (pe *PublishExecutor) Pretend() {
 
 func (pe *PublishExecutor) Proceed() {
 	var err = pe.collectAndCall(func(snParams *broker.SolutionPublishParams, fnParams []FunctionParams) {
-		var plan = task.NewPlan("Publish", pe.Ledger.Logger)
 		var workers []task.Worker
+		var plan *task.Plan
+
+		if pe.Ledger.Logger.Level >= logrus.DebugLevel {
+			plan = task.NewPlan("Publish", pe.Ledger.Logger)
+		} else {
+			plan = task.NewPlanWithProgress("Publish", pe.Ledger.Logger)
+		}
 
 		for _, fp := range fnParams {
 			workers = append(workers, task.NewWorker(fp.buildParams, pe.inspectTaskFactory()))

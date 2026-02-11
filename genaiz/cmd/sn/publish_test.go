@@ -485,6 +485,83 @@ func TestPublishExecutor_Proceed(t *testing.T) {
 	}
 }
 
+func TestPublishExecutor_Proceed_Debug(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var calledInspect, calledProvision, calledPublish, calledPush, calledSolutionPublish bool
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = &PublishExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger:     testLedger,
+			folderPath: testDir,
+		},
+		PublishOptions: &PublishOptions{
+			optionBroker: cli.Options.Solutions.Broker().
+				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
+				BuildStringOption(),
+			optionConfigType: cli.Options.Configs.Type().
+				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
+				BuildStringOption(),
+			optionDescription: cli.Options.Solutions.Description().
+				WithKeys(&schema.Genaiz.Solution.Publish.Description).
+				BuildStringOption(),
+			optionHandle: cli.Options.Solutions.Handle().
+				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
+				BuildStringOption(),
+			optionName: cli.Options.Solutions.Name().
+				WithKeys(&schema.Genaiz.Solution.Publish.Name).
+				BuildStringOption(),
+			optionOem: cli.Options.Solutions.Oem().
+				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
+				BuildStringOption(),
+			optionVersion: cli.Options.Solutions.Version().
+				WithKeys(&schema.Genaiz.Solution.Publish.Version).
+				BuildStringOption(),
+		},
+		cmd:                        &cobra.Command{},
+		solutionReader:             config.NewSolutionReader(testLedger),
+		inspectTaskFactory:         newTaskProceedStub(&calledInspect, &docker.BuildParams{}),
+		provisionTaskFactory:       newTaskProceedStub(&calledProvision, &broker.ProvisionParams{}),
+		publishTaskFactory:         newTaskProceedStub(&calledPublish, &broker.PublishParams{}),
+		pushTaskFactory:            newTaskProceedStub(&calledPush, &docker.PushParams{}),
+		solutionPublishTaskFactory: newTaskProceedStub(&calledSolutionPublish, &broker.SolutionPublishParams{}),
+	}
+
+	defer patch.Unpatch()
+
+	if fd, err := os.Create(filepath.Join(testDir, testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
+		defer filez.CloseSilently(fd)
+		var data []byte
+		var fnd1 *os.File
+
+		data, err = yaml.Marshal(testSolution)
+		panicz.PanicIfError(err)
+		_, err = fd.Write(data)
+		panicz.PanicIfError(err)
+
+		panicz.PanicIfError(os.MkdirAll(filepath.Join(testDir, "function1"), 0750))
+		fnd1, err = os.Create(filepath.Join(testDir, "function1", testLedger.ConfigName+"."+shared.ConfigTypeYaml))
+		panicz.PanicIfError(err)
+		defer filez.CloseSilently(fnd1)
+		data, err = yaml.Marshal(testFunction)
+		panicz.PanicIfError(err)
+		_, err = fnd1.Write(data)
+		panicz.PanicIfError(err)
+
+		testViper.Set(testExecutor.optionConfigType.Key, shared.ConfigTypeYaml)
+		testLedger.InitLogging()
+		testLedger.Logger.Level = logrus.DebugLevel
+		testExecutor.Proceed()
+		assert.True(t, calledInspect)
+		assert.True(t, calledProvision)
+		assert.True(t, calledPush)
+		assert.True(t, calledPublish)
+		assert.True(t, calledSolutionPublish)
+		assert.False(t, patch.Called)
+	}
+}
+
 func TestPublishExecutor_Proceed_FileNotFound(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var calledSolutionPublish bool
