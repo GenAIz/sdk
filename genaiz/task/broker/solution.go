@@ -221,7 +221,8 @@ func handleSolutionPublishContext(params *SolutionPublishParams, state *task.Sta
 
 		for _, sf := range allNodeFunctions {
 			if !params.HasProvision(sf.Oem, sf.Handle) {
-				return fmt.Errorf("the function %s/%s could not be found within the solution", sf.Oem, sf.Handle)
+				// May have to extend this eventually, but for now this check is purely for logging purposes
+				state.Logger.Warnf("the function %s/%s could not be found within the solution", sf.Oem, sf.Handle)
 			}
 		}
 

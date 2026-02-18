@@ -35,6 +35,35 @@ func CreateRecursiveTemp(dir string, pattern string) (*os.File, error) {
 	return os.CreateTemp(dir, pattern)
 }
 
+// FindNamedFilesRecursively inspects a paths and all its subfolders attempting to find files with the provided name. That is the portion before the extension starting with the first "." encountered in the filename.
+func FindNamedFilesRecursively(path string, name string) ([]string, error) {
+	var result []string
+	var entries []os.DirEntry
+	var err error
+
+	if entries, err = os.ReadDir(path); err == nil {
+		for _, entry := range entries {
+			var entryPath = filepath.Join(path, entry.Name())
+
+			if entry.IsDir() {
+				var subResults []string
+
+				if subResults, err = FindNamedFilesRecursively(entryPath, name); err == nil {
+					result = append(result, subResults...)
+				} else {
+					return nil, err
+				}
+			} else if strings.EqualFold(name, GetFileName(entryPath)) {
+				result = append(result, entryPath)
+			}
+		}
+
+		return result, nil
+	}
+
+	return nil, err
+}
+
 // FirstNamedFile returns the first file with the provided name under the current work dir non-recursively, that is the part excluding an extension matching
 func FirstNamedFile(name string) (string, error) {
 	var dir, _ = os.Getwd()
@@ -74,6 +103,17 @@ func FromWorkDir(path string) string {
 	}
 
 	return path
+}
+
+// GetFileName extracts the name of the file after its path before its extension. Hidden files are returned as-is, as well as files without any extensions
+func GetFileName(path string) string {
+	var file = filepath.Base(path)
+
+	if i := strings.Index(file, "."); i > 0 {
+		return file[0:i]
+	}
+
+	return file
 }
 
 // GetFileType returns the non-opinionated extension of the provided filename, that's excluding the leading dot character, taking everything afterward.

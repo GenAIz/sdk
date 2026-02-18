@@ -414,20 +414,15 @@ func Test_handleSolutionPublishComplete_NoSession(t *testing.T) {
 }
 
 func Test_handleSolutionPublishContext(t *testing.T) {
+	var expectedOem = "oem"
+	var expectedHandle = "handle"
 	var testParams = &SolutionPublishParams{
-		Solution: &Solution{
-			Workflows: []Workflow{},
+		Provisions: []ProvisionParams{
+			{
+				Oem:    expectedOem,
+				Handle: expectedHandle,
+			},
 		},
-	}
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
-
-	assert.NoError(t, handleSolutionPublishContext(testParams, testState))
-}
-
-func Test_handleSolutionPublishContext_IllegalWorkflowNodes(t *testing.T) {
-	var testParams = &SolutionPublishParams{
 		Solution: &Solution{
 			Workflows: []Workflow{
 				{
@@ -440,6 +435,16 @@ func Test_handleSolutionPublishContext_IllegalWorkflowNodes(t *testing.T) {
 								Oem:    "sfOem1",
 							},
 						},
+						{
+							Handle: "Node2",
+						},
+						{
+							Handle: "Node3",
+							Sf: &WorkflowNodeFunction{
+								Handle: expectedHandle,
+								Oem:    expectedOem,
+							},
+						},
 					},
 				},
 			},
@@ -449,7 +454,20 @@ func Test_handleSolutionPublishContext_IllegalWorkflowNodes(t *testing.T) {
 		Logger: logrus.New(),
 	}
 
-	assert.Error(t, handleSolutionPublishContext(testParams, testState))
+	assert.NoError(t, handleSolutionPublishContext(testParams, testState))
+}
+
+func Test_handleSolutionPublishContext_NoWorkflows(t *testing.T) {
+	var testParams = &SolutionPublishParams{
+		Solution: &Solution{
+			Workflows: []Workflow{},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleSolutionPublishContext(testParams, testState))
 }
 
 func Test_handleSolutionPublishContext_NoSolution(t *testing.T) {

@@ -136,6 +136,7 @@ func (ro *RunOptions) allDefiners() []config.Definer {
 		ro.optionMountLog,
 		ro.optionMountOutput,
 		ro.optionMountVar,
+		ro.optionNoPropSync,
 		ro.optionRunImage,
 		ro.optionRunPrefix,
 	}

@@ -525,8 +525,10 @@ func TestRunOptions_allDefiners(t *testing.T) {
 	assert.Contains(t, definers, testOptions.optionMountOutput)
 	assert.Contains(t, definers, testOptions.optionMountLog)
 	assert.Contains(t, definers, testOptions.optionMountVar)
+	assert.Contains(t, definers, testOptions.optionNoPropSync)
 	assert.Contains(t, definers, testOptions.optionRunImage)
 	assert.Contains(t, definers, testOptions.optionRunPrefix)
+	assert.Equal(t, 9, len(definers))
 }
 
 func TestNewRunOptions(t *testing.T) {
@@ -539,6 +541,7 @@ func TestNewRunOptions(t *testing.T) {
 	assert.NotEmpty(t, testOptions.optionMountOutput)
 	assert.NotEmpty(t, testOptions.optionMountLog)
 	assert.NotEmpty(t, testOptions.optionMountVar)
+	assert.NotEmpty(t, testOptions.optionNoPropSync)
 	assert.NotEmpty(t, testOptions.optionRunImage)
 	assert.NotEmpty(t, testOptions.optionRunPrefix)
 	assert.False(t, testOptions.rebuildImage)

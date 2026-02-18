@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 
+	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
@@ -227,13 +229,19 @@ func TestSolutionReader_FindFunctionValues(t *testing.T) {
 	var err error
 
 	if fd, err = os.Create(filepath.Join(testDir, expectedName+".yaml")); err == nil {
+		var testSubDir = filepath.Join(testDir, "function")
+
 		filez.CloseSilently(fd)
 
-		if err = os.MkdirAll(filepath.Join(testDir, "function"), 0750); err == nil {
-			if _, err = os.Create(filepath.Join(testDir, "function", expectedName+".yaml")); err == nil {
+		if err = os.MkdirAll(testSubDir, 0750); err == nil {
+			if _, err = os.Create(filepath.Join(testSubDir, expectedName+".yaml")); err == nil {
+				var actual map[string]*viper.Viper
+
 				defer filez.CloseSilently(fd)
 				testLedger.Logger = logrus.New()
-				assert.Equal(t, 1, len(testReader.FindFunctionValues()))
+				actual, err = testReader.FindFunctionValues()
+				assert.NoError(t, err)
+				assert.Equal(t, 1, len(actual))
 				return
 			}
 		}
@@ -242,7 +250,7 @@ func TestSolutionReader_FindFunctionValues(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSolutionReader_FindFunction_EmptyDir(t *testing.T) {
+func TestSolutionReader_FindFunctionValues_EmptyDir(t *testing.T) {
 	var testDir = t.TempDir()
 	var testReader = &SolutionReader{
 		BaseReader: BaseReader{
@@ -250,16 +258,57 @@ func TestSolutionReader_FindFunction_EmptyDir(t *testing.T) {
 		},
 	}
 
-	assert.Empty(t, testReader.FindFunctionValues())
+	actual, err := testReader.FindFunctionValues()
+	assert.NoError(t, err)
+	assert.Empty(t, actual)
+}
+
+func TestSolutionReader_FindFunctionValues_InvalidConfig(t *testing.T) {
+	var testDir = t.TempDir()
+	var expectedName = "Test"
+	var testLedger = NewLedger()
+	var testReader = &SolutionReader{
+		BaseReader: BaseReader{
+			configName: expectedName,
+			configPath: testDir,
+			configType: shared.ConfigTypeYaml,
+		},
+		ledger: testLedger,
+	}
+	var err error
+
+	if _, err = os.Create(filepath.Join(testDir, expectedName+"."+shared.ConfigTypeYaml)); err == nil {
+		var functionDir = filepath.Join(testDir, "function")
+
+		if err = os.MkdirAll(functionDir, 0750); err == nil {
+			var fd *os.File
+
+			if fd, err = os.Create(filepath.Join(functionDir, expectedName+"."+shared.ConfigTypeJson)); err == nil {
+				if _, err = fmt.Fprintf(fd, "\"not json\""); err == nil {
+					var actual map[string]*viper.Viper
+
+					testLedger.Logger = logrus.New()
+					actual, err = testReader.FindFunctionValues()
+					assert.Error(t, err)
+					assert.Empty(t, actual)
+					return
+				}
+			}
+		}
+	}
+
+	assert.NoError(t, err)
 }
 
 func TestSolutionReader_FindFunctionValues_InvalidPath(t *testing.T) {
 	var testReader = &SolutionReader{}
 
-	assert.Empty(t, testReader.FindFunctionValues())
+	actual, err := testReader.FindFunctionValues()
+	assert.True(t, errorz.IsPathError(err))
+	assert.Empty(t, actual)
 }
 
-func TestSolutionReader_FindFunction_NoConfigFile(t *testing.T) {
+func TestSolutionReader_FindFunctionValues_NoConfigFile(t *testing.T) {
 	var testDir = t.TempDir()
 	var expectedName = "Test"
 	var testLedger = NewLedger()
@@ -275,8 +324,12 @@ func TestSolutionReader_FindFunction_NoConfigFile(t *testing.T) {
 
 	if _, err = os.Create(filepath.Join(testDir, expectedName+"."+shared.ConfigTypeYaml)); err == nil {
 		if err = os.MkdirAll(filepath.Join(testDir, "notAFunction"), 0666); err == nil {
+			var actual map[string]*viper.Viper
+
 			testLedger.Logger = logrus.New()
-			assert.Empty(t, testReader.FindFunctionValues())
+			actual, err = testReader.FindFunctionValues()
+			assert.NoError(t, err)
+			assert.Empty(t, actual)
 			return
 		}
 	}
