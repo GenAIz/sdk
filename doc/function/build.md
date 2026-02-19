@@ -1,7 +1,7 @@
 ## Function Build
 
 ```
-genaiz sf build --context|-c=PATH --file|-f=FILE --tag=LOCAL --version|-v=VERSION \
+genaiz sf build --context|-c=PATH --file|-f=FILE --repository=LOCAL --version|-v=VERSION \
   --label --legacy-builder --no-cache --prune
  ```
 Build executes a single build task which may or may not use the docker-cli executable to complete the command. Build will use the legacy Moby compiled in build instruction, using dockerd if it can not locate a docker command on the user's PATH. Otherwise, it will invoke `docker build` as a child process.
@@ -14,19 +14,19 @@ Context is used in a very broad manner by sf commands that will seek to establis
 
 * if there is no context specified the build command assumes it is established as the current working dir.
 * the context is passed to the docker build command or the dockerd build endpoint to match the Dockerfile's build context, it doesn't necessarily imply the same folder as the [file](#file) param.
-* if the resolved context does not correspond to an existing folder, the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [sf.build.context] is invalid`
+* if the resolved context does not correspond to an existing folder, the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [function.build.context] is invalid`
 
 ### file
 
 * if there is no file specified the build command assumes it is looking for a Dockerfile under the specified context.
-* if the command can not find the resolved file, it will return as error of the form: `Error: value [...] for option [sf.build.file] is invalid`
+* if the command can not find the resolved file, it will return as error of the form: `Error: value [...] for option [function.build.file] is invalid`
 
-### tag
+### repository
 
-Tag can be used to change the local `name/repository:tag` of the built image. It will not affect the [publish](publish.md) command, which will still use `oem/handle:version`. The [list](list.md) command uses the same parameter of filter images built.
+Repository can be used to change the local `namespace/repository` of the built image. It will not affect the [publish](publish.md) command, which will still use `oem/handle:version`. The [list](list.md) command uses the same parameter of filter images built.
 
-* if tag is not specified, a default value will be composed of with the current working direction: `parent/current:version`
-* if the resolved is not a valid string matching a valid repository string (see [repository validity](index.md#repository)), the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [sf.build.tag] is invalid`
+* if repository is not specified, a default value will be composed with the current working direction: `parent/current:version`
+* if the resolved is not a valid string matching a valid repository string (see [repository validity](index.md#repository)), the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [function.build.repository] is invalid`
 
 ### version
 
@@ -36,7 +36,7 @@ Tag can be used to change the local `name/repository:tag` of the built image. It
 
 ### label
 
-* label instructs the build command to add a docker label to the image built with the same value as the [tag](#tag) value.
+* label instructs the build command to add a docker label to the image built with the same value as the [repository](#repository) value.
 * labels are used by the [prune](#prune) option to remove previously built dangling images with the same label value.
 
 ### legacy-builder
@@ -51,5 +51,5 @@ Tag can be used to change the local `name/repository:tag` of the built image. It
 
 ### prune
 
-* prune instructs the build command to remove all dangling images with the same [label](#label) as the [tag](#tag) value.
+* prune instructs the build command to remove all dangling images with the same [label](#label) as the [repository](#repository) value.
 * if using prune without the legacy builder, it will also try to remove all intermediary build artefacts passed 12h of lifetime. If used with [no-cache](#no-cache), it removes all artefacts.

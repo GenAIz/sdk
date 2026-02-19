@@ -8,70 +8,70 @@ Feature: function create for the bash example
       | handle          | context      |
       | my-bash-example | /_badContext |
     When I run the command "sf create <handle> --context=<context>"
-    Then I should have an error for field "sf.build.context"
+    Then I should have an error for field "function.build.context"
 
   Scenario: create bash example bad config-type
     Given the following parameters
       | handle          | configType |
       | my-bash-example | invalid    |
     When I run the command "sf create <handle> --config-type=<configType>"
-    Then I should have an error for field "sf.create.configtype"
+    Then I should have an error for field "function.create.configtype"
 
-  Scenario: create bash example bad tag
+  Scenario: create bash example bad repository
     Given the following parameters
-      | handle          | tag                     |
-      | my-bash-example | com.genaiz.dev/bad..tag |
-    When I run the command "sf create <handle> --tag=<tag>"
-    Then I should have an error for field "sf.build.tag"
+      | handle          | repository               |
+      | my-bash-example | com.genaiz.dev/bad..repo |
+    When I run the command "sf create <handle> --repository=<repository>"
+    Then I should have an error for field "function.build.repository"
 
   Scenario: create bash example bad handle
     Given the following parameters
       | handle        |
       | bash__example |
     When I run the command "sf create <handle>"
-    Then I should have an error for field "sf.create.handle"
+    Then I should have an error for field "function.create.handle"
 
   Scenario: create bash example bad oem
     Given the following parameters
       | handle       | oem         |
       | bash-example | com..genaiz |
     When I run the command "sf create <handle> --oem=<oem>"
-    Then I should have an error for field "sf.create.oem"
+    Then I should have an error for field "function.create.oem"
 
   Scenario: create bash example bad version
     Given the following parameters
       | handle       | oem            | version |
       | bash-example | com.genaiz.dev | 1..0    |
     When I run the command "sf create <handle> --oem=<oem> --version=<version>"
-    Then I should have an error for field "sf.create.version"
+    Then I should have an error for field "function.create.version"
 
   Scenario: create bash example bad recipe
     Given the following parameters
       | handle       | recipe     |
       | bash-example | bad-recipe |
     When I run the command "sf create <handle> --recipe=<recipe>"
-    Then I should have an error for field "sf.create.recipe"
+    Then I should have an error for field "function.create.recipe"
 
   Scenario: create bash example bad type
     Given the following parameters
       | handle       | oem            | version | type    |
       | bash-example | com.genaiz.dev | 1.0.0   | invalid |
     When I run the command "sf create <handle> --oem=<oem> --version=<version> --type=<type>"
-    Then I should have an error for field "sf.create.type"
+    Then I should have an error for field "function.create.type"
 
   Scenario: create bash example bad name
     Given the following parameters
       | handle       | name                                                                                                                                                                                                                                                                                            |
       | bash-example | This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. |
     When I run the command "sf create <handle> --name='<name>'"
-    Then I should have an error for field "sf.create.name"
+    Then I should have an error for field "function.create.name"
 
   Scenario: create bash example bad arch
     Given the following parameters
       | handle       | arch  |
       | bash-example | amd37 |
     When I run the command "sf create <handle> --arch=<arch>"
-    Then I should have an error for field "sf.create.arches"
+    Then I should have an error for field "function.create.arches"
 
   Scenario: create bash example solution
     Given the following parameters

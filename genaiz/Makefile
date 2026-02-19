@@ -41,6 +41,12 @@ coverage: report
 	@echo "Opening coverage..."
 	go tool cover -html=cover.out
 
+.PHONY: dev
+## dev - Installs development based binaries with supplementary trace tooling
+dev:
+	@echo "Installing development binaries..."
+	go install -tags dev
+
 .PHONY: install
 ## install - Installs the binary under the users bin directory ($HOME/go/bin)
 install: build

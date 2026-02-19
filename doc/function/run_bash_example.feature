@@ -34,7 +34,7 @@ Feature: function run with the bash example
       | context      |
       | not-existing |
     When I run the command "sf run --context=<context>"
-    Then I should have an error for field "sf.build.context"
+    Then I should have an error for field "function.build.context"
 
   Scenario: run bash example bad file
     Given the scenario "building bash example out of context" ran with condition "service_completed_successfully"
@@ -42,7 +42,7 @@ Feature: function run with the bash example
       | path              | file         |
       | run-bash-function | not-existing |
     When I run the command "sf run --file=<file>"
-    Then I should have an error for field "sf.build.file"
+    Then I should have an error for field "function.build.file"
 
   Scenario: run bash example bad tag
     Given the scenario "building bash example out of context" ran with condition "service_completed_successfully"
@@ -51,7 +51,7 @@ Feature: function run with the bash example
       | run-bash-function | n--t.valid. |
     And the workdir changes to "<path>"
     When I run the command "sf run --tag=<tag>"
-    Then I should have an error for field "sf.build.tag"
+    Then I should have an error for field "function.build.tag"
 
   Scenario: run bash example bad mount-in
     Given the scenario "building bash example out of context" ran with condition "service_completed_successfully"
@@ -60,7 +60,7 @@ Feature: function run with the bash example
       | run-bash-function | /_not_valid |
     And the workdir changes to "<path>"
     When I run the command "sf run --mount-in=<mountIn>"
-    Then I should have an error for field "sf.run.input"
+    Then I should have an error for field "function.run.input"
 
   Scenario: run bash example bad mount-out
     Given the scenario "building bash example out of context" ran with condition "service_completed_successfully"
@@ -69,7 +69,7 @@ Feature: function run with the bash example
       | run-bash-function | /_not_valid |
     And the workdir changes to "<path>"
     When I run the command "sf run --mount-out=<mountOut>"
-    Then I should have an error for field "sf.run.output"
+    Then I should have an error for field "function.run.output"
 
   Scenario: run bash example bad mount-log
     Given the scenario "building bash example out of context" ran with condition "service_completed_successfully"
@@ -78,7 +78,7 @@ Feature: function run with the bash example
       | run-bash-function | /_not_valid |
     And the workdir changes to "<path>"
     When I run the command "sf run --mount-log=<mountLog>"
-    Then I should have an error for field "sf.run.log"
+    Then I should have an error for field "function.run.log"
 
   Scenario: run bash example bad mount-var
     Given the scenario "building bash example out of context" ran with condition "service_completed_successfully"
@@ -87,7 +87,7 @@ Feature: function run with the bash example
       | run-bash-function | /_not_valid |
     And the workdir changes to "<path>"
     When I run the command "sf run --mount-var=<mountVar>"
-    Then I should have an error for field "sf.run.var"
+    Then I should have an error for field "function.run.var"
 
   Scenario: run bash example bad prefix
     Given the scenario "building bash example out of context" ran with condition "service_completed_successfully"
@@ -96,7 +96,7 @@ Feature: function run with the bash example
       | run-bash-function | -bad-prefix- |
     And the workdir changes to "<path>"
     When I run the command "sf run --prefix=<prefix>"
-    Then I should have an error for field "sf.run.prefix"
+    Then I should have an error for field "function.run.prefix"
 
   Scenario: run bash example bad image
     Given the scenario "create bash example" ran with condition "service_completed_successfully"

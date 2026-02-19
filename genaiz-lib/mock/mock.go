@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/spf13/cast"
@@ -26,7 +27,7 @@ type Patches struct {
 	T *testing.T
 }
 
-func (p Patches) BrowserOpenUrl(impl func(url string, errOut io.Writer, out io.Writer) error) *Patched {
+func (p Patches) BrowserOpenUrl(impl func(string, io.Writer, io.Writer) error) *Patched {
 	var patchedOpenUrl = &Patched{Called: false}
 	var patchFunc, err = mpatch.PatchMethod(browser.OpenUrl, func(url string, errOut io.Writer, out io.Writer) error {
 		patchedOpenUrl.Called = true
@@ -43,7 +44,24 @@ func (p Patches) BrowserOpenUrl(impl func(url string, errOut io.Writer, out io.W
 	return patchedOpenUrl
 }
 
-func (p Patches) FmtPrintf(impl func(format string, a ...any)) *Patched {
+func (p Patches) ExecLookPath(impl func(string) (string, error)) *Patched {
+	var patchedExecLookup = &Patched{Called: false}
+	var patchFunc, err = mpatch.PatchMethod(exec.LookPath, func(file string) (string, error) {
+		patchedExecLookup.Called = true
+		patchedExecLookup.CalledWith = file
+		return impl(file)
+	})
+
+	if err != nil {
+		p.T.Errorf("Failed to patch exec.LookPath due to an error: %v", err)
+		return nil
+	}
+
+	patchedExecLookup.PatchFunc = patchFunc
+	return patchedExecLookup
+}
+
+func (p Patches) FmtPrintf(impl func(string, ...any)) *Patched {
 	var patchedPrintf = &Patched{Called: false}
 	var patchFunc, err = mpatch.PatchMethod(fmt.Printf, func(format string, a ...any) (int, error) {
 		var calledWith = []string{format}
@@ -70,6 +88,33 @@ func (p Patches) FmtPrintf(impl func(format string, a ...any)) *Patched {
 	return patchedPrintf
 }
 
+func (p Patches) FmtPrintln(impl func(...any)) *Patched {
+	var patchedPrintln = &Patched{Called: false}
+	var patchFunc, err = mpatch.PatchMethod(fmt.Println, func(a ...any) (int, error) {
+		var calledWith []string
+		var result = 0
+
+		calledWith = append(calledWith, cast.ToStringSlice(a)...)
+
+		for _, token := range calledWith {
+			result += len(token)
+		}
+
+		patchedPrintln.Called = true
+		patchedPrintln.CalledWith = calledWith
+		impl(a...)
+		return result, nil
+	})
+
+	if err != nil {
+		p.T.Errorf("Failed to patch fmt.Println due to an error: %v", err)
+		return nil
+	}
+
+	patchedPrintln.PatchFunc = patchFunc
+	return patchedPrintln
+}
+
 func (p Patches) OsExit(impl func(int)) *Patched {
 	var patchedExit = &Patched{Called: false}
 	var patchFunc, err = mpatch.PatchMethod(os.Exit, func(code int) {
@@ -87,26 +132,10 @@ func (p Patches) OsExit(impl func(int)) *Patched {
 	return patchedExit
 }
 
-func (p Patches) OsGetgid(gid int) *Patched {
-	var patchedExit = &Patched{Called: false}
-	var patchFunc, err = mpatch.PatchMethod(os.Getgid, func() int {
-		patchedExit.Called = true
-		return gid
-	})
-
-	if err != nil {
-		p.T.Errorf("Failed to patch os.Getgid due to an error: %v", err)
-		return nil
-	}
-
-	patchedExit.PatchFunc = patchFunc
-	return patchedExit
-}
-
-func (p Patches) OsGetuid(uid int) *Patched {
-	var patchedExit = &Patched{Called: false}
-	var patchFunc, err = mpatch.PatchMethod(os.Getuid, func() int {
-		patchedExit.Called = true
+func (p Patches) OsGeteuid(uid int) *Patched {
+	var patchedGeteuid = &Patched{Called: false}
+	var patchFunc, err = mpatch.PatchMethod(os.Geteuid, func() int {
+		patchedGeteuid.Called = true
 		return uid
 	})
 
@@ -115,6 +144,38 @@ func (p Patches) OsGetuid(uid int) *Patched {
 		return nil
 	}
 
-	patchedExit.PatchFunc = patchFunc
-	return patchedExit
+	patchedGeteuid.PatchFunc = patchFunc
+	return patchedGeteuid
+}
+
+func (p Patches) OsGetgid(gid int) *Patched {
+	var patchedGetgid = &Patched{Called: false}
+	var patchFunc, err = mpatch.PatchMethod(os.Getgid, func() int {
+		patchedGetgid.Called = true
+		return gid
+	})
+
+	if err != nil {
+		p.T.Errorf("Failed to patch os.Getgid due to an error: %v", err)
+		return nil
+	}
+
+	patchedGetgid.PatchFunc = patchFunc
+	return patchedGetgid
+}
+
+func (p Patches) OsGetuid(uid int) *Patched {
+	var patchedGetuid = &Patched{Called: false}
+	var patchFunc, err = mpatch.PatchMethod(os.Getuid, func() int {
+		patchedGetuid.Called = true
+		return uid
+	})
+
+	if err != nil {
+		p.T.Errorf("Failed to patch os.Getuid due to an error: %v", err)
+		return nil
+	}
+
+	patchedGetuid.PatchFunc = patchFunc
+	return patchedGetuid
 }

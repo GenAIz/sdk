@@ -31,8 +31,8 @@ func TestBuildExecutor_Display(t *testing.T) {
 	var testDockerContext = cli.Options.Docker.ContextPath().BuildStringOption()
 	var expectedDockerFile = "file"
 	var testDockerFile = cli.Options.Docker.FilePath().BuildStringOption()
-	var expectedDockerTag = "tag"
-	var testDockerTag = cli.Options.Docker.Tag().BuildStringOption()
+	var expectedDockerRepo = "repo"
+	var testDockerRepo = cli.Options.Docker.Repository().BuildStringOption()
 	var expectedDockerVersion = "version"
 	var testDockerVersion = cli.Options.Docker.Version().BuildStringOption()
 	var testExecutor = &BuildExecutor{
@@ -41,22 +41,22 @@ func TestBuildExecutor_Display(t *testing.T) {
 			Cli: &Cli{
 				optionDockerContext: testDockerContext,
 				optionDockerFile:    testDockerFile,
-				optionDockerTag:     testDockerTag,
+				optionDockerRepo:    testDockerRepo,
 				optionDockerVersion: testDockerVersion,
 			},
 		},
 	}
 
-	testLedger.Register(&cobra.Command{}, testDockerContext, testDockerFile, testDockerTag, testDockerVersion)
+	testLedger.Register(&cobra.Command{}, testDockerContext, testDockerFile, testDockerRepo, testDockerVersion)
 	testLedger.InitValue(testDockerContext, expectedDockerContext)
 	testLedger.InitValue(testDockerFile, expectedDockerFile)
-	testLedger.InitValue(testDockerTag, expectedDockerTag)
+	testLedger.InitValue(testDockerRepo, expectedDockerRepo)
 	testLedger.InitValue(testDockerVersion, expectedDockerVersion)
 	testExecutor.Display()
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testDockerContext.Param+`:[\s\t]*`+expectedDockerContext), actual)
 	assert.Regexp(t, regexp.MustCompile(testDockerFile.Param+`:[\s\t]*`+expectedDockerFile), actual)
-	assert.Regexp(t, regexp.MustCompile(testDockerTag.Param+`:[\s\t]*`+expectedDockerTag), actual)
+	assert.Regexp(t, regexp.MustCompile(testDockerRepo.Param+`:[\s\t]*`+expectedDockerRepo), actual)
 	assert.Regexp(t, regexp.MustCompile(testDockerVersion.Param+`:[\s\t]*`+expectedDockerVersion), actual)
 }
 
@@ -82,7 +82,7 @@ func TestBuildExecutor_Pretend(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testExecutor.Pretend()
@@ -114,7 +114,7 @@ func TestBuildExecutor_Proceed(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testLedger.Logger = logrus.New()
@@ -152,7 +152,7 @@ func TestNewBuild(t *testing.T) {
 		},
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testBuild = NewBuild(testLedger, testCli)
@@ -173,7 +173,7 @@ func Test_makeBuildParamsCwdContext(t *testing.T) {
 		Cli: &Cli{
 			optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 			optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-			optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+			optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 			optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 		},
 		Ledger: testLedger,
@@ -182,7 +182,7 @@ func Test_makeBuildParamsCwdContext(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 		t.Chdir(testDir)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(testDir, "Dockerfile"))
 		testParam := makeBuildParams(testExecutor)
@@ -201,7 +201,7 @@ func Test_makeBuildParamsCwdModule(t *testing.T) {
 		Cli: &Cli{
 			optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 			optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-			optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+			optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 			optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 		},
 		Ledger: testLedger,
@@ -210,7 +210,7 @@ func Test_makeBuildParamsCwdModule(t *testing.T) {
 	if fd, err := filez.CreateRecursive(filepath.Join(testDir, expectedModule), expectedFile); err == nil {
 		defer filez.CloseSilently(fd)
 		t.Chdir(testDir)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fd.Name())
 		testParam := makeBuildParams(testExecutor)
@@ -228,7 +228,7 @@ func Test_makeBuildParamsCwdNotStandard(t *testing.T) {
 		Cli: &Cli{
 			optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 			optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-			optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+			optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 			optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 		},
 		Ledger: testLedger,
@@ -237,7 +237,7 @@ func Test_makeBuildParamsCwdNotStandard(t *testing.T) {
 	if fd, err := filez.CreateRecursive(testDir, expectedFile); err == nil {
 		defer filez.CloseSilently(fd)
 		t.Chdir(testDir)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(testDir, expectedFile))
 		testParam := makeBuildParams(testExecutor)
@@ -254,7 +254,7 @@ func Test_makeBuildParamsExternalContext(t *testing.T) {
 		Cli: &Cli{
 			optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 			optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-			optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+			optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 			optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 		},
 		Ledger: testLedger,
@@ -262,7 +262,7 @@ func Test_makeBuildParamsExternalContext(t *testing.T) {
 
 	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile2")); err == nil {
 		defer filez.CloseSilently(fd)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fd.Name())
 		testParam := makeBuildParams(testExecutor)

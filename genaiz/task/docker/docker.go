@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"io"
+	"os/exec"
 	"sort"
 
 	"github.com/docker/docker/api/types"
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/docker/client"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
+	"genaiz.com/genaiz-lib/lang/ioz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
@@ -23,6 +25,10 @@ import (
 var (
 	dockerFactory = &ClientFactory{
 		get: getDockerClient,
+	}
+
+	forkFactory = &ForkFactory{
+		get: getFork,
 	}
 )
 
@@ -176,4 +182,22 @@ func getDockerClient(cf *ClientFactory) (Client, error) {
 	}
 
 	return cf.dockerClient, err
+}
+
+type ForkFactory struct {
+	fork ioz.Fork
+
+	get func(*ForkFactory, *exec.Cmd) ioz.Fork
+}
+
+func (ff *ForkFactory) Get(cmd *exec.Cmd) ioz.Fork {
+	return ff.get(ff, cmd)
+}
+
+func getFork(ff *ForkFactory, cmd *exec.Cmd) ioz.Fork {
+	if ff.fork == nil {
+		ff.fork = ioz.NewFork(cmd)
+	}
+
+	return ff.fork
 }

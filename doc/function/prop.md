@@ -29,16 +29,16 @@ Property add is used to define a new property specification for the Smart Functi
 #### type
 
 * if the type is not specified the default type is "string"
-* if the type does not match a valid type string (see [type validity](../index.md#property-types)), an error will be returned with the value: `Error: value [...] for option [sf.publish.propspecadd.type] is invalid`
+* if the type does not match a valid type string (see [type validity](../index.md#property-types)), an error will be returned with the value: `Error: value [...] for option [function.publish.propspecadd.type] is invalid`
 
 #### name
 
-* if the name does not match a valid name string (see [name validity](../index.md#property-name)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecadd.name] is invalid`
+* if the name does not match a valid name string (see [name validity](../index.md#property-name)), the command will return an Error: `Error: value [...] for option [function.publish.propspecadd.name] is invalid`
 * if the resolved name is empty, name will default to the value [KEY](#key)
 
 #### description
 
-* if the description does not match a valid description string (see [description validity](../index.md#property-description)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecadd.description] is invalid`
+* if the description does not match a valid description string (see [description validity](../index.md#property-description)), the command will return an Error: `Error: value [...] for option [function.publish.propspecadd.description] is invalid`
 * a description is optional and will be left empty if not specified
 
 #### default-value
@@ -49,7 +49,7 @@ Property add is used to define a new property specification for the Smart Functi
 #### enum-value
 
 * can be specified multiple times or be a comma separated string of values
-* if an enum value does not match a valid enum string (see [enum validity](../index.md#property-enum-values)), the command will return an error with the key of the field and the invalid value; `Error: value [n:...] for option [sf.publish.propspecadd.enumvalue] is invalid`
+* if an enum value does not match a valid enum string (see [enum validity](../index.md#property-enum-values)), the command will return an error with the key of the field and the invalid value; `Error: value [n:...] for option [function.publish.propspecadd.enumvalue] is invalid`
 
 ### prop edit
 
@@ -74,12 +74,12 @@ There is a relationship between [enum-value](#enum-value-1), [add-enum-value](#a
 #### name
 
 * if the name is not specified, the field will not be modified
-* if the name does not match a valid name string (see [name validity](../index.md#property-name)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecedit.name] is invalid`
+* if the name does not match a valid name string (see [name validity](../index.md#property-name)), the command will return an Error: `Error: value [...] for option [function.publish.propspecedit.name] is invalid`
 
 #### description
 
 * if the description is not specified, the field will not be modified
-* if the description does not match a valid description string (see [description validity](../index.md#property-description)), the command will return an Error: `Error: value [...] for option [sf.publish.propspecedit.description] is invalid`
+* if the description does not match a valid description string (see [description validity](../index.md#property-description)), the command will return an Error: `Error: value [...] for option [function.publish.propspecedit.description] is invalid`
 
 #### default-value
 
@@ -91,7 +91,7 @@ There is a relationship between [enum-value](#enum-value-1), [add-enum-value](#a
 
 * can be specified multiple times or be a comma separated string of values
 * if omitted, no new value will be added to the current set of enum values
-* if an enum value does not match a valid enum string (see [enum validity](../index.md#property-enum-values)), the command will return an error with the key of the field and the invalid value; `Error: value [n:...] for option [sf.publish.propspecedit.enumvalue] is invalid`
+* if an enum value does not match a valid enum string (see [enum validity](../index.md#property-enum-values)), the command will return an error with the key of the field and the invalid value; `Error: value [n:...] for option [function.publish.propspecedit.enumvalue] is invalid`
 * adding an enum value to a non-enum property specification will return an error: `Error: the property spec type does not allow enum values`
 
 #### rm-enum-value
@@ -141,7 +141,7 @@ The env command provides a utility for setting a property specification to a cer
 context is a globally accepted options, which changes the working directory before applying the command. In this case, it would cause the [env-file](#env-file) specified to be written relatively to the context path.
 
 * if the context is not specified, the default is the current working directory.
-* if the context path is invalid, the command will return an error with the field and the invalid value; `Error: value [...] for option [sf.env.context] is invalid`
+* if the context path is invalid, the command will return an error with the field and the invalid value; `Error: value [...] for option [function.env.context] is invalid`
 
 > [!NOTE]
 > The env command will look for the Genaiz.yaml under the working directory, it is then necessary to use the global --config option, if --context is used, in order for the property specifications to be validated.

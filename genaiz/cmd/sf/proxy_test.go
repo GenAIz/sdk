@@ -142,7 +142,7 @@ func TestProxyExecutor_Pretend(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
 		filez.CloseSilently(fd)
 		testLedger.WorkDir = testDir
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.Pretend()
 		assert.True(t, calledInit)
 	} else {
@@ -180,7 +180,7 @@ func TestProxyExecutor_Proceed(t *testing.T) {
 		filez.CloseSilently(fd)
 		testLedger.WorkDir = testDir
 		testLedger.Logger = logrus.New()
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.Proceed()
 		assert.True(t, calledInit)
 	} else {

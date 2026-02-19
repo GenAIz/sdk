@@ -72,8 +72,8 @@ func NewBuild(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var build = &cobra.Command{
 		Use:     "build",
 		Short:   "Builds a Smart Function",
-		Long:    "Builds a Smart Function image tagging it with tag and version values",
-		Example: "genaiz sf build --file=Dockerfile2 --context=../smartfunc --tag=genaiz.com/sf/smartfunc --version=v1.0",
+		Long:    "Builds a Smart Function image tagging it with repository and version values",
+		Example: "genaiz sf build --file=Dockerfile2 --context=../smartfunc --repository=genaiz.com/sf/smartfunc --version=v1.0",
 		Run: func(cmd *cobra.Command, args []string) {
 			cli.Exec(ledger, NewBuildExecutor(cmd.Context(), ledger, cli, options))
 		},
@@ -116,7 +116,7 @@ func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
 	var cwd, _ = os.Getwd()
 	var dockerContext = base.Ledger.GetString(base.Cli.optionDockerContext)
 	var dockerFile = base.Ledger.GetString(base.Cli.optionDockerFile)
-	var dockerTag = base.Ledger.GetString(base.Cli.optionDockerTag)
+	var dockerRepo = base.Ledger.GetString(base.Cli.optionDockerRepo)
 	var dockerVersion = base.Ledger.GetString(base.Cli.optionDockerVersion)
 
 	if cwd == dockerContext {
@@ -136,10 +136,10 @@ func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
 	}
 
 	return &docker.BuildParams{
-		Env:           task.Env{Context: base.Context},
-		Dockerfile:    dockerFile,
-		DockerContext: dockerContext,
-		DockerTag:     strings.ToLower(dockerTag),
-		DockerVersion: strings.ToLower(dockerVersion),
+		Env:              task.Env{Context: base.Context},
+		Dockerfile:       dockerFile,
+		DockerContext:    dockerContext,
+		DockerRepository: strings.ToLower(dockerRepo),
+		DockerVersion:    strings.ToLower(dockerVersion),
 	}
 }

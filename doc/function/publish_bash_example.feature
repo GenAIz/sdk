@@ -15,42 +15,42 @@ Feature: function publish with the bash example
       | handle          | oem       | version |
       | my-bash-example | --invalid | 0.1.2   |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --oem=<oem> --version=<version>"
-    Then I should have an error for field "sf.publish.oem"
+    Then I should have an error for field "function.publish.oem"
 
   Scenario: publish bash example bad handle
     Given the following parameters
       | handle    | oem            | version |
       | --invalid | com.genaiz.dev | 0.1.2   |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --handle=<handle> --version=<version>"
-    Then I should have an error for field "sf.publish.handle"
+    Then I should have an error for field "function.publish.handle"
 
   Scenario: publish bash example bad version
     Given the following parameters
       | handle          | oem            | version |
       | my-bash-example | com.genaiz.dev | 00.0.1  |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version>"
-    Then I should have an error for field "sf.publish.version"
+    Then I should have an error for field "function.publish.version"
 
   Scenario: publish bash example bad name
     Given the following parameters
       | handle          | oem            | name                                                                                                                                                                                                                                                                          |
       | my-bash-example | com.genaiz.dev | a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --name='<name>'"
-    Then I should have an error for field "sf.publish.name"
+    Then I should have an error for field "function.publish.name"
 
   Scenario: publish bash example bad type
     Given the following parameters
       | handle          | oem            | version | type    |
       | my-bash-example | com.genaiz.dev | 0.1.2   | invalid |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version> --type<type>"
-    Then I should have an error for field "sf.publish.type"
+    Then I should have an error for field "function.publish.type"
 
   Scenario: publish bash example bad arch
     Given the following parameters
       | handle          | oem            | version | arch    |
       | my-bash-example | com.genaiz.dev | 0.1.2   | invalid |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version> --arch=<arch>"
-    Then I should have an error for field "sf.publish.arches"
+    Then I should have an error for field "function.publish.arches"
 
   Scenario: build bash example
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
@@ -81,7 +81,7 @@ Feature: function publish with the bash example
     And the workdir changes to "<handle>"
     When I run the command "sf publish --version=<version>"
     Then I should have a docker image tagged "registry/<oem>/<handle>:<version>-rc-0"
-    And the config "Genaiz.yaml" should have "sf.publish.version" set to <version>
+    And the config "Genaiz.yaml" should have "function.publish.version" set to <version>
     And I should get an output with "<oem>/<handle>, version <version> to <orchestrator>"
 
   Scenario: publish bash example rebuild no update
@@ -95,7 +95,7 @@ Feature: function publish with the bash example
     And the workdir changes to "<handle>"
     When I run the command "sf publish --version=<version> --rebuild --no-update"
     Then I should have a docker image tagged "registry/<oem>/<handle>:<version>-rc-0"
-    And the config "Genaiz.yaml" should have "sf.publish.version" set to <previous>
+    And the config "Genaiz.yaml" should have "function.publish.version" set to <previous>
     And I should get an output with "<oem>/<handle>, version <version> to <orchestrator>"
 
   Scenario: publish bash example duplicate aborting
@@ -109,5 +109,5 @@ Feature: function publish with the bash example
     And the workdir changes to "<handle>"
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version> --rebuild"
     Then I should have a docker image tagged "registry/<oem>/<handle>:<version>-rc-0"
-    And the config "Genaiz.yaml" should have "sf.publish.version" set to <previous>
+    And the config "Genaiz.yaml" should have "function.publish.version" set to <previous>
     And I should get an output with "<orchestrator>/<oem>/<handle>:<version>-rc-0"

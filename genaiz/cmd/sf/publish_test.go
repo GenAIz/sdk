@@ -106,7 +106,7 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		var expectedExtraValue = 37
 
 		defer filez.CloseSilently(tmpFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionNoUpdate.Key, true)
@@ -164,7 +164,7 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
@@ -220,7 +220,7 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionRebuild.Key, true)
@@ -277,7 +277,7 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionRebuild.Key, true)
@@ -339,7 +339,7 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerVersion.Key, expectedVersion)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
@@ -409,7 +409,7 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 
 			defer filez.CloseSilently(tmpFile)
 			t.Chdir(testDir)
-			testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+			testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 			testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 			testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 			testViper.Set(testExecutor.optionArches.Key, expectedArches)
@@ -469,7 +469,7 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionRebuild.Key, true)
@@ -532,7 +532,7 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		var fileName = tmpFile.Name()
 
 		defer filez.CloseSilently(tmpFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionArches.Key, expectedArches)
@@ -590,7 +590,7 @@ func TestNewPublish(t *testing.T) {
 		},
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testPublish = NewPublish(testLedger, testCli)

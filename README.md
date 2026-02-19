@@ -34,15 +34,15 @@ The following example creates a solution **solution-1** and a smart function **m
 
 ```bash
 genaiz sn create mySolutionDir --name="My Solution" --handle="solution-1" \
-  --oem="com.genaiz.dev" --description="A Description"
+  --oem="com.genaiz" --description="A Description"
 cd mySolutionDir
 genaiz sf create mySmartFunction --recipe="bash-example" \
-  --oem="com.genaiz.dev" --handle="my-bash-example" --name="My Bash Example"
+  --oem="com.genaiz" --handle="my-bash-example" --name="My Bash Example"
 cd mySmartFunction
 genaiz sf build
 cd ..
 genaiz wf nodes add default node1 --name="Single Node" \
-  --description="My Single Node" --sf="com.genaiz.dev/my-bash-example:0.1.0"
+  --description="My Single Node" --sf="com.genaiz/my-bash-example:0.1.0"
 genaiz ac login broker.genaiz.com --username="myUsername"
 genaiz sn publish
 ```
@@ -52,7 +52,7 @@ genaiz sn publish
 The following example creates a smart function **function-1**, without a parent solution. It then proceeds to build it out of context. We can then list and run the smart function on a local **Docker** installation within the folder created or out of it.
 
 ```bash
-genaiz sf create function-1 --oem="com.genaiz.dev" \
+genaiz sf create function-1 --oem="com.genaiz" \
   --recipe="bash-example"
 genaiz sf build --context=function-1/
 cd function-1
@@ -68,7 +68,7 @@ genaiz sf run
 The following example creates a smart function **function-2**, without a parent solution. We then proceed to add property specifications to the function. The example completes with building the function in context, and testing it with the console attached using `test`.
 
 ```bash
-genaiz sf create function-2 --oem="com.genaiz.dev" \
+genaiz sf create function-2 --oem="com.genaiz" \
   --recipe="bash-example"
 cd function-2
 genaiz sf prop add MY_KEY --name="Key Example" \
@@ -83,13 +83,13 @@ genaiz sf test
 The following example creates a smart function **function-3**, without a parent solution. We then proceed to create and publish a data link **datalink-1** and add it to the smart function for provisioning on a broker.
 
 ```bash
-genaiz sf create function-3 --oem="com.genaiz.dev" --version="0.2.0" \
+genaiz sf create function-3 --oem="com.genaiz" --version="0.2.0" \
   --recipe="bash-example"
 cd function-3
-genaiz dk create datalink-1 --oem="com.genaiz.dev" --version="1.0.0" \
+genaiz dk create datalink-1 --oem="com.genaiz" --version="1.0.0" \
   --description="My DataLink"
 cd function-3
-genaiz data source add com.genaiz.dev/datalink-1:1.0.0
+genaiz data source add com.genaiz/datalink-1:1.0.0
 genaiz sf build
 genaiz sf publish
 ```
@@ -101,7 +101,7 @@ Support for result values is provided on `genaiz sf publish` only. From manually
 ```yaml
 function:
     build:
-        tag: com.genaiz/result-values
+        repository: com.genaiz/result-values
         version: latest
     publish:
         handle: result-values
@@ -200,6 +200,10 @@ Design was modeled with a behavior driven approach focusing on user's usage stud
   * [account (ac) login](doc/account/index.md#login)
   * [account (ac) logout](doc/account/index.md#logout)
 * [Data Link Scenarios](doc/datalink/index.md)
+  * [datalink (dk) create](doc/datalink/create.md)
+  * [datalink (dk) prop](doc/datalink/prop.md)
+  * [datalink (dk) publish](doc/datalink/publish.md)
+  * [datalink (dk) sync](doc/datalink/sync.md)
 * [Function Scenarios](doc/function/index.md)
   * [function (sf) build](doc/function/build.md)
   * [function (sf) create](doc/function/create.md)
@@ -207,6 +211,7 @@ Design was modeled with a behavior driven approach focusing on user's usage stud
   * [function (sf) init](doc/function/init.md)
   * [function (sf) list](doc/function/list.md)
   * [function (sf) prop](doc/function/prop.md)
+  * [function (sf) proxy](doc/function/prop.md)
   * [function (sf) publish](doc/function/publish.md)
   * [function (sf) run](doc/function/run.md)
   * [function (sf) start](doc/function/start.md)

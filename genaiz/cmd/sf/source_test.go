@@ -160,7 +160,7 @@ func TestSourceExecutor_Pretend_Add(t *testing.T) {
 		filez.CloseSilently(fd)
 		testLedger.WorkDir = testDir
 		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.optionNoValidation.Key, "True")
 		testExecutor.addParams = &broker.DataLinkParams{}
 		testExecutor.Pretend()
@@ -207,7 +207,7 @@ func TestSourceExecutor_Pretend_AddWithValidation(t *testing.T) {
 		testLedger.InitLogging()
 		testLedger.WorkDir = testDir
 		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.addParams = expectedParams
 		testExecutor.Pretend()
 		assert.True(t, calledInit)
@@ -244,7 +244,7 @@ func TestSourceExecutor_Pretend_Remove(t *testing.T) {
 		filez.CloseSilently(fd)
 		testLedger.WorkDir = testDir
 		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.rmParams = &broker.DataLinkParams{}
 		testExecutor.Pretend()
 		assert.True(t, calledInit)
@@ -292,7 +292,7 @@ func TestSourceExecutor_Proceed_Add(t *testing.T) {
 		testLedger.WorkDir = testDir
 		testLedger.Logger = logrus.New()
 		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.optionNoValidation.Key, "True")
 		testExecutor.addParams = expectedParams
 		testExecutor.updatedSources = []string{expectedParams.ToString()}
@@ -345,7 +345,7 @@ func TestSourceExecutor_Proceed_AddWithValidation(t *testing.T) {
 		testLedger.WorkDir = testDir
 		testLedger.Logger = logrus.New()
 		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.addParams = expectedParams
 		testExecutor.updatedSources = []string{expectedParams.ToString()}
 		testExecutor.Proceed()
@@ -396,7 +396,7 @@ func TestSourceExecutor_Proceed_Remove(t *testing.T) {
 		testLedger.WorkDir = testDir
 		testLedger.Logger = logrus.New()
 		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.rmParams = expectedParams
 		testExecutor.updatedSources = []string{expectedParams.ToString()}
 		testExecutor.Proceed()

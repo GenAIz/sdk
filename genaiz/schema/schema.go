@@ -97,7 +97,7 @@ type Document struct {
 			LegacyBuilder Keys
 			NoCache       Keys
 			Prune         Keys
-			Tag           Keys
+			Repository    Keys
 			Version       Keys
 		}
 		Create struct {
@@ -110,8 +110,8 @@ type Document struct {
 			Name         Keys
 			Oem          Keys
 			Recipe       Keys
+			Repository   Keys
 			SolutionPath Keys
-			Tag          Keys
 			Type         Keys
 			Version      Keys
 		}
@@ -454,7 +454,7 @@ func init() {
 	Genaiz.Function.Build.LegacyBuilder = newKeys("Function.Build.LegacyBuilder", "SF_BUILD_LEGACY", "Sf.Build.LegacyBuilder")
 	Genaiz.Function.Build.NoCache = newKeys("Function.Build.NoCache", "SF_BUILD_NOCACHE", "Sf.Build.NoCache")
 	Genaiz.Function.Build.Prune = newKeys("Function.Build.Prune", "SF_BUILD_PRUNE", "Sf.Build.Prune")
-	Genaiz.Function.Build.Tag = newKeys("Function.Build.Tag", "SF_BUILD_TAG", "Sf.Build.Tag")
+	Genaiz.Function.Build.Repository = newKeys("Function.Build.Repository", "SF_BUILD_REPOSITORY", "Sf.Build.Tag", "Function.Build.Tag", "Sf.Build.Repository")
 	Genaiz.Function.Build.Version = newKeys("Function.Build.Version", "SF_BUILD_VERSION", "Sf.Build.Version")
 
 	Genaiz.Function.Create.Arches = newKeys("Function.Create.Arches", "SF_CREATE_ARCHES", "Sf.Create.Arches")
@@ -465,8 +465,8 @@ func init() {
 	Genaiz.Function.Create.Name = newKeys("Function.Create.Name", "SF_CREATE_NAME", "Sf.Create.Name")
 	Genaiz.Function.Create.Oem = newKeys("Function.Create.Oem", "SF_CREATE_OEM", "Sf.Create.Oem")
 	Genaiz.Function.Create.Recipe = newKeys("Function.Create.Recipe", "SF_CREATE_RECIPE", "Sf.Create.Recipe")
+	Genaiz.Function.Create.Repository = newKeys("Function.Create.Repository", "SF_CREATE_REPOSITORY", "Sf.Create.Repository", "Function.Create.Tag", "Sf.Create.Repository")
 	Genaiz.Function.Create.SolutionPath = newKeys("Function.Create.SolutionPath", "SF_CREATE_SN_PATH", "Sf.Create.SolutionPath")
-	Genaiz.Function.Create.Tag = newKeys("Function.Create.Tag", "SF_CREATE_TAG", "Sf.Create.Tag")
 	Genaiz.Function.Create.Type = newKeys("Function.Create.Type", "SF_CREATE_TYPE", "Sf.Create.Type")
 	Genaiz.Function.Create.Version = newKeys("Function.Create.Version", "SF_CREATE_VERSION", "Sf.Create.Version")
 

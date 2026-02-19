@@ -17,6 +17,11 @@ docker: genaiz/docker genaiz-it/docker genaiz-oauth/docker
 ## install - Invokes install on genaiz, genaiz-it and genaiz-oauth
 install: genaiz/install genaiz-it/install genaiz-oauth/install
 
+.PHONY:
+## genaiz/dev - Installs development packaged binaries with supplementary trace tooling
+genaiz/dev:
+	cd genaiz && make dev
+
 .PHONY: genaiz/all
 ## genaiz/all - Invokes all on genaiz
 genaiz/all:

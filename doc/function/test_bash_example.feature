@@ -35,7 +35,7 @@ Feature: function test with the bash example
       | context      |
       | not-existing |
     When I run the command "sf test --context=<context>"
-    Then I should have an error for field "sf.build.context"
+    Then I should have an error for field "function.build.context"
 
   Scenario: test bash example bad file
     Given the scenario "building bash example" ran with condition "service_completed_successfully"
@@ -43,16 +43,16 @@ Feature: function test with the bash example
       | path               | file         |
       | test-bash-function | not-existing |
     When I run the command "sf test --file=<file>"
-    Then I should have an error for field "sf.build.file"
+    Then I should have an error for field "function.build.file"
 
-  Scenario: test bash example bad tag
+  Scenario: test bash example bad repository
     Given the scenario "building bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | path               | tag         |
+      | path               | repository         |
       | test-bash-function | n--t.valid. |
     And the workdir changes to "<path>"
-    When I run the command "sf test --tag=<tag>"
-    Then I should have an error for field "sf.build.tag"
+    When I run the command "sf test --repository=<repository>"
+    Then I should have an error for field "function.build.repository"
 
   Scenario: test bash example bad mount-in
     Given the scenario "building bash example" ran with condition "service_completed_successfully"
@@ -61,7 +61,7 @@ Feature: function test with the bash example
       | test-bash-function | /_not_valid |
     And the workdir changes to "<path>"
     When I run the command "sf test --mount-in=<mountIn>"
-    Then I should have an error for field "sf.test.input"
+    Then I should have an error for field "function.test.input"
 
   Scenario: test bash example bad mount-out
     Given the scenario "building bash example" ran with condition "service_completed_successfully"
@@ -70,7 +70,7 @@ Feature: function test with the bash example
       | test-bash-function | /_not_valid |
     And the workdir changes to "<path>"
     When I run the command "sf test --mount-out=<mountOut>"
-    Then I should have an error for field "sf.test.output"
+    Then I should have an error for field "function.test.output"
 
   Scenario: test bash example bad mount-log
     Given the scenario "building bash example" ran with condition "service_completed_successfully"
@@ -79,7 +79,7 @@ Feature: function test with the bash example
       | test-bash-function | /_not_valid |
     And the workdir changes to "<path>"
     When I run the command "sf test --mount-log=<mountLog>"
-    Then I should have an error for field "sf.test.log"
+    Then I should have an error for field "function.test.log"
 
   Scenario: test bash example bad mount-var
     Given the scenario "building bash example" ran with condition "service_completed_successfully"
@@ -88,7 +88,7 @@ Feature: function test with the bash example
       | test-bash-function | /_not_valid |
     And the workdir changes to "<path>"
     When I run the command "sf test --mount-var=<mountVar>"
-    Then I should have an error for field "sf.test.var"
+    Then I should have an error for field "function.test.var"
 
   Scenario: test bash example bad prefix
     Given the scenario "building bash example" ran with condition "service_completed_successfully"
@@ -97,7 +97,7 @@ Feature: function test with the bash example
       | test-bash-function | -bad-prefix- |
     And the workdir changes to "<path>"
     When I run the command "sf test --prefix=<prefix>"
-    Then I should have an error for field "sf.test.prefix"
+    Then I should have an error for field "function.test.prefix"
 
   Scenario: test bash example bad image
     Given the scenario "create bash example" ran with condition "service_completed_successfully"

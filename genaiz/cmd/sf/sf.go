@@ -102,7 +102,7 @@ type Cli struct {
 
 	optionDockerContext *config.StringOption
 	optionDockerFile    *config.StringOption
-	optionDockerTag     *config.StringOption
+	optionDockerRepo    *config.StringOption
 	optionDockerVersion *config.StringOption
 
 	parentConfigType *shared.ConfigType
@@ -110,23 +110,23 @@ type Cli struct {
 }
 
 func (c *Cli) ContainerPrefix(ledger *config.Ledger) any {
-	var tag = strings.ReplaceAll(ledger.GetString(c.optionDockerTag), "/", "-")
+	var repo = strings.ReplaceAll(ledger.GetString(c.optionDockerRepo), "/", "-")
 	var workspace = ledger.GetWorkspace()
 
 	if workspace != "" {
-		return workspace + "-" + tag
+		return workspace + "-" + repo
 	}
 
-	return tag
+	return repo
 }
 
 func (c *Cli) DefaultRunImage(ledger *config.Ledger) any {
-	var tag = ledger.GetString(c.optionDockerTag)
+	var repo = ledger.GetString(c.optionDockerRepo)
 	var version = ledger.GetString(c.optionDockerVersion)
 	var parts []string
 
-	if tag != "" {
-		parts = append(parts, tag)
+	if repo != "" {
+		parts = append(parts, repo)
 	}
 
 	if version != "" {
@@ -175,7 +175,7 @@ func (c *Cli) SfOptions() []*config.Option {
 	return []*config.Option{
 		&c.optionDockerContext.Option,
 		&c.optionDockerFile.Option,
-		&c.optionDockerTag.Option,
+		&c.optionDockerRepo.Option,
 		&c.optionDockerVersion.Option,
 	}
 }
@@ -184,7 +184,7 @@ func (c *Cli) allDefiners() []config.Definer {
 	return []config.Definer{
 		c.optionDockerContext,
 		c.optionDockerFile,
-		c.optionDockerTag,
+		c.optionDockerRepo,
 		c.optionDockerVersion,
 	}
 }
@@ -247,20 +247,20 @@ func NewSfCli(confirm cli.Interactive, dry, pretend cli.Decisive) *Cli {
 
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag: cli.Options.Docker.Tag().
-			WithDefaultSetter(makeResolveSfTag()).
+		optionDockerRepo: cli.Options.Docker.Repository().
+			WithDefaultGetter(makeResolveSfRepo()).
 			BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 }
 
-func makeResolveSfTag() func(ledger *config.Ledger) any {
+func makeResolveSfRepo() func(ledger *config.Ledger) any {
 	return func(ledger *config.Ledger) any {
 		var parent = filepath.Base(filepath.Dir(ledger.WorkDir))
 		var fn = filepath.Base(ledger.WorkDir)
 
 		if config.Validation.Oem(parent) && config.Validation.Handle(fn) {
-			// Should not set a default value that is not a valid tag
+			// Should not set a default value that is not a valid repository string
 			return fmt.Sprintf("%s/%s", parent, fn)
 		}
 

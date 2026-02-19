@@ -8,70 +8,70 @@ Feature: function init on empty folder
       | context     |
       | /badContext |
     When I run the command "sf init --context=<context>"
-    Then I should have an error for field "sf.build.context"
+    Then I should have an error for field "function.build.context"
 
   Scenario: init empty example bad Dockerfile
     Given the following parameters
       | file          |
       | badDockerfile |
     When I run the command "sf init --file=<file>"
-    Then I should have an error for field "sf.build.context"
+    Then I should have an error for field "function.build.context"
 
   Scenario: init empty example bad config-type
     Given the following parameters
       | configType |
       | invalid    |
     When I run the command "sf init --config-type=<configType>"
-    Then I should have an error for field "sf.init.configtype"
+    Then I should have an error for field "function.init.configtype"
 
-  Scenario: init empty example bad tag
+  Scenario: init empty example bad repository
     Given the following parameters
-      | tag                     |
-      | com.genaiz.dev/bad..tag |
-    When I run the command "sf init --tag=<tag>"
-    Then I should have an error for field "sf.build.tag"
+      | repository                     |
+      | com.genaiz.dev/bad..repository |
+    When I run the command "sf init --repository=<repository>"
+    Then I should have an error for field "function.build.repository"
 
   Scenario: init empty example bad handle
     Given the following parameters
       | handle         |
       | empty__example |
     When I run the command "sf init --handle=<handle>"
-    Then I should have an error for field "sf.init.handle"
+    Then I should have an error for field "function.init.handle"
 
   Scenario: init empty example bad oem
     Given the following parameters
       | handle        | oem         |
       | empty-example | com..genaiz |
     When I run the command "sf init --handle=<handle> --oem=<oem>"
-    Then I should have an error for field "sf.init.oem"
+    Then I should have an error for field "function.init.oem"
 
   Scenario: init empty example bad version
     Given the following parameters
       | handle        | oem            | version |
       | empty-example | com.genaiz.dev | 1..0    |
     When I run the command "sf init --handle=<handle> --oem=<oem> --version=<version>"
-    Then I should have an error for field "sf.init.version"
+    Then I should have an error for field "function.init.version"
 
   Scenario: init empty example bad type
     Given the following parameters
       | handle        | oem            | version | type    |
       | empty-example | com.genaiz.dev | 1.0.0   | invalid |
     When I run the command "sf init --handle=<handle> --oem=<oem> --version=<version> --type=<type>"
-    Then I should have an error for field "sf.init.type"
+    Then I should have an error for field "function.init.type"
 
   Scenario: init empty example bad name
     Given the following parameters
       | handle        | name                                                                                                                                                                                                                                                                                            |
       | empty-example | This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. This string is too long for a name. |
     When I run the command "sf init --handle=<handle> --name='<name>'"
-    Then I should have an error for field "sf.init.name"
+    Then I should have an error for field "function.init.name"
 
   Scenario: init empty example bad arch
     Given the following parameters
       | folder        | arch  |
       | empty-example | amd37 |
     When I run the command "sf init --handle=<handle> --arch=<arch>"
-    Then I should have an error for field "sf.init.arches"
+    Then I should have an error for field "function.init.arches"
 
   Scenario: create empty example solution
     Given the following parameters

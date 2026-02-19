@@ -24,7 +24,7 @@ type InitWriter struct {
 	*PublishOptions
 	*RunOptions
 	buildFileKeys              *schema.Keys
-	buildTagKeys               *schema.Keys
+	buildRepositoryKeys        *schema.Keys
 	buildVersionKeys           *schema.Keys
 	publishInputPortsKeys      *schema.Keys
 	publishOutboundProxiesKeys *schema.Keys
@@ -171,7 +171,7 @@ func (iw *InitWriter) WithHandle(value string) layout.ConfigWriter {
 	if value != "" {
 		var oem = iw.vp.GetString(iw.optionOem.Key)
 
-		iw.setTag(oem, value)
+		iw.setRepository(oem, value)
 		iw.vp.Set(iw.optionHandle.Key, value)
 	}
 
@@ -218,7 +218,7 @@ func (iw *InitWriter) WithOem(value string) layout.ConfigWriter {
 	if value != "" {
 		var handle = iw.vp.GetString(iw.optionHandle.Key)
 
-		iw.setTag(value, handle)
+		iw.setRepository(value, handle)
 		iw.vp.Set(iw.optionOem.Key, value)
 	}
 
@@ -288,9 +288,9 @@ func (iw *InitWriter) WithStores(stores []string) layout.ConfigWriter {
 	return iw
 }
 
-func (iw *InitWriter) WithTag(value string) layout.ConfigWriter {
+func (iw *InitWriter) WithRepository(value string) layout.ConfigWriter {
 	if value != "" {
-		iw.vp.Set(iw.buildTagKeys.Doc, value)
+		iw.vp.Set(iw.buildRepositoryKeys.Doc, value)
 	}
 
 	return iw
@@ -327,18 +327,18 @@ func (iw *InitWriter) Write(filepath string) error {
 	return vpClean.WriteConfigAs(filepath)
 }
 
-func (iw *InitWriter) setTag(oem string, handle string) {
-	var tagTokens []string
+func (iw *InitWriter) setRepository(oem string, handle string) {
+	var components []string
 
 	if oem != "" {
-		tagTokens = append(tagTokens, oem)
+		components = append(components, oem)
 	}
 
 	if handle != "" {
-		tagTokens = append(tagTokens, handle)
+		components = append(components, handle)
 	}
 
-	iw.vp.Set(iw.buildTagKeys.Doc, strings.Join(tagTokens, "/"))
+	iw.vp.Set(iw.buildRepositoryKeys.Doc, strings.Join(components, "/"))
 }
 
 type InitTaskFactory func(layout.ConfigWriter) *task.Task[layout.InitParams]
@@ -401,13 +401,13 @@ func (ie *InitExecutor) makeInitParams() (*layout.InitParams, error) {
 func (ie *InitExecutor) newInitWriter() layout.ConfigWriter {
 	var writer = newInitWriter(ie.Cli)
 	var dockerFile = ie.Ledger.GetString(ie.Cli.optionDockerFile)
-	var dockerTag = ie.Ledger.GetString(ie.Cli.optionDockerTag)
+	var dockerRepo = ie.Ledger.GetString(ie.Cli.optionDockerRepo)
 
 	if dockerFile != ie.Cli.optionDockerFile.DefaultGetter(ie.Ledger) {
 		writer.WithDockerFile(dockerFile)
 	}
 
-	return writer.WithTag(dockerTag)
+	return writer.WithRepository(dockerRepo)
 }
 
 type InitOptions struct {
@@ -545,7 +545,7 @@ func newInitWriter(sfCli *Cli) *InitWriter {
 		PublishOptions:             NewPublishOptions(sfCli),
 		RunOptions:                 NewRunOptions(sfCli),
 		buildFileKeys:              &schema.Genaiz.Function.Build.File,
-		buildTagKeys:               &schema.Genaiz.Function.Build.Tag,
+		buildRepositoryKeys:        &schema.Genaiz.Function.Build.Repository,
 		buildVersionKeys:           &schema.Genaiz.Function.Build.Version,
 		publishInputPortsKeys:      &schema.Genaiz.Function.Publish.InputPorts,
 		publishOutboundProxiesKeys: &schema.Genaiz.Function.Publish.OutboundProxies,

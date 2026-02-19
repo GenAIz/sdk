@@ -26,7 +26,7 @@ func TestTestExecutor_Display(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testViper = viper.New()
@@ -43,7 +43,7 @@ func TestTestExecutor_Display(t *testing.T) {
 	}
 	var expectedDockerContext = "TestDockerContext"
 	var expectedDockerFile = "TestDockerfile"
-	var expectedDockerTag = "TestDockerTag"
+	var expectedDockerRepo = "TestDockerRepo"
 	var expectedDockerVersion = "TestDockerVersion"
 	var expectedEnvFile = "TestEnvFile"
 	var expectedEnvVars = "TestEnvVars"
@@ -56,7 +56,7 @@ func TestTestExecutor_Display(t *testing.T) {
 
 	testViper.Set(testCli.optionDockerContext.Key, expectedDockerContext)
 	testViper.Set(testCli.optionDockerFile.Key, expectedDockerFile)
-	testViper.Set(testCli.optionDockerTag.Key, expectedDockerTag)
+	testViper.Set(testCli.optionDockerRepo.Key, expectedDockerRepo)
 	testViper.Set(testCli.optionDockerVersion.Key, expectedDockerVersion)
 	testViper.Set(testExecutor.optionEnvFile.Key, expectedEnvFile)
 	testViper.Set(testExecutor.optionEnvVars.Key, expectedEnvVars)
@@ -71,7 +71,7 @@ func TestTestExecutor_Display(t *testing.T) {
 	if actual := testOutput.String(); actual != "" {
 		assert.Contains(t, actual, expectedDockerContext)
 		assert.Contains(t, actual, expectedDockerFile)
-		assert.Contains(t, actual, expectedDockerTag)
+		assert.Contains(t, actual, expectedDockerRepo)
 		assert.Contains(t, actual, expectedDockerVersion)
 		assert.Contains(t, actual, expectedEnvFile)
 		assert.Contains(t, actual, expectedEnvVars)
@@ -96,7 +96,7 @@ func TestTestExecutor_Pretend(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testDataLink = &broker.DataLink{
@@ -124,7 +124,7 @@ func TestTestExecutor_Pretend(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -197,7 +197,7 @@ func TestTestExecutor_Pretend_WithBuild(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testDataLink = &broker.DataLink{
@@ -225,7 +225,7 @@ func TestTestExecutor_Pretend_WithBuild(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.rebuildImage = true
@@ -248,7 +248,7 @@ func TestTestExecutor_Proceed(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testDataLink = &broker.DataLink{
@@ -276,7 +276,7 @@ func TestTestExecutor_Proceed(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.rebuildImage = true
@@ -397,7 +397,7 @@ func TestNewTest(t *testing.T) {
 		},
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testTest = NewTest(testLedger, testCli)
@@ -407,7 +407,7 @@ func TestNewTest(t *testing.T) {
 		testCompleted = true
 	}
 
-	testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+	testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(schema.Genaiz.Function.Test.MountInput.Doc, testDir)
 	testViper.Set(schema.Genaiz.Function.Test.MountOutput.Doc, testDir)
 	testViper.Set(schema.Genaiz.Function.Test.Image.Doc, expectedImage)

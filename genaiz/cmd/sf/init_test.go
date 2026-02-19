@@ -60,8 +60,8 @@ func TestInitWriter_BuildHandle(t *testing.T) {
 			optionOem:    testInitOptionOem,
 			optionHandle: testInitOptionHandle,
 		},
-		vp:           testViper,
-		buildTagKeys: &schema.Genaiz.Function.Build.Tag,
+		vp:                  testViper,
+		buildRepositoryKeys: &schema.Genaiz.Function.Build.Repository,
 	}
 	var actualKey, actualValue = testWriter.WithHandle(expectedHandle).BuildHandle()
 
@@ -71,7 +71,7 @@ func TestInitWriter_BuildHandle(t *testing.T) {
 	_, actualValue = testWriter.WithHandle("").BuildHandle()
 
 	assert.EqualValues(t, expectedHandle, actualValue)
-	assert.EqualValues(t, expectedHandle, testViper.GetString(testWriter.buildTagKeys.Doc))
+	assert.EqualValues(t, expectedHandle, testViper.GetString(testWriter.buildRepositoryKeys.Doc))
 }
 
 func TestInitWriter_BuildInput(t *testing.T) {
@@ -158,8 +158,8 @@ func TestInitWriter_BuildOem(t *testing.T) {
 			optionHandle: testInitOptionHandle,
 			optionOem:    testInitOptionOem,
 		},
-		vp:           viper.New(),
-		buildTagKeys: &schema.Genaiz.Function.Build.Tag,
+		vp:                  viper.New(),
+		buildRepositoryKeys: &schema.Genaiz.Function.Build.Repository,
 	}
 	var actualKey, actualValue = testWriter.WithOem(expectedOem).BuildOem()
 
@@ -415,9 +415,9 @@ func TestInitWriter_Write(t *testing.T) {
 			optionHandle:  testInitOptionHandle,
 			optionVersion: testInitOptionVersion,
 		},
-		vp:               testViper,
-		buildTagKeys:     &schema.Genaiz.Function.Build.Tag,
-		buildVersionKeys: &schema.Genaiz.Function.Build.Version,
+		vp:                  testViper,
+		buildRepositoryKeys: &schema.Genaiz.Function.Build.Repository,
+		buildVersionKeys:    &schema.Genaiz.Function.Build.Version,
 	}
 	var testFolder = filepath.Dir(expectedFile)
 
@@ -433,7 +433,7 @@ func TestInitWriter_Write(t *testing.T) {
 		assert.NotPanics(t, func() { testWriter.WithConfigFile(expectedFile) })
 
 		assert.EqualValues(t, "latest", testViper.GetString(testWriter.buildVersionKeys.Doc))
-		assert.EqualValues(t, expectedOem+"/"+expectedHandle, testViper.GetString(testWriter.buildTagKeys.Doc))
+		assert.EqualValues(t, expectedOem+"/"+expectedHandle, testViper.GetString(testWriter.buildRepositoryKeys.Doc))
 	} else {
 		assert.NoError(t, err)
 	}
@@ -448,9 +448,9 @@ func TestInitWriter_WriteInvalidFile(t *testing.T) {
 			optionHandle:  testInitOptionHandle,
 			optionVersion: testInitOptionVersion,
 		},
-		vp:               viper.New(),
-		buildTagKeys:     &schema.Genaiz.Function.Build.Tag,
-		buildVersionKeys: &schema.Genaiz.Function.Build.Version,
+		vp:                  viper.New(),
+		buildRepositoryKeys: &schema.Genaiz.Function.Build.Repository,
+		buildVersionKeys:    &schema.Genaiz.Function.Build.Version,
 	}
 
 	assert.Panics(t, func() { testWriter.WithConfigFile(invalidFile) })
@@ -515,7 +515,7 @@ func TestInitExecutor_Pretend(t *testing.T) {
 		t.Chdir(testDir)
 		testLedger.WorkDir = testDir
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, expectedFile)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
@@ -590,7 +590,7 @@ func TestInitExecutor_Proceed(t *testing.T) {
 			filez.CloseSilently(fd)
 			testLedger.Logger = logrus.New()
 			testLedger.WorkDir = testDir
-			testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+			testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 			testViper.Set(testExecutor.optionArches.Key, expectedArches)
 			testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 			testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
@@ -683,7 +683,7 @@ func TestNewInit(t *testing.T) {
 		},
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testInit = NewInit(testLedger, testCli)

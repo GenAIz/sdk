@@ -345,10 +345,10 @@ func Test_OptionsDockerReplace(t *testing.T) {
 }
 
 func Test_OptionsDockerTag(t *testing.T) {
-	var testOption = Options.Docker.Tag().BuildStringOption()
+	var testOption = Options.Docker.Repository().BuildStringOption()
 
-	assert.Equal(t, schema.Genaiz.Function.Build.Tag.Doc, testOption.Key)
-	assert.Equal(t, schema.Genaiz.Function.Build.Tag.Env, testOption.Env)
+	assert.Equal(t, schema.Genaiz.Function.Build.Repository.Doc, testOption.Key)
+	assert.Equal(t, schema.Genaiz.Function.Build.Repository.Env, testOption.Env)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
 }
