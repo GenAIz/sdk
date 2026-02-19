@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -179,17 +178,22 @@ func (sr *SolutionReader) Find(configName string) error {
 	return err
 }
 
-func (sr *SolutionReader) FindFunctionValues() map[string]*viper.Viper {
-	var paths = make(map[string]*viper.Viper)
+func (sr *SolutionReader) FindFunctionValues() (map[string]*viper.Viper, error) {
+	var files []string
+	var err error
 
-	if dirEntries, err := os.ReadDir(sr.configPath); err == nil {
-		for _, entry := range dirEntries {
-			if entry.IsDir() {
+	if files, err = filez.FindNamedFilesRecursively(sr.configPath, sr.configName); err == nil {
+		var paths = make(map[string]*viper.Viper)
+
+		for _, f := range files {
+			var basePath = filepath.Dir(f)
+
+			if basePath != sr.configPath {
 				var vp = viper.New()
 
 				vp.SetConfigName(sr.configName)
-				vp.SetConfigType(sr.configType)
-				vp.AddConfigPath(sr.GetSolutionPath(entry.Name()))
+				vp.SetConfigType(filez.GetFileType(f))
+				vp.AddConfigPath(basePath)
 
 				if err = vp.ReadInConfig(); err == nil {
 					paths[vp.ConfigFileUsed()] = vp
@@ -198,9 +202,11 @@ func (sr *SolutionReader) FindFunctionValues() map[string]*viper.Viper {
 				}
 			}
 		}
+
+		return paths, err
 	}
 
-	return paths
+	return nil, err
 }
 
 func (sr *SolutionReader) GetSolution() *broker.Solution {

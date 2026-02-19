@@ -80,41 +80,45 @@ func (pe *PublishExecutor) Display() {
 
 	if configType, err = pe.Ledger.GetConfigType(pe.optionConfigType); err == nil {
 		if err = pe.solutionReader.WithConfigPath(pe.folderPath).Read(*configType); err == nil {
-			var layoutKeys = map[string]string{}
 			var solution = pe.solutionReader.GetSolution()
-			var solutionKey = "solutionFile"
+			var functionMap map[string]*viper.Viper
 
-			if solution != nil {
-				pe.Ledger.InitValue(pe.optionOem, solution.Oem)
-				pe.Ledger.InitValue(pe.optionHandle, solution.Handle)
-				pe.Ledger.InitValue(pe.optionDescription, solution.Description)
-				pe.Ledger.InitValue(pe.optionName, solution.Name)
-				pe.Ledger.InitValue(pe.optionVersion, solution.Version)
-				solutionKey = solution.Handle
-			}
+			if functionMap, err = pe.solutionReader.FindFunctionValues(); err == nil {
+				var layoutKeys = map[string]string{}
+				var solutionKey = "solutionFile"
 
-			layoutKeys[solutionKey] = pe.solutionReader.GetSolutionFile()
-
-			for key, vp := range pe.solutionReader.FindFunctionValues() {
-				var value broker.Function
-
-				if err = schema.Genaiz.Function.Publish.Internal.Unmarshall(vp, &value); err == nil {
-					layoutKeys[key] = value.Handle
-				} else {
-					pe.Ledger.Logger.Warnf("could not extract function publishing data from file %s", key)
+				if solution != nil {
+					pe.Ledger.InitValue(pe.optionOem, solution.Oem)
+					pe.Ledger.InitValue(pe.optionHandle, solution.Handle)
+					pe.Ledger.InitValue(pe.optionDescription, solution.Description)
+					pe.Ledger.InitValue(pe.optionName, solution.Name)
+					pe.Ledger.InitValue(pe.optionVersion, solution.Version)
+					solutionKey = solution.Handle
 				}
-			}
 
-			if len(layoutKeys) > 0 {
-				pe.Ledger.DisplayOptionsWithMap(&layoutKeys,
-					&pe.PublishOptions.optionConfigType.Option,
-					&pe.PublishOptions.optionOem.Option,
-					&pe.PublishOptions.optionHandle.Option,
-					&pe.PublishOptions.optionDescription.Option,
-					&pe.PublishOptions.optionName.Option,
-					&pe.PublishOptions.optionVersion.Option,
-				)
-				return
+				layoutKeys[solutionKey] = pe.solutionReader.GetSolutionFile()
+
+				for key, vp := range functionMap {
+					var value broker.Function
+
+					if err = schema.Genaiz.Function.Publish.Internal.Unmarshall(vp, &value); err == nil {
+						layoutKeys[key] = value.Handle
+					} else {
+						pe.Ledger.Logger.Warnf("could not extract function publishing data from file %s", key)
+					}
+				}
+
+				if len(layoutKeys) > 0 {
+					pe.Ledger.DisplayOptionsWithMap(&layoutKeys,
+						&pe.PublishOptions.optionConfigType.Option,
+						&pe.PublishOptions.optionOem.Option,
+						&pe.PublishOptions.optionHandle.Option,
+						&pe.PublishOptions.optionDescription.Option,
+						&pe.PublishOptions.optionName.Option,
+						&pe.PublishOptions.optionVersion.Option,
+					)
+					return
+				}
 			}
 		}
 	}
@@ -179,22 +183,25 @@ func (pe *PublishExecutor) collectAndCall(fn func(*broker.SolutionPublishParams,
 			if solution := reader.GetSolution(); solution != nil {
 				var fnParams []FunctionParams
 				var snParams *broker.SolutionPublishParams
+				var functionMap map[string]*viper.Viper
 
-				for k, values := range reader.FindFunctionValues() {
-					var provisionParams = pe.makeFunctionProvisionParams(values, solution)
+				if functionMap, err = reader.FindFunctionValues(); err == nil {
+					for k, values := range functionMap {
+						var provisionParams = pe.makeFunctionProvisionParams(values, solution)
 
-					fnParams = append(fnParams, FunctionParams{
-						buildParams:     pe.makeFunctionBuildParams(filepath.Dir(k), values),
-						provisionParams: provisionParams,
-						publishParams:   pe.makeFunctionPublishParams(provisionParams),
-						pushParams:      pe.makeFunctionPushParams(),
-					})
+						fnParams = append(fnParams, FunctionParams{
+							buildParams:     pe.makeFunctionBuildParams(filepath.Dir(k), values),
+							provisionParams: provisionParams,
+							publishParams:   pe.makeFunctionPublishParams(provisionParams),
+							pushParams:      pe.makeFunctionPushParams(),
+						})
+					}
+
+					fnParams = pe.filterPublishedFunctions(solution, fnParams)
+					snParams = pe.makeSolutionPublishParams(solution, fnParams)
+					fn(snParams, fnParams)
+					return nil
 				}
-
-				fnParams = pe.filterPublishedFunctions(solution, fnParams)
-				snParams = pe.makeSolutionPublishParams(solution, fnParams)
-				fn(snParams, fnParams)
-				return nil
 			} else {
 				return fmt.Errorf("no solution could be read from [%s]", reader.GetSolutionFile())
 			}
