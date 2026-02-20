@@ -108,12 +108,12 @@ func (ce *CreateExecutor) Proceed() {
 }
 
 func (ce *CreateExecutor) makeCreateBuilder(ledger *config.Ledger, sfCli *Cli) layout.ConfigWriter {
-	var dockerTag = ledger.GetString(ce.optionDockerTag)
+	var dockerRepo = ledger.GetString(ce.optionDockerRepo)
 	var result = &InitWriter{
 		PublishOptions:             NewPublishOptions(sfCli),
 		RunOptions:                 NewRunOptions(sfCli),
 		buildFileKeys:              &schema.Genaiz.Function.Build.File,
-		buildTagKeys:               &schema.Genaiz.Function.Build.Tag,
+		buildRepositoryKeys:        &schema.Genaiz.Function.Build.Repository,
 		buildVersionKeys:           &schema.Genaiz.Function.Build.Version,
 		publishInputPortsKeys:      &schema.Genaiz.Function.Publish.InputPorts,
 		publishOutboundProxiesKeys: &schema.Genaiz.Function.Publish.OutboundProxies,
@@ -124,7 +124,7 @@ func (ce *CreateExecutor) makeCreateBuilder(ledger *config.Ledger, sfCli *Cli) l
 		vp:                         viper.New(),
 	}
 
-	return result.WithTag(dockerTag)
+	return result.WithRepository(dockerRepo)
 }
 
 func (ce *CreateExecutor) makeCreateParams() (*layout.CreateParams, error) {
@@ -186,7 +186,7 @@ func (ce *CreateExecutor) makeRecipeParamsMap(recipeOptions []*config.Option) ma
 type CreateOptions struct {
 	*InitOptions
 
-	optionDockerTag    *config.StringOption
+	optionDockerRepo   *config.StringOption
 	optionRecipe       *config.StringOption
 	optionSolutionPath *config.StringOption
 }
@@ -296,9 +296,9 @@ func NewCreateOptions(sfCli *Cli) *CreateOptions {
 				WithDefaultGetter(sfCli.ParentVersion(solutionOpt)).
 				BuildStringOption(),
 		},
-		optionDockerTag: cli.Options.Docker.Tag().
-			WithKeys(&schema.Genaiz.Function.Create.Tag).
-			WithDefaultGetter(makeResolveCreateTag(oemOpt, handleOpt)).
+		optionDockerRepo: cli.Options.Docker.Repository().
+			WithKeys(&schema.Genaiz.Function.Create.Repository).
+			WithDefaultGetter(makeResolveCreateRepo(oemOpt, handleOpt)).
 			BuildStringOption(),
 		optionRecipe: cli.Options.Functions.Recipe().
 			WithKeys(&schema.Genaiz.Function.Create.Recipe).
@@ -324,7 +324,7 @@ func newCreateParams(ledger *config.Ledger, configTypeOption *config.StringOptio
 	return nil, err
 }
 
-func makeResolveCreateTag(oemOption *config.StringOption, handleOption *config.StringOption) func(*config.Ledger) any {
+func makeResolveCreateRepo(oemOption *config.StringOption, handleOption *config.StringOption) func(*config.Ledger) any {
 	return func(ledger *config.Ledger) any {
 		var oem = ledger.GetString(oemOption)
 		var handle = ledger.GetString(handleOption)

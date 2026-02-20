@@ -51,15 +51,15 @@ func TestCli_ContainerPrefix(t *testing.T) {
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
 		Build()
-	var expectedDockerTag = "dev/tag"
+	var expectedDockerRepo = "namespace/repo"
 	var expectedWorkspace = "workSpace"
 	var actual string
 
 	testLedger.InitWorkspace(testOption)
 	testViper.Set(testOption.Param, expectedWorkspace)
-	testViper.Set(testSfCli.optionDockerTag.Key, expectedDockerTag)
+	testViper.Set(testSfCli.optionDockerRepo.Key, expectedDockerRepo)
 	actual = cast.ToString(testSfCli.ContainerPrefix(testLedger))
-	assert.Equal(t, "workSpace-dev-tag", actual)
+	assert.Equal(t, "workSpace-namespace-repo", actual)
 }
 
 func TestCli_DefaultRunImage(t *testing.T) {
@@ -68,14 +68,14 @@ func TestCli_DefaultRunImage(t *testing.T) {
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
 		Build()
-	var expectedDockerTag = "dev/tag"
+	var expectedDockerRepo = "namespace/repo"
 	var expectedDockerVersion = "version"
 	var actual string
 
-	testViper.Set(testSfCli.optionDockerTag.Key, expectedDockerTag)
+	testViper.Set(testSfCli.optionDockerRepo.Key, expectedDockerRepo)
 	testViper.Set(testSfCli.optionDockerVersion.Key, expectedDockerVersion)
 	actual = cast.ToString(testSfCli.DefaultRunImage(testLedger))
-	assert.Equal(t, "dev/tag:version", actual)
+	assert.Equal(t, "namespace/repo:version", actual)
 }
 
 func TestCli_ParentConfigType(t *testing.T) {
@@ -207,11 +207,11 @@ func TestCli_allDefiners(t *testing.T) {
 
 	assert.NotEmpty(t, testSfCli.optionDockerContext)
 	assert.NotEmpty(t, testSfCli.optionDockerFile)
-	assert.NotEmpty(t, testSfCli.optionDockerTag)
+	assert.NotEmpty(t, testSfCli.optionDockerRepo)
 	assert.NotEmpty(t, testSfCli.optionDockerVersion)
 	assert.Contains(t, testCliDefiners, testSfCli.optionDockerContext)
 	assert.Contains(t, testCliDefiners, testSfCli.optionDockerFile)
-	assert.Contains(t, testCliDefiners, testSfCli.optionDockerTag)
+	assert.Contains(t, testCliDefiners, testSfCli.optionDockerRepo)
 	assert.Contains(t, testCliDefiners, testSfCli.optionDockerVersion)
 }
 
@@ -361,7 +361,7 @@ func TestNewSfCli(t *testing.T) {
 
 	if err = os.MkdirAll(testDir, 0750); err == nil {
 		testLedger.WorkDir = testDir
-		assert.Equal(t, "oem/handle", testCli.optionDockerTag.DefaultSetter(testLedger))
+		assert.Equal(t, "oem/handle", testCli.optionDockerRepo.DefaultGetter(testLedger))
 	} else {
 		assert.Fail(t, err.Error())
 	}
@@ -376,7 +376,7 @@ func TestNewSfCli_invalidOem(t *testing.T) {
 
 	if err = os.MkdirAll(testDir, 0750); err == nil {
 		testLedger.WorkDir = testDir
-		assert.Empty(t, testCli.optionDockerTag.DefaultSetter(testLedger))
+		assert.Empty(t, testCli.optionDockerRepo.DefaultGetter(testLedger))
 	} else {
 		assert.Fail(t, err.Error())
 	}
@@ -391,7 +391,7 @@ func TestNewSfCli_invalidHandle(t *testing.T) {
 
 	if err = os.MkdirAll(testDir, 0750); err == nil {
 		testLedger.WorkDir = testDir
-		assert.Empty(t, testCli.optionDockerTag.DefaultSetter(testLedger))
+		assert.Empty(t, testCli.optionDockerRepo.DefaultGetter(testLedger))
 	} else {
 		assert.Fail(t, err.Error())
 	}

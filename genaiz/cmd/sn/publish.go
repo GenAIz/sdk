@@ -246,10 +246,10 @@ func (pe *PublishExecutor) makeFunctionBuildParams(path string, vp *viper.Viper)
 		Env: task.Env{
 			Context: pe.Context,
 		},
-		DockerContext: confDockerContext,
-		Dockerfile:    schema.Genaiz.Function.Build.File.GetString(vp),
-		DockerTag:     schema.Genaiz.Function.Build.Tag.GetString(vp),
-		DockerVersion: schema.Genaiz.Function.Build.Version.GetString(vp),
+		DockerContext:    confDockerContext,
+		Dockerfile:       schema.Genaiz.Function.Build.File.GetString(vp),
+		DockerRepository: schema.Genaiz.Function.Build.Repository.GetString(vp),
+		DockerVersion:    schema.Genaiz.Function.Build.Version.GetString(vp),
 	}
 }
 

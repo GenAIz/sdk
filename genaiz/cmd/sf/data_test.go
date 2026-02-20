@@ -354,7 +354,7 @@ func TestDataExecutor_Pretend_MultiPortTypes(t *testing.T) {
 	if fd, err = os.Create(filepath.Join(testDir, "Dockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 		testLedger.WorkDir = testDir
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.Pretend()
 		assert.True(t, calledInit)
 	} else {
@@ -398,7 +398,7 @@ func TestDataExecutor_Proceed_MultiPortTypes(t *testing.T) {
 		defer filez.CloseSilently(fd)
 		testLedger.WorkDir = testDir
 		testLedger.InitLogging()
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.Proceed()
 		assert.True(t, calledInit)
 	} else {

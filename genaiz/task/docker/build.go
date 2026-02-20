@@ -21,7 +21,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"genaiz.com/genaiz-lib/lang/filez"
-	"genaiz.com/genaiz-lib/lang/ioz"
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz-lib/lang/stringz"
@@ -49,14 +48,14 @@ type HasReference interface {
 
 type BuildParams struct {
 	task.Env
-	Dockerfile    string
-	DockerContext string
-	DockerTag     string
-	DockerVersion string
-	Label         bool
-	NoCache       bool
-	Prune         bool
-	Streams       *BuildStreams
+	Dockerfile       string
+	DockerContext    string
+	DockerRepository string
+	DockerVersion    string
+	Label            bool
+	NoCache          bool
+	Prune            bool
+	Streams          *BuildStreams
 }
 
 type BuildOutput struct {
@@ -75,41 +74,30 @@ func (p *BuildParams) GetFilters() filters.Args {
 	)
 }
 
+func (p *BuildParams) GetFiltersByRepo(field string) filters.Args {
+	var value string
+
+	if i := strings.Index(p.DockerRepository, "/"); i >= 0 {
+		value = p.DockerRepository[i+1:]
+	} else {
+		value = p.DockerRepository
+	}
+
+	return filters.NewArgs(filters.Arg(field, value+"*"))
+}
+
 func (p *BuildParams) GetFiltersByVersion() filters.Args {
 	if p.DockerVersion != "latest" {
 		return p.GetFilters()
 	}
 
 	return filters.NewArgs(
-		filters.Arg("reference", p.DockerTag+":*"),
+		filters.Arg("reference", p.DockerRepository+":*"),
 	)
 }
 
-func (p *BuildParams) GetFiltersByTag(field string) filters.Args {
-	var value string
-
-	if i := strings.Index(p.DockerTag, "/"); i >= 0 {
-		value = p.DockerTag[i+1:]
-	} else {
-		value = p.DockerTag
-	}
-
-	return filters.NewArgs(filters.Arg(field, value+"*"))
-}
-
-func (p *BuildParams) GetNamePrefix() string {
-	var tag string
-
-	if p.DockerVersion != "" {
-		tag = stringz.MultiTagLabel(p.DockerTag, "-", p.DockerVersion)
-	}
-
-	// We need to keep any valid prefix in the tag
-	return strings.ReplaceAll(tag, "/", "-")
-}
-
 func (p *BuildParams) GetReference() string {
-	return stringz.SingleTagLabel(p.DockerTag, ":", p.GetVersion())
+	return stringz.SingleTagLabel(p.DockerRepository, ":", p.GetVersion())
 }
 
 func (p *BuildParams) GetVersion() string {
@@ -125,7 +113,7 @@ func (p *BuildParams) getErrorStream() *os.File {
 }
 
 func (p *BuildParams) getInputStream() *os.File {
-	if p.Streams != nil && p.Streams.Err != nil {
+	if p.Streams != nil && p.Streams.In != nil {
 		return p.Streams.In
 	}
 
@@ -228,8 +216,8 @@ func NewListTask() *task.Task[BuildParams] {
 	}
 }
 
-func formatCreated(created int64, threshold time.Time) string {
-	var createdTime = time.UnixMilli(created * 1000)
+func formatCreated(createdSeconds int64, threshold time.Time) string {
+	var createdTime = time.UnixMilli(createdSeconds * 1000)
 
 	if createdTime.After(threshold) {
 		return createdTime.Format(time.TimeOnly)
@@ -269,7 +257,7 @@ func handleBuildContext(params *BuildParams, state *task.State) error {
 func handleBuildForkCreate(dockerPath string, params *BuildParams, state *task.State) error {
 	var args = params.toBuildArgs()
 	var cmd = exec.CommandContext(params.Context, dockerPath, args...)
-	var fork = ioz.NewFork(cmd)
+	var fork = forkFactory.Get(cmd)
 	var err error
 
 	if state.Logger.IsLevelEnabled(logrus.DebugLevel) {
@@ -292,24 +280,30 @@ func handleBuildForkCreate(dockerPath string, params *BuildParams, state *task.S
 }
 
 func handleBuildForkPrune(dockerPath string, params *BuildParams, state *task.State) error {
-	if params.Prune {
-		var args = params.toPruneArgs()
-		var cmd = exec.CommandContext(params.Context, dockerPath, args...)
-		var fork = ioz.NewFork(cmd)
-		var err error
+	if state.Error == nil {
+		if params.Prune {
+			var args = params.toPruneArgs()
+			var cmd = exec.CommandContext(params.Context, dockerPath, args...)
+			var fork = forkFactory.Get(cmd)
+			var err error
 
-		if state.Logger.IsLevelEnabled(logrus.DebugLevel) {
-			fork.WithPipeOut(stateDebug(state))
+			if state.Logger.IsLevelEnabled(logrus.DebugLevel) {
+				fork.WithPipeOut(stateDebug(state))
+			}
+
+			state.Logger.Debugf("Pruning build cache with command [%s]", cmd.String())
+
+			if err = fork.Run(params.Context); err != nil {
+				state.Logger.Errorf("Prune failed with error %s", err)
+			}
+		} else {
+			state.Logger.Debugf("Pruning dangling images disabled, skipping")
 		}
 
-		state.Logger.Debugf("Pruning build cache with command [%s]", cmd.String())
-
-		if err = fork.Run(params.Context); err != nil {
-			return err
-		}
+		return handleBuildReport(params, state)
 	}
 
-	return handleBuildPrune(params, state)
+	return state.Error
 }
 
 func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
@@ -325,7 +319,7 @@ func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 	}
 
 	if params.Label {
-		options.Labels = map[string]string{"sf": params.DockerTag}
+		options.Labels = map[string]string{"sf": params.DockerRepository}
 	}
 
 	state.Logger.Debugf("Building a docker image tagged [%s] with the legacy builder", reference)
@@ -355,8 +349,7 @@ func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 }
 
 func handleBuildPretend(params *BuildParams, state *task.State) error {
-	var version = stringz.FirstNonEmpty(params.DockerVersion, "latest")
-	var reference = stringz.SingleTagLabel(params.DockerTag, ":", version)
+	var reference = params.GetReference()
 
 	state.Logger.Debugf("Pretending to build a docker image tagged [%s]", reference)
 	fmt.Printf("docker image list --filter reference=%s\n", reference)
@@ -371,7 +364,7 @@ func handleBuildPretend(params *BuildParams, state *task.State) error {
 		}
 
 		if params.Prune {
-			fmt.Printf("docker image prune --filter label=%s=%s\n", "sf", params.DockerTag)
+			fmt.Printf("docker image prune --filter label=%s=%s\n", "sf", params.DockerRepository)
 		}
 	}
 
@@ -379,22 +372,28 @@ func handleBuildPretend(params *BuildParams, state *task.State) error {
 }
 
 func handleBuildPrune(params *BuildParams, state *task.State) error {
-	if params.Prune {
-		var dockerClient = dockerFactory.Get()
-		var pruneFilters = filters.NewArgs(
-			filters.Arg("label", "sf="+params.DockerTag),
-		)
+	if state.Error == nil {
+		if params.Prune {
+			var dockerClient = dockerFactory.Get()
+			var pruneFilters = filters.NewArgs(
+				filters.Arg("label", "sf="+params.DockerRepository),
+			)
 
-		if report, err := dockerClient.ImagesPrune(params.Context, pruneFilters); err == nil {
-			for _, deleted := range report.ImagesDeleted {
-				state.Logger.Debugf("Removed dangling image id [%s], no longer in use", deleted.Deleted)
+			if report, err := dockerClient.ImagesPrune(params.Context, pruneFilters); err == nil {
+				for _, deleted := range report.ImagesDeleted {
+					state.Logger.Debugf("Removed dangling image id [%s], no longer in use", deleted.Deleted)
+				}
+			} else {
+				state.Logger.Errorf("Prune failed with error %s", err)
 			}
+		} else {
+			state.Logger.Debugf("Pruning dangling images disabled, skipping")
 		}
-	} else {
-		state.Logger.Debugf("Pruning dangling images disabled, skipping")
+
+		return handleBuildReport(params, state)
 	}
 
-	return handleBuildReport(params, state)
+	return state.Error
 }
 
 func handleBuildReport(params *BuildParams, state *task.State) error {
@@ -419,7 +418,7 @@ func handleBuildReport(params *BuildParams, state *task.State) error {
 		return err
 	}
 
-	return nil
+	return state.Error
 }
 
 func handleListContext(params *BuildParams, state *task.State) error {
@@ -431,24 +430,22 @@ func handleListContext(params *BuildParams, state *task.State) error {
 	if images, err = dockerClient.ImageList(params.Context, image.ListOptions{Filters: imageFilters}); err == nil {
 		var dockerState = NewClientState(state)
 
-		if len(images) == 0 {
-			state.Logger.Debugf("Could not list images for the provided filter")
-			return ErrorNoBuild
-		} else {
-			dockerState.AddImages(images...)
-		}
-
-		if params.DockerTag != "" {
+		if len(images) > 0 {
 			var containers []container.Summary
 			var containerOptions = container.ListOptions{
 				All:     true,
-				Filters: params.GetFiltersByTag("name"),
+				Filters: params.GetFiltersByRepo("name"),
 			}
+
+			dockerState.AddImages(images...)
 
 			if containers, err = dockerClient.ContainerList(params.Context, containerOptions); err == nil {
 				dockerState.AddContainers(containers...)
 				return nil
 			}
+		} else {
+			state.Logger.Debugf("Could not list images for the provided filter")
+			return ErrorNoBuild
 		}
 	}
 
@@ -464,7 +461,7 @@ func handleListComplete(params *BuildParams, state *task.State) error {
 		var imgList = dockerState.GetImages()
 		var output bytes.Buffer
 
-		state.Logger.Debugf("Listing Docker Images for Smart Function [%s], Version [%s]", params.DockerTag, params.DockerVersion)
+		state.Logger.Debugf("Listing Docker Images for Smart Function [%s], Version [%s]", params.DockerRepository, params.DockerVersion)
 		listImages(imgList, &output, today)
 		state.Output = output.String()
 		output.Reset()
@@ -474,14 +471,14 @@ func handleListComplete(params *BuildParams, state *task.State) error {
 				return summary.ID
 			})
 
-			state.Logger.Debugf("Listing Docker Containers for Smart Function [%s], Version [%s]", params.DockerTag, params.DockerVersion)
+			state.Logger.Debugf("Listing Docker Containers for Smart Function [%s], Version [%s]", params.DockerRepository, params.DockerVersion)
 			listContainers(dockerState.GetContainers(), imagesById, &output, today)
 			state.Output += "\n" + output.String()
 		} else {
 			state.Output += "\nNo containers associated with the listed images\n"
 		}
 	} else {
-		state.Output = fmt.Sprintf("No images associated with Smart Function [%s]\n", params.DockerTag)
+		state.Output = fmt.Sprintf("No images associated with Smart Function [%s]\n", params.DockerRepository)
 	}
 
 	dockerState.Reset()
@@ -502,6 +499,8 @@ func handleInspectComplete(params *BuildParams, state *task.State) error {
 			if len(resp.RepoDigests) > 0 {
 				if i := strings.LastIndex(resp.RepoDigests[0], hashPrefix); i >= 0 {
 					digest = resp.RepoDigests[0][i:]
+				} else {
+					state.Logger.Errorf("Found invalid repo digest [%s] for image [%s]", resp.RepoDigests[0], state.Output)
 				}
 			}
 
@@ -510,6 +509,7 @@ func handleInspectComplete(params *BuildParams, state *task.State) error {
 				Hash:    digest,
 				Version: params.GetVersion(),
 			}
+			return nil
 		}
 
 		return err
@@ -519,9 +519,9 @@ func handleInspectComplete(params *BuildParams, state *task.State) error {
 }
 
 func handleInspectContext(params *BuildParams, state *task.State) error {
-	var err error
-
 	if state.Output == "" {
+		var err error
+
 		if err = handleBuildContext(params, state); err != nil {
 			if errors.Is(err, ErrorLatestBuild) {
 				return nil
@@ -531,9 +531,11 @@ func handleInspectContext(params *BuildParams, state *task.State) error {
 		if err == nil && state.Output == "" {
 			return ErrorNoBuild
 		}
+
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func handleInspectPretend(params *BuildParams, state *task.State) error {
@@ -550,7 +552,7 @@ func handleInspectPretend(params *BuildParams, state *task.State) error {
 	}
 
 	state.Logger.Errorf("Could not find an image to inspect for reference [%s]", reference)
-	return ErrorNoBuild
+	return state.Error
 }
 
 func listContainers(containers []container.Summary, imageMap map[string]image.Summary, output *bytes.Buffer, threshold time.Time) {
@@ -573,7 +575,7 @@ func listContainers(containers []container.Summary, imageMap map[string]image.Su
 				name = ct.Names[0][1:]
 			}
 
-			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", name, ct.ID[0:11], imageRepoTag, ct.Status, created)
+			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", name, ct.ID[7:19], imageRepoTag, ct.Status, created)
 		}
 	}
 
@@ -611,7 +613,7 @@ func stateDebug(state *task.State) func(string) {
 }
 
 func stateError(state *task.State) func(string) {
-	var indiceRegex = regexp.MustCompile(`^#\d+\s+`)
+	var indexRegex = regexp.MustCompile(`^#\d+\s+`)
 
 	return func(s string) {
 		if i := strings.Index(strings.ToLower(s), "error: "); i == 0 {
@@ -620,7 +622,7 @@ func stateError(state *task.State) func(string) {
 			// docker build logs everything to STDERR, including debug messages
 			if !strings.HasPrefix(s, "#") {
 				state.Logger.Debugf("%s", s)
-			} else if i = strings.Index(s, " "); i > 0 && indiceRegex.Match([]byte(s)) {
+			} else if i = strings.Index(s, " "); i > 0 && indexRegex.Match([]byte(s)) {
 				state.Logger.Debugf("%s", s[i+1:])
 			}
 		}

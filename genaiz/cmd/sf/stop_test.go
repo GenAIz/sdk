@@ -24,7 +24,7 @@ func TestStopExecutor_Display(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testViper = viper.New()
@@ -57,7 +57,7 @@ func TestStopExecutor_Display(t *testing.T) {
 	}
 	var expectedDockerContext = "TestDockerContext"
 	var expectedDockerFile = "TestDockerfile"
-	var expectedDockerTag = "TestDockerTag"
+	var expectedDockerRepo = "TestDockerRepo"
 	var expectedDockerVersion = "TestDockerVersion"
 	var expectedRunImage = "TestRunImage"
 	var expectedContainerPrefix = "TestContainerPrefix"
@@ -65,7 +65,7 @@ func TestStopExecutor_Display(t *testing.T) {
 
 	testViper.Set(testCli.optionDockerContext.Key, expectedDockerContext)
 	testViper.Set(testCli.optionDockerFile.Key, expectedDockerFile)
-	testViper.Set(testCli.optionDockerTag.Key, expectedDockerTag)
+	testViper.Set(testCli.optionDockerRepo.Key, expectedDockerRepo)
 	testViper.Set(testCli.optionDockerVersion.Key, expectedDockerVersion)
 	testViper.Set(testOptions.optionRunImage.Key, expectedRunImage)
 	testViper.Set(testOptions.optionContainerName.Key, expectedContainerName)
@@ -76,7 +76,7 @@ func TestStopExecutor_Display(t *testing.T) {
 	if actual := testOutput.String(); actual != "" {
 		assert.Contains(t, actual, expectedDockerContext)
 		assert.Contains(t, actual, expectedDockerFile)
-		assert.Contains(t, actual, expectedDockerTag)
+		assert.Contains(t, actual, expectedDockerRepo)
 		assert.Contains(t, actual, expectedDockerVersion)
 		assert.Contains(t, actual, expectedRunImage)
 		assert.Contains(t, actual, expectedContainerPrefix)
@@ -95,7 +95,7 @@ func TestStopExecutor_Pretend(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &StopExecutor{
@@ -129,7 +129,7 @@ func TestStopExecutor_Pretend(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -148,7 +148,7 @@ func TestStopExecutor_PretendDispose(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &StopExecutor{
@@ -180,7 +180,7 @@ func TestStopExecutor_PretendDispose(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Pretend()
@@ -199,7 +199,7 @@ func TestStopExecutor_Proceed(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &StopExecutor{
@@ -231,7 +231,7 @@ func TestStopExecutor_Proceed(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.Logger = logrus.New()
 		testExecutor.Proceed()
@@ -293,7 +293,7 @@ func TestNewStop(t *testing.T) {
 		},
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testStop = NewStop(testLedger, testCli)
@@ -306,7 +306,7 @@ func TestNewStop(t *testing.T) {
 		stopCompleted = true
 	}
 
-	testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+	testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(testCmdImageOption.Key, expectedImage)
 	assert.NoError(t, testStop.Execute())
 	assert.True(t, stopCompleted)

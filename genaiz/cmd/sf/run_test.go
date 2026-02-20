@@ -27,7 +27,7 @@ func TestRunExecutor_Display(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testViper = viper.New()
@@ -44,7 +44,7 @@ func TestRunExecutor_Display(t *testing.T) {
 	}
 	var expectedDockerContext = "RunDockerContext"
 	var expectedDockerFile = "RunDockerfile"
-	var expectedDockerTag = "RunDockerTag"
+	var expectedDockerRepo = "RunDockerRepo"
 	var expectedDockerVersion = "RunDockerVersion"
 	var expectedEnvFile = "RunEnvFile"
 	var expectedEnvVars = "RunEnvVars"
@@ -57,7 +57,7 @@ func TestRunExecutor_Display(t *testing.T) {
 
 	testViper.Set(testCli.optionDockerContext.Key, expectedDockerContext)
 	testViper.Set(testCli.optionDockerFile.Key, expectedDockerFile)
-	testViper.Set(testCli.optionDockerTag.Key, expectedDockerTag)
+	testViper.Set(testCli.optionDockerRepo.Key, expectedDockerRepo)
 	testViper.Set(testCli.optionDockerVersion.Key, expectedDockerVersion)
 	testViper.Set(testExecutor.optionEnvFile.Key, expectedEnvFile)
 	testViper.Set(testExecutor.optionEnvVars.Key, expectedEnvVars)
@@ -72,7 +72,7 @@ func TestRunExecutor_Display(t *testing.T) {
 	if out := testOutput.String(); out != "" {
 		assert.Contains(t, out, expectedDockerContext)
 		assert.Contains(t, out, expectedDockerFile)
-		assert.Contains(t, out, expectedDockerTag)
+		assert.Contains(t, out, expectedDockerRepo)
 		assert.Contains(t, out, expectedDockerVersion)
 		assert.Contains(t, out, expectedEnvFile)
 		assert.Contains(t, out, expectedEnvVars)
@@ -96,7 +96,7 @@ func TestRunExecutor_Pretend(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testDataLink = &broker.DataLink{
@@ -124,7 +124,7 @@ func TestRunExecutor_Pretend(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testViper.Set(testExecutor.innerSources.Key, []string{fmt.Sprintf("%s/%s:%s",
 			testDataLink.Oem, testDataLink.Handle, testDataLink.Version)})
@@ -147,7 +147,7 @@ func TestRunExecutor_Pretend_DataLinkError(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &RunExecutor{
@@ -172,7 +172,7 @@ func TestRunExecutor_Pretend_DataLinkError(t *testing.T) {
 
 		defer patch.Unpatch()
 		defer filez.CloseSilently(fd)
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testViper.Set(testExecutor.innerSources.Key, []string{"notValid/noVersion"})
 		testLedger.InitLogging()
@@ -232,7 +232,7 @@ func TestRunExecutor_Pretend_NoSync(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testDataLink = &broker.DataLink{
@@ -260,7 +260,7 @@ func TestRunExecutor_Pretend_NoSync(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testViper.Set(testExecutor.optionNoPropSync.Key, "True")
 		testViper.Set(testExecutor.innerSources.Key, []string{fmt.Sprintf("%s/%s:%s",
@@ -284,7 +284,7 @@ func TestRunExecutor_Pretend_RebuildImage(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &RunExecutor{
@@ -307,7 +307,7 @@ func TestRunExecutor_Pretend_RebuildImage(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testViper.Set(testExecutor.optionNoPropSync.Key, "True")
 		testLedger.InitLogging()
@@ -330,7 +330,7 @@ func TestRunExecutor_Proceed(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testExecutor = &RunExecutor{
@@ -352,7 +352,7 @@ func TestRunExecutor_Proceed(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testLedger.InitLogging()
 		testExecutor.rebuildImage = true
@@ -412,7 +412,7 @@ func TestRunExecutor_Proceed_NoSync(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testDataLink = &broker.DataLink{
@@ -440,7 +440,7 @@ func TestRunExecutor_Proceed_NoSync(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testViper.Set(testExecutor.optionNoPropSync.Key, "True")
 		testViper.Set(testExecutor.innerStores.Key, []string{fmt.Sprintf("%s/%s:%s",
@@ -467,7 +467,7 @@ func TestRunExecutor_Proceed_SyncSpecs(t *testing.T) {
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testDataLink = &broker.DataLink{
@@ -499,7 +499,7 @@ func TestRunExecutor_Proceed_SyncSpecs(t *testing.T) {
 	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
 		defer filez.CloseSilently(fd)
 
-		testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
 		testViper.Set(testExecutor.innerStores.Key, []string{fmt.Sprintf("%s/%s:%s",
 			testDataLink.Oem, testDataLink.Handle, testDataLink.Version)})
@@ -561,23 +561,23 @@ func TestNewRun(t *testing.T) {
 		},
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testRun = NewRun(testLedger, testCli)
-	var expectedTag = "dockerTag"
+	var expectedRepo = "dockerRepo"
 
 	testRun.PostRun = func(cmd *cobra.Command, args []string) {
 		runCompleted = true
 	}
 
-	testViper.Set(testCli.optionDockerTag.Key, expectedTag)
+	testViper.Set(testCli.optionDockerRepo.Key, expectedRepo)
 	testViper.Set(schema.Genaiz.Function.Run.MountOutput.Doc, testDir)
 	assert.NoError(t, testRun.Execute())
 	assert.True(t, runCompleted)
 
 	if actual := testOutput.String(); actual != "" {
-		assert.Contains(t, actual, expectedTag)
+		assert.Contains(t, actual, expectedRepo)
 	} else {
 		assert.Fail(t, "no --dry content")
 	}

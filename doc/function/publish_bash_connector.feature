@@ -85,5 +85,5 @@ Feature: connector publish with the bash example
     And the workdir changes to "<handle>"
     When I run the command "sf publish"
     Then I should have a docker image tagged "registry/<oem>/<handle>:<version>-rc-0"
-    And the config "Genaiz.yaml" should have "sf.publish.version" set to <version>
+    And the config "Genaiz.yaml" should have "function.publish.version" set to <version>
     And I should get an output with "<oem>/<handle>, version <version> to <orchestrator>"

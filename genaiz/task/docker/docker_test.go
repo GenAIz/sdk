@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -17,52 +19,65 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/lang/ioz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
 
 type stubDockerClient struct {
-	containerAttachError    error
-	containerAttachId       string
-	containerAttachOptions  *container.AttachOptions
-	containerAttachResponse *types.HijackedResponse
-	containerCreate         *container.Summary
-	containerCreateConfig   *container.Config
-	containerCreateName     string
-	containerCreatePlatform *ocispec.Platform
-	containerCreateWarnings []string
-	containerHostConfig     *container.HostConfig
-	containerNetworkConfig  *network.NetworkingConfig
-	containerCreateError    error
-	containerInspect        *container.Summary
-	containerInspectConfig  *container.Config
-	containerInspectError   error
-	containerInspectId      string
-	containerList           []container.Summary
-	containerListFilter     filters.Args
-	containerListError      error
-	containerKillError      error
-	containerRemoveError    error
-	containerRemoveId       string
-	containerRemoveOptions  *container.RemoveOptions
-	containerStartError     error
-	containerStartId        string
-	containerStartOptions   *container.StartOptions
-	containerStopError      error
-	containerStopId         []string
-	containerStopOptions    *container.StopOptions
-	containerWaitResponse   chan container.WaitResponse
-	containerWaitError      chan error
-	imageList               []image.Summary
-	imageListError          error
-	imagePushError          error
-	imagePushOptions        image.PushOptions
-	imagePushPath           string
-	imagePushReader         io.ReadCloser
-	imageTagError           error
-	imageTagId              string
-	imageTagPath            string
+	containerAttachError     error
+	containerAttachId        string
+	containerAttachOptions   *container.AttachOptions
+	containerAttachResponse  *types.HijackedResponse
+	containerCreate          *container.Summary
+	containerCreateConfig    *container.Config
+	containerCreateName      string
+	containerCreatePlatform  *ocispec.Platform
+	containerCreateWarnings  []string
+	containerHostConfig      *container.HostConfig
+	containerNetworkConfig   *network.NetworkingConfig
+	containerCreateError     error
+	containerInspect         *container.Summary
+	containerInspectConfig   *container.Config
+	containerInspectError    error
+	containerInspectId       string
+	containerList            []container.Summary
+	containerListFilter      filters.Args
+	containerListError       error
+	containerKillError       error
+	containerRemoveError     error
+	containerRemoveId        string
+	containerRemoveOptions   *container.RemoveOptions
+	containerStartError      error
+	containerStartId         string
+	containerStartOptions    *container.StartOptions
+	containerStopError       error
+	containerStopId          []string
+	containerStopOptions     *container.StopOptions
+	containerWaitResponse    chan container.WaitResponse
+	containerWaitError       chan error
+	imageBuildOptions        *build.ImageBuildOptions
+	imageBuildReader         io.Reader
+	imageBuildResponseReader io.ReadCloser
+	imageBuildError          error
+	imageInspect             *image.Summary
+	imageInspectError        error
+	imageInspectId           string
+	imageInspectOptions      []client.ImageInspectOption
+	imageList                []image.Summary
+	imageListError           error
+	imageListOptions         *image.ListOptions
+	imagePruneArgs           *filters.Args
+	imagePruneDeletions      []string
+	imagePruneError          error
+	imagePushError           error
+	imagePushOptions         image.PushOptions
+	imagePushPath            string
+	imagePushReader          io.ReadCloser
+	imageTagError            error
+	imageTagId               string
+	imageTagPath             string
 }
 
 func (s *stubDockerClient) ContainerAttach(ctx context.Context, id string, options container.AttachOptions) (types.HijackedResponse, error) {
@@ -149,15 +164,36 @@ func (s *stubDockerClient) ContainerWait(context.Context, string, container.Wait
 	return s.containerWaitResponse, s.containerWaitError
 }
 
-func (s *stubDockerClient) ImageBuild(context.Context, io.Reader, build.ImageBuildOptions) (build.ImageBuildResponse, error) {
-	panic("implement me")
+func (s *stubDockerClient) ImageBuild(ctx context.Context, reader io.Reader, options build.ImageBuildOptions) (build.ImageBuildResponse, error) {
+	s.imageBuildReader = reader
+	s.imageBuildOptions = &options
+	_ = ctx
+	return build.ImageBuildResponse{
+		Body: s.imageBuildResponseReader,
+	}, s.imageBuildError
 }
 
-func (s *stubDockerClient) ImageInspect(context.Context, string, ...client.ImageInspectOption) (image.InspectResponse, error) {
-	panic("implement me")
+func (s *stubDockerClient) ImageInspect(ctx context.Context, id string, options ...client.ImageInspectOption) (image.InspectResponse, error) {
+	var response image.InspectResponse
+
+	_ = ctx
+	s.imageInspectId = id
+	s.imageInspectOptions = options
+
+	if s.imageInspect != nil {
+		response = image.InspectResponse{
+			ID:          s.imageInspect.ID,
+			RepoDigests: s.imageInspect.RepoDigests,
+		}
+	}
+
+	return response, s.imageInspectError
 }
 
-func (s *stubDockerClient) ImageList(context.Context, image.ListOptions) ([]image.Summary, error) {
+func (s *stubDockerClient) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+	_ = ctx
+	s.imageListOptions = &options
+
 	if s.imageListError == nil {
 		return s.imageList, nil
 	}
@@ -165,8 +201,18 @@ func (s *stubDockerClient) ImageList(context.Context, image.ListOptions) ([]imag
 	return nil, s.imageListError
 }
 
-func (s *stubDockerClient) ImagesPrune(context.Context, filters.Args) (image.PruneReport, error) {
-	panic("implement me")
+func (s *stubDockerClient) ImagesPrune(ctx context.Context, args filters.Args) (image.PruneReport, error) {
+	var responses []image.DeleteResponse
+
+	for _, deletion := range s.imagePruneDeletions {
+		responses = append(responses, image.DeleteResponse{Deleted: deletion})
+	}
+
+	s.imagePruneArgs = &args
+	_ = ctx
+	return image.PruneReport{
+		ImagesDeleted: responses,
+	}, s.imagePruneError
 }
 
 func (s *stubDockerClient) ImagePush(ctx context.Context, imagePushPath string, imagePushOptions image.PushOptions) (io.ReadCloser, error) {
@@ -196,6 +242,63 @@ func installDockerClient(cl Client) func() {
 
 	return func() {
 		dockerFactory.get = resetFactory
+	}
+}
+
+type stubFork struct {
+	pipeErrFunc func(string)
+	pipeOutFunc func(string)
+	runContext  context.Context
+	runError    error
+	stdErr      *os.File
+	stdIn       *os.File
+	stdOut      *os.File
+	waitError   error
+}
+
+func (sf *stubFork) GetWaitError() error {
+	return sf.waitError
+}
+
+func (sf *stubFork) Run(runContext context.Context) error {
+	sf.runContext = runContext
+	return sf.runError
+}
+
+func (sf *stubFork) WithPipeErr(pipeErrFunc func(string)) ioz.Fork {
+	sf.pipeErrFunc = pipeErrFunc
+	return sf
+}
+
+func (sf *stubFork) WithPipeOut(pipeOutFunc func(string)) ioz.Fork {
+	sf.pipeOutFunc = pipeOutFunc
+	return sf
+}
+
+func (sf *stubFork) WithStdErr(stdErr *os.File) ioz.Fork {
+	sf.stdErr = stdErr
+	return sf
+}
+
+func (sf *stubFork) WithStdIn(stdIn *os.File) ioz.Fork {
+	sf.stdIn = stdIn
+	return sf
+}
+
+func (sf *stubFork) WithStdOut(stdOut *os.File) ioz.Fork {
+	sf.stdOut = stdOut
+	return sf
+}
+
+func installFork(fork ioz.Fork) func() {
+	var resetFactory = forkFactory.get
+
+	forkFactory.get = func(ff *ForkFactory, cmd *exec.Cmd) ioz.Fork {
+		return fork
+	}
+
+	return func() {
+		forkFactory.get = resetFactory
 	}
 }
 
@@ -326,4 +429,12 @@ func Test_getClientFactory(t *testing.T) {
 
 	assert.NotEmpty(t, result)
 	assert.NoError(t, err)
+}
+
+func Test_getFork(t *testing.T) {
+	var testForkFactory = &ForkFactory{}
+	var cmd = &exec.Cmd{}
+	var testFork = getFork(testForkFactory, cmd)
+
+	assert.Same(t, testFork, getFork(testForkFactory, cmd))
 }

@@ -107,7 +107,7 @@ func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskPretendStub(&calledRecipe),
 	}
 
-	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+	testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
@@ -136,7 +136,7 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskPretendStub(&calledRecipe),
 	}
 
-	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+	testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
@@ -193,7 +193,7 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskCompleteStub(&actualParams),
 	}
 
-	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+	testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
@@ -229,7 +229,7 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 		recipeTaskFactory: newRecipeTaskCompleteStub(&actualParams),
 	}
 
-	testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+	testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
 	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
@@ -262,7 +262,7 @@ func TestNewCreate(t *testing.T) {
 		},
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testCreate = NewCreate(testLedger, testCli)
@@ -295,13 +295,13 @@ func TestNewCreate_InvalidFolder(t *testing.T) {
 		},
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
 		optionDockerFile:    cli.Options.Docker.FilePath().BuildStringOption(),
-		optionDockerTag:     cli.Options.Docker.Tag().BuildStringOption(),
+		optionDockerRepo:    cli.Options.Docker.Repository().BuildStringOption(),
 		optionDockerVersion: cli.Options.Docker.Version().BuildStringOption(),
 	}
 	var testCreate = NewCreate(testLedger, testCli)
 	var expectedFolder = "#invalidtest-folder"
 
-	testViper.Set(testCli.optionDockerTag.Key, "tag/tag")
+	testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
 	testCreate.PostRun = func(cmd *cobra.Command, args []string) {
 		createCompleted = true
 	}

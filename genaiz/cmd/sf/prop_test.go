@@ -400,7 +400,7 @@ func TestPropSpecExecutor_Pretend(t *testing.T) {
 		filez.CloseSilently(fd)
 		testLedger.WorkDir = testDir
 		testViper.Set(expectedTypeOption.Key, broker.PropSpecTypeInt)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.Pretend()
 		assert.True(t, calledInit)
 	} else {
@@ -442,7 +442,7 @@ func TestPropSpecExecutor_Proceed(t *testing.T) {
 		testLedger.WorkDir = testDir
 		testLedger.InitLogging()
 		testViper.Set(expectedTypeOption.Key, broker.PropSpecTypeInt)
-		testViper.Set(testExecutor.Cli.optionDockerTag.Key, "tag/tag")
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testExecutor.Proceed()
 		assert.True(t, calledInit)
 	} else {

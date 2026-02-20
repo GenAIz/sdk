@@ -187,7 +187,7 @@ var (
 			Image: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("image").
-					WithUsage("reference to an image by repository, tag or no tag").
+					WithUsage("reference to an image by repository with a version tag or no tag").
 					WithUsage("by default the smart function built will be used, and there is no need to specify the image")
 			},
 			Label: func() OptionBuilder {
@@ -232,11 +232,11 @@ var (
 					WithUsage("removes any previous containers before creating a new one").
 					WithDefaultValue("false")
 			},
-			Tag: func() OptionBuilder {
+			Repository: func() OptionBuilder {
 				return NewOptionBuilder().
-					WithKeys(&schema.Genaiz.Function.Build.Tag).
-					WithParam("tag").
-					WithUsage("tag the smart function image locally, defaults to the work dir name").
+					WithKeys(&schema.Genaiz.Function.Build.Repository).
+					WithParam("repository").
+					WithUsage("repository of the smart function image locally, defaults to the work dir name").
 					WithValidator(config.Validation.Repository)
 			},
 			Version: func() OptionBuilder {
@@ -408,7 +408,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("type").
 					WithUsage("the type of the property").
-					WithUsage("only string, int, double, boolean and enum are valid").
+					WithUsage("only string, int, double, bool and enum are valid").
 					WithValidator(config.AnyOfEnumerated(broker.PropSpecTypes))
 			},
 		},
@@ -636,9 +636,9 @@ type dockerOptions struct {
 	Legacy          func() OptionBuilder
 	NoCache         func() OptionBuilder
 	Replace         func() OptionBuilder
+	Repository      func() OptionBuilder
 	Preserve        func() OptionBuilder
 	Prune           func() OptionBuilder
-	Tag             func() OptionBuilder
 	Version         func() OptionBuilder
 }
 

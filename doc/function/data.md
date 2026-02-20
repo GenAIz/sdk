@@ -16,19 +16,19 @@ genaiz sf data input add PORT|PATH --name=NAME --description=DESC
 
 ##### PORT|PATH
 
-* if the argument translates into an existing path, it will be compared with the value of `sf.run.input` and added only if it shares a common ancestor with the path and the last folder in the path is a valid handle.
+* if the argument translates into an existing path, it will be compared with the value of `function.run.input` and added only if it shares a common ancestor with the path and the last folder in the path is a valid handle.
 * if the folder does not exist, the command will create the folder
 * if the resolved port handle does not match a valid handle string (see [handle validity](../index.md#handle-and-oem)), the command will return an error: `Error: [...] is not a valid handle value`
 
 ##### name
 
 * if the name is not specified it will default to the value of the port [handle](#portpath).
-* if the resolved name does not match a valid name string (see [name validity](../index.md#name)), the command will return as error: `Error: value [...] for option [sf.publish.dataportadd.input.name] is invalid`
+* if the resolved name does not match a valid name string (see [name validity](../index.md#name)), the command will return as error: `Error: value [...] for option [function.publish.dataportadd.input.name] is invalid`
 
 ##### description
 
 * description is optional and will be left empty if not specified
-* if the resolved name does not match a valid name string (see [description validity](../index.md#description)), the command will return as error: `Error: value [...] for option [sf.publish.dataportadd.input.desc] is invalid`
+* if the resolved name does not match a valid name string (see [description validity](../index.md#description)), the command will return as error: `Error: value [...] for option [function.publish.dataportadd.input.desc] is invalid`
 
 #### data input rm
 
@@ -36,7 +36,7 @@ genaiz sf data input add PORT|PATH --name=NAME --description=DESC
 genaiz sf data input rm PORT|PATH
 ```
 
-* if the argument translates into an existing path, it will be compared with the value of `sf.run.input` and removed only if it shares a common ancestor with the path and the last folder as the handle.
+* if the argument translates into an existing path, it will be compared with the value of `function.run.input` and removed only if it shares a common ancestor with the path and the last folder as the handle.
 * the handle value is not validated. Removing something invalid produces a state that is valid, so no errors are raised.
 
 ### data output
@@ -51,19 +51,19 @@ genaiz sf data output add PORT|PATH --name=NAME --description=DESC
 
 ##### PORT|PATH
 
-* if the argument translates into an existing path, it will be compared with the value of `sf.run.output` and added only if it shares a common ancestor with the path and the last folder in the path is a valid handle.
+* if the argument translates into an existing path, it will be compared with the value of `function.run.output` and added only if it shares a common ancestor with the path and the last folder in the path is a valid handle.
 * if the folder does not exist, the command will create the folder
 * if the resolved port handle does not match a valid handle string (see [handle validity](../index.md#handle-and-oem)), the command will return an error: `Error: [...] is not a valid handle value`
 
 ##### name
 
 * if the name is not specified it will default to the value of the port [handle](#portpath).
-* if the resolved name does not match a valid name string (see [name validity](../index.md#name)), the command will return as error: `Error: value [...] for option [sf.publish.dataportadd.output.name] is invalid`
+* if the resolved name does not match a valid name string (see [name validity](../index.md#name)), the command will return as error: `Error: value [...] for option [function.publish.dataportadd.output.name] is invalid`
 
 ##### description
 
 * description is optional and will be left empty if not specified
-* if the resolved name does not match a valid name string (see [description validity](../index.md#description)), the command will return as error: `Error: value [...] for option [sf.publish.dataportadd.output.desc] is invalid`
+* if the resolved name does not match a valid name string (see [description validity](../index.md#description)), the command will return as error: `Error: value [...] for option [function.publish.dataportadd.output.desc] is invalid`
 
 #### data output rm
 
@@ -73,7 +73,7 @@ genaiz sf data output rm PORT|PATH
 
 ##### PORT|PATH
 
-* if the argument translates into an existing path, it will be compared with the value of `sf.run.output` and removed only if it shares a common ancestor with the path and the last folder as the handle.
+* if the argument translates into an existing path, it will be compared with the value of `function.run.output` and removed only if it shares a common ancestor with the path and the last folder as the handle.
 * the handle value is not validated. Removing something invalid produces a state that is valid, so no errors are raised.
 
 ### data source

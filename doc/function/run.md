@@ -17,7 +17,7 @@ Context for the run command establishes the working directory for all the specif
 
 * if there is no context specified the run command assumes all paths from the current working dir.
 * the context is passed to the docker build command or the dockerd build endpoint to match the Dockerfile's build context, it doesn't necessarily imply the same folder as the [file](#file) param.
-* if the resolved context does not correspond to an existing folder, the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [sf.build.context] is invalid`
+* if the resolved context does not correspond to an existing folder, the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [function.build.context] is invalid`
   * The option key used is for **build**, run does not have its own context key
 
 ### file
@@ -25,7 +25,7 @@ Context for the run command establishes the working directory for all the specif
 File should not be considered if the [image](#image) option is used, as it would disable any pre-build tasks. This parameter is used to set the [file](build.md#file) parameter on the pre-build task otherwise.
 
 * if there is no file specified the build command assumes it is looking for a Dockerfile under the specified context.
-* if the command can not find the resolved file, it will return as error of the form: `Error: value [...] for option [sf.build.file] is invalid`
+* if the command can not find the resolved file, it will return as error of the form: `Error: value [...] for option [function.build.file] is invalid`
   * The option key used is for **build**, run does not have its own context key
 
 ### tag
@@ -33,7 +33,7 @@ File should not be considered if the [image](#image) option is used, as it would
 Tag can be used to change the local `name/repository:tag` of the built image. This should only affect the [list](list.md) command and the name displayed under a `docker image ls` command.
 
 * if tag is not specified, a default value will be composed of with the current working direction: `parent/current:version`
-* if the resolved tag is not a valid string matching a valid repository string (see [repository validity](index.md#repository)), the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [sf.build.tag] is invalid`
+* if the resolved tag is not a valid string matching a valid repository string (see [repository validity](index.md#repository)), the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [function.build.tag] is invalid`
   * The option key used is for **build**, run does not have its own context key
 
 ### version
@@ -47,25 +47,25 @@ Version can be used to change the local `name/repository:tag` of the built image
 
 ### mount-in
 
-* if mount-in is not specified, the default key `sf.run.input` will be read from the Smart Function `Genaiz.yaml`
-* if mount-in specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.input] is invalid`
+* if mount-in is not specified, the default key `function.run.input` will be read from the Smart Function `Genaiz.yaml`
+* if mount-in specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.run.input] is invalid`
 
 ### mount-out
 
-* if mount-out is not specified, the default key `sf.run.output` will be read from the Smart Function `Genaiz.yaml`
-* if mount-out specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.output] is invalid`
+* if mount-out is not specified, the default key `function.run.output` will be read from the Smart Function `Genaiz.yaml`
+* if mount-out specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.run.output] is invalid`
 
 ### mount-log
 
-* if mount-log is not specified, the default key `sf.run.log` will be read from the Smart Function `Genaiz.yaml`
+* if mount-log is not specified, the default key `function.run.log` will be read from the Smart Function `Genaiz.yaml`
 * if mount-log is not specified, the option will default to [mount-out](#mount-out)
-* if mount-log specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.log] is invalid`
+* if mount-log specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.run.log] is invalid`
 
 ### mount-var
 
-* if mount-var is not specified, the default key `sf.run.var` will be read from the Smart Function `Genaiz.yaml`
+* if mount-var is not specified, the default key `function.run.var` will be read from the Smart Function `Genaiz.yaml`
 * if mount-var is not specified, the option will default to [mount-out](#mount-out)
-* if mount-var specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.var] is invalid`
+* if mount-var specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.run.var] is invalid`
 
 ### env
 
@@ -102,4 +102,4 @@ The prefix field is not particularly useful to run, since it disposes of the cre
 * if prefix is used, the container created will be named `<prefix>-d<timestamp>`
   * note that run disposes of the containers created automatically, see [start](start.md) command to preserve them
 * if prefix is not specified, the container will be named `<tag>-d<timestamp>`
-* if the prefix does not match a valid component string (see [component validity](index.md#component)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [sf.run.prefix] is invalid`
+* if the prefix does not match a valid component string (see [component validity](index.md#component)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.run.prefix] is invalid`
