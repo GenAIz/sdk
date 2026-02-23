@@ -489,8 +489,12 @@ func Test_handleBuildForkPrune_forkError(t *testing.T) {
 	var testFork = &stubFork{
 		runError: expectedError,
 	}
+	var testClient = &stubDockerClient{
+		imageList: []image.Summary{},
+	}
 
 	defer installFork(testFork)()
+	defer installDockerClient(testClient)()
 	// prune errors should not fail the build
 	assert.NoError(t, handleBuildForkPrune("_path", testParams, testState))
 }
