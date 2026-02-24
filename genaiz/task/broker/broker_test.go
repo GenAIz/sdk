@@ -563,6 +563,20 @@ func TestWorkflowLink_Equals(t *testing.T) {
 	assert.False(t, link1.Equals(link4))
 }
 
+func TestWorkflowLink_String(t *testing.T) {
+	var testLink = &WorkflowLink{}
+
+	assert.Equal(t, ":", testLink.String())
+	testLink.LhsNode = "expectedLeft"
+	assert.Equal(t, "expectedLeft:", testLink.String())
+	testLink.RhsNode = "expectedRight"
+	assert.Equal(t, "expectedLeft:expectedRight", testLink.String())
+	testLink.LhsNodePort = "leftPort"
+	assert.Equal(t, "expectedLeft[leftPort]:expectedRight", testLink.String())
+	testLink.RhsNodePort = "rightPort"
+	assert.Equal(t, "expectedLeft[leftPort]:expectedRight[rightPort]", testLink.String())
+}
+
 func TestWorkflowNamePredicate(t *testing.T) {
 	var expectedName = "name"
 	var testWorkflow = Workflow{Name: expectedName}

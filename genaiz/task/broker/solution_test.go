@@ -457,6 +457,43 @@ func Test_handleSolutionPublishContext(t *testing.T) {
 	assert.NoError(t, handleSolutionPublishContext(testParams, testState))
 }
 
+func Test_handleSolutionPublishContext_InvalidLinks(t *testing.T) {
+	var testParams = &SolutionPublishParams{
+		Solution: &Solution{
+			Workflows: []Workflow{
+				{
+					Handle: "NoNodesBad",
+					Links: []WorkflowLink{
+						{
+							LhsNode:     "node1",
+							RhsNode:     "node2",
+							RhsNodePort: "port2",
+						},
+						{
+							LhsNode:     "node2",
+							LhsNodePort: "port1",
+							RhsNode:     "node1",
+						},
+					},
+					Nodes: []WorkflowNode{
+						{
+							Handle: "node1",
+						},
+						{
+							Handle: "node2",
+						},
+					},
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.Error(t, handleSolutionPublishContext(testParams, testState))
+}
+
 func Test_handleSolutionPublishContext_NoWorkflows(t *testing.T) {
 	var testParams = &SolutionPublishParams{
 		Solution: &Solution{
