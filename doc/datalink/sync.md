@@ -10,6 +10,7 @@ genaiz dk sync [OEM/]HANDLE[:VERSION] [CONFIG_FOLDER] \
 ```
 Sync will export the structure of a remotely defined datalink into a locally defined folder or under the local user's path. If sequence is specified, the export will create a local datalink of the specified version at the sequence point, but it will treat it as the latest for all other operations.
 
+If the sync operation is denied or if the datalink referenced is not managed by the broker, the command will return an error: `Error: datalink is unknown to the broker`
 
 ### Handle
 

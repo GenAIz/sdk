@@ -58,7 +58,7 @@ Feature: data link sync
     Given the scenario "login data link" ran with condition "service_completed_successfully"
     And the following parameters
       | handle     | oem            | version | newVersion |
-      | datalink-1 | com.genaiz.dev | 0.2.1   | 0.2.2            |
+      | datalink-1 | com.genaiz.dev | 0.2.1   | 0.2.2      |
     When I run the command "dk publish <oem>/<handle>:<version> --new-version=<newVersion>"
     Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<newVersion>"
 
@@ -71,3 +71,12 @@ Feature: data link sync
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
     And I should have property under "<configFile>", for data link "<handle>", oem "<oem>" and version "<version>", with key "<key>"
     And I should not have a datalink under "<configFile>" named "<handle>" with handle "<handle>", oem "<oem>" and version "<oldVersion>"
+
+  Scenario: synchronize unknown data link to user configuration
+    Given the scenario "synchronize data link new revision to user configuration" ran with condition "service_completed_successfully"
+    And the following parameters
+      | configFile                       | handle  | oem            | version |
+      | $HOME/.config/genaiz/Genaiz.yaml | unknown | com.genaiz.dev | 0.1.0   |
+    When I run the command "dk sync <oem>/<handle>:<version>"
+    Then I should not have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
+    And I should not have a datalink under "<configFile>" named "", with handle "", oem "" and version ""

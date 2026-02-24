@@ -173,6 +173,24 @@ func TestClient_ExportDataLink_UnknownHost(t *testing.T) {
 	assert.ErrorIs(t, err, errorInvalidHost)
 }
 
+func TestClient_ExportDataLink_UnknownLink(t *testing.T) {
+	var expectedToken = "token"
+	var expectedDataLink = &DataLink{Id: int64(0)}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[DataLink]{
+				Data: *expectedDataLink,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ExportDataLink("oem", "handle", "version", "sequence")
+	assert.ErrorIs(t, err, errorDatalinkUnknown)
+	assert.Nil(t, actual)
+}
+
 func TestClient_ExportDataLink_UrlError(t *testing.T) {
 	var expectedToken = "token"
 	var testBridge = &stubBridge{

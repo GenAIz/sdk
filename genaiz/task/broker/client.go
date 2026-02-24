@@ -38,6 +38,7 @@ const (
 
 var (
 	errorBadRequest         = errors.New("broker refused the request")
+	errorDatalinkUnknown    = errors.New("datalink is unknown to the broker")
 	errorDisallowedProtocol = errors.New("broker protocol is not allowed")
 	errorDisconnected       = errors.New("broker connection timed out")
 	errorForbidden          = errors.New("broker denied access")
@@ -206,6 +207,11 @@ func (c *client) ExportDataLink(oem, handle, version, sequence string) (*DataLin
 
 					return &payload.Data
 				}); err == nil {
+					// broker chose to answer with successful empty definition, which is an error
+					if result.Id == 0 {
+						return nil, errorDatalinkUnknown
+					}
+
 					return result, nil
 				}
 			}
