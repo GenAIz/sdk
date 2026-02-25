@@ -1,6 +1,14 @@
-# SDK Usage Design Doc
+# SDK Feature Docs
 
 The concepts and design related to the Orchestrator and GenAIz platform should be available through their own respective projects. This document serves the purpose of exposing how the main entry point of the SDK, its CLI, is behaving.
+
+The usage documentation is established with set of rules assigned to actors implicated on a particular feature. Features are described plainly in [Gherkin](https://cucumber.io/docs/gherkin/) format.
+
+> [!NOTE]
+> Historically the features are established like a series of use cases describing the behavior of a user. 
+
+> [!NOTE]
+> Since the project is not handled by Cucumber, step definition should be/is defined and compiled in the [genaiz-it](../../genaiz-it/README.md) modules
 
 ## [Accounts](account/index.md)
 * [genaiz account login](account/index.md#login)
@@ -28,6 +36,7 @@ The concepts and design related to the Orchestrator and GenAIz platform should b
 * [genaiz workflow delete](workflow/delete.md)
 * [genaiz workflow links](workflow/links.md)
 * [genaiz workflow nodes](workflow/nodes.md)
+* [genaiz workflow prop](workflow/prop.md)
 
 ## Global Validation
 

@@ -2,10 +2,10 @@
 
 ## Test Cases
 
-* [Create data link](create_data_link.feature)
-* [Prop data link](prop_data_link.feature)
-* [Publish data link](publish_data_link.feature)
-* [Sync data link](sync_data_link.feature)
+* [Create data link](../../features/datalink/create_data_link.feature)
+* [Prop data link](../../features/datalink/prop_data_link.feature)
+* [Publish data link](../../features/datalink/publish_data_link.feature)
+* [Sync data link](../../features/datalink/sync_data_link.feature)
 
 ## Commands
 

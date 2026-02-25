@@ -52,4 +52,4 @@ genaiz dk create [OEM/]HANDLE[:VERSION] [CONFIG_FOLDER] \
 ### user-defined
 
 * user-defined is set to `TRUE` by default, which will direct the command to write under the user's .config folder
-* if user-defined is set to `FALSE` explicitly, the command will use either the provided [config-folder](#config-folder) argument or the default working directory.
+* if user-defined is set to `FALSE` explicitly, the command will use either the provided [config-folder](#config_folder) argument or the default working directory.

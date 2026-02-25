@@ -2,22 +2,22 @@
 
 ## Test Features
 
-* [Build bash example](build_bash_example.feature)
-* [Create bash example](create_bash_example.feature)
-* [Create child connector](create_child_connector.feature)
-* [Data bash example](data_bash_example.feature)
-* [Data source example](data_source_example.feature)
-* [Data store example](data_store_example.feature)
-* [Init empty example](init_empty_example.feature)
-* [List bash example](list_bash_example.feature)
-* [Prop bash example](prop_bash_example.feature)
-* [Proxy bash example](proxy_bash_example.feature)
-* [Publish bash connector](publish_bash_connector.feature)
-* [Publish bash example](publish_bash_example.feature)
-* [Run bash example](run_bash_example.feature)
-* [Start bash example](start_bash_example.feature)
-* [Stop bash example](stop_bash_example.feature)
-* [Test bash example](test_bash_example.feature)
+* [Build bash example](../../features/function/build_bash_example.feature)
+* [Create bash example](../../features/function/create_bash_example.feature)
+* [Create child connector](../../features/function/create_child_connector.feature)
+* [Data bash example](../../features/function/data_bash_example.feature)
+* [Data source example](../../features/function/data_source_example.feature)
+* [Data store example](../../features/function/data_store_example.feature)
+* [Init empty example](../../features/function/init_empty_example.feature)
+* [List bash example](../../features/function/list_bash_example.feature)
+* [Prop bash example](../../features/function/prop_bash_example.feature)
+* [Proxy bash example](../../features/function/proxy_bash_example.feature)
+* [Publish bash connector](../../features/function/publish_bash_connector.feature)
+* [Publish bash example](../../features/function/publish_bash_example.feature)
+* [Run bash example](../../features/function/run_bash_example.feature)
+* [Start bash example](../../features/function/start_bash_example.feature)
+* [Stop bash example](../../features/function/stop_bash_example.feature)
+* [Test bash example](../../features/function/test_bash_example.feature)
 
 ## Commands
 

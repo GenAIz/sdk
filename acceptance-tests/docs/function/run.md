@@ -87,7 +87,7 @@ The env-file option allows passing environment variables, defined in the [proper
 * if an environment variable provided is not defined in the property specs, the command will filter it out and run the container with the set of variables that is defined.
 
 > [!CAUTION]
-> Note that without any property specs strict [policies](../account/index.md#policy), the command will simply pass all environment variables to the container.
+> Note that without any property specs strict policies, the command will simply pass all environment variables to the container.
 
 ### image
 

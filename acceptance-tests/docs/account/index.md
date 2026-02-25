@@ -2,8 +2,8 @@
 
 ## Test Cases
 
-* [Account login with username](login_username.feature)
-* [Account login with OIDC](login_oidc.feature)
+* [Account login with username](../../features/account/login_username.feature)
+* [Account login with OIDC](../../features/account/login_oidc.feature)
 
 ## Commands
 
