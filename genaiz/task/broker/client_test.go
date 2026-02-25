@@ -125,7 +125,7 @@ type testStruct struct {
 
 func TestClient_ExportDataLink(t *testing.T) {
 	var expectedToken = "token"
-	var expectedDataLink = &DataLink{Id: int64(37)}
+	var expectedDataLink = &DataLink{Handle: "handle"}
 	var testBridge = &stubBridge{
 		response: stubResponse{
 			success: true,

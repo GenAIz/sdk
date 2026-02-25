@@ -2,6 +2,7 @@ package broker
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -678,6 +679,28 @@ func (wl WorkflowLink) Equals(wl2 WorkflowLink) bool {
 		strings.EqualFold(wl.LhsNodePort, wl2.LhsNodePort) &&
 		strings.EqualFold(wl.RhsNode, wl2.RhsNode) &&
 		strings.EqualFold(wl.RhsNodePort, wl2.RhsNodePort)
+}
+
+func (wl WorkflowLink) String() string {
+	var leftSide, rightSide string
+
+	if wl.LhsNode != "" {
+		leftSide = wl.LhsNode
+	}
+
+	if wl.LhsNodePort != "" {
+		leftSide = fmt.Sprintf("%s[%s]", leftSide, wl.LhsNodePort)
+	}
+
+	if wl.RhsNode != "" {
+		rightSide = wl.RhsNode
+	}
+
+	if wl.RhsNodePort != "" {
+		rightSide = fmt.Sprintf("%s[%s]", rightSide, wl.RhsNodePort)
+	}
+
+	return fmt.Sprintf("%s:%s", leftSide, rightSide)
 }
 
 type WorkflowNode struct {

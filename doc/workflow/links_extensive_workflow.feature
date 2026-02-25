@@ -67,6 +67,16 @@ Feature: function links for an extensive workflow
     When I run the command "sf data input add <portHandle>"
     Then I should have an input port under "<folder>" named "<portHandle>" with handle "<portHandle>" and description ""
 
+  Scenario: link first and second nodes with invalid right port
+    Given the scenario "add first node" ran with condition "service_completed_successfully"
+    And the scenario "add second node" ran with condition "service_completed_successfully"
+    And the following parameters
+      | folder      | workflowHandle | firstNodeHandle     | firstPort | firstHandle  | secondNodeHandle     |
+      | my-solution | workflow-1     | first-function-node | test-port | first-handle | second-function-node |
+    And the workdir changes to "<folder>"
+    When I run the command "wf links add <workflowHandle> <firstNodeHandle>[<firstPort>]:<secondNodeHandle>"
+    Then I should have an error with "the right side of a link must have a data port"
+
   Scenario: link first and second nodes
     Given the scenario "add first node" ran with condition "service_completed_successfully"
     And the scenario "add second node" ran with condition "service_completed_successfully"

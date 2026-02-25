@@ -121,6 +121,10 @@ func (le *LinksExecutor) Init(workflowArg string, links []string) ([]string, err
 					if rightReference, rightPort, err = parseNodeRefs(link.RhsNode, link.RhsNodePort); err == nil {
 						var leftValue string
 
+						if rightPort == "" {
+							return nil, errors.New("the right side of a link must have a data port")
+						}
+
 						if leftValue, err = le.resolveFunctionLink(workflow, leftReference, leftPort); err == nil {
 							var rightValue string
 

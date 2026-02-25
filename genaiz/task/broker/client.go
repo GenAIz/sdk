@@ -208,7 +208,7 @@ func (c *client) ExportDataLink(oem, handle, version, sequence string) (*DataLin
 					return &payload.Data
 				}); err == nil {
 					// broker chose to answer with successful empty definition, which is an error
-					if result.Id == 0 {
+					if result.Handle == "" {
 						return nil, errorDatalinkUnknown
 					}
 

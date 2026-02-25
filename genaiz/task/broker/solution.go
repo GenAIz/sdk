@@ -217,6 +217,12 @@ func handleSolutionPublishContext(params *SolutionPublishParams, state *task.Sta
 			} else {
 				return fmt.Errorf("the workflow %s must have at least one node", w.Handle)
 			}
+
+			for _, l := range w.Links {
+				if l.RhsNodePort == "" {
+					return fmt.Errorf("the workflow link %s requires a right data port", l.String())
+				}
+			}
 		}
 
 		for _, sf := range allNodeFunctions {
