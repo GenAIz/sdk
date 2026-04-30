@@ -13,21 +13,26 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"genaiz.com/genaiz-lib/lang/errorz"
-	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
 
 var (
-	errorNodeExists = errors.New("the node specified already exists")
+	errorNodeExists     = errors.New("the node specified already exists")
+	errorNoFunction     = errors.New("no function could be found")
+	errorNoWorkflowNode = errors.New("no workflow node could be found")
+	errorNoSolution     = errors.New("no solution could be found")
 )
 
+type WorkflowPropTaskFactory func() *task.Task[broker.WorkflowPropParams]
 type WorkflowTaskFactory func(broker.WorkflowWriter) *task.Task[broker.WorkflowParams]
 type workflowWriterFactory func(*config.Ledger, string) *workflowWriter
 
@@ -37,33 +42,58 @@ type BaseExecutor struct {
 	Ledger  *config.Ledger
 }
 
-func (be BaseExecutor) makeConfigParams(typeOption *config.StringOption) (*shared.ConfigParams, error) {
-	var configType, _ = be.Ledger.GetConfigType(typeOption)
-	var result = &shared.ConfigParams{
-		ConfigName: be.Ledger.ConfigName,
-		ConfigType: configType,
-	}
+func (be BaseExecutor) findFunctionByOemHandle(path, oem, handle string) (*broker.Function, error) {
+	var entries, _ = os.ReadDir(path)
+	var result *broker.Function
 	var err error
 
-	if result.IsConfigTypeNone() {
-		var workingConfig string
-
-		if workingConfig, err = filez.FirstNamedFile(result.ConfigName); err == nil {
-			var fileType = filez.GetFileType(workingConfig)
-
-			result.ConfigType, err = shared.ConfigTypes.FromString(fileType)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			if result, err = be.findFunctionInPath(entry.Name()); err == nil &&
+				strings.EqualFold(handle, result.Handle) &&
+				strings.EqualFold(oem, result.Oem) {
+				return result, nil
+			}
 		}
 	}
 
-	if err == nil {
-		return result, nil
-	} else {
-		var wd, _ = os.Getwd()
+	return nil, errorNoFunction
+}
 
-		err = fmt.Errorf("could not find local config [%s] under [%s]", result.ConfigName, wd)
+func (be BaseExecutor) findFunctionInPath(path string) (*broker.Function, error) {
+	var vp *viper.Viper
+	var err error
+
+	if vp, err = be.Ledger.FindPathConfig(path); err == nil {
+		var result broker.Function
+
+		if err = schema.Genaiz.Function.Publish.Internal.Unmarshall(vp, &result); err == nil {
+			if !config.Validation.Handle(result.Handle) {
+				return nil, fmt.Errorf("function under path [%s] has no valid handle", path)
+			}
+
+			if !config.Validation.Oem(result.Oem) {
+				return nil, fmt.Errorf("function under path [%s] has no valid oem", path)
+			}
+
+			if !config.Validation.Version(result.Version) {
+				return nil, fmt.Errorf("function under path [%s] has no valid version", path)
+			}
+
+			return &result, nil
+		}
+
+		return nil, errorNoFunction
 	}
 
 	return nil, err
+}
+
+func (be BaseExecutor) newConfigParams() *shared.ConfigParams {
+	return &shared.ConfigParams{
+		ConfigName:   be.Ledger.ConfigName,
+		ConfigFolder: be.Ledger.WorkDir,
+	}
 }
 
 type Cli struct {
@@ -98,6 +128,7 @@ func NewWf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	wfCmd.AddCommand(NewDelete(ledger, wfCli))
 	wfCmd.AddCommand(NewLinks(ledger, wfCli))
 	wfCmd.AddCommand(NewNodes(ledger, wfCli))
+	wfCmd.AddCommand(NewProp(ledger, wfCli))
 	return wfCmd
 }
 
@@ -115,8 +146,11 @@ type workflowWriter struct {
 	*config.WorkflowWriter
 }
 
-func (w *workflowWriter) addLinks(handle string, links []broker.WorkflowLink) broker.WorkflowWriter {
-	if workflow, err := w.GetWorkflowByHandle(handle); err == nil {
+func (w *workflowWriter) addLinks(handle string, links []broker.WorkflowLink) (broker.WorkflowWriter, error) {
+	var workflow *broker.Workflow
+	var err error
+
+	if workflow, err = w.GetWorkflowByHandle(handle); err == nil {
 		for _, add := range links {
 			var predicate = func(link broker.WorkflowLink) bool {
 				return link.Equals(add)
@@ -126,13 +160,18 @@ func (w *workflowWriter) addLinks(handle string, links []broker.WorkflowLink) br
 				workflow.Links = append(workflow.Links, add)
 			}
 		}
+
+		return w, nil
 	}
 
-	return w
+	return nil, err
 }
 
 func (w *workflowWriter) addNodes(handle string, nodes ...*broker.WorkflowNode) (broker.WorkflowWriter, error) {
-	if workflow, err := w.GetWorkflowByHandle(handle); err == nil {
+	var workflow *broker.Workflow
+	var err error
+
+	if workflow, err = w.GetWorkflowByHandle(handle); err == nil {
 		for _, add := range nodes {
 			var predicate = func(node broker.WorkflowNode) bool {
 				return node.Equals(*add)
@@ -140,13 +179,34 @@ func (w *workflowWriter) addNodes(handle string, nodes ...*broker.WorkflowNode) 
 
 			if slices.ContainsFunc(workflow.Nodes, predicate) {
 				return w, errorNodeExists
-			} else {
-				workflow.Nodes = append(workflow.Nodes, *add)
 			}
+
+			workflow.Nodes = append(workflow.Nodes, *add)
+		}
+
+		return w, nil
+	}
+
+	return nil, err
+}
+
+func (w *workflowWriter) addProp(workflowHandle, nodeHandle, key, value string) (broker.WorkflowWriter, error) {
+	var workflowNode *broker.WorkflowNode
+	var workflow *broker.Workflow
+	var err error
+
+	if workflow, err = w.GetWorkflowByHandle(workflowHandle); err == nil {
+		if workflowNode, err = workflow.FindNodeByHandle(nodeHandle); err == nil {
+			if workflowNode.HasProp(key) {
+				return nil, fmt.Errorf("the key [%s] is already defined for node [%s]", key, workflowNode.Handle)
+			}
+
+			workflowNode.AssignProp(key, value)
+			return w, nil
 		}
 	}
 
-	return w, nil
+	return nil, err
 }
 
 func (w *workflowWriter) removeLinks(handle string, links []broker.WorkflowLink) broker.WorkflowWriter {
@@ -203,6 +263,20 @@ func (w *workflowWriter) removeNodes(handle string, nodes ...string) broker.Work
 			}
 
 			workflow.Nodes = updated
+		}
+	}
+
+	return w
+}
+
+func (w *workflowWriter) removeProp(workflowHandle, nodeHandle, key string) broker.WorkflowWriter {
+	var workflowNode *broker.WorkflowNode
+	var workflow *broker.Workflow
+	var err error
+
+	if workflow, err = w.GetWorkflowByHandle(workflowHandle); err == nil {
+		if workflowNode, err = workflow.FindNodeByHandle(nodeHandle); err == nil {
+			workflowNode.RemoveProp(key)
 		}
 	}
 

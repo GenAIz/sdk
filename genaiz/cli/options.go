@@ -300,7 +300,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("no-prop-sync").
 					WithUsage("disables property specification sync when creating a container").
-					WithDefaultValue("False")
+					WithDefaultValue("false")
 			},
 			Oem: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -402,7 +402,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("secret").
 					WithUsage("the property will be defined amongst the secret specifications, which can not have a default value").
-					WithDefaultValue("False")
+					WithDefaultValue("false")
 			},
 			Type: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -544,6 +544,18 @@ var (
 				return NewOptionBuilder().
 					WithParam("no-validation").
 					WithUsage("instructs the command to skip validation of link handles and ports").
+					WithDefaultValue("false")
+			},
+			NoPropSync: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("no-prop-sync").
+					WithUsage("disables property specification sync when creating a container").
+					WithDefaultValue("false")
+			},
+			NoPropValidation: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("no-validation").
+					WithUsage("instructs the command to skip prop spec validation of workflow properties").
 					WithDefaultValue("false")
 			},
 			SfHandle: func() OptionBuilder {
@@ -705,6 +717,8 @@ type workflowOptions struct {
 	Handle           func() OptionBuilder
 	Name             func() OptionBuilder
 	NoLinkValidation func() OptionBuilder
+	NoPropValidation func() OptionBuilder
+	NoPropSync       func() OptionBuilder
 	SfHandle         func() OptionBuilder
 	SfOem            func() OptionBuilder
 	SfSequence       func() OptionBuilder

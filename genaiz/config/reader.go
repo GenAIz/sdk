@@ -84,6 +84,15 @@ func (br *BaseReader) read(vp *viper.Viper) (*broker.Solution, error) {
 		var solution *broker.Solution
 
 		if err = vp.UnmarshalKey("solution", &solution); err == nil {
+			if solution != nil {
+				// This is necessary because viper does not allow keeping case on map keys
+				for _, wf := range solution.Workflows {
+					for _, nd := range wf.Nodes {
+						nd.NormalizeProps()
+					}
+				}
+			}
+
 			return solution, nil
 		}
 	}

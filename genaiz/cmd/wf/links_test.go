@@ -20,7 +20,6 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
-	"genaiz.com/genaiz/task/shared"
 )
 
 func TestLinksExecutor_Add(t *testing.T) {
@@ -44,10 +43,8 @@ func TestLinksExecutor_Add(t *testing.T) {
 	var testExecutor = newLinksAddExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(testCmd, testOptions.allDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testExecutor.Add(expectedWorkflow, []string{expectedLink})
 	actual := testOutput.String()
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
 	assert.Regexp(t, regexp.MustCompile(`workflow:[\s\t]*`+expectedWorkflow), actual)
 	assert.Regexp(t, regexp.MustCompile(`add-0:[\s\t]*`+expectedLink), actual)
 }
@@ -70,15 +67,12 @@ func TestLinksExecutor_Display(t *testing.T) {
 	}
 
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testExecutor.Display()
 	actual := testOutput.String()
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
 	assert.Regexp(t, regexp.MustCompile(`workflow:[\s\t]*`+expectedWorkflow), actual)
 }
 
 func TestLinksExecutor_Init(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedLeftPath = "leftPath"
 	var expectedLeftPort = "left_port"
 	var expectedRightPath = "rightPath"
@@ -91,6 +85,7 @@ func TestLinksExecutor_Init(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -127,7 +122,7 @@ func TestLinksExecutor_Init(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if err = os.MkdirAll(filepath.Join(testDir, expectedLeftPath), 0750); err == nil {
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedLeftPath), 0750); err == nil {
 		var sfViper = viper.New()
 
 		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
@@ -138,7 +133,7 @@ func TestLinksExecutor_Init(t *testing.T) {
 				"handle": expectedLeftPort,
 			},
 		})
-		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedLeftPath, "Genaiz.yaml"))
+		err = sfViper.WriteConfigAs(filepath.Join(testLedger.WorkDir, expectedLeftPath, "Genaiz.yaml"))
 	}
 
 	if err != nil {
@@ -146,7 +141,7 @@ func TestLinksExecutor_Init(t *testing.T) {
 		return
 	}
 
-	if err = os.MkdirAll(filepath.Join(testDir, expectedRightPath), 0750); err == nil {
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedRightPath), 0750); err == nil {
 		var sfViper = viper.New()
 
 		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
@@ -157,7 +152,7 @@ func TestLinksExecutor_Init(t *testing.T) {
 				"handle": expectedRightPort,
 			},
 		})
-		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedRightPath, "Genaiz.yaml"))
+		err = sfViper.WriteConfigAs(filepath.Join(testLedger.WorkDir, expectedRightPath, "Genaiz.yaml"))
 	}
 
 	if err != nil {
@@ -165,7 +160,7 @@ func TestLinksExecutor_Init(t *testing.T) {
 		return
 	}
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -181,11 +176,15 @@ func TestLinksExecutor_Init(t *testing.T) {
 				var expectedLink = fmt.Sprintf("%s[%s]:%s[%s]", expectedLeftPath, expectedLeftPort, expectedRightPath, expectedRightPort)
 				var actualLinks []string
 
-				t.Chdir(testDir)
-				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
-				assert.NoError(t, err)
-				assert.Equal(t, 1, len(actualLinks))
-				assert.Equal(t, expectedLink, actualLinks[0])
+				t.Chdir(testLedger.WorkDir)
+
+				if actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink}); err == nil {
+					assert.Equal(t, 1, len(actualLinks))
+					assert.Equal(t, expectedLink, actualLinks[0])
+				} else {
+					assert.Fail(t, err.Error())
+				}
+
 				return
 			}
 		}
@@ -195,7 +194,6 @@ func TestLinksExecutor_Init(t *testing.T) {
 }
 
 func TestLinksExecutor_Init_BracketLink(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedLeftHandle = "leftHandle"
 	var expectedLeftPort = "leftPort"
 	var expectedRightHandle = "rightHandle"
@@ -204,6 +202,7 @@ func TestLinksExecutor_Init_BracketLink(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -230,7 +229,7 @@ func TestLinksExecutor_Init_BracketLink(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -246,11 +245,15 @@ func TestLinksExecutor_Init_BracketLink(t *testing.T) {
 				var expectedLink = fmt.Sprintf("%s[%s]:%s[%s]", expectedLeftHandle, expectedLeftPort, expectedRightHandle, expectedRightPort)
 				var actualLinks []string
 
-				t.Chdir(testDir)
-				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
-				assert.NoError(t, err)
-				assert.Equal(t, 1, len(actualLinks))
-				assert.Equal(t, expectedLink, actualLinks[0])
+				t.Chdir(testLedger.WorkDir)
+
+				if actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink}); err == nil {
+					assert.Equal(t, 1, len(actualLinks))
+					assert.Equal(t, expectedLink, actualLinks[0])
+				} else {
+					assert.Fail(t, err.Error())
+				}
+
 				return
 			}
 		}
@@ -394,7 +397,6 @@ func TestLinksExecutor_Init_FindLeftInternalConflict(t *testing.T) {
 }
 
 func TestLinksExecutor_Init_FindLeftNoValidation(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedPath = "testPath"
 	var expectedRightHandle = "rightHandle"
 	var expectedRightPort = "rightPort"
@@ -405,6 +407,7 @@ func TestLinksExecutor_Init_FindLeftNoValidation(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -428,7 +431,7 @@ func TestLinksExecutor_Init_FindLeftNoValidation(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedPath), 0750); err == nil {
 		var sfViper = viper.New()
 
 		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
@@ -439,7 +442,7 @@ func TestLinksExecutor_Init_FindLeftNoValidation(t *testing.T) {
 				"handle": expectedRightPort,
 			},
 		})
-		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedPath, "Genaiz.yaml"))
+		err = sfViper.WriteConfigAs(filepath.Join(testLedger.WorkDir, expectedPath, "Genaiz.yaml"))
 	}
 
 	if err != nil {
@@ -447,7 +450,7 @@ func TestLinksExecutor_Init_FindLeftNoValidation(t *testing.T) {
 		return
 	}
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -464,11 +467,15 @@ func TestLinksExecutor_Init_FindLeftNoValidation(t *testing.T) {
 				var actualLinks []string
 
 				testViper.Set(schema.Genaiz.Workflow.Links.Add.NoValidation.Doc, true)
-				t.Chdir(testDir)
-				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
-				assert.NoError(t, err)
-				assert.Equal(t, 1, len(actualLinks))
-				assert.Equal(t, expectedLink, actualLinks[0])
+				t.Chdir(testLedger.WorkDir)
+
+				if actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink}); err == nil {
+					assert.Equal(t, 1, len(actualLinks))
+					assert.Equal(t, expectedLink, actualLinks[0])
+				} else {
+					assert.Fail(t, err.Error())
+				}
+
 				return
 			}
 		}
@@ -477,8 +484,7 @@ func TestLinksExecutor_Init_FindLeftNoValidation(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
-	var testDir = t.TempDir()
+func TestLinksExecutor_Init_FindLeftKeyError(t *testing.T) {
 	var expectedPath = "testPath"
 	var expectedNodeHandle = "nodeHandle"
 	var expectedRightHandle = "rightHandle"
@@ -490,6 +496,7 @@ func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -521,7 +528,91 @@ func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedPath), 0750); err == nil {
+		var cfd *os.File
+
+		if cfd, err = os.Create(filepath.Join(testLedger.WorkDir, expectedPath, "Genaiz.yaml")); err == nil {
+			defer filez.CloseSilently(cfd)
+		}
+	}
+
+	if err != nil {
+		assert.Fail(t, err.Error())
+		return
+	}
+
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		var solutionBytes []byte
+		var solution = &broker.Solution{Workflows: []broker.Workflow{
+			{
+				Handle: expectedWorkflow,
+			},
+		}}
+
+		defer filez.CloseSilently(fd)
+
+		if solutionBytes, err = yaml.Marshal(solution); err == nil {
+			if _, err = fd.Write(solutionBytes); err == nil {
+				var testLink = fmt.Sprintf("%s:%s[%s]", expectedPath, expectedRightHandle, expectedRightPort)
+				var actualLinks []string
+
+				t.Chdir(testLedger.WorkDir)
+				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
+				assert.Error(t, err)
+				assert.Empty(t, actualLinks)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
+	var expectedPath = "testPath"
+	var expectedNodeHandle = "nodeHandle"
+	var expectedRightHandle = "rightHandle"
+	var expectedRightPort = "rightPort"
+	var expectedWorkflow = "workflow"
+	var expectedSfOem = "sfOem"
+	var expectedSfHandle = "sfHandle"
+	var expectedSfVersion = "sfVersion"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
+	var testExecutor = &LinksExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		LinksOptions: NewAddLinksOptions(),
+
+		workflowWriterFactory: newWorkflowWriterFactory(&broker.Solution{
+			Workflows: []broker.Workflow{
+				{
+					Handle: expectedWorkflow,
+					Nodes: []broker.WorkflowNode{
+						{
+							Handle: expectedNodeHandle,
+							Sf: &broker.WorkflowNodeFunction{
+								Oem:     expectedSfOem,
+								Handle:  expectedSfHandle,
+								Version: expectedSfVersion,
+							},
+						},
+						{
+							Handle: expectedRightHandle,
+						},
+					},
+				},
+			},
+		}),
+	}
+	var fd *os.File
+	var err error
+
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedPath), 0750); err == nil {
 		var sfViper = viper.New()
 
 		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
@@ -532,7 +623,7 @@ func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
 				"handle": expectedRightPort,
 			},
 		})
-		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedPath, "Genaiz.yaml"))
+		err = sfViper.WriteConfigAs(filepath.Join(testLedger.WorkDir, expectedPath, "Genaiz.yaml"))
 	}
 
 	if err != nil {
@@ -540,7 +631,7 @@ func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
 		return
 	}
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -556,11 +647,15 @@ func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
 				var expectedLink = fmt.Sprintf("%s:%s[%s]", expectedNodeHandle, expectedRightHandle, expectedRightPort)
 				var actualLinks []string
 
-				t.Chdir(testDir)
-				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
-				assert.NoError(t, err)
-				assert.Equal(t, 1, len(actualLinks))
-				assert.Equal(t, expectedLink, actualLinks[0])
+				t.Chdir(testLedger.WorkDir)
+
+				if actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink}); err == nil {
+					assert.Equal(t, 1, len(actualLinks))
+					assert.Equal(t, expectedLink, actualLinks[0])
+				} else {
+					assert.Fail(t, err.Error())
+				}
+
 				return
 			}
 		}
@@ -570,7 +665,6 @@ func TestLinksExecutor_Init_FindLeftValue(t *testing.T) {
 }
 
 func TestLinksExecutor_Init_FindLeftYamlError(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedPath = "testPath"
 	var expectedNodeHandle = "nodeHandle"
 	var expectedRightHandle = "rightHandle"
@@ -582,6 +676,7 @@ func TestLinksExecutor_Init_FindLeftYamlError(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -613,10 +708,10 @@ func TestLinksExecutor_Init_FindLeftYamlError(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedPath), 0750); err == nil {
 		var cfd *os.File
 
-		if cfd, err = os.Create(filepath.Join(testDir, expectedPath, "Genaiz.yaml")); err == nil {
+		if cfd, err = os.Create(filepath.Join(testLedger.WorkDir, expectedPath, "Genaiz.yaml")); err == nil {
 			defer filez.CloseSilently(cfd)
 			_, err = cfd.Write([]byte(":notYaml"))
 		}
@@ -627,7 +722,7 @@ func TestLinksExecutor_Init_FindLeftYamlError(t *testing.T) {
 		return
 	}
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -642,7 +737,7 @@ func TestLinksExecutor_Init_FindLeftYamlError(t *testing.T) {
 				var testLink = fmt.Sprintf("%s:%s[%s]", expectedPath, expectedRightHandle, expectedRightPort)
 				var actualLinks []string
 
-				t.Chdir(testDir)
+				t.Chdir(testLedger.WorkDir)
 				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
 				assert.Error(t, err)
 				assert.Empty(t, actualLinks)
@@ -655,7 +750,6 @@ func TestLinksExecutor_Init_FindLeftYamlError(t *testing.T) {
 }
 
 func TestLinksExecutor_Init_FindRightByHandle(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedPath = "testPath"
 	var expectedLeftHandle = "leftHandle"
 	var expectedRightHandle = "rightHandle"
@@ -666,6 +760,7 @@ func TestLinksExecutor_Init_FindRightByHandle(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -697,7 +792,7 @@ func TestLinksExecutor_Init_FindRightByHandle(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedPath), 0750); err == nil {
 		var sfViper = viper.New()
 
 		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
@@ -708,7 +803,7 @@ func TestLinksExecutor_Init_FindRightByHandle(t *testing.T) {
 				Handle: expectedRightPort,
 			},
 		})
-		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedPath, "Genaiz.yaml"))
+		err = sfViper.WriteConfigAs(filepath.Join(testLedger.WorkDir, expectedPath, "Genaiz.yaml"))
 	}
 
 	if err != nil {
@@ -716,7 +811,7 @@ func TestLinksExecutor_Init_FindRightByHandle(t *testing.T) {
 		return
 	}
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -731,11 +826,15 @@ func TestLinksExecutor_Init_FindRightByHandle(t *testing.T) {
 				var expectedLink = fmt.Sprintf("%s:%s[%s]", expectedLeftHandle, expectedRightHandle, expectedRightPort)
 				var actualLinks []string
 
-				t.Chdir(testDir)
-				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{expectedLink})
-				assert.NoError(t, err)
-				assert.Equal(t, 1, len(actualLinks))
-				assert.Equal(t, expectedLink, actualLinks[0])
+				t.Chdir(testLedger.WorkDir)
+
+				if actualLinks, err = testExecutor.Init(expectedWorkflow, []string{expectedLink}); err == nil {
+					assert.Equal(t, 1, len(actualLinks))
+					assert.Equal(t, expectedLink, actualLinks[0])
+				} else {
+					assert.Fail(t, err.Error())
+				}
+
 				return
 			}
 		}
@@ -745,7 +844,6 @@ func TestLinksExecutor_Init_FindRightByHandle(t *testing.T) {
 }
 
 func TestLinksExecutor_Init_FindRightPortError(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedPath = "testPath"
 	var expectedNodeHandle = "nodeHandle"
 	var expectedLeftHandle = "leftHandle"
@@ -757,6 +855,7 @@ func TestLinksExecutor_Init_FindRightPortError(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -788,13 +887,13 @@ func TestLinksExecutor_Init_FindRightPortError(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedPath), 0750); err == nil {
 		var sfViper = viper.New()
 
 		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
 		sfViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedSfHandle)
 		sfViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedSfVersion)
-		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedPath, "Genaiz.yaml"))
+		err = sfViper.WriteConfigAs(filepath.Join(testLedger.WorkDir, expectedPath, "Genaiz.yaml"))
 	}
 
 	if err != nil {
@@ -802,7 +901,7 @@ func TestLinksExecutor_Init_FindRightPortError(t *testing.T) {
 		return
 	}
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -817,7 +916,7 @@ func TestLinksExecutor_Init_FindRightPortError(t *testing.T) {
 				var testLink = fmt.Sprintf("%s[%s]:%s/%s", expectedLeftHandle, expectedLeftPort, expectedPath, "noAPort")
 				var actualLinks []string
 
-				t.Chdir(testDir)
+				t.Chdir(testLedger.WorkDir)
 				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
 				assert.ErrorIs(t, err, broker.ErrorDataPortNotFound)
 				assert.Empty(t, actualLinks)
@@ -830,7 +929,6 @@ func TestLinksExecutor_Init_FindRightPortError(t *testing.T) {
 }
 
 func TestLinksExecutor_Init_FindRightValue(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedPath = "testPath"
 	var expectedNodeHandle = "nodeHandle"
 	var expectedRightHandle = "rightHandle"
@@ -842,6 +940,7 @@ func TestLinksExecutor_Init_FindRightValue(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -873,13 +972,13 @@ func TestLinksExecutor_Init_FindRightValue(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedPath), 0750); err == nil {
 		var sfViper = viper.New()
 
 		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
 		sfViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedSfHandle)
 		sfViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedSfVersion)
-		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedPath, "Genaiz.yaml"))
+		err = sfViper.WriteConfigAs(filepath.Join(testLedger.WorkDir, expectedPath, "Genaiz.yaml"))
 	}
 
 	if err != nil {
@@ -887,7 +986,7 @@ func TestLinksExecutor_Init_FindRightValue(t *testing.T) {
 		return
 	}
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -903,11 +1002,15 @@ func TestLinksExecutor_Init_FindRightValue(t *testing.T) {
 				var expectedLink = fmt.Sprintf("%s:%s[%s]", expectedNodeHandle, expectedRightHandle, expectedRightPort)
 				var actualLinks []string
 
-				t.Chdir(testDir)
-				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
-				assert.NoError(t, err)
-				assert.Equal(t, 1, len(actualLinks))
-				assert.Equal(t, expectedLink, actualLinks[0])
+				t.Chdir(testLedger.WorkDir)
+
+				if actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink}); err == nil {
+					assert.Equal(t, 1, len(actualLinks))
+					assert.Equal(t, expectedLink, actualLinks[0])
+				} else {
+					assert.Fail(t, err.Error())
+				}
+
 				return
 			}
 		}
@@ -917,7 +1020,6 @@ func TestLinksExecutor_Init_FindRightValue(t *testing.T) {
 }
 
 func TestLinksExecutor_Init_InvalidRightValue(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedPath = "testPath"
 	var expectedNodeHandle = "nodeHandle"
 	var expectedLeftHandle = "leftHandle"
@@ -929,6 +1031,7 @@ func TestLinksExecutor_Init_InvalidRightValue(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -960,13 +1063,13 @@ func TestLinksExecutor_Init_InvalidRightValue(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if err = os.MkdirAll(filepath.Join(testDir, expectedPath), 0750); err == nil {
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedPath), 0750); err == nil {
 		var sfViper = viper.New()
 
 		sfViper.Set(schema.Genaiz.Function.Publish.Oem.Doc, expectedSfOem)
 		sfViper.Set(schema.Genaiz.Function.Publish.Handle.Doc, expectedSfHandle)
 		sfViper.Set(schema.Genaiz.Function.Publish.Version.Doc, expectedSfVersion)
-		err = sfViper.WriteConfigAs(filepath.Join(testDir, expectedPath, "Genaiz.yaml"))
+		err = sfViper.WriteConfigAs(filepath.Join(testLedger.WorkDir, expectedPath, "Genaiz.yaml"))
 	}
 
 	if err != nil {
@@ -974,7 +1077,7 @@ func TestLinksExecutor_Init_InvalidRightValue(t *testing.T) {
 		return
 	}
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -989,7 +1092,7 @@ func TestLinksExecutor_Init_InvalidRightValue(t *testing.T) {
 				var testLink = fmt.Sprintf("%s[%s]:%s", expectedLeftHandle, expectedLeftPort, expectedPath)
 				var actualLinks []string
 
-				t.Chdir(testDir)
+				t.Chdir(testLedger.WorkDir)
 				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{testLink})
 				assert.Error(t, err)
 				assert.Empty(t, actualLinks)
@@ -1002,11 +1105,11 @@ func TestLinksExecutor_Init_InvalidRightValue(t *testing.T) {
 }
 
 func TestLinksExecutor_Init_ParseLeftConflict(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedWorkflow = "workflow"
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -1019,7 +1122,7 @@ func TestLinksExecutor_Init_ParseLeftConflict(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -1033,7 +1136,7 @@ func TestLinksExecutor_Init_ParseLeftConflict(t *testing.T) {
 			if _, err = fd.Write(solutionBytes); err == nil {
 				var actualLinks []string
 
-				t.Chdir(testDir)
+				t.Chdir(testLedger.WorkDir)
 				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{"testPath/testPort[anotherPort]:testHandle"})
 				assert.Empty(t, actualLinks)
 				assert.Error(t, err)
@@ -1046,11 +1149,11 @@ func TestLinksExecutor_Init_ParseLeftConflict(t *testing.T) {
 }
 
 func TestLinksExecutor_Init_ParseRightConflict(t *testing.T) {
-	var testDir = t.TempDir()
 	var expectedWorkflow = "workflow"
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
 		Build()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -1063,7 +1166,7 @@ func TestLinksExecutor_Init_ParseRightConflict(t *testing.T) {
 	var fd *os.File
 	var err error
 
-	if fd, err = os.Create(filepath.Join(testDir, "Genaiz.yaml")); err == nil {
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
 		var solutionBytes []byte
 		var solution = &broker.Solution{Workflows: []broker.Workflow{
 			{
@@ -1077,7 +1180,7 @@ func TestLinksExecutor_Init_ParseRightConflict(t *testing.T) {
 			if _, err = fd.Write(solutionBytes); err == nil {
 				var actualLinks []string
 
-				t.Chdir(testDir)
+				t.Chdir(testLedger.WorkDir)
 				actualLinks, err = testExecutor.Init(expectedWorkflow, []string{"testHandle:testPath/testPort[anotherPort]"})
 				assert.Empty(t, actualLinks)
 				assert.Error(t, err)
@@ -1091,8 +1194,12 @@ func TestLinksExecutor_Init_ParseRightConflict(t *testing.T) {
 
 func TestLinksExecutor_Pretend(t *testing.T) {
 	var calledWorkflow bool
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -1103,18 +1210,32 @@ func TestLinksExecutor_Pretend(t *testing.T) {
 		workflowTaskFactory:   newWorkflowTaskPretendStub(&calledWorkflow),
 		workflowWriterFactory: newWorkflowWriterStub,
 	}
+	var fd *os.File
+	var err error
 
-	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
-	testExecutor.Pretend()
-	assert.True(t, calledWorkflow)
+	defer patch.Unpatch()
+
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		t.Chdir(testLedger.WorkDir)
+		testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
+		testExecutor.Pretend()
+		assert.True(t, calledWorkflow)
+		assert.False(t, patch.Called)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
-func TestLinksExecutor_PretendInvalidConfigType(t *testing.T) {
+func TestLinksExecutor_PretendInvalidConfigPath(t *testing.T) {
 	var calledWorkflow bool
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -1125,7 +1246,6 @@ func TestLinksExecutor_PretendInvalidConfigType(t *testing.T) {
 	}
 
 	defer patch.Unpatch()
-	testViper.Set(testOptions.optionConfigType.Key, "invalid")
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testExecutor.Pretend()
 	assert.False(t, calledWorkflow)
@@ -1137,7 +1257,10 @@ func TestLinksExecutor_PretendInvalidParams(t *testing.T) {
 	var calledWorkflow bool
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -1147,20 +1270,33 @@ func TestLinksExecutor_PretendInvalidParams(t *testing.T) {
 		workflowTaskFactory:   newWorkflowTaskPretendStub(&calledWorkflow),
 		workflowWriterFactory: newWorkflowWriterStub,
 	}
+	var fd *os.File
+	var err error
 
 	defer patch.Unpatch()
-	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
-	testExecutor.Pretend()
-	assert.False(t, calledWorkflow)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
+
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		t.Chdir(testLedger.WorkDir)
+		testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
+		testExecutor.Pretend()
+		assert.False(t, calledWorkflow)
+		assert.True(t, patch.Called)
+		assert.EqualValues(t, 1, patch.CalledWith)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestLinksExecutor_Proceed(t *testing.T) {
 	var calledWorkflow bool
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -1171,12 +1307,22 @@ func TestLinksExecutor_Proceed(t *testing.T) {
 		workflowTaskFactory:   newWorkflowTaskCompleteStub(&calledWorkflow),
 		workflowWriterFactory: newWorkflowWriterStub,
 	}
+	var fd *os.File
+	var err error
 
-	testLedger.InitLogging()
-	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
-	testExecutor.Proceed()
-	assert.True(t, calledWorkflow)
+	defer patch.Unpatch()
+
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testLedger.InitLogging()
+		testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
+		testExecutor.Proceed()
+		assert.True(t, calledWorkflow)
+		assert.False(t, patch.Called)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestLinksExecutor_ProceedInvalidConfigType(t *testing.T) {
@@ -1194,7 +1340,6 @@ func TestLinksExecutor_ProceedInvalidConfigType(t *testing.T) {
 	}
 
 	defer patch.Unpatch()
-	testViper.Set(testOptions.optionConfigType.Key, "invalid")
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testExecutor.Proceed()
 	assert.False(t, calledWorkflow)
@@ -1206,7 +1351,10 @@ func TestLinksExecutor_ProceedInvalidParams(t *testing.T) {
 	var calledWorkflow bool
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testOptions = NewAddLinksOptions()
 	var testExecutor = &LinksExecutor{
 		BaseExecutor: BaseExecutor{
@@ -1216,14 +1364,23 @@ func TestLinksExecutor_ProceedInvalidParams(t *testing.T) {
 		workflowTaskFactory:   newWorkflowTaskCompleteStub(&calledWorkflow),
 		workflowWriterFactory: newWorkflowWriterStub,
 	}
+	var fd *os.File
+	var err error
 
 	defer patch.Unpatch()
-	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
-	testExecutor.Proceed()
-	assert.False(t, calledWorkflow)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
+
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		t.Chdir(testLedger.WorkDir)
+		testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
+		testExecutor.Proceed()
+		assert.False(t, calledWorkflow)
+		assert.True(t, patch.Called)
+		assert.EqualValues(t, 1, patch.CalledWith)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestLinksExecutor_Remove(t *testing.T) {
@@ -1247,10 +1404,8 @@ func TestLinksExecutor_Remove(t *testing.T) {
 	var testExecutor = newLinksRemoveExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testExecutor.Remove(expectedWorkflow, []string{expectedLink})
 	actual := testOutput.String()
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
 	assert.Regexp(t, regexp.MustCompile(`workflow:[\s\t]*`+expectedWorkflow), actual)
 	assert.Regexp(t, regexp.MustCompile(`rm-0:[\s\t]*`+expectedLink), actual)
 }

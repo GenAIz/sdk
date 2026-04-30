@@ -860,6 +860,24 @@ func Test_OptionsWorkflowNoLinkValidation(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
+func Test_OptionsWorkflowNoPropSync(t *testing.T) {
+	var testOption = Options.Workflows.NoPropSync().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsWorkflowNoPropValidation(t *testing.T) {
+	var testOption = Options.Workflows.NoPropValidation().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsWorkflowSFHandle(t *testing.T) {
 	var testOption = Options.Workflows.SfHandle().BuildStringOption()
 

@@ -24,10 +24,6 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
-var (
-	errorNoFunction = errors.New("no function could be found")
-)
-
 type LinksExecutor struct {
 	BaseExecutor
 	*LinksOptions
@@ -57,21 +53,22 @@ func (le *LinksExecutor) Display() {
 
 	le.Ledger.DisplayOptionsWithMap(
 		&linkDetails,
-		&le.optionConfigType.Option,
+		&le.optionNoValidation.Option,
 	)
 }
 
 func (le *LinksExecutor) Pretend() {
-	var configParams *shared.ConfigParams
+	var configParams = le.newConfigParams()
+	var input string
 	var err error
 
-	if configParams, err = le.makeConfigParams(le.optionConfigType); err == nil {
+	if input, err = configParams.EnsureConfigPath(); err == nil {
+		var writer = le.workflowWriterFactory(le.Ledger, input)
 		var workflowParams *broker.WorkflowParams
 
-		if workflowParams, err = le.makeWorkflowParams(configParams); err == nil {
-			var writer = le.workflowWriterFactory(le.Ledger, configParams.GetConfigFile())
-
+		if workflowParams, err = le.newWorkflowParams(writer, configParams); err == nil {
 			le.workflowTaskFactory(writer).Pretend(workflowParams, le.Ledger.Logger)
+			return
 		}
 	}
 
@@ -79,18 +76,20 @@ func (le *LinksExecutor) Pretend() {
 }
 
 func (le *LinksExecutor) Proceed() {
-	var configParams *shared.ConfigParams
+	var configParams = le.newConfigParams()
+	var workflowParams *broker.WorkflowParams
+	var input string
 	var err error
 
-	if configParams, err = le.makeConfigParams(le.optionConfigType); err == nil {
-		var workflowParams *broker.WorkflowParams
+	if input, err = configParams.EnsureConfigPath(); err == nil {
+		var writer = le.workflowWriterFactory(le.Ledger, input)
 
-		if workflowParams, err = le.makeWorkflowParams(configParams); err == nil {
-			var writer = le.workflowWriterFactory(le.Ledger, configParams.GetConfigFile())
-			var plan = task.NewPlan("Workflow", le.Ledger.Logger)
+		if workflowParams, err = le.newWorkflowParams(writer, configParams); err == nil {
+			var plan = task.NewPlan("WorkflowLinks", le.Ledger.Logger)
 
 			plan.PrintReportsOnly = true
 			task.Single(plan, workflowParams, le.workflowTaskFactory(writer))
+			return
 		}
 	}
 
@@ -104,13 +103,14 @@ func (le *LinksExecutor) Add(workflowArg string, addLinks []string) {
 }
 
 func (le *LinksExecutor) Init(workflowArg string, links []string) ([]string, error) {
-	var configParams *shared.ConfigParams
+	var workflowLinks = parseArgsLinks(links...)
+	var configParams = le.newConfigParams()
 	var result []string
+	var input string
 	var err error
 
-	if configParams, err = le.makeConfigParams(le.optionConfigType); err == nil {
-		var writer = le.workflowWriterFactory(le.Ledger, configParams.GetConfigFile())
-		var workflowLinks = parseArgsLinks(links...)
+	if input, err = configParams.EnsureConfigPath(); err == nil {
+		var writer = le.workflowWriterFactory(le.Ledger, input)
 		var workflow *broker.Workflow
 
 		if workflow, err = writer.GetWorkflowByHandle(workflowArg); err == nil {
@@ -208,20 +208,20 @@ func (le *LinksExecutor) findWorkflowNodeByFunction(workflow *broker.Workflow, f
 	return workflow.FindNodeHandleBySf(fn.Oem, fn.Handle, fn.Version)
 }
 
-func (le *LinksExecutor) makeWorkflowParams(configParams *shared.ConfigParams) (*broker.WorkflowParams, error) {
-	var writer = le.workflowWriterFactory(le.Ledger, configParams.GetConfigFile())
+func (le *LinksExecutor) newWorkflowParams(writer *workflowWriter, configParams *shared.ConfigParams) (*broker.WorkflowParams, error) {
 	var edited *broker.Workflow
 	var err error
 
-	writer.addLinks(le.workflowArg, parseArgsLinks(le.addLinks...))
 	writer.removeLinks(le.workflowArg, parseArgsLinks(le.rmLinks...))
 
-	if edited, err = writer.GetWorkflowByHandle(le.workflowArg); err == nil {
-		return &broker.WorkflowParams{
-			ConfigParams:   *configParams,
-			Workflow:       edited,
-			WorkflowUpdate: true,
-		}, nil
+	if _, err = writer.addLinks(le.workflowArg, parseArgsLinks(le.addLinks...)); err == nil {
+		if edited, err = writer.GetWorkflowByHandle(le.workflowArg); err == nil {
+			return &broker.WorkflowParams{
+				ConfigParams:   *configParams,
+				Workflow:       edited,
+				WorkflowUpdate: true,
+			}, nil
+		}
 	}
 
 	return nil, err
@@ -258,13 +258,12 @@ func (le *LinksExecutor) resolveFunctionLink(workflow *broker.Workflow, ref, por
 }
 
 type LinksOptions struct {
-	optionConfigType   *config.StringOption
 	optionNoValidation *config.BoolOption
 }
 
 func (lo LinksOptions) allDefiners() []config.Definer {
 	return []config.Definer{
-		lo.optionConfigType,
+		lo.optionNoValidation,
 	}
 }
 
@@ -302,9 +301,6 @@ func NewLinksExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 
 func NewAddLinksOptions() *LinksOptions {
 	return &LinksOptions{
-		optionConfigType: cli.Options.Configs.Type().
-			WithKeys(&schema.Genaiz.Workflow.Links.Add.ConfigType).
-			BuildStringOption(),
 		optionNoValidation: cli.Options.Workflows.NoLinkValidation().
 			WithKeys(&schema.Genaiz.Workflow.Links.Add.NoValidation).
 			BuildBoolOption(),
@@ -313,9 +309,6 @@ func NewAddLinksOptions() *LinksOptions {
 
 func NewRemoveLinksOptions() *LinksOptions {
 	return &LinksOptions{
-		optionConfigType: cli.Options.Configs.Type().
-			WithKeys(&schema.Genaiz.Workflow.Links.Remove.ConfigType).
-			BuildStringOption(),
 		optionNoValidation: cli.Options.Workflows.NoLinkValidation().
 			WithKeys(&schema.Genaiz.Workflow.Links.Add.NoValidation).
 			WithDefaultValue("true").
@@ -346,9 +339,9 @@ func newLinksRemoveExecutorFactory(ledger *config.Ledger, cli *Cli, options *Lin
 func parseArgsHandlePort(handlePort string) (string, string) {
 	if i := strings.Index(handlePort, "["); i > 0 {
 		return handlePort[0:i], handlePort[i+1 : len(handlePort)-1]
-	} else {
-		return handlePort, ""
 	}
+
+	return handlePort, ""
 }
 
 func parseArgsLinks(links ...string) []broker.WorkflowLink {

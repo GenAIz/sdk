@@ -1,5 +1,5 @@
 # GenAIz SDK
-<sub>Genaiz Version 0.3.2</sub>
+<sub>Genaiz Version 0.3.3</sub>
 
 
 The GenAIz SDK is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestrator platform.
@@ -10,9 +10,10 @@ The GenAIz SDK is a tool for creating, building and publishing Smart Functions t
   * [Result Values](#result-values)
 * [Development Guide](#development-guide)
   * [Prerequisites](#prerequisites)
+  * [Building from source](#building-from-source)
   * [Modules](#modules)
-  * [Testing Genaiz](#testing-genaiz)
-* [Design](#design)
+  * [Unit testing](#unit-testing)
+* [Acceptance Testing](#acceptance-testing)
 * [Troubleshooting](#troubleshooting)
   * [GoLang](#golang)
   * [Docker](#docker)
@@ -32,7 +33,7 @@ Working with the GenAIz CLI is a simple series of commands. You may run `genaiz 
 
 #### Creating a simple solution
 
-The following example creates a solution **solution-1** and a smart function **my-bash-example** using the recipe **bash-example**. It then builds the function with the default version assigned by create, [0.1.0](doc/function/index.md#version), assigns a single node to the **default** workflow, authenticates a user with [broker.genaiz.com](doc/account/index.md#host) and publishes the solution to the broker.
+The following example creates a solution **solution-1** and a smart function **my-bash-example** using the recipe **bash-example**. It then builds the function with the default version assigned by create, [0.1.0](acceptance-tests/docs/function/index.md#version), assigns a single node to the **default** workflow, authenticates a user with [broker.genaiz.com](acceptance-tests/docs/account/index.md#host) and publishes the solution to the broker.
 
 ```bash
 genaiz sn create mySolutionDir --name="My Solution" --handle="solution-1" \
@@ -187,46 +188,27 @@ The oauth utility kit provides functionality to:
 
 These facilities should be used to integrate token authentication on  [CNCF Distribution Registry](https://distribution.github.io/distribution/spec/auth/jwt/). With source code available on [GitHub](https://github.com/distribution/distribution)
 
+### Unit testing
 
-### Testing GenAIz
+Genaiz unit testing facilities only cover the production module of [genaiz](#genaiz-smartfunction-toolkit). The unit test files cover the entire functionality with ideally, individual units tested in isolation to provide a `White Box` map of the implementation.
 
-> TODO
+The goal here is to provide a minimal harness for catching regression and also provide future functionality for associating units to acceptance test cases.
 
-## Design
+Currently, a coverage report can be obtained with:
 
-Design was modeled with a behavior driven approach focusing on user's usage studies. The design rules are presented under the [doc](doc/index.md) folder with associated Gherkin files accessible to the documents.
+```bash
+cd genaiz && make coverage
+```
+This opens a visual HTML report of the implementation tested by the unit tests.
 
-### [Genaiz Toolkit](#genaiz-smartfunction-toolkit)
+## Acceptance Testing
 
-* [Account Scenarios](doc/account/index.md)
-  * [account (ac) login](doc/account/index.md#login)
-  * [account (ac) logout](doc/account/index.md#logout)
-* [Data Link Scenarios](doc/datalink/index.md)
-  * [datalink (dk) create](doc/datalink/create.md)
-  * [datalink (dk) prop](doc/datalink/prop.md)
-  * [datalink (dk) publish](doc/datalink/publish.md)
-  * [datalink (dk) sync](doc/datalink/sync.md)
-* [Function Scenarios](doc/function/index.md)
-  * [function (sf) build](doc/function/build.md)
-  * [function (sf) create](doc/function/create.md)
-  * [function (sf) data](doc/function/data.md)
-  * [function (sf) init](doc/function/init.md)
-  * [function (sf) list](doc/function/list.md)
-  * [function (sf) prop](doc/function/prop.md)
-  * [function (sf) proxy](doc/function/prop.md)
-  * [function (sf) publish](doc/function/publish.md)
-  * [function (sf) run](doc/function/run.md)
-  * [function (sf) start](doc/function/start.md)
-  * [function (sf) stop](doc/function/stop.md)
-  * [function (sf) test](doc/function/test.md)
-* [Solution Scenarios](doc/solution/index.md)
-  * [solution (sn) create](doc/solution/create.md)
-  * [solution (sn) publish](doc/solution/publish.md)
-* [Workflow Scenarios](doc/workflow/index.md)
-  * [workflow (wf) create](doc/workflow/create.md)
-  * [workflow (wf) delete](doc/workflow/delete.md)
-  * [workflow (wf) nodes](doc/workflow/nodes.md)
-  * [workflow (wf) links](doc/workflow/links.md)
+Not to be confused with unit testing: Acceptance testing is to unit testing what acceleration is to speed. An acceptance test case is composed of several units working to achieve feature requirements. Acceptance typically provides a `Black Box` map of a feature set.
+
+[Acceptance testing is made of a repository](acceptance-tests/docs/index.md) of [Gherkin](https://cucumber.io/docs/gherkin/) features describing what the [genaiz](#genaiz-smartfunction-toolkit) needs to provide to a CLI user, but also to other types of integrations relying on CLI commands.
+
+>[!NOTE]
+>Currently, the features can only be read and ran manually. The runtime to automatically execute them would be hosted under the [genaiz-it](#genaiz-integration-test-toolkit) module.
 
 ## Troubleshooting
 

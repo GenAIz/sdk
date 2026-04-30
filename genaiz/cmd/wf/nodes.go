@@ -64,23 +64,21 @@ func (ne *NodesExecutor) Display() {
 		}
 	}
 
-	ne.Ledger.DisplayOptionsWithMap(
-		&nodeDetails,
-		&ne.NodesOptions.optionConfigType.Option,
-	)
+	ne.Ledger.DisplayOptionsWithMap(&nodeDetails)
 }
 
 func (ne *NodesExecutor) Pretend() {
-	var configParams *shared.ConfigParams
+	var configParams = ne.newConfigParams()
+	var input string
 	var err error
 
-	if configParams, err = ne.makeConfigParams(ne.optionConfigType); err == nil {
+	if input, err = configParams.EnsureConfigPath(); err == nil {
+		var writer = ne.workflowWriterFactory(ne.Ledger, input)
 		var workflowParams *broker.WorkflowParams
 
-		if workflowParams, err = ne.makeWorkflowParams(configParams); err == nil {
-			var writer = ne.workflowWriterFactory(ne.Ledger, configParams.GetConfigFile())
-
+		if workflowParams, err = ne.newWorkflowParams(writer, configParams); err == nil {
 			ne.workflowTaskFactory(writer).Pretend(workflowParams, ne.Ledger.Logger)
+			return
 		}
 	}
 
@@ -88,18 +86,20 @@ func (ne *NodesExecutor) Pretend() {
 }
 
 func (ne *NodesExecutor) Proceed() {
-	var configParams *shared.ConfigParams
+	var configParams = ne.newConfigParams()
+	var input string
 	var err error
 
-	if configParams, err = ne.makeConfigParams(ne.optionConfigType); err == nil {
+	if input, err = configParams.EnsureConfigPath(); err == nil {
+		var writer = ne.workflowWriterFactory(ne.Ledger, input)
 		var workflowParams *broker.WorkflowParams
 
-		if workflowParams, err = ne.makeWorkflowParams(configParams); err == nil {
-			var writer = ne.workflowWriterFactory(ne.Ledger, configParams.GetConfigFile())
-			var plan = task.NewPlan("Workflow", ne.Ledger.Logger)
+		if workflowParams, err = ne.newWorkflowParams(writer, configParams); err == nil {
+			var plan = task.NewPlan("WorkflowNodes", ne.Ledger.Logger)
 
 			plan.PrintReportsOnly = true
 			task.Single(plan, workflowParams, ne.workflowTaskFactory(writer))
+			return
 		}
 	}
 
@@ -156,29 +156,13 @@ func (ne *NodesExecutor) Find(path string) (string, error) {
 }
 
 func (ne *NodesExecutor) Init(path string) (string, error) {
-	var vp *viper.Viper
+	var fn *broker.Function
 	var err error
 
-	if vp, err = ne.Ledger.FindPathConfig(path); err == nil {
-		var handle = schema.Genaiz.Function.Publish.Handle.GetString(vp)
-		var oem = schema.Genaiz.Function.Publish.Oem.GetString(vp)
-		var version = schema.Genaiz.Function.Publish.Version.GetString(vp)
-
-		if !config.Validation.Handle(handle) {
-			return "", fmt.Errorf("function under path [%s] has no valid handle", path)
-		}
-
-		if !config.Validation.Oem(oem) {
-			return "", fmt.Errorf("function under path [%s] has no valid oem", path)
-		}
-
-		if !config.Validation.Version(version) {
-			return "", fmt.Errorf("function under path [%s] has no valid version", path)
-		}
-
-		if err = ne.initPathOption(path, oem, ne.optionSfOem); err == nil {
-			if err = ne.initPathOption(path, handle, ne.optionSfHandle); err == nil {
-				if err = ne.initPathOption(path, version, ne.optionSfVersion); err == nil {
+	if fn, err = ne.findFunctionInPath(path); err == nil {
+		if err = ne.initPathOption(path, fn.Oem, ne.optionSfOem); err == nil {
+			if err = ne.initPathOption(path, fn.Handle, ne.optionSfHandle); err == nil {
+				if err = ne.initPathOption(path, fn.Version, ne.optionSfVersion); err == nil {
 					return filepath.Base(path) + "-node", nil
 				}
 			}
@@ -213,8 +197,7 @@ func (ne *NodesExecutor) initPathOption(path, value string, option *config.Strin
 	return nil
 }
 
-func (ne *NodesExecutor) makeWorkflowParams(configParams *shared.ConfigParams) (*broker.WorkflowParams, error) {
-	var writer = ne.workflowWriterFactory(ne.Ledger, configParams.GetConfigFile())
+func (ne *NodesExecutor) newWorkflowParams(writer *workflowWriter, configParams *shared.ConfigParams) (*broker.WorkflowParams, error) {
 	var handle = ne.workflowArg
 	var edited *broker.Workflow
 	var err error
@@ -239,7 +222,6 @@ func (ne *NodesExecutor) makeWorkflowParams(configParams *shared.ConfigParams) (
 }
 
 type NodesOptions struct {
-	optionConfigType   *config.StringOption
 	optionDescription  *config.StringOption
 	optionName         *config.StringOption
 	optionSfHandle     *config.StringOption
@@ -251,7 +233,6 @@ type NodesOptions struct {
 
 func (no NodesOptions) addDefiners() []config.Definer {
 	return []config.Definer{
-		no.optionConfigType,
 		no.optionDescription,
 		no.optionName,
 		no.optionSfHandle,
@@ -259,12 +240,6 @@ func (no NodesOptions) addDefiners() []config.Definer {
 		no.optionSfSeq,
 		no.optionSfSerialized,
 		no.optionSfVersion,
-	}
-}
-
-func (no NodesOptions) removeDefiners() []config.Definer {
-	return []config.Definer{
-		no.optionConfigType,
 	}
 }
 
@@ -347,9 +322,8 @@ func (so *SerializedOptions) getNode(ledger *config.Ledger) *broker.WorkflowNode
 
 func NewNodes(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	var addNodesOptions = NewAddNodesOptions()
-	var rmNodesOptions = NewRemoveNodesOptions()
 	var addNodesCmd = nodes.NewAddNodes(newNodesAddExecutorFactory(ledger, cli, addNodesOptions), validateArgNodes)
-	var rmNodesCmd = nodes.NewRemoveNodes(newNodesRemoveExecutorFactory(ledger, cli, rmNodesOptions), validateArgNodes)
+	var rmNodesCmd = nodes.NewRemoveNodes(newNodesRemoveExecutorFactory(ledger, cli, &NodesOptions{}), validateArgNodes)
 	var nodesCmd = &cobra.Command{
 		Use:     "nodes",
 		Aliases: []string{"nd"},
@@ -359,7 +333,7 @@ func NewNodes(ledger *config.Ledger, cli *Cli) *cobra.Command {
 	nodesCmd.AddCommand(addNodesCmd)
 	nodesCmd.AddCommand(rmNodesCmd)
 	ledger.Register(addNodesCmd, addNodesOptions.addDefiners()...)
-	ledger.Register(rmNodesCmd, rmNodesOptions.removeDefiners()...)
+	ledger.Register(rmNodesCmd)
 	return nodesCmd
 }
 
@@ -384,9 +358,6 @@ func NewAddNodesOptions() *NodesOptions {
 		BuildStringOption()
 
 	return &NodesOptions{
-		optionConfigType: cli.Options.Configs.Type().
-			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.ConfigType).
-			BuildStringOption(),
 		optionDescription: cli.Options.Workflows.Description().
 			WithKeys(&schema.Genaiz.Workflow.Nodes.Add.Description).
 			WithDefaultGetter(func(ledger *config.Ledger) any {
@@ -429,14 +400,6 @@ func NewSerializedOptions() *SerializedOptions {
 
 	result.optionDeserialized.DefaultGetter = result.getDefault
 	return result
-}
-
-func NewRemoveNodesOptions() *NodesOptions {
-	return &NodesOptions{
-		optionConfigType: cli.Options.Configs.Type().
-			WithKeys(&schema.Genaiz.Workflow.Nodes.Remove.ConfigType).
-			BuildStringOption(),
-	}
 }
 
 func newNodesAddExecutorFactory(ledger *config.Ledger, cli *Cli, options *NodesOptions) func(*cobra.Command) nodes.AddExecutor {

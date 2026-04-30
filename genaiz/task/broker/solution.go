@@ -16,12 +16,17 @@ import (
 )
 
 var (
-	errorSolutionFileInvalid  = errors.New("solution config is invalid")
-	errorSolutionInvalid      = errors.New("solution is invalid")
-	errorWorkflowConflict     = errors.New("workflow already exists")
-	errorWorkflowFileInvalid  = errors.New("workflow config is invalid")
-	errorWorkflowFileNotFound = errors.New("workflow config file not found")
-	errorWorkflowNotFound     = errors.New("workflow not found")
+	errorSolutionFileInvalid    = errors.New("solution config is invalid")
+	errorSolutionInvalid        = errors.New("solution is invalid")
+	errorWorkflowConflict       = errors.New("workflow already exists")
+	errorWorkflowFileInvalid    = errors.New("workflow config is invalid")
+	errorWorkflowFileNotFound   = errors.New("workflow config file not found")
+	errorWorkflowNotFound       = errors.New("workflow not found")
+	ErrorWorkflowPropIncomplete = errors.New("workflow prop specs are empty")
+
+	errorInvalidNodeProp = func(key, handle string) error {
+		return fmt.Errorf("the key [%s] is invalid for node [%s]", strings.ToUpper(key), handle)
+	}
 )
 
 type SolutionWriter interface {
@@ -81,6 +86,11 @@ type WorkflowParams struct {
 	WorkflowUpdate bool
 }
 
+type WorkflowPropParams struct {
+	*Workflow
+	VarSpecs []shared.VarSpec
+}
+
 func (wp WorkflowParams) GetHandle() string {
 	if wp.Workflow != nil {
 		return wp.Workflow.Handle
@@ -134,6 +144,16 @@ func NewWorkflowDeleteTask(writer WorkflowWriter) *task.Task[WorkflowParams] {
 		OnPrepare:  handleWorkflowDeleteContext,
 		OnComplete: lang.Assists(writer, handleWorkflowDeleteConfig),
 		OnPretend:  handleWorkflowDeletePretend,
+	}
+}
+
+func NewWorkflowPropTask() *task.Task[WorkflowPropParams] {
+	return &task.Task[WorkflowPropParams]{
+		Name:         "solution-prop-workflow",
+		OnPrepare:    handleWorkflowPropContext,
+		OnComplete:   handleWorkflowPropComplete,
+		OnIncomplete: handleWorkflowPropIncomplete,
+		OnPretend:    handleWorkflowPropPretend,
 	}
 }
 
@@ -419,6 +439,80 @@ func handleWorkflowDeletePretend(params *WorkflowParams, state *task.State) erro
 	return errorWorkflowFileInvalid
 }
 
+func handleWorkflowPropContext(params *WorkflowPropParams, state *task.State) error {
+	if params.Workflow != nil {
+		var varSpecClient = shared.NewVarSpecState(state)
+
+		state.Logger.Debugf("Validating workflow properties for workflow [%s]", params.Workflow.Handle)
+		varSpecClient.AddSpecs(params.VarSpecs)
+
+		if params.Workflow.HasNodeProps() && len(varSpecClient.VarSpecs) == 0 {
+			// On an incomplete set, we only need to validate if there are any props on any nodes
+			return ErrorWorkflowPropIncomplete
+		}
+
+		return nil
+	}
+
+	return ErrorWorkflowNotFound
+}
+
+func handleWorkflowPropComplete(params *WorkflowPropParams, state *task.State) error {
+	if params.Workflow != nil {
+		var varSpecClient = shared.NewVarSpecState(state)
+		var err error
+
+		for _, node := range params.Workflow.Nodes {
+			state.Logger.Debugf("Validating props for [%s]", node.Handle)
+
+			if err = node.ValidateProps(varSpecClient.VarSpecs); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	return ErrorWorkflowNotFound
+}
+
+func handleWorkflowPropIncomplete(params *WorkflowPropParams, state *task.State) error {
+	if params.Workflow != nil {
+		state.Logger.Debugf("Properties for workflow [%s] are incomplete", params.Workflow.Handle)
+
+		for _, node := range params.Workflow.Nodes {
+			if len(node.Props) > 0 {
+				for k := range node.Props {
+					state.Completed = true
+					return errorInvalidNodeProp(k, node.Handle)
+				}
+			}
+		}
+
+		return nil
+	}
+
+	return ErrorWorkflowNotFound
+}
+
+func handleWorkflowPropPretend(params *WorkflowPropParams, state *task.State) error {
+	if params.Workflow != nil {
+		state.Logger.Debugf("Pretending validation on Workflow Node props")
+
+		for _, node := range params.Workflow.Nodes {
+			if len(node.Props) > 0 {
+				for k := range node.Props {
+					state.Logger.Debugf("Validating prop [%s] on node [%s]", k, node.Handle)
+				}
+			}
+		}
+
+		return nil
+	}
+
+	return ErrorWorkflowNotFound
+}
+
 func handleWorkflowUpdateConfig(writer WorkflowWriter, params *WorkflowParams, state *task.State) error {
 	if state.Output != "" {
 		var update *Workflow
@@ -450,14 +544,13 @@ func handleWorkflowUpdateConfig(writer WorkflowWriter, params *WorkflowParams, s
 					}
 
 					return err
-				} else {
-					state.Logger.Errorf("Workflow [%s] already exist", params.Name)
-					return errorWorkflowConflict
 				}
-			} else {
-				return handleWorkflowCreateConfig(
-					writer.WithWorkflows(writer.GetWorkflows()), params, state)
+
+				state.Logger.Errorf("Workflow [%s] already exist", params.Name)
+				return errorWorkflowConflict
 			}
+
+			return handleWorkflowCreateConfig(writer.WithWorkflows(writer.GetWorkflows()), params, state)
 		}
 
 		return errors.New("no workflow found in params")

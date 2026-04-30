@@ -1,0 +1,110 @@
+## Function Test
+
+```
+genaiz sf test --context|-c=PATH --file|-f=FILE --repository=LOCAL --version|-v=VERSION \
+  --mount-in=PATH --mount-out=PATH --mount-log=PATH --mount-var=PATH \
+  --env-file=FILEPATH --env|-e VARIABLE=VALUE --env|-e VAR_1=VALUE,VAR_2=VALUE \
+  --image=IMAGE --prefix|-p=PREFIX
+```
+
+Test executes a build task if the image option is not specified. A fresh image with the repository and version specified under the `Genaiz.yaml` file or from the options on the command line will be built.
+
+The command the proceeds to run the image built under a **disposable** container using the mount points specified under the `Genaiz.yaml` file or from the options on the command line. The container standard out and error should be attached to the command's console until it completes.
+
+Test will forward signals such as SIGINT (ctrl-C) to the container running on containerd.
+
+### context
+
+Context for the test command establishes the working directory for all the specified mount paths and for the [build](build.md) tasks as well.
+
+* if there is no context specified the test command assumes all paths from the current working dir.
+* the context is passed to the docker build command or the dockerd build endpoint to match the Dockerfile's build context, it doesn't necessarily imply the same folder as the [file](#file) param.
+* if the resolved context does not correspond to an existing folder, the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [function.build.context] is invalid`
+    * The option key used is for **build**, test does not have its own context key
+
+### file
+
+File should not be considered if the [image](#image) option is used, as it would disable any pre-build tasks. This parameter is used to set the [file](build.md#file) parameter on the pre-build task otherwise.
+
+* if there is no file specified the build command assumes it is looking for a Dockerfile under the specified context.
+* if the command can not find the resolved file, it will return as error of the form: `Error: value [...] for option [function.build.file] is invalid`
+    * The option key used is for **build**, test does not have its own context key
+
+### repository
+
+Repository can be used to change the local `name/repository:version` of the built image. This should only affect the [list](list.md) command and the name displayed under a `docker image ls` command.
+
+* if repository is not specified, a default value will be composed of with the current working direction: `parent/current:version`
+* if the resolved repository is not a valid string matching a valid repository string (see [repository validity](index.md#repository)), the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [function.build.repository] is invalid`
+    * The option key used is for **build**, test does not have its own context key
+
+### version
+
+Version can be used to change the local `name/repository:version` of the built image. This should only affect the [list](list.md) command and the name displayed under a `docker image ls` command.
+
+* if version is not specified, `latest` will be used by default.
+* the build version is not the same as the published version, in normal circumstances the version will always be `latest`, but since smart functions can be branched in source repositories, the option can be updated with the [init](init.md) command to say `<branch>-latest`
+* note that the version string used for build is not validated against the SemVer format
+    * The option key used is for **build**, test does not have its own context key
+
+### mount-in
+
+* if mount-in is not specified, the default key `function.test.in` will be read from the Smart Function `Genaiz.yaml`
+* if `function.test.input` is not specified, the value under `function.run.input` will be read from the Smart Function `Genaiz.yaml`
+* if mount-in specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.test.input] is invalid`
+
+### mount-out
+
+* if mount-out is not specified, the default key `function.test.out` will be read from the Smart Function `Genaiz.yaml`
+* if `function.test.output` is not specified, the value under `function.run.output` will be read from the Smart Function `Genaiz.yaml`
+* if mount-out specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.test.output] is invalid`
+
+### mount-log
+
+* if mount-log is not specified, the default key `function.test.log` will be read from the Smart Function `Genaiz.yaml`
+* if mount-log is not specified, the option will default to [mount-out](#mount-out)
+* if mount-log specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.test.log] is invalid`
+
+### mount-var
+
+* if mount-var is not specified, the default key `function.test.var` will be read from the Smart Function `Genaiz.yaml`
+* if mount-var is not specified, the option will default to [mount-out](#mount-out)
+* if mount-var specified does not resolve to an existing path, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.test.var] is invalid`
+
+### env
+
+The env option allows passing environment variables, defined in the [property specs](prop.md), to the running container. The command line option is used to override the contents of [env-file](#env-file), or just to set the values as a one-time invocation.
+
+* if env evaluates to an empty list, then no overrides will be applied on the content of .env-file.
+* if an environment variable was defined in a property spec, and no value was provided in either the env-file or the env, the command will fail with an error.
+* if an environment variable provided is not defined in the property specs, the command will filter it out and run the container with the set of variables that is defined.
+
+> [!CAUTION]
+> Note that without any property specs strict policies, the command will simply pass all environment variables to the container.
+
+### env-file
+
+The env-file option allows passing environment variables, defined in the [property specs](prop.md), to the running container.
+
+* if no env-file option is passed, the command will resolve $WORKDIR/.env as the path to include if it is present.
+* If no env-file is resolved, the command will try running the container with only the variables provided by [env](#env).
+* if an environment variable was defined in a property spec, and no value was provided in either the env-file or the env, the command will fail with an error.
+* if an environment variable provided is not defined in the property specs, the command will filter it out and run the container with the set of variables that is defined.
+
+> [!CAUTION]
+> Note that without any property specs strict policies, the command will simply pass all environment variables to the container.
+
+### image
+
+* if image is not specified, the command will build an equivalent repository string of the form `repository:version`, with the fields of the build command.
+* if image is specified, the command will use it as-is to retrieve an image from `containerd`, the local Docker registry, and run it as-is.
+    * This is useful for running published or imported functions
+
+### prefix
+
+The prefix field is not particularly useful to test, since it disposes of the created containers when they exit. When test outputs data on STDOUT from the attached Smart Function, it is possible to use another console to run `docker container ls` or `genaiz sf list` within the build context and see the container prefix.
+
+* if prefix is used, the container created will be named `<prefix>-d<timestamp>`
+    * note that run disposes of the containers created automatically, see [start](start.md) command to preserve them
+* if prefix is not specified, the container will be named `<tag>-d<timestamp>`
+* if the prefix does not match a valid component string (see [component validity](index.md#component)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.test.prefix] is invalid`

@@ -133,6 +133,11 @@ func (dlp DataLinkParams) publishedFqdn() (string, string, string) {
 	return "", "", ""
 }
 
+// NewDataLinkCollectTask creates a task.Task whose role is to collect data link definitions from user specified configurations.
+//
+// The configurations can be taken from the project Genaiz.yaml configs or the user's home repository configuration. This is used in cases where the datalink definitions are not synchronized using NewDataLinkExportTask. When the user is offline, or when Smart Functions are exported to a new broker which does not have the datalink definitions. It allows devs to defer validation to the broker on publish.
+//
+// If a datalink is not found within the user's local layout, the task will fail.
 func NewDataLinkCollectTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
 	return &task.Task[DataLinkParams]{
 		Name:       "data-link-collect",
@@ -161,6 +166,11 @@ func NewDataLinkEditTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
 	}
 }
 
+// NewDataLinkExportTask creates a task.Task whose role is to export data link definitions from the broker to user specified configurations.
+//
+// Typically, the datalink exported is persisted either to the user's home repository configuration or to the local Genaiz project.
+//
+// If the datalink exported does not exist on the broker, the task will fail.
 func NewDataLinkExportTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
 	return &task.Task[DataLinkParams]{
 		Name:         "data-link-export",
@@ -236,6 +246,7 @@ func handleDataLinkCollectComplete(writer DataLinkWriter, params *DataLinkParams
 		var fqdnString = params.ToString()
 
 		state.Logger.Debugf("Looking up for data link [%s]", fqdnString)
+		state.Output = ""
 
 		if local := writer.GetDataLink(oem, handle, ver); local != nil {
 			persistVarSpecs(local, state)

@@ -39,6 +39,13 @@ func TestBuilder_WithTemplates(t *testing.T) {
 	assert.Contains(t, testLedger.TemplatePaths, expectedPath)
 }
 
+func TestBuilder_WithWorkDir(t *testing.T) {
+	var expectedDir = t.TempDir()
+	var testLedger = NewBuilder().WithWorkDir(expectedDir).Build()
+
+	assert.Equal(t, expectedDir, testLedger.WorkDir)
+}
+
 func TestLedger_backupConfigsInvalidUserPath(t *testing.T) {
 	var testDir = t.TempDir()
 	var _, testLedger = newTestConfigs()

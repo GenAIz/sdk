@@ -548,6 +548,7 @@ type Builder struct {
 	Output        func() io.Writer
 	TemplatePaths []string
 	UserPath      string
+	WorkDir       string
 }
 
 // Build builds a Ledger with the recorded Viper, Input and Output factory methods
@@ -556,7 +557,7 @@ func (b *Builder) Build() *Ledger {
 
 	home, err := b.resolveUserPath()
 	cobra.CheckErr(err)
-	cwd, err := os.Getwd()
+	workDir, err := b.getWorkDir()
 	cobra.CheckErr(err)
 	templatePaths = append(templatePaths, filepath.Join(home, ".local", "genaiz", "recipes"))
 
@@ -566,11 +567,11 @@ func (b *Builder) Build() *Ledger {
 		UserPath:      filepath.Join(home, ".config", "genaiz"),
 		TemplatePaths: templatePaths,
 		Timestamp:     time.Now(),
-		WorkDir:       cwd,
+		WorkDir:       workDir,
 
 		input:             b.Input(),
 		output:            b.Output(),
-		originalDir:       cwd,
+		originalDir:       workDir,
 		validationHandler: cobra.CheckErr,
 		viper:             b.Viper(),
 	}
@@ -610,6 +611,20 @@ func (b *Builder) WithViper(v *viper.Viper) *Builder {
 		return v
 	}
 	return b
+}
+
+// WithWorkDir changes the working directory of the Ledger built
+func (b *Builder) WithWorkDir(path string) *Builder {
+	b.WorkDir = path
+	return b
+}
+
+func (b *Builder) getWorkDir() (string, error) {
+	if b.WorkDir == "" {
+		return os.Getwd()
+	}
+
+	return b.WorkDir, nil
 }
 
 func (b *Builder) resolveUserPath() (string, error) {

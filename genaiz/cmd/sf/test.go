@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
@@ -16,7 +17,7 @@ import (
 
 type TestExecutor struct {
 	BaseExecutor
-	SyncExecutor
+	dk.SyncBridge
 	*RunOptions
 
 	buildTaskFactory BuildTaskFactory
@@ -33,6 +34,7 @@ func (te *TestExecutor) Pretend() {
 
 	if testParams, err = newRunParams(te.BaseExecutor, te.RunOptions); err == nil {
 		var plan = task.NewPlan("Test", te.Ledger.Logger)
+		var datalinks = te.getFunctionDataLinks(te.Ledger)
 		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
@@ -42,7 +44,7 @@ func (te *TestExecutor) Pretend() {
 			workers = append(workers, task.NewPretender(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
 		}
 
-		if datalinkWorkers, err = makeSyncPretenders(te.Ledger, te.SyncExecutor, te.optionNoPropSync); err == nil {
+		if datalinkWorkers, err = te.MakeSyncPretenders(datalinks, te.Ledger, te.optionNoPropSync); err == nil {
 			workers = append(workers, datalinkWorkers...)
 			workers = append(workers, task.NewPretender(testParams, te.testTaskFactory()))
 			plan.Sequence(workers...)
@@ -59,6 +61,7 @@ func (te *TestExecutor) Proceed() {
 
 	if testParams, err = newRunParams(te.BaseExecutor, te.RunOptions); err == nil {
 		var plan = task.NewPlan("Run", te.Ledger.Logger)
+		var datalinks = te.getFunctionDataLinks(te.Ledger)
 		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
@@ -66,7 +69,7 @@ func (te *TestExecutor) Proceed() {
 			workers = append(workers, task.NewWorker(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
 		}
 
-		if datalinkWorkers, err = makeSyncWorkers(te.Ledger, te.SyncExecutor, te.optionNoPropSync); err == nil {
+		if datalinkWorkers, err = te.MakeSyncWorkers(datalinks, te.Ledger, te.optionNoPropSync); err == nil {
 			workers = append(workers, datalinkWorkers...)
 			workers = append(workers, task.NewWorker(testParams, te.testTaskFactory()))
 			plan.Sequence(workers...)
@@ -110,8 +113,8 @@ func NewTestExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, opt
 			Context: ctx,
 			Ledger:  ledger,
 		},
-		SyncExecutor: makeSyncExecutor(),
-		RunOptions:   options,
+		SyncBridge: dk.NewSyncBridgeBuilder().Build(),
+		RunOptions: options,
 
 		buildTaskFactory: docker.NewBuildTask,
 		testTaskFactory:  docker.NewTestTask,
@@ -142,6 +145,7 @@ func NewTestOptions(sfCli *Cli) *RunOptions {
 				WithKeys(&schema.Genaiz.Function.Test.EnvVars).
 				BuildListOption(),
 		},
+		InnerOptions: makeInnerOptions(),
 		optionMountInput: cli.Options.Functions.MountInput().
 			WithKeys(&schema.Genaiz.Function.Test.MountInput).
 			WithDefaultGetter(func(ledger *config.Ledger) any {

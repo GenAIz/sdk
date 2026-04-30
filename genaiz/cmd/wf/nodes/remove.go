@@ -17,7 +17,7 @@ type RemoveExecutorFactory func(command *cobra.Command) RemoveExecutor
 type RemoveValidator func(...string) error
 
 func NewRemoveNodes(factory RemoveExecutorFactory, validator RemoveValidator) *cobra.Command {
-	var andCmd = &cobra.Command{
+	var rmCmd = &cobra.Command{
 		Use:     "remove WORKFLOW_HANDLE NODE_HANDLE|FUNCTION_PATH [NODE_HANDLE|FUNCTION_PATH...]]",
 		Aliases: []string{"rm"},
 		Short:   "Removes nodes from an existing workflow",
@@ -53,5 +53,5 @@ func NewRemoveNodes(factory RemoveExecutorFactory, validator RemoveValidator) *c
 		SilenceUsage:  true,
 	}
 
-	return andCmd
+	return rmCmd
 }

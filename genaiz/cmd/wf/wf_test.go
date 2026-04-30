@@ -10,94 +10,88 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
-	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
 
-func TestBaseExecutor_makeConfigParams(t *testing.T) {
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = cli.Options.Configs.Type().
-		WithKeys(&schema.Keys{Doc: "test"}).
-		BuildStringOption()
+func TestBaseExecutor_findFunctionByOemHandle(t *testing.T) {
+	var expectedNodePath = "node"
+	var expectedOem = "oem"
+	var expectedHandle = "handle"
+	var testLedger = config.NewBuilder().
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testExecutor = &BaseExecutor{
 		Ledger: testLedger,
 	}
-	var actual *shared.ConfigParams
 	var err error
 
-	testViper.Set(testOption.Key, shared.ConfigTypeJson)
-	actual, err = testExecutor.makeConfigParams(testOption)
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedNodePath), 0750); err == nil {
+		var fd *os.File
+
+		if fd, err = os.Create(filepath.Join(testLedger.WorkDir, ".notGenaiz.yaml")); err == nil {
+			var vp = viper.New()
+
+			filez.CloseSilently(fd)
+			vp.Set(schema.Genaiz.Function.Publish.Internal.Doc, &broker.Function{
+				Oem:     expectedOem,
+				Handle:  expectedHandle,
+				Version: "1.0.0",
+			})
+
+			if err = vp.WriteConfigAs(filepath.Join(testLedger.WorkDir, expectedNodePath, testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
+				var actual *broker.Function
+
+				t.Chdir(testLedger.WorkDir)
+				actual, err = testExecutor.findFunctionByOemHandle(testLedger.WorkDir, expectedOem, expectedHandle)
+				assert.NotNil(t, actual)
+				assert.NoError(t, err)
+				return
+			}
+		}
+	}
+
 	assert.NoError(t, err)
-	assert.Equal(t, testLedger.ConfigName, actual.ConfigName)
-	assert.Equal(t, shared.ConfigTypeJson, *actual.ConfigType)
 }
 
-func TestBaseExecutor_makeConfigParams_FileInvalidError(t *testing.T) {
-	var testDir = t.TempDir()
-	var testFile = filepath.Join(testDir, "Genaiz.txt")
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = cli.Options.Configs.Type().
-		WithKeys(&schema.Keys{Doc: "test"}).
-		BuildStringOption()
-	var testExecutor = &BaseExecutor{Ledger: testLedger}
-	var actual *shared.ConfigParams
-	var fd *os.File
-	var err error
+func TestBaseExecutor_findFunctionByOemHandle_Empty(t *testing.T) {
+	var testPath = t.TempDir()
+	var testExecutor = &BaseExecutor{}
+	var actual, err = testExecutor.findFunctionByOemHandle(testPath, "oem", "handle")
 
-	if fd, err = os.Create(testFile); err == nil {
-		defer filez.CloseSilently(fd)
-		t.Chdir(testDir)
-		actual, err = testExecutor.makeConfigParams(testOption)
-		assert.Error(t, err)
-		assert.Empty(t, actual)
-	} else {
-		assert.Fail(t, err.Error())
+	assert.Nil(t, actual)
+	assert.ErrorIs(t, err, errorNoFunction)
+}
+
+func TestBaseExecutor_findFunctionByOemHandle_Invalid(t *testing.T) {
+	var expectedNodePath = "node"
+	var testLedger = config.NewBuilder().
+		WithWorkDir(t.TempDir()).
+		Build()
+	var testExecutor = &BaseExecutor{
+		Ledger: testLedger,
 	}
-}
-
-func TestBaseExecutor_makeConfigParams_TypeNone(t *testing.T) {
-	var testDir = t.TempDir()
-	var testFile = filepath.Join(testDir, "Genaiz.yaml")
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = cli.Options.Configs.Type().
-		WithKeys(&schema.Keys{Doc: "test"}).
-		BuildStringOption()
-	var testExecutor = &BaseExecutor{Ledger: testLedger}
-	var actual *shared.ConfigParams
-	var fd *os.File
 	var err error
 
-	if fd, err = os.Create(testFile); err == nil {
-		defer filez.CloseSilently(fd)
-		t.Chdir(testDir)
-		actual, err = testExecutor.makeConfigParams(testOption)
-		assert.NoError(t, err)
-		assert.Equal(t, testLedger.ConfigName, actual.ConfigName)
-		assert.Equal(t, shared.ConfigTypeYaml, *actual.ConfigType)
-	} else {
-		assert.Fail(t, err.Error())
+	if err = os.MkdirAll(filepath.Join(testLedger.WorkDir, expectedNodePath), 0750); err == nil {
+		var testPath = filepath.Join(testLedger.WorkDir, expectedNodePath, testLedger.ConfigName+"."+shared.ConfigTypeYaml)
+		var fd *os.File
+
+		if fd, err = os.Create(testPath); err == nil {
+			var actual *broker.Function
+
+			filez.CloseSilently(fd)
+			t.Chdir(testLedger.WorkDir)
+			actual, err = testExecutor.findFunctionByOemHandle(testLedger.WorkDir, "oem", "handle")
+			assert.Nil(t, actual)
+			assert.Error(t, err)
+			return
+		}
 	}
-}
 
-func TestBaseExecutor_makeConfigParams_TypeNoneError(t *testing.T) {
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = cli.Options.Configs.Type().
-		WithKeys(&schema.Keys{Doc: "test"}).
-		BuildStringOption()
-	var testExecutor = &BaseExecutor{Ledger: testLedger}
-	var actual *shared.ConfigParams
-	var err error
-
-	actual, err = testExecutor.makeConfigParams(testOption)
-	assert.Error(t, err)
-	assert.Empty(t, actual)
+	assert.NoError(t, err)
 }
 
 func TestCli_WorkingConfigType(t *testing.T) {
@@ -149,7 +143,7 @@ func TestNewWf(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewWf(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 4, len(testCmd.Commands()))
+	assert.Equal(t, 5, len(testCmd.Commands()))
 }
 
 func TestWorkflowWriter_addLinks(t *testing.T) {
@@ -164,8 +158,8 @@ func TestWorkflowWriter_addLinks(t *testing.T) {
 	testWriter.WithCurrent(&broker.Solution{
 		Workflows: []broker.Workflow{{Handle: expectedHandle}},
 	})
-	testWriter.addLinks(expectedHandle, []broker.WorkflowLink{{LhsNode: expectedLink}})
-	testWriter.addLinks(expectedHandle, []broker.WorkflowLink{{LhsNode: expectedLink}})
+	_, _ = testWriter.addLinks(expectedHandle, []broker.WorkflowLink{{LhsNode: expectedLink}})
+	_, _ = testWriter.addLinks(expectedHandle, []broker.WorkflowLink{{LhsNode: expectedLink}})
 	actual, err = testWriter.GetWorkflowByHandle(expectedHandle)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actual.Links))
@@ -248,4 +242,15 @@ func TestWorkflowWriter_removeNodes(t *testing.T) {
 	actual, err = testWriter.GetWorkflowByHandle(expectedHandle)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actual.Nodes))
+}
+
+func newWorkflowWriterFactory(stubSolution *broker.Solution) workflowWriterFactory {
+	return func(*config.Ledger, string) *workflowWriter {
+		var stub = &workflowWriter{
+			WorkflowWriter: config.NewWorkflowWriter(),
+		}
+
+		stub.WithCurrent(stubSolution)
+		return stub
+	}
 }

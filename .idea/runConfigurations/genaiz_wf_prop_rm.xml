@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz wf prop rm" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz wf prop">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$/out/my-solution" />
+    <go_parameters value="-tags dev" />
+    <parameters value="wf prop rm default my-node MY_KEY" />
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>

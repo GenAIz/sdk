@@ -37,6 +37,28 @@ type ConfigParams struct {
 	ConfigFolder string
 }
 
+// EnsureConfigPath will return an error if the resolved config path does not exist, the path of the file if it does. To the opposite of ResolveConfigPath, which assumes the path should be created if it does not exist
+func (cp ConfigParams) EnsureConfigPath() (string, error) {
+	var path string
+	var err error
+
+	if cp.IsConfigTypeNone() {
+		path, err = cp.resolveConfigTypeless()
+	} else {
+		path = cp.GetConfigPath()
+	}
+
+	if errors.Is(err, ErrorConfigFileExists) {
+		return path, nil
+	}
+
+	if _, err = os.Stat(path); err == nil {
+		return path, nil
+	}
+
+	return "", err
+}
+
 // GetConfigFile returns the file path of the config file described by the params
 func (cp ConfigParams) GetConfigFile(paths ...string) string {
 	var filePaths []string
@@ -65,9 +87,9 @@ func (cp ConfigParams) IsConfigTypeNone() bool {
 func (cp ConfigParams) ResolveConfigPath() (string, error) {
 	if cp.IsConfigTypeNone() {
 		return cp.resolveConfigTypeless()
-	} else {
-		return cp.sanitizeConfigPath(cp.GetConfigPath())
 	}
+
+	return cp.sanitizeConfigPath(cp.GetConfigPath())
 }
 
 // ResolveOptionalType returns a path set to the provided defaultType if no other paths can be resolved within the parameters. ResolveConfigPath has some issues, because it changes the working directory on config type none and because it assumes the path must either exist or be created
@@ -141,6 +163,12 @@ type VarSpec interface {
 
 type VarSpecTracking struct {
 	VarSpecs []VarSpec
+}
+
+func (vst *VarSpecTracking) HasSpec(key string) bool {
+	return slices.IndexFunc(vst.VarSpecs, func(spec VarSpec) bool {
+		return strings.EqualFold(spec.GetKey(), key)
+	}) >= 0
 }
 
 func (vst *VarSpecTracking) MergeSpecs(mergeSpecs []VarSpec) error {
