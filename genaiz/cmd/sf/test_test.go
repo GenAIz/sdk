@@ -16,6 +16,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
@@ -109,12 +110,10 @@ func TestTestExecutor_Pretend(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		SyncExecutor: SyncExecutor{
-			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
-			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
-			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
-			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
-		},
+		SyncBridge: dk.NewSyncBridgeBuilder().
+			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink})).
+			WithExportLinkTaskFactory(newExportLinkPretendCapture(&capturedDataLinkParams)).
+			Build(),
 		RunOptions: newTestTestOptions(),
 
 		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
@@ -152,12 +151,10 @@ func TestTestExecutor_Pretend_EnvMapError(t *testing.T) {
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 		},
-		SyncExecutor: SyncExecutor{
-			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
-			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
-			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
-			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
-		},
+		SyncBridge: dk.NewSyncBridgeBuilder().
+			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink})).
+			WithExportLinkTaskFactory(newExportLinkPretendCapture(&capturedDataLinkParams)).
+			Build(),
 		RunOptions: newTestTestOptions(),
 
 		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
@@ -210,12 +207,10 @@ func TestTestExecutor_Pretend_WithBuild(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		SyncExecutor: SyncExecutor{
-			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
-			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
-			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
-			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
-		},
+		SyncBridge: dk.NewSyncBridgeBuilder().
+			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink})).
+			WithExportLinkTaskFactory(newExportLinkPretendCapture(&capturedDataLinkParams)).
+			Build(),
 		RunOptions: newTestTestOptions(),
 
 		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
@@ -261,12 +256,10 @@ func TestTestExecutor_Proceed(t *testing.T) {
 			Cli:    testCli,
 			Ledger: testLedger,
 		},
-		SyncExecutor: SyncExecutor{
-			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
-			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
-			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
-			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
-		},
+		SyncBridge: dk.NewSyncBridgeBuilder().
+			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink})).
+			WithExportLinkTaskFactory(newExportLinkPretendCapture(&capturedDataLinkParams)).
+			Build(),
 		RunOptions: newTestTestOptions(),
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
@@ -305,12 +298,10 @@ func TestTestExecutor_Proceed_EnvMapError(t *testing.T) {
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 		},
-		SyncExecutor: SyncExecutor{
-			innerSources:           &config.ListOption{Option: config.Option{Key: "innerStores"}},
-			innerStores:            &config.ListOption{Option: config.Option{Key: "innerSources"}},
-			dataLinksWriterFactory: newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink}),
-			exportTaskFactory:      newExportLinkPretendCapture(&capturedDataLinkParams),
-		},
+		SyncBridge: dk.NewSyncBridgeBuilder().
+			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink})).
+			WithExportLinkTaskFactory(newExportLinkPretendCapture(&capturedDataLinkParams)).
+			Build(),
 		RunOptions: newTestTestOptions(),
 
 		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
@@ -432,6 +423,7 @@ func newTestTestOptions() *RunOptions {
 				WithKeys(&schema.Genaiz.Function.Test.EnvVars).
 				BuildListOption(),
 		},
+		InnerOptions: makeInnerOptions(),
 		optionMountInput: cli.Options.Functions.MountInput().
 			WithKeys(&schema.Genaiz.Function.Test.MountInput).
 			BuildStringOption(),

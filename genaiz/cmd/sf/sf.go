@@ -97,6 +97,19 @@ func (eo EnvOptions) parseEnvFile(filePath string) (map[string]string, error) {
 	return result, err
 }
 
+type InnerOptions struct {
+	innerSources *config.ListOption
+	innerStores  *config.ListOption
+}
+
+func (io InnerOptions) getFunctionDataLinks(ledger *config.Ledger) []string {
+	var dataLink []string
+
+	dataLink = append(dataLink, ledger.GetList(io.innerSources)...)
+	dataLink = append(dataLink, ledger.GetList(io.innerStores)...)
+	return dataLink
+}
+
 type Cli struct {
 	cli.BaseCli
 

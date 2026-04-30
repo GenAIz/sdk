@@ -7,7 +7,7 @@ Feature: function links for an extensive workflow
     Given the following parameters
       | folder      | oem            | handle     | version | workflowHandle | workflowName     | workflowDescription |
       | my-solution | com.genaiz.dev | solution-1 | 0.1.1   | workflow-1     | Default Workflow | default workflow    |
-    When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --version=<version --workflow-handle=<workflowHandle>"
+    When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --version=<version> --workflow-handle=<workflowHandle>"
     Then I should have a solution under "<folder>" named "<handle>" with oem "<oem>", handle "<handle>", description "<handle>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDescription>"
 
@@ -65,7 +65,7 @@ Feature: function links for an extensive workflow
       | my-solution/second-function | test-port  |
     And the workdir changes to "<folder>"
     When I run the command "sf data input add <portHandle>"
-    Then I should have an input port under "<folder>" named "<portHandle>" with handle "<portHandle>" and description ""
+    Then I should have an input port under "<folder>" named "<portHandle>" with handle "<portHandle>" and no description
 
   Scenario: link first and second nodes with invalid right port
     Given the scenario "add first node" ran with condition "service_completed_successfully"

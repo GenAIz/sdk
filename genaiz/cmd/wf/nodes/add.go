@@ -17,12 +17,12 @@ type AddExecutorFactory func(command *cobra.Command) AddExecutor
 type AddValidator func(...string) error
 
 func NewAddNodes(factory AddExecutorFactory, validator AddValidator) *cobra.Command {
-	var andCmd = &cobra.Command{
-		Use:     "add WORKFLOW_HANDLE [NODE_HANDLE|FUNCTION_PATH]",
+	var addCmd = &cobra.Command{
+		Use:     "add WORKFLOW_HANDLE NODE_HANDLE|FUNCTION_PATH",
 		Short:   "Adds nodes to an existing workflow",
 		Long:    "Adds nodes to an existing workflow, creating a smart function if necessary",
 		Example: "genaiz wf nd add workflow-1 node_handle --name=\"Node One\" --sf.handle=smart-function-1 --sf.version=0.0.1",
-		Args:    cobra.MatchAll(cobra.ExactArgs(2)),
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			var executor = factory(cmd)
 			var handle string
@@ -40,5 +40,5 @@ func NewAddNodes(factory AddExecutorFactory, validator AddValidator) *cobra.Comm
 		SilenceUsage:  true,
 	}
 
-	return andCmd
+	return addCmd
 }

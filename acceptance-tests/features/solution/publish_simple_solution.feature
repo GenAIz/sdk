@@ -14,11 +14,11 @@ Feature: solution publish with simple solution
   Scenario: create simple solution function
     Given the scenario "create simple solution" ran with condition "service_completed_successfully"
     And the following parameters
-      | solution    | folder      | recipe       | handle     | oem            | type     | version |
-      | my-solution | my-function | bash-example | function-1 | com.genaiz.dev | function | 0.1.1   |
+      | solution    | folder      | recipe       | oem            | type     | version |
+      | my-solution | my-function | bash-example | com.genaiz.dev | function | 0.1.1   |
     And the workdir changes to "<solution>"
-    When I run the command "sf create <folder> --handle=<handle> --recipe=<recipe>"
-    Then I should have a function under "<folder>" named "<handle>" with handle "<handle>", oem "<oem>", version "<version>" and type "<type>"
+    When I run the command "sf create <folder> --recipe=<recipe>"
+    Then I should have a function under "<folder>" named "<folder>" with handle "<folder>", oem "<oem>", version "<version>" and type "<type>"
 
   Scenario: build simple solution function
     Given the scenario "create simple solution function" ran with condition "service_completed_successfully"
@@ -36,7 +36,7 @@ Feature: solution publish with simple solution
       | my-solution | workflow-1     | node-1 | Single Node | My Single Node | com.genaiz.dev | function-1     | 0.1.1           |
     And the workdir changes to "<solution>"
     When I run the command "wf nodes add <workflowHandle> <handle> --name='<name>' --description='<description>' --sf=<functionOem>/<functionHandle>:<functionVersion>"
-    Then I should have a workflow node under "<solution>" with handle "<handle>", oem "<oem>", description "<description>" and smart function "<functionOem>/<functionHandle>:<functionVersion>"
+    Then I should have a workflow node under "<solution>" with handle "<handle>", name "<name>", description "<description>" and smart function "<functionOem>/<functionHandle>:<functionVersion>"
 
   Scenario: publish simple solution no session
     Given the scenario "build simple solution function" ran with condition "service_completed_successfully"

@@ -74,8 +74,8 @@ func newRemoveValidator(valid bool) RemoveValidator {
 	return func(args ...string) error {
 		if valid {
 			return nil
-		} else {
-			return errorInvalid
 		}
+
+		return errorInvalid
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -412,6 +413,56 @@ func TestSolutionReader_Read_FileNotExist(t *testing.T) {
 	assert.Error(t, err)
 	assert.Empty(t, testReader.configPath)
 	assert.Empty(t, testReader.configType)
+}
+
+func TestSolutionReader_ReadName_NormalizedProps(t *testing.T) {
+	var expectedName = "Test"
+	var expectedFile = filepath.Join(t.TempDir(), expectedName+".yaml")
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(expectedFile); err == nil {
+		var vp = viper.New()
+		var expectedPropKey = "TEST"
+		var expectedPropValue = "value"
+		var testSolution = &broker.Solution{
+			Workflows: []broker.Workflow{
+				{
+					Nodes: []broker.WorkflowNode{
+						{
+							Props: map[string]string{
+								strings.ToLower(expectedPropKey): expectedPropValue,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		filez.CloseSilently(fd)
+		vp.Set("solution", testSolution)
+
+		if err = vp.WriteConfigAs(expectedFile); err == nil {
+			var testReader = &SolutionReader{
+				BaseReader: BaseReader{
+					configPath: filepath.Dir(fd.Name()),
+				},
+			}
+			var actual *broker.Solution
+
+			defer filez.CloseSilently(fd)
+
+			if actual, err = testReader.ReadName(expectedName); err == nil {
+				assert.NotNil(t, actual)
+				assert.NotEmpty(t, actual.Workflows)
+				assert.NotEmpty(t, actual.Workflows[0].Nodes)
+				assert.Equal(t, expectedPropValue, actual.Workflows[0].Nodes[0].Props[expectedPropKey])
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
 }
 
 func TestSolutionReader_WithConfigPath(t *testing.T) {

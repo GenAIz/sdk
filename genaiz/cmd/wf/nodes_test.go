@@ -21,7 +21,6 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
-	"genaiz.com/genaiz/task/shared"
 )
 
 func TestNodesExecutor_Add(t *testing.T) {
@@ -45,10 +44,8 @@ func TestNodesExecutor_Add(t *testing.T) {
 	var testExecutor = newNodesAddExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(testCmd, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	assert.NoError(t, testExecutor.Add(expectedWorkflow, expectedNode))
 	actual := testOutput.String()
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
 	assert.Regexp(t, regexp.MustCompile(`workflow:[\s\t]*`+expectedWorkflow), actual)
 	assert.Regexp(t, regexp.MustCompile(`node.add.description:[\s\t]*`), actual)
 	assert.Regexp(t, regexp.MustCompile(`node.add.handle:[\s\t]*`+expectedNode), actual)
@@ -76,7 +73,6 @@ func TestNodesExecutor_AddOnlyOem(t *testing.T) {
 	var testExecutor = newNodesAddExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(testCmd, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testViper.Set(testOptions.optionSfOem.Key, "oem")
 	assert.ErrorIs(t, testExecutor.Add(expectedWorkflow, expectedNode), errorIncompleteSfSpec)
 }
@@ -102,7 +98,6 @@ func TestNodesExecutor_AddOnlyHandle(t *testing.T) {
 	var testExecutor = newNodesAddExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(testCmd, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testViper.Set(testOptions.optionSfHandle.Key, "handle")
 	assert.ErrorIs(t, testExecutor.Add(expectedWorkflow, expectedNode), errorIncompleteSfSpec)
 }
@@ -128,7 +123,6 @@ func TestNodesExecutor_AddOnlyVersion(t *testing.T) {
 	var testExecutor = newNodesAddExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(testCmd, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testViper.Set(testOptions.optionSfVersion.Key, "0.0.1")
 	assert.ErrorIs(t, testExecutor.Add(expectedWorkflow, expectedNode), errorIncompleteSfSpec)
 }
@@ -154,7 +148,6 @@ func TestNodesExecutor_AddOnlyHandleVersion(t *testing.T) {
 	var testExecutor = newNodesAddExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(testCmd, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testViper.Set(testOptions.optionSfHandle.Key, "handle")
 	testViper.Set(testOptions.optionSfVersion.Key, "0.0.1")
 	assert.ErrorIs(t, testExecutor.Add(expectedWorkflow, expectedNode), errorIncompleteSfSpec)
@@ -181,7 +174,6 @@ func TestNodesExecutor_AddOnlyOemHandle(t *testing.T) {
 	var testExecutor = newNodesAddExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(testCmd, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testViper.Set(testOptions.optionSfOem.Key, "oem")
 	testViper.Set(testOptions.optionSfHandle.Key, "handle")
 	assert.ErrorIs(t, testExecutor.Add(expectedWorkflow, expectedNode), errorIncompleteSfSpec)
@@ -208,7 +200,6 @@ func TestNodesExecutor_AddOnlyOemVersion(t *testing.T) {
 	var testExecutor = newNodesAddExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(testCmd, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testViper.Set(testOptions.optionSfOem.Key, "oem")
 	testViper.Set(testOptions.optionSfVersion.Key, "0.0.1")
 	assert.ErrorIs(t, testExecutor.Add(expectedWorkflow, expectedNode), errorIncompleteSfSpec)
@@ -239,11 +230,9 @@ func TestNodesExecutor_AddWithSf(t *testing.T) {
 	var testExecutor = newNodesAddExecutorFactory(testLedger, testCli, testOptions)(testCmd)
 
 	testLedger.Register(testCmd, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testViper.Set(testOptions.optionSfSerialized.Key, fmt.Sprintf("%s/%s:%s-rc%s", expectedSfOem, expectedSfHandle, expectedSfVersion, expectedSfRc))
 	assert.NoError(t, testExecutor.Add(expectedWorkflow, expectedNode))
 	actual := testOutput.String()
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
 	assert.Regexp(t, regexp.MustCompile(`workflow:[\s\t]*`+expectedWorkflow), actual)
 	assert.Regexp(t, regexp.MustCompile(`node.add.description:[\s\t]*`), actual)
 	assert.Regexp(t, regexp.MustCompile(`node.add.handle:[\s\t]*`+expectedNode), actual)
@@ -286,10 +275,8 @@ func TestNodesExecutor_Display(t *testing.T) {
 	}
 
 	testLedger.Register(testCmd, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testExecutor.Display()
 	actual := testOutput.String()
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
 	assert.Regexp(t, regexp.MustCompile(`workflow:[\s\t]*`+expectedWorkflow), actual)
 	assert.Regexp(t, regexp.MustCompile(`node.add.description:[\s\t]*`), actual)
 	assert.Regexp(t, regexp.MustCompile(`node.add.handle:[\s\t]*`+expectedNode), actual)
@@ -762,8 +749,12 @@ func TestNodesExecutor_Init_PathError(t *testing.T) {
 
 func TestNodesExecutor_Pretend(t *testing.T) {
 	var calledWorkflow bool
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testOptions = NewAddNodesOptions()
 	var testExecutor = &NodesExecutor{
 		BaseExecutor: BaseExecutor{
@@ -777,41 +768,31 @@ func TestNodesExecutor_Pretend(t *testing.T) {
 		workflowTaskFactory:   newWorkflowTaskPretendStub(&calledWorkflow),
 		workflowWriterFactory: newWorkflowWriterStub,
 	}
-
-	testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
-	testExecutor.Pretend()
-	assert.True(t, calledWorkflow)
-}
-
-func TestNodesExecutor_PretendInvalidConfigType(t *testing.T) {
-	var calledWorkflow bool
-	var patch = mock.Patches{T: t}.OsExit(func(int) {})
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewAddNodesOptions()
-	var testExecutor = &NodesExecutor{
-		BaseExecutor: BaseExecutor{
-			Ledger: testLedger,
-		},
-		NodesOptions:        testOptions,
-		workflowTaskFactory: newWorkflowTaskPretendStub(&calledWorkflow),
-	}
+	var fd *os.File
+	var err error
 
 	defer patch.Unpatch()
-	testViper.Set(testOptions.optionConfigType.Key, "invalid")
-	testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
-	testExecutor.Pretend()
-	assert.False(t, calledWorkflow)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
+
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
+		testExecutor.Pretend()
+		assert.True(t, calledWorkflow)
+		assert.False(t, patch.Called)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestNodesExecutor_PretendInvalidParams(t *testing.T) {
 	var calledWorkflow bool
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testOptions = NewAddNodesOptions()
 	var testExecutor = &NodesExecutor{
 		BaseExecutor: BaseExecutor{
@@ -821,51 +802,74 @@ func TestNodesExecutor_PretendInvalidParams(t *testing.T) {
 		workflowTaskFactory:   newWorkflowTaskPretendStub(&calledWorkflow),
 		workflowWriterFactory: newWorkflowWriterStub,
 	}
+	var fd *os.File
+	var err error
 
 	defer patch.Unpatch()
-	testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
-	testExecutor.Pretend()
-	assert.False(t, calledWorkflow)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
+
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		t.Chdir(testLedger.WorkDir)
+		testLedger.Register(&cobra.Command{}, testOptions.addDefiners()...)
+		testExecutor.Pretend()
+		assert.False(t, calledWorkflow)
+		assert.True(t, patch.Called)
+		assert.EqualValues(t, 1, patch.CalledWith)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestNodesExecutor_Proceed(t *testing.T) {
 	var calledWorkflow bool
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewRemoveNodesOptions()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testExecutor = &NodesExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 		},
-		NodesOptions:          testOptions,
+		NodesOptions:          &NodesOptions{},
 		workflowArg:           "workflow",
 		workflowTaskFactory:   newWorkflowTaskCompleteStub(&calledWorkflow),
 		workflowWriterFactory: newWorkflowWriterStub,
 	}
+	var fd *os.File
+	var err error
 
-	testLedger.InitLogging()
-	testLedger.Register(&cobra.Command{}, testOptions.removeDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
-	testExecutor.Proceed()
-	assert.True(t, calledWorkflow)
+	defer patch.Unpatch()
+
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		testLedger.InitLogging()
+		testExecutor.Proceed()
+		assert.True(t, calledWorkflow)
+		assert.False(t, patch.Called)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestNodesExecutor_ProceedDuplicateHandle(t *testing.T) {
 	var calledWorkflow bool
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewRemoveNodesOptions()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var expectedNode = "duplicate-handle"
 	var expectedWorkflow = "workflow-handle"
 	var testExecutor = &NodesExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 		},
-		NodesOptions:        testOptions,
+		NodesOptions:        &NodesOptions{},
 		workflowTaskFactory: newWorkflowTaskCompleteStub(&calledWorkflow),
 		workflowWriterFactory: newWorkflowWriterFactory(&broker.Solution{
 			Workflows: []broker.Workflow{
@@ -884,61 +888,57 @@ func TestNodesExecutor_ProceedDuplicateHandle(t *testing.T) {
 		},
 		workflowArg: expectedWorkflow,
 	}
+	var fd *os.File
+	var err error
 
 	defer patch.Unpatch()
-	testLedger.Register(&cobra.Command{}, testOptions.removeDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeYaml)
-	testExecutor.Proceed()
-	assert.False(t, calledWorkflow)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
-}
 
-func TestNodesExecutor_ProceedInvalidConfigType(t *testing.T) {
-	var calledWorkflow bool
-	var patch = mock.Patches{T: t}.OsExit(func(int) {})
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewRemoveNodesOptions()
-	var testExecutor = &NodesExecutor{
-		BaseExecutor: BaseExecutor{
-			Ledger: testLedger,
-		},
-		NodesOptions:        testOptions,
-		workflowTaskFactory: newWorkflowTaskCompleteStub(&calledWorkflow),
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		t.Chdir(testLedger.WorkDir)
+		testExecutor.Proceed()
+		assert.False(t, calledWorkflow)
+		assert.True(t, patch.Called)
+		assert.EqualValues(t, 1, patch.CalledWith)
+	} else {
+		assert.Fail(t, err.Error())
 	}
-
-	defer patch.Unpatch()
-	testViper.Set(testOptions.optionConfigType.Key, "invalid")
-	testLedger.Register(&cobra.Command{}, testOptions.removeDefiners()...)
-	testExecutor.Proceed()
-	assert.False(t, calledWorkflow)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
 func TestNodesExecutor_ProceedInvalidParams(t *testing.T) {
 	var calledWorkflow bool
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOptions = NewRemoveNodesOptions()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithWorkDir(t.TempDir()).
+		Build()
 	var testExecutor = &NodesExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 		},
-		NodesOptions:          testOptions,
+		addNode:               &broker.WorkflowNode{},
+		NodesOptions:          &NodesOptions{},
 		workflowTaskFactory:   newWorkflowTaskCompleteStub(&calledWorkflow),
 		workflowWriterFactory: newWorkflowWriterStub,
 	}
+	var fd *os.File
+	var err error
 
 	defer patch.Unpatch()
-	testLedger.Register(&cobra.Command{}, testOptions.removeDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
-	testExecutor.Proceed()
-	assert.False(t, calledWorkflow)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
+
+	if fd, err = os.Create(filepath.Join(testLedger.WorkDir, "Genaiz.yaml")); err == nil {
+		defer filez.CloseSilently(fd)
+
+		t.Chdir(testLedger.WorkDir)
+		testExecutor.Proceed()
+		assert.False(t, calledWorkflow)
+		assert.True(t, patch.Called)
+		assert.EqualValues(t, 1, patch.CalledWith)
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestNodesExecutor_Remove(t *testing.T) {
@@ -950,7 +950,6 @@ func TestNodesExecutor_Remove(t *testing.T) {
 		WithViper(testViper).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewRemoveNodesOptions()
 	var testCli = &Cli{
 		BaseCli: cli.BaseCli{
 			Dry: func(ledger *config.Ledger) bool {
@@ -959,13 +958,10 @@ func TestNodesExecutor_Remove(t *testing.T) {
 		},
 	}
 	var testCmd = &cobra.Command{}
-	var testExecutor = newNodesRemoveExecutorFactory(testLedger, testCli, testOptions)(testCmd)
+	var testExecutor = newNodesRemoveExecutorFactory(testLedger, testCli, &NodesOptions{})(testCmd)
 
-	testLedger.Register(testCmd, testOptions.removeDefiners()...)
-	testViper.Set(testOptions.optionConfigType.Key, shared.ConfigTypeJson)
 	testExecutor.Remove(expectedWorkflow, expectedNode)
 	actual := testOutput.String()
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionConfigType.Param+`:[\s\t]*`+shared.ConfigTypeJson), actual)
 	assert.Regexp(t, regexp.MustCompile(`workflow:[\s\t]*`+expectedWorkflow), actual)
 	assert.Regexp(t, regexp.MustCompile(`node.remove\[0\].handle:[\s\t]*`+expectedNode), actual)
 }
@@ -1076,15 +1072,4 @@ func TestSerializedOptions_getDefault_noVersion(t *testing.T) {
 func Test_validateArgNodes(t *testing.T) {
 	assert.NoError(t, validateArgNodes("handle", "more-handle"))
 	assert.Error(t, validateArgNodes("valid.handle", "_invalid_handle"))
-}
-
-func newWorkflowWriterFactory(stubSolution *broker.Solution) workflowWriterFactory {
-	return func(*config.Ledger, string) *workflowWriter {
-		var stub = &workflowWriter{
-			WorkflowWriter: config.NewWorkflowWriter(),
-		}
-
-		stub.WithCurrent(stubSolution)
-		return stub
-	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
@@ -20,7 +21,7 @@ type StartTaskFactory func() *task.Task[docker.ContainerParams]
 
 type StartExecutor struct {
 	BaseExecutor
-	SyncExecutor
+	dk.SyncBridge
 	*StartOptions
 
 	buildTaskFactory     BuildTaskFactory
@@ -56,6 +57,7 @@ func (se *StartExecutor) Pretend() {
 		var buildParams = makeBuildParams(&se.BaseExecutor)
 		var params = se.makeStartParams(replace, envMap)
 		var plan = task.NewPlan("Start", se.Ledger.Logger)
+		var datalinks = se.getFunctionDataLinks(se.Ledger)
 		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
@@ -67,7 +69,7 @@ func (se *StartExecutor) Pretend() {
 			workers = append(workers, task.NewPretender(params, se.disposeTaskFactory()))
 		}
 
-		if datalinkWorkers, err = makeSyncPretenders(se.Ledger, se.SyncExecutor, se.optionNoPropSync); err == nil {
+		if datalinkWorkers, err = se.MakeSyncPretenders(datalinks, se.Ledger, se.optionNoPropSync); err == nil {
 			workers = append(workers, datalinkWorkers...)
 			workers = append(workers,
 				task.NewPretender(params, se.containerTaskFactory()),
@@ -89,6 +91,7 @@ func (se *StartExecutor) Proceed() {
 		var params = se.makeStartParams(replace, envMap)
 		var buildParams = makeBuildParams(&se.BaseExecutor)
 		var plan = task.NewPlan("Start", se.Ledger.Logger)
+		var datalinks = se.getFunctionDataLinks(se.Ledger)
 		var datalinkWorkers []task.Worker
 		var workers []task.Worker
 
@@ -100,7 +103,7 @@ func (se *StartExecutor) Proceed() {
 			workers = append(workers, task.NewWorker(params, se.disposeTaskFactory()))
 		}
 
-		if datalinkWorkers, err = makeSyncWorkers(se.Ledger, se.SyncExecutor, se.optionNoPropSync); err == nil {
+		if datalinkWorkers, err = se.MakeSyncWorkers(datalinks, se.Ledger, se.optionNoPropSync); err == nil {
 			workers = append(workers, datalinkWorkers...)
 			workers = append(workers,
 				task.NewWorker(params, se.containerTaskFactory()),
@@ -181,7 +184,7 @@ func NewStartExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, op
 			Context: ctx,
 			Ledger:  ledger,
 		},
-		SyncExecutor: makeSyncExecutor(),
+		SyncBridge:   dk.NewSyncBridgeBuilder().Build(),
 		StartOptions: options,
 
 		buildTaskFactory:     docker.NewBuildTask,
@@ -217,6 +220,7 @@ func NewStartOptions(sfCli *Cli) *StartOptions {
 					WithKeys(&schema.Genaiz.Function.Start.EnvVars).
 					BuildListOption(),
 			},
+			InnerOptions: makeInnerOptions(),
 			optionMountInput: cli.Options.Functions.MountInput().
 				WithKeys(&schema.Genaiz.Function.Start.MountInput).
 				WithDefaultGetter(func(ledger *config.Ledger) any {

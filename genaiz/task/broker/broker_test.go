@@ -413,6 +413,33 @@ func TestListProxies(t *testing.T) {
 	assert.Equal(t, expectedProxyMap["port"], actualProxies[0].Port)
 }
 
+func TestSolution_FindWorkflowByHandle(t *testing.T) {
+	var expectedHandle = "handle"
+	var expectedName = "name"
+	var testSolution = &Solution{
+		Workflows: []Workflow{
+			{
+				Handle: expectedHandle,
+				Name:   expectedName,
+			},
+		},
+	}
+	var actual, err = testSolution.FindWorkflowByHandle(expectedHandle)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, actual)
+	assert.Equal(t, expectedName, actual.Name)
+	assert.Equal(t, expectedHandle, actual.Handle)
+}
+
+func TestSolution_FindWorkflowByHandle_NotFound(t *testing.T) {
+	var testSolution = &Solution{}
+	var actual, err = testSolution.FindWorkflowByHandle("notFound")
+
+	assert.Nil(t, actual)
+	assert.ErrorIs(t, err, ErrorWorkflowNotFound)
+}
+
 func TestSolution_Merge(t *testing.T) {
 	var expectedDescription = "description"
 	var expectedHandle = "handle"
@@ -509,6 +536,78 @@ func TestWorkflow_ContainsNode(t *testing.T) {
 	assert.True(t, testWorkflow.ContainsNode(expectedHandle))
 }
 
+func TestWorkflow_FindNodeByHandle(t *testing.T) {
+	var expectedHandle = "handle"
+	var expectedName = "name"
+	var testWorkflow = &Workflow{
+		Nodes: []WorkflowNode{
+			{
+				Handle: expectedHandle,
+				Name:   expectedName,
+			},
+		},
+	}
+	var actual, err = testWorkflow.FindNodeByHandle(expectedHandle)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, actual)
+	assert.Equal(t, expectedHandle, actual.Handle)
+	assert.Equal(t, expectedName, actual.Name)
+}
+
+func TestWorkflow_FindNodeByHandle_NotFound(t *testing.T) {
+	var testWorkflow = &Workflow{}
+	var actual, err = testWorkflow.FindNodeByHandle("notFound")
+
+	assert.Nil(t, actual)
+	assert.ErrorIs(t, err, ErrorWorkflowNodeNotFound)
+}
+
+func TestWorkflow_FindNodeBySf(t *testing.T) {
+	var expectedNodeHandle = "nodeHandle"
+	var testFunction = &Function{
+		Oem:     "oem",
+		Handle:  "functionHandle",
+		Version: "version",
+	}
+	var testWorkflow = &Workflow{
+		Nodes: []WorkflowNode{
+			{
+				Handle: "noSF",
+			},
+			{
+				Handle: expectedNodeHandle,
+				Sf: &WorkflowNodeFunction{
+					Oem:     testFunction.Oem,
+					Handle:  testFunction.Handle,
+					Version: testFunction.Version,
+				},
+			},
+		},
+	}
+	var actual, err = testWorkflow.FindNodeBySf(testFunction)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, actual)
+	assert.Equal(t, expectedNodeHandle, actual.Handle)
+	assert.Equal(t, testFunction.Oem, actual.Sf.Oem)
+	assert.Equal(t, testFunction.Handle, actual.Sf.Handle)
+	assert.Equal(t, testFunction.Version, actual.Sf.Version)
+}
+
+func TestWorkflow_FindNodeBySf_NotFound(t *testing.T) {
+	var testFunction = &Function{
+		Oem:     "oem",
+		Handle:  "functionHandle",
+		Version: "version",
+	}
+	var testWorkflow = &Workflow{}
+	var actual, err = testWorkflow.FindNodeBySf(testFunction)
+
+	assert.Error(t, err)
+	assert.Nil(t, actual)
+}
+
 func TestWorkflow_FindNodeHandleBySf(t *testing.T) {
 	var expectedHandle = "nodeHandle"
 	var expectedSfOem = "sfOem"
@@ -541,6 +640,39 @@ func TestWorkflow_FindNodeHandleBySf(t *testing.T) {
 	assert.Error(t, err)
 	actual, err = testWorkflow.FindNodeHandleBySf(expectedSfOem, expectedSfHandle, expectedSfVersion)
 	assert.Equal(t, actual, expectedHandle)
+}
+
+func TestWorkflow_HasNodeProps(t *testing.T) {
+	var testWorkflow = &Workflow{
+		Nodes: []WorkflowNode{
+			{
+				Handle: "test",
+				Props: map[string]string{
+					"PROP": "value",
+				},
+			},
+		},
+	}
+
+	assert.True(t, testWorkflow.HasNodeProps())
+}
+
+func TestWorkflow_HasNodeProps_NoProps(t *testing.T) {
+	var testWorkflow = &Workflow{
+		Nodes: []WorkflowNode{
+			{
+				Handle: "test",
+			},
+		},
+	}
+
+	assert.False(t, testWorkflow.HasNodeProps())
+}
+
+func TestWorkflow_HasNodeProps_NoNodes(t *testing.T) {
+	var testWorkflow = &Workflow{}
+
+	assert.False(t, testWorkflow.HasNodeProps())
 }
 
 func TestWorkflowHandlePredicate(t *testing.T) {
@@ -585,10 +717,89 @@ func TestWorkflowNamePredicate(t *testing.T) {
 	assert.True(t, WorkflowNamePredicate(expectedName)(testWorkflow))
 }
 
+func TestWorkflowNode_AssignProp(t *testing.T) {
+	var expectedKey = "KEY"
+	var expectedValue = "value"
+	var workflowNode = &WorkflowNode{}
+
+	workflowNode.AssignProp("key", "Keys are case insensitive")
+	workflowNode.AssignProp(expectedKey, expectedValue)
+	assert.NotNil(t, workflowNode.Props)
+	assert.Equal(t, 1, len(workflowNode.Props))
+	assert.Equal(t, expectedValue, workflowNode.Props[expectedKey])
+}
+
 func TestWorkflowNode_Equals(t *testing.T) {
 	var node1 = WorkflowNode{}
 	var node2 = WorkflowNode{Handle: "handle"}
 
 	assert.True(t, node1.Equals(node1))
 	assert.False(t, node1.Equals(node2))
+}
+
+func TestWorkflowNode_HasProp(t *testing.T) {
+	var expectedKey = "key"
+	var expectedKey2 = "key2"
+	var workflowNode = &WorkflowNode{
+		Props: make(map[string]string),
+	}
+
+	workflowNode.Props[expectedKey] = "value"
+	workflowNode.Props[strings.ToUpper(expectedKey2)] = "value"
+	assert.NotNil(t, workflowNode.Props)
+	assert.True(t, workflowNode.HasProp(expectedKey))
+	assert.True(t, workflowNode.HasProp(strings.ToUpper(expectedKey2)))
+	assert.False(t, workflowNode.HasProp("notFound"))
+}
+
+func TestWorkflowNode_NormalizeProps(t *testing.T) {
+	var lowerCaseKey = "lower_key"
+	var expectedValue = "value"
+	var workflowNode = &WorkflowNode{}
+
+	workflowNode.NormalizeProps()
+	assert.Empty(t, workflowNode.Props)
+	workflowNode.Props = map[string]string{lowerCaseKey: expectedValue}
+	workflowNode.NormalizeProps()
+	assert.Equal(t, expectedValue, workflowNode.Props[strings.ToUpper(lowerCaseKey)])
+}
+
+func TestWorkflowNode_RemoveProp(t *testing.T) {
+	var expectedKey = "KEY"
+	var expectedValue = "value"
+	var workflowNode = &WorkflowNode{}
+
+	workflowNode.RemoveProp(expectedKey)
+	workflowNode.AssignProp(expectedKey, expectedValue)
+	workflowNode.RemoveProp(expectedKey)
+	assert.NotNil(t, workflowNode.Props)
+	assert.Empty(t, workflowNode.Props)
+}
+
+func TestWorkflowNode_ValidateProps(t *testing.T) {
+	var workflowNode = &WorkflowNode{}
+	var expectedKey = "KEY"
+	var expectedValue = "VALUE"
+	var varSpec = PropSpec{
+		Key:  expectedKey,
+		Type: "STRING",
+	}
+
+	assert.NoError(t, workflowNode.ValidateProps([]shared.VarSpec{}))
+	workflowNode.AssignProp(expectedKey, expectedValue)
+	assert.NoError(t, workflowNode.ValidateProps([]shared.VarSpec{varSpec}))
+}
+
+func TestWorkflowNode_ValidateProps_Error(t *testing.T) {
+	var workflowNode = &WorkflowNode{}
+	var expectedKey = "KEY"
+	var expectedValue = "VALUE"
+	var varSpec = PropSpec{
+		Key:  expectedKey,
+		Type: "INT",
+	}
+
+	workflowNode.AssignProp(expectedKey, expectedValue)
+	assert.Error(t, workflowNode.ValidateProps([]shared.VarSpec{}))
+	assert.Error(t, workflowNode.ValidateProps([]shared.VarSpec{varSpec}))
 }

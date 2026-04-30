@@ -44,6 +44,7 @@ var (
 	ErrorPropIllegalDouble    = errors.New("illegal default value for double type")
 	ErrorPropIllegalInt       = errors.New("illegal default value for int type")
 	ErrorPropIllegalEnum      = errors.New("illegal default value for enum type")
+	ErrorWorkflowNotFound     = errors.New("workflow not found")
 	ErrorWorkflowNodeNotFound = errors.New("workflow node not found")
 )
 
@@ -191,7 +192,7 @@ type dataLinkFlags struct {
 }
 
 type DataPort struct {
-	Description string `json:"description,omitempty"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 	Handle      string `json:"handle"`
 	Name        string `json:"name"`
 }
@@ -573,12 +574,25 @@ type Session struct {
 }
 
 type Solution struct {
-	Description string     `json:"description"`
+	// Keep the ordering for the marshaler
 	Handle      string     `json:"handle"`
 	Name        string     `json:"name"`
+	Description string     `json:"description"`
 	Oem         string     `json:"oem"`
 	Version     string     `json:"version"`
 	Workflows   []Workflow `json:"workflows"`
+}
+
+func (s Solution) FindWorkflowByHandle(handle string) (*Workflow, error) {
+	var nodeIndex = slices.IndexFunc(s.Workflows, func(wf Workflow) bool {
+		return strings.EqualFold(wf.Handle, handle)
+	})
+
+	if nodeIndex < 0 {
+		return nil, ErrorWorkflowNotFound
+	}
+
+	return &s.Workflows[nodeIndex], nil
 }
 
 func (s Solution) Merge(update Solution) *Solution {
@@ -634,9 +648,10 @@ func (r SolutionRemote) asIdentity() *shared.Identity {
 }
 
 type Workflow struct {
+	// Keep the ordering for the marshaler
+	Handle      string         `json:"handle"`
 	Name        string         `json:"name"`
 	Description string         `json:"Description"`
-	Handle      string         `json:"handle"`
 	Links       []WorkflowLink `json:"links"`
 	Nodes       []WorkflowNode `json:"nodes"`
 }
@@ -647,14 +662,44 @@ func (wf Workflow) ContainsNode(handle string) bool {
 	})
 }
 
+func (wf Workflow) FindNodeByHandle(handle string) (*WorkflowNode, error) {
+	var nodeIndex = slices.IndexFunc(wf.Nodes, func(node WorkflowNode) bool {
+		return strings.EqualFold(node.Handle, handle)
+	})
+
+	if nodeIndex < 0 {
+		return nil, ErrorWorkflowNodeNotFound
+	}
+
+	return &wf.Nodes[nodeIndex], nil
+}
+
+func (wf Workflow) FindNodeBySf(fn *Function) (*WorkflowNode, error) {
+	if fn != nil {
+		var nodeIndex = slices.IndexFunc(wf.Nodes, func(node WorkflowNode) bool {
+			if node.Sf != nil {
+				return strings.EqualFold(node.Sf.Oem, fn.Oem) &&
+					strings.EqualFold(node.Sf.Handle, fn.Handle) &&
+					strings.EqualFold(node.Sf.Version, fn.Version)
+			}
+
+			return false
+		})
+
+		if nodeIndex >= 0 {
+			return &wf.Nodes[nodeIndex], nil
+		}
+	}
+
+	return nil, ErrorWorkflowNodeNotFound
+}
+
 func (wf Workflow) FindNodeHandleBySf(oem, handle, version string) (string, error) {
 	var nodeIndex = slices.IndexFunc(wf.Nodes, func(node WorkflowNode) bool {
-		var sf = node.Sf
-
-		if sf != nil {
-			return strings.EqualFold(sf.Oem, oem) &&
-				strings.EqualFold(sf.Handle, handle) &&
-				strings.EqualFold(sf.Version, version)
+		if node.Sf != nil {
+			return strings.EqualFold(node.Sf.Oem, oem) &&
+				strings.EqualFold(node.Sf.Handle, handle) &&
+				strings.EqualFold(node.Sf.Version, version)
 		}
 
 		return false
@@ -667,9 +712,21 @@ func (wf Workflow) FindNodeHandleBySf(oem, handle, version string) (string, erro
 	return wf.Nodes[nodeIndex].Handle, nil
 }
 
+func (wf Workflow) HasNodeProps() bool {
+	if len(wf.Nodes) > 0 {
+		if i := slices.IndexFunc(wf.Nodes, func(node WorkflowNode) bool {
+			return len(node.Props) > 0
+		}); i >= 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
 type WorkflowLink struct {
 	LhsNode     string `json:"lhsNode"`
-	LhsNodePort string `json:"lhsNodePort"`
+	LhsNodePort string `json:"lhsNodePort,omitempty"`
 	RhsNode     string `json:"rhsNode"`
 	RhsNodePort string `json:"rhsNodePort"`
 }
@@ -704,14 +761,72 @@ func (wl WorkflowLink) String() string {
 }
 
 type WorkflowNode struct {
+	// Keep the ordering for the marshaler
+	Handle      string                `yaml:"handle" json:"handle"`
 	Name        string                `yaml:"name" json:"name"`
 	Description string                `yaml:"description,omitempty" json:"description,omitempty"`
-	Handle      string                `yaml:"handle" json:"handle"`
+	Props       map[string]string     `yaml:"props,omitempty" json:"props,omitempty"`
 	Sf          *WorkflowNodeFunction `yaml:"sf,omitempty" json:"sf,omitempty"`
 }
 
-func (wn WorkflowNode) Equals(wn2 WorkflowNode) bool {
+func (wn *WorkflowNode) AssignProp(key, value string) {
+	if wn.Props == nil {
+		wn.Props = make(map[string]string)
+	}
+
+	wn.Props[strings.ToUpper(key)] = value
+}
+
+func (wn *WorkflowNode) Equals(wn2 WorkflowNode) bool {
 	return strings.EqualFold(wn.Handle, wn2.Handle)
+}
+
+func (wn *WorkflowNode) HasProp(key string) bool {
+	if _, ok := wn.Props[strings.ToLower(key)]; ok {
+		return true
+	}
+
+	if _, ok := wn.Props[strings.ToUpper(key)]; ok {
+		return true
+	}
+
+	return false
+}
+
+func (wn *WorkflowNode) NormalizeProps() {
+	if wn.Props != nil {
+		for k, v := range wn.Props {
+			delete(wn.Props, strings.ToLower(k))
+			wn.Props[strings.ToUpper(k)] = v
+		}
+	}
+}
+
+func (wn *WorkflowNode) RemoveProp(key string) {
+	if wn.Props != nil {
+		delete(wn.Props, strings.ToUpper(key))
+		delete(wn.Props, strings.ToLower(key))
+	}
+}
+
+func (wn *WorkflowNode) ValidateProps(specs []shared.VarSpec) error {
+	if wn.Props != nil {
+		for key, value := range wn.Props {
+			if i := slices.IndexFunc(specs, func(p shared.VarSpec) bool {
+				return strings.EqualFold(p.GetKey(), key)
+			}); i >= 0 {
+				if err := specs[i].Validate(value); err == nil {
+					return nil
+				}
+
+				return fmt.Errorf("value [%s] is not valid for key [%s]", value, key)
+			}
+
+			return fmt.Errorf("the key [%s] is invalid for node [%s]", key, wn.Handle)
+		}
+	}
+
+	return nil
 }
 
 type WorkflowNodeFunction struct {

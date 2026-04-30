@@ -38,7 +38,7 @@ The usage documentation is established with set of rules assigned to actors impl
 * [genaiz workflow nodes](workflow/nodes.md)
 * [genaiz workflow prop](workflow/prop.md)
 
-## Global Validation
+## Model Validation
 
 ### Description
 
@@ -66,6 +66,10 @@ For Fully Qualified Domain Name and Version.
 
 * A name can have any characters.
 * The length must not exceed 255 characters.
+
+### sequence
+
+* Must be a valid positive integer value.
 
 ### Version
 

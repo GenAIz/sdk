@@ -57,6 +57,67 @@ func TestIdentity_IsFlagSet(t *testing.T) {
 	assert.True(t, testIdentity.IsFlagSet(1<<0))
 }
 
+func TestConfigParams_EnsureConfigPath(t *testing.T) {
+	var testFolder = t.TempDir()
+	var testFile = filepath.Join(testFolder, "Test.yaml")
+	var testParams = &ConfigParams{
+		ConfigFolder: testFolder,
+		ConfigName:   "Test",
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		var actual string
+
+		defer filez.CloseSilently(fd)
+		actual, err = testParams.EnsureConfigPath()
+		assert.NoError(t, err)
+		assert.Equal(t, fd.Name(), actual)
+		return
+	}
+
+	assert.Error(t, err)
+}
+
+func TestConfigParams_EnsureConfigPath_Exists(t *testing.T) {
+	var testFolder = t.TempDir()
+	var testParams = &ConfigParams{
+		ConfigFolder: testFolder,
+		ConfigName:   "Test",
+		ConfigType:   lang.Ref(ConfigTypeYaml),
+	}
+	var testFile = filepath.Join(testFolder, testParams.ConfigName+"."+ConfigTypeYaml)
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		var actual string
+
+		filez.CloseSilently(fd)
+		actual, err = testParams.EnsureConfigPath()
+		assert.NoError(t, err)
+		assert.Equal(t, testFile, actual)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestConfigParams_EnsureConfigPath_PathNotExist(t *testing.T) {
+	var testFolder = t.TempDir()
+	var testParams = &ConfigParams{
+		ConfigFolder: testFolder,
+		ConfigName:   "Test",
+		ConfigType:   lang.Ref(ConfigTypeYaml),
+	}
+	var actual string
+	var err error
+
+	actual, err = testParams.EnsureConfigPath()
+	assert.Empty(t, actual)
+	assert.Error(t, err)
+}
+
 func TestConfigParams_GetConfigFile(t *testing.T) {
 	var expectedName = "name"
 	var expectedFolder = "folder"
@@ -238,6 +299,18 @@ func TestVarSpecState_AddSpecs(t *testing.T) {
 	actual := testState.Internal.(VarSpecTracking)
 	assert.Equal(t, expectedPropSpec.Key, actual.VarSpecs[0].GetKey())
 	assert.Equal(t, expectedPropSpec.Value, actual.VarSpecs[0].GetDefaultValue())
+}
+
+func TestVarSpecState_HasSpec(t *testing.T) {
+	var expectedKey = "key"
+	var testTracking = &VarSpecTracking{
+		VarSpecs: []VarSpec{testSpec{
+			Key: expectedKey,
+		}},
+	}
+
+	assert.True(t, testTracking.HasSpec(expectedKey))
+	assert.False(t, testTracking.HasSpec("notKey"))
 }
 
 func TestVarSpecTracking_MergeSpecs(t *testing.T) {

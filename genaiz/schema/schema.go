@@ -285,6 +285,16 @@ type Document struct {
 		Delete struct {
 			ConfigType Keys
 		}
+		Links struct {
+			Add struct {
+				ConfigType   Keys
+				NoValidation Keys
+			}
+			Remove struct {
+				ConfigType   Keys
+				NoValidation Keys
+			}
+		}
 		Nodes struct {
 			Add struct {
 				ConfigType   Keys
@@ -301,14 +311,17 @@ type Document struct {
 				ConfigType Keys
 			}
 		}
-		Links struct {
+		Props struct {
 			Add struct {
-				ConfigType   Keys
+				NoSync       Keys
 				NoValidation Keys
 			}
-			Remove struct {
-				ConfigType   Keys
+			Edit struct {
+				NoSync       Keys
 				NoValidation Keys
+			}
+			List struct {
+				NoSync Keys
 			}
 		}
 	}
@@ -623,6 +636,12 @@ func init() {
 	Genaiz.Workflow.Nodes.Add.Serialized = newKeys("Workflow.Nodes.Add.Serialized", "WF_NODES_ADD_SERIALIZED", "Wf.Nodes.Add.Serialized")
 	Genaiz.Workflow.Nodes.Add.Version = newKeys("Workflow.Nodes.Add.Version", "WF_NODES_ADD_VERSION", "Wf.Nodes.Add.Version")
 	Genaiz.Workflow.Nodes.Remove.ConfigType = newKeys("Workflow.Nodes.Remove.ConfigType", "WF_NODES_RM_CONFIG_TYPE", "Wf.Nodes.Remove.ConfigType")
+
+	Genaiz.Workflow.Props.Add.NoSync = newKeys("Workflow.Props.Add.NoSync", "WF_PROPS_ADD_NO_SYNC", "Wf.Props.Add.NoSync")
+	Genaiz.Workflow.Props.Add.NoValidation = newKeys("Workflow.Props.Add.NoValidation", "WF_PROPS_ADD_NO_VALIDATION", "Wf.Props.Add.NoValidation")
+	Genaiz.Workflow.Props.Edit.NoSync = newKeys("Workflow.Props.Edit.NoSync", "WF_PROPS_EDIT_NO_SYNC", "Wf.Props.Edit.NoSync")
+	Genaiz.Workflow.Props.Edit.NoValidation = newKeys("Workflow.Props.Edit.NoValidation", "WF_PROPS_EDIT_NO_VALIDATION", "Wf.Props.Edit.NoValidation")
+	Genaiz.Workflow.Props.List.NoSync = newKeys("Workflow.Props.List.NoSync", "WF_PROPS_LIST_NO_SYNC", "Wf.Props.List.NoSync")
 }
 
 func newKeys(docKey, envKey string, pseudonyms ...string) Keys {

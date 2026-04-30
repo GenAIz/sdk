@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
@@ -246,6 +247,16 @@ func TestNewWorkflowDeleteTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnComplete)
 	assert.Empty(t, testTask.OnIncomplete)
 	assert.NotEmpty(t, testTask.OnPrepare)
+}
+
+func TestNewWorkflowPropTask(t *testing.T) {
+	var testTask = NewWorkflowPropTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPretend)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnIncomplete)
 }
 
 func TestNewWorkflowUpdateTask(t *testing.T) {
@@ -866,6 +877,271 @@ func Test_handleWorkflowDeletePretend_NoWorkflow(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleWorkflowDeletePretend(&WorkflowParams{}, testState), errorWorkflowNotFound)
+}
+
+func Test_handleWorkflowPropContext(t *testing.T) {
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{
+			Nodes: []WorkflowNode{
+				{
+					Handle: "test",
+					Props: map[string]string{
+						"PROP": "value",
+					},
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Internal: shared.VarSpecTracking{
+			VarSpecs: []shared.VarSpec{
+				PropSpec{
+					Key: "testKey",
+				},
+			},
+		},
+	}
+
+	assert.NoError(t, handleWorkflowPropContext(testParams, testState))
+}
+
+func Test_handleWorkflowPropContext_NoVarSpecs(t *testing.T) {
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{
+			Nodes: []WorkflowNode{
+				{
+					Handle: "test",
+					Props: map[string]string{
+						"PROP": "value",
+					},
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.ErrorIs(t, handleWorkflowPropContext(testParams, testState), ErrorWorkflowPropIncomplete)
+}
+
+func Test_handleWorkflowPropContext_NoProps_NoVarSpecs(t *testing.T) {
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleWorkflowPropContext(testParams, testState))
+}
+
+func Test_handleWorkflowPropContext_NoWorkflow(t *testing.T) {
+	assert.ErrorIs(t, handleWorkflowPropContext(&WorkflowPropParams{}, &task.State{}), ErrorWorkflowNotFound)
+}
+
+func Test_handleWorkflowPropComplete(t *testing.T) {
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{
+			Nodes: []WorkflowNode{
+				{
+					// We validate that no props is always valid
+					Handle: "test",
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleWorkflowPropComplete(testParams, testState))
+}
+
+func Test_handleWorkflowPropComplete_InvalidProps(t *testing.T) {
+	var expectedValue = "notInteger"
+	var expectedProp = "PROP"
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{
+			Nodes: []WorkflowNode{
+				{
+					Handle: "test",
+					Props: map[string]string{
+						expectedProp: expectedValue,
+					},
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Internal: shared.VarSpecTracking{
+			VarSpecs: []shared.VarSpec{
+				PropSpec{
+					Key:  expectedProp,
+					Type: "int",
+				},
+			},
+		},
+	}
+
+	actual := handleWorkflowPropComplete(testParams, testState)
+
+	if actual != nil {
+		assert.Contains(t, actual.Error(), expectedValue)
+		assert.Contains(t, actual.Error(), expectedProp)
+	} else {
+		assert.Fail(t, "expected error")
+	}
+}
+
+func Test_handleWorkflowPropComplete_NoNodes(t *testing.T) {
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleWorkflowPropComplete(testParams, testState))
+}
+
+func Test_handleWorkflowPropComplete_NoWorkflow(t *testing.T) {
+	assert.ErrorIs(t, handleWorkflowPropComplete(&WorkflowPropParams{}, &task.State{}), ErrorWorkflowNotFound)
+}
+
+func Test_handleWorkflowPropIncomplete(t *testing.T) {
+	var expectedProp = "PROP"
+	var expectedHandle = "handle"
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{
+			Nodes: []WorkflowNode{
+				{
+					Handle: expectedHandle,
+					// Incomplete is about listing the node with props which can not be validated
+					Props: map[string]string{
+						expectedProp: "value",
+					},
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Internal: shared.VarSpecTracking{
+			VarSpecs: []shared.VarSpec{
+				PropSpec{
+					Key:  expectedProp,
+					Type: "int",
+				},
+			},
+		},
+	}
+
+	actual := handleWorkflowPropIncomplete(testParams, testState)
+
+	if actual != nil {
+		assert.Contains(t, actual.Error(), expectedHandle)
+		assert.Contains(t, actual.Error(), expectedProp)
+	} else {
+		assert.Fail(t, "expected error")
+	}
+}
+
+func Test_handleWorkflowPropIncomplete_NoNodes(t *testing.T) {
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleWorkflowPropIncomplete(testParams, testState))
+}
+
+func Test_handleWorkflowPropIncomplete_NoProps(t *testing.T) {
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{
+			Nodes: []WorkflowNode{
+				{
+					Handle: "test",
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleWorkflowPropIncomplete(testParams, testState))
+}
+
+func Test_handleWorkflowPropIncomplete_NoWorkflow(t *testing.T) {
+	assert.ErrorIs(t, handleWorkflowPropIncomplete(&WorkflowPropParams{}, &task.State{}), ErrorWorkflowNotFound)
+}
+
+func Test_handleWorkflowPropPretend(t *testing.T) {
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleWorkflowPropPretend(testParams, testState))
+}
+
+func Test_handleWorkflowPropPretend_NoNodes(t *testing.T) {
+	var expectedHandle = "handle"
+	var expectedProp = "PROP"
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{
+			Nodes: []WorkflowNode{
+				{
+					Handle: expectedHandle,
+					Props: map[string]string{
+						expectedProp: "value",
+					},
+				},
+			},
+		},
+	}
+	var testLogger, loggerHook = test.NewNullLogger()
+	var testState = &task.State{
+		Logger: testLogger,
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.NoError(t, handleWorkflowPropPretend(testParams, testState))
+
+	if actual := loggerHook.LastEntry(); actual != nil {
+		assert.Contains(t, actual.Message, expectedProp)
+		assert.Contains(t, actual.Message, expectedHandle)
+	} else {
+		assert.Fail(t, "no log entries")
+	}
+}
+
+func Test_handleWorkflowPropPretend_NoProps(t *testing.T) {
+	var testParams = &WorkflowPropParams{
+		Workflow: &Workflow{
+			Nodes: []WorkflowNode{
+				{
+					Handle: "test",
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleWorkflowPropPretend(testParams, testState))
+}
+
+func Test_handleWorkflowPropPretend_NoWorkflow(t *testing.T) {
+	assert.ErrorIs(t, handleWorkflowPropPretend(&WorkflowPropParams{}, &task.State{}), ErrorWorkflowNotFound)
 }
 
 func Test_handleWorkflowUpdateConfig(t *testing.T) {

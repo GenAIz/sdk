@@ -10,7 +10,7 @@ With the current design of the SDK a workflow node can be any Smart Function. Sm
 ### nodes add
 
 ```
-genaiz wf nodes add WORKFLOW_HANDLE [NODE_HANDLE|FUNCTION_PATH] \
+genaiz wf nodes add WORKFLOW_HANDLE NODE_HANDLE|FUNCTION_PATH \
   --config-type=TYPE --description=DESC --name=NAME \
   --sf=OEM/HANDLE:VERSION[-|.]SEQ \
   --sf-handle=HANDLE --sf-oem=OEM --sf-seq=SEQ --sf-version=VERSION
@@ -24,8 +24,8 @@ A workflow node can be added with a Smart Function contained under the parent so
 
 #### NODE_HANDLE
 
-* if the specified handle does not match a valid handle string (see [handle validity](index.md#handle-and-oem)), the command will return an error: `Error: [...] is not a valid node handle`
-* if the specified handle already exists under the specified [WORKFLOW_HANDLE](#workflow_handle), the command will return an error: `Error: the node specified already exists `
+* if the specified handle does not match a valid handle string (see [handle validity](../index.md#handle-and-oem)), the command will return an error: `Error: [...] is not a valid node handle`
+* if the specified handle already exists under the specified [WORKFLOW_HANDLE](#workflow_handle), the command will return an error: `Error: the node specified already exists`
 
 #### FUNCTION_PATH
 
@@ -45,7 +45,7 @@ A workflow node can be added with a Smart Function contained under the parent so
 #### name
 
 * if name is not specified, it will default to [NODE_HANDLE](#node_handle) or [FUNCTION_PATH](#function_path) with a `Node` suffix
-* if the name does not resolve to a valid name string (see [name validity](index.md#name)), the command will return an error with the key of the field and the shortened invalid value: `Error: value [...] for option [workflow.nodes.add.name] is invalid`
+* if the name does not resolve to a valid name string (see [name validity](../index.md#name)), the command will return an error with the key of the field and the shortened invalid value: `Error: value [...] for option [workflow.nodes.add.name] is invalid`
 
 #### sf
 
@@ -59,27 +59,27 @@ The option provides a serialized value of a function within the workflow solutio
 * the value of sf-oem has precedence over the [sf](#sf) serialized oem
 * if sf-oem is specified with a valid [FUNCTION_PATH](#function_path), and the values are different, the command will return an error with a field conflict: `Error: value [...] for option [workflow.nodes.add.oem] conflicts with [...] under [...]`
 * if sf-oem is specified without a sf-handle and or sf-version, the command will return an error: `Error: incomplete smart function specification, minimum required: OEM/HANDLE:VERSION`
-* if the resolved oem does not match a valid oem string (see [oem validity](index.md#handle-and-oem)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [workflow.nodes.add.oem] is invalid`
+* if the resolved oem does not match a valid oem string (see [oem validity](../index.md#handle-and-oem)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [workflow.nodes.add.oem] is invalid`
 
 #### sf-handle
 
 * the value of sf-handle has precedence over the [sf](#sf) serialized handle
 * if sf-handle is specified with a valid [FUNCTION_PATH](#function_path), and the values are different, the command will return an error with a field conflict: `Error: value [...] for option [workflow.nodes.add.handle] conflicts with [...] under [...]`
 * if sf-handle is specified without a sf-handle and or sf-version, the command will return an error: `Error: incomplete smart function specification, minimum required: OEM/HANDLE:VERSION`
-* if the resolved handle does not match a valid handle string (see [handle validity](index.md#handle-and-oem)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [workflow.nodes.add.handle] is invalid`
+* if the resolved handle does not match a valid handle string (see [handle validity](../index.md#handle-and-oem)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [workflow.nodes.add.handle] is invalid`
 
 #### sf-seq
 
 * the value of sf-seq has precedence over the [sf](#sf) serialized seq
 * if sf-seq is not specified, the Smart Function version will be omitted
-* if the resolved seq does not match a valid sequence number (see [sequence validity](index.md#sequence)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [workflow.nodes.add.seq] is invalid`
+* if the resolved seq does not match a valid sequence number (see [sequence validity](../index.md#sequence)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [workflow.nodes.add.seq] is invalid`
 
 #### sf-version
 
 * the value of sf-version has precedence over the [sf](#sf) serialized version
 * if sf-version with or without sf-seq is specified with a valid [FUNCTION_PATH](#function_path), and the concatenated values are different from the function version, the command will return an error with a field conflict: `Error value [...] for option [workflow.nodes.add.version] conflicts with [...] under [...]`
 * if sf-version is specified without a sf-oem and or sf-handle, the command will return an error: `Error: incomplete smart function specification, minimum required: OEM/HANDLE:VERSION`
-* if the resolved version does not match a valid version (see [version validity](index.md#version)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [workflow.nodes.add.version] is invalid`
+* if the resolved version does not match a valid version (see [version validity](../index.md#version)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [workflow.nodes.add.version] is invalid`
 
 ### nodes remove (rm)
 

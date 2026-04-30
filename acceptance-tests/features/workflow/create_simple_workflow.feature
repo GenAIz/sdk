@@ -40,10 +40,11 @@ Feature: workflow create for a simple solution
   Scenario: add data port to bash example
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder                  | portFolder        | portName  | portDesc      | workflowHandle |
-      | my-solution/my-function | run/out/test-port | Test Port | A description | my-workflow    |
+      | folder                  | portFolder | portHandle | portName  | portDesc      | workflowHandle |
+      | my-solution/my-function | run/out    | test-port  | Test Port | A description | my-workflow    |
     And the workdir changes to "<folder>"
-    When I run the command "sf data output add <portFolder> --name='<portName>' --description='<portDesc>'"
+    When I run the command "sf data output add <portFolder>/<portHandle> --name='<portName>' --description='<portDesc>'"
+    Then I should have an output port under "<folder>" named "<portName>" with handle "<portHandle>" and description "<portDesc>"
 
   Scenario: add external node
     Given the scenario "add bash example node" ran with condition "service_completed_successfully"

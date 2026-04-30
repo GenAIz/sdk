@@ -11,7 +11,7 @@ Workflow create is used to create a workflow under a specified solution path or 
 
 The handle of the workflow created will be written as the key `solution.workflows[n].handle`
 
-* if the resolved handle does not match a valid handle string (see [handle validity](index.md#handle-and-oem)), the command will return an error with the key of the field and the invalid value: `Error: value [...] is not a valid handle`
+* if the resolved handle does not match a valid handle string (see [handle validity](../index.md#handle-and-oem)), the command will return an error with the key of the field and the invalid value: `Error: value [...] is not a valid handle`
 
 ### config-type
 
@@ -33,11 +33,11 @@ The path of the solution under which to add the workflow.
 The name option of the create command is used to initialize the key `solution.workflows[n].name` of the workflow to create.
 
 * if there is no name specified the value of [handle](#handle) will be used.
-* if the name does not resolve to a valid name string (see [name validity](index.md#name)), the command will return an error with the key of the field and the shortened invalid value: `Error: value [...] for option [workflow.create.name] is invalid`
+* if the name does not resolve to a valid name string (see [name validity](../index.md#name)), the command will return an error with the key of the field and the shortened invalid value: `Error: value [...] for option [workflow.create.name] is invalid`
 
 ### description
 
 The name option of the create command is used to initialize the key `solution.workflows[n].name` of the workflow to create.
 
 * if there is no name specified the value of [handle](#handle) will be used.
-* if the name does not resolve to a valid name string (see [description validity](index.md#description)), the command will return an error with the key of the field and the shortened invalid value: `Error: value [...] for option [workflow.create.description] is invalid`
+* if the name does not resolve to a valid name string (see [description validity](../index.md#description)), the command will return an error with the key of the field and the shortened invalid value: `Error: value [...] for option [workflow.create.description] is invalid`
