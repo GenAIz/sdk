@@ -14,9 +14,11 @@
 
 `genaiz account login HOST --username=USERNAME --refresh --no-browser`
 
-The command manages an .auth file under the ~/.cache/genaiz folder. It records the token used to make requests to one or several broker services.
+The command manages an `.auth` file under the `$HOME/.cache/genaiz` folder. It records the token used to make requests to one or several broker services.
 
 It will always prompt for a password if a username is used. When no username is used the command will attempt to log in a user using the Broker's OIDC provided urls. If the broker does not support OIDC, login can not work without a username and password.
+
+The command will activate a valid session to the provided HOST, if that session is not the active one under `$HOST/.cache/genaiz/.auth` and is not expired.
 
 #### HOST
 

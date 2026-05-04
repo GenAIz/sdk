@@ -19,22 +19,26 @@ import (
 type stubLoginClient struct {
 	client
 	session   *AuthSession
+	loginErr  error
 	logoutErr error
+
+	loginUsername string
+	loginPassword []byte
+	logoutId      string
 }
 
-func (s stubLoginClient) Login(username string, password []byte) (*AuthSession, error) {
-	if s.session != nil {
-		return s.session, nil
-	}
-
-	return nil, errors.New("login error")
+func (s *stubLoginClient) Login(username string, password []byte) (*AuthSession, error) {
+	s.loginUsername = username
+	s.loginPassword = password
+	return s.session, s.loginErr
 }
 
-func (s stubLoginClient) Logout(id string) error {
+func (s *stubLoginClient) Logout(id string) error {
+	s.logoutId = id
 	return s.logoutErr
 }
 
-func (s stubLoginClient) Session() (*Session, error) {
+func (s *stubLoginClient) Session() (*Session, error) {
 	if s.session == nil {
 		return nil, errors.New("session error")
 	}
@@ -44,7 +48,7 @@ func (s stubLoginClient) Session() (*Session, error) {
 	}, nil
 }
 
-func (s stubLoginClient) SessionValid(session *Session) bool {
+func (s *stubLoginClient) SessionValid(session *Session) bool {
 	if session.UserId > 0 {
 		return s.client.SessionValid(session)
 
@@ -297,15 +301,18 @@ func Test_handleLoginCreate_LoginErr(t *testing.T) {
 			Username: "username",
 			Password: []byte("password"),
 		}
+		var expectedError = errors.New("expected")
 
 		defer func() {
 			clientFactory.New = restoredFactory
 		}()
 		clientFactory.New = func(hostAddr string) Client {
-			return &stubLoginClient{}
+			return &stubLoginClient{
+				loginErr: expectedError,
+			}
 		}
 
-		assert.Error(t, handleLoginCreate(testParams, testState))
+		assert.ErrorIs(t, handleLoginCreate(testParams, testState), expectedError)
 	}
 }
 
@@ -593,6 +600,7 @@ func Test_handleLogoutContext_UsernameLogin(t *testing.T) {
 			Username: expectedUser,
 		}
 
+		defer filez.CloseSilently(fd)
 		panicz.PanicIfError(NewAuthData().
 			Push("hostAddr", testSession).
 			Write(fd.Name()))
@@ -628,6 +636,110 @@ func Test_handleLogoutContext(t *testing.T) {
 			Write(fd.Name()))
 		assert.NoError(t, handleLogoutContext(testParams, testState))
 		assert.Equal(t, cast.ToString(expectedSessionId), testState.Output)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleSessionActivate(t *testing.T) {
+	var testAuthFile = filepath.Join(t.TempDir(), "authTest")
+
+	if fd, err := os.Create(testAuthFile); err == nil {
+		var expectedToken = "token"
+		var testSession = &AuthSession{
+			Expiry: time.Now().Add(time.Hour).UnixMilli(),
+			Token:  expectedToken,
+		}
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: expectedToken,
+		}
+		var restoredFactory = clientFactory.New
+		var testParams = &Broker{
+			AuthFile: fd.Name(),
+			HostAddr: "hostAddr",
+		}
+
+		panicz.PanicIfError(NewAuthData().
+			Push("hostAddr", testSession).
+			Write(fd.Name()))
+
+		defer filez.CloseSilently(fd)
+		defer func() {
+			clientFactory.New = restoredFactory
+		}()
+		clientFactory.New = func(hostAddr string) Client {
+			return &stubLoginClient{
+				session: &AuthSession{
+					Token:    "token",
+					Username: "user",
+				},
+			}
+		}
+
+		assert.NoError(t, handleSessionActivate(testParams, testState))
+		actual := NewAuthData(fd.Name())
+		assert.Equal(t, 1, len(actual.Accounts))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleSessionActivate_NoSessionAccount(t *testing.T) {
+	assert.ErrorIs(t, handleSessionActivate(&Broker{}, &task.State{}), ErrorNoSession)
+}
+
+func Test_handleSessionActivate_NoSessionToken(t *testing.T) {
+	var testAuthFile = filepath.Join(t.TempDir(), "authTest")
+
+	if fd, err := os.Create(testAuthFile); err == nil {
+		var testState = task.State{Output: "token"}
+
+		defer filez.CloseSilently(fd)
+		assert.ErrorIs(t, handleSessionActivate(&Broker{}, &testState), ErrorNoSession)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleSessionActivate_WriteError(t *testing.T) {
+	var testAuthFile = filepath.Join(t.TempDir(), "authTest")
+
+	if fd, err := os.Create(testAuthFile); err == nil {
+		var expectedToken = "token"
+		var testSession = &AuthSession{
+			Expiry: time.Now().Add(time.Hour).UnixMilli(),
+			Token:  expectedToken,
+		}
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: expectedToken,
+		}
+		var restoredFactory = clientFactory.New
+		var testParams = &Broker{
+			AuthFile: fd.Name(),
+			HostAddr: "hostAddr",
+		}
+
+		panicz.PanicIfError(NewAuthData().
+			Push("hostAddr", testSession).
+			Write(fd.Name()))
+		panicz.PanicIfError(os.Chmod(fd.Name(), 0400))
+
+		defer filez.CloseSilently(fd)
+		defer func() {
+			clientFactory.New = restoredFactory
+		}()
+		clientFactory.New = func(hostAddr string) Client {
+			return &stubLoginClient{
+				session: &AuthSession{
+					Token:    "token",
+					Username: "user",
+				},
+			}
+		}
+
+		assert.Error(t, handleSessionActivate(testParams, testState))
 	} else {
 		assert.Fail(t, err.Error())
 	}
@@ -736,8 +848,10 @@ func Test_handleSessionContext(t *testing.T) {
 		panicz.PanicIfError(NewAuthData().
 			Push(expectedHost, testSession).
 			Write(fd.Name()))
-		assert.NoError(t, handleSessionContext(testBroker, testState))
+		assert.ErrorIs(t, handleSessionContext(testBroker, testState), ErrorSessionExists)
 		assert.Equal(t, expectedToken, testState.Output)
+	} else {
+		assert.Fail(t, err.Error())
 	}
 }
 

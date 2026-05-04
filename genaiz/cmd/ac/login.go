@@ -69,13 +69,19 @@ func (le *LoginExecutor) allDefiners() []config.Definer {
 
 func (le *LoginExecutor) loginWithOidc(brokerParams *broker.Broker) {
 	var oidcWorker = task.NewWorker(le.makeOidcParams(brokerParams), le.oidcTaskFactory())
+	var oidcError error
 	var oidcPlan = &task.Plan{
-		Logger:    le.Ledger.Logger,
-		OnSuccess: le.printSuccessHandler(brokerParams),
+		Logger: le.Ledger.Logger,
+		OnSuccess: func(i interface{}) {
+			if oidcError == nil {
+				le.printSuccessHandler(brokerParams)(i)
+			}
+		},
 	}
 
 	oidcPlan.Single(oidcWorker, func(msg interface{}) {
 		if strings.EqualFold(cast.ToString(msg), broker.ErrorOidcNotSupported.Error()) {
+			oidcError = msg.(error)
 			le.loginWithUsername(brokerParams)
 		} else {
 			lang.HandleExit(msg)
