@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ var (
 	ErrorNoLogin         = errors.New("not logged in")
 	ErrorNoSession       = errors.New("could not elect a session")
 	ErrorSessionConflict = errors.New("could not choose a session to logout")
+	ErrorSessionExists   = errors.New("session exists")
 	ErrorSessionInvalid  = errors.New("session is not valid")
 )
 
@@ -33,6 +35,16 @@ type AuthAccount struct {
 type AuthData struct {
 	Active   int
 	Accounts []*AuthAccount
+}
+
+func (ad *AuthData) AccountIndexForToken(token string) (int, *AuthAccount) {
+	if i := slices.IndexFunc(ad.Accounts, func(account *AuthAccount) bool {
+		return account.Token == token
+	}); i >= 0 {
+		return i, ad.Accounts[i]
+	}
+
+	return -1, nil
 }
 
 func (ad *AuthData) Find(hostAddr string) (*AuthAccount, error) {
@@ -191,9 +203,10 @@ func NewLogoutTask() *task.Task[LoginParams] {
 
 func NewSessionTask() *task.Task[Broker] {
 	return &task.Task[Broker]{
-		Name:       "broker-session",
-		OnPrepare:  handleSessionContext,
-		OnComplete: handleSessionValidate,
+		Name:         "broker-session",
+		OnPrepare:    handleSessionContext,
+		OnIncomplete: handleSessionValidate,
+		OnComplete:   handleSessionActivate,
 	}
 }
 
@@ -306,6 +319,27 @@ func handleLogoutContext(params *LoginParams, state *task.State) error {
 	return ErrorNoLogin
 }
 
+func handleSessionActivate(params *Broker, state *task.State) error {
+	if state.Output != "" {
+		var auth = NewAuthData(params.AuthFile)
+		var err error
+
+		if i, account := auth.AccountIndexForToken(state.Output); i >= 0 {
+			state.Logger.Debugf("Activating session for user [%s] on host [%s]", account.Username, params.HostAddr)
+			auth.Active = i
+
+			if err = auth.Write(params.AuthFile); err == nil {
+				state.Output = account.Token
+				return nil
+			}
+
+			return err
+		}
+	}
+
+	return ErrorNoSession
+}
+
 func handleSessionContext(params *Broker, state *task.State) error {
 	var auth = NewAuthData(params.AuthFile)
 
@@ -316,7 +350,7 @@ func handleSessionContext(params *Broker, state *task.State) error {
 
 		if account, err := auth.Find(params.HostAddr); err == nil {
 			state.Output = account.Token
-			return nil
+			return ErrorSessionExists
 		} else {
 			return err
 		}
@@ -343,9 +377,9 @@ func handleSessionValidate(params *Broker, state *task.State) error {
 				if brokerClient.SessionValid(session) {
 					state.Logger.Debugf("Session [%d] validated for user [%d]", session.Id, session.UserId)
 					return nil
-				} else {
-					err = ErrorSessionInvalid
 				}
+
+				err = ErrorSessionInvalid
 			}
 		}
 
