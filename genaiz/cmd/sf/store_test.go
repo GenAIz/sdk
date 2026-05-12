@@ -21,6 +21,7 @@ import (
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 func TestStoreExecutor_Add(t *testing.T) {
@@ -45,7 +46,7 @@ func TestStoreExecutor_Add(t *testing.T) {
 	var expectedVersion = "0.0.1"
 	var expectedLink = fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVersion)
 
-	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, layout.FunctionTypeConnector)
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, shared.FunctionTypeConnector)
 	assert.NoError(t, testExecutor.Add(expectedLink))
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
@@ -75,7 +76,7 @@ func TestStoreExecutor_Add_Duplicate(t *testing.T) {
 	var expectedVersion = "0.0.1"
 	var expectedLink = fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVersion)
 
-	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, layout.FunctionTypeConnector)
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, shared.FunctionTypeConnector)
 	testViper.Set(testExecutor.innerStores.Key, []string{expectedLink})
 	assert.Error(t, testExecutor.Add(expectedLink))
 	actual := testOutput.String()
@@ -105,7 +106,7 @@ func TestStoreExecutor_Add_InvalidOem(t *testing.T) {
 	var expectedLink = fmt.Sprintf("%s:%s", expectedHandle, expectedVersion)
 
 	defer patch.Unpatch()
-	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, layout.FunctionTypeConnector)
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, shared.FunctionTypeConnector)
 	assert.NoError(t, testExecutor.Add(expectedLink))
 	assert.NotEmpty(t, patch.CalledWith)
 	assert.EqualValues(t, 1, patch.CalledWith)
@@ -132,7 +133,7 @@ func TestStoreExecutor_Add_InvalidType(t *testing.T) {
 	var expectedVersion = "0.0.1"
 	var expectedLink = fmt.Sprintf("%s:%s", expectedHandle, expectedVersion)
 
-	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, layout.FunctionTypeFunction)
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, shared.FunctionTypeFunction)
 	assert.ErrorIs(t, testExecutor.Add(expectedLink), errInvalidConnectorType)
 }
 

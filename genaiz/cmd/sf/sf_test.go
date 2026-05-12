@@ -19,7 +19,6 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
-	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -34,11 +33,11 @@ func TestBaseExecutor_validate(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, testExecutor.validateConnector(testOption), errInvalidConnectorType)
-	testViper.Set(testOption.Key, layout.FunctionTypeTrigger)
+	testViper.Set(testOption.Key, shared.FunctionTypeTrigger)
 	assert.ErrorIs(t, testExecutor.validateConnector(testOption), errInvalidConnectorType)
-	testViper.Set(testOption.Key, layout.FunctionTypeFunction)
+	testViper.Set(testOption.Key, shared.FunctionTypeFunction)
 	assert.ErrorIs(t, testExecutor.validateConnector(testOption), errInvalidConnectorType)
-	testViper.Set(testOption.Key, layout.FunctionTypeConnector)
+	testViper.Set(testOption.Key, shared.FunctionTypeConnector)
 	assert.NoError(t, testExecutor.validateConnector(testOption))
 }
 

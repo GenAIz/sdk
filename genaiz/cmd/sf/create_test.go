@@ -28,7 +28,7 @@ func TestCreatorExecutor_Display(t *testing.T) {
 		WithOutput(io.Writer(testOutput)).
 		Build()
 	var testOptions = NewCreateOptions(NewSfCli(nil, nil, nil))
-	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
+	var expectedArches = []string{shared.ArchTypeArm64, shared.ArchTypeX86}
 	var expectedHandle = "handle"
 	var expectedName = "name-create"
 	var expectedOem = "oem"
@@ -48,7 +48,7 @@ func TestCreatorExecutor_Display(t *testing.T) {
 	testViper.Set(testOptions.optionName.Key, expectedName)
 	testViper.Set(testOptions.optionOem.Key, expectedOem)
 	testViper.Set(testOptions.optionRecipe.Key, expectedRecipe)
-	testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testOptions.optionType.Key, shared.FunctionTypeFunction)
 	testViper.Set(testOptions.optionVersion.Key, expectedVersion)
 	testExecutor.Display()
 	actual := testOutput.String()
@@ -58,7 +58,7 @@ func TestCreatorExecutor_Display(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionRecipe.Param+`:[\s\t]*`+expectedRecipe), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionType.Param+`:[\s\t]*`+layout.FunctionTypeFunction), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionType.Param+`:[\s\t]*`+shared.FunctionTypeFunction), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionVersion.Param+`:[\s\t]*`+expectedVersion), actual)
 }
 
@@ -109,7 +109,7 @@ func TestCreatorExecutor_PretendNoRecipe(t *testing.T) {
 
 	testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
@@ -138,7 +138,7 @@ func TestCreatorExecutor_PretendWithRecipe(t *testing.T) {
 
 	testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-pretend")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")
@@ -195,7 +195,7 @@ func TestCreatorExecutor_ProceedNoRecipe(t *testing.T) {
 
 	testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
@@ -231,7 +231,7 @@ func TestCreatorExecutor_ProceedWithRecipe(t *testing.T) {
 
 	testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 	testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-	testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 	testViper.Set(testExecutor.optionHandle.Key, "create-proceed")
 	testViper.Set(testExecutor.optionOem.Key, "oem")
 	testViper.Set(testExecutor.optionRecipe.Key, "test-recipe")

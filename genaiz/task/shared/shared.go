@@ -15,21 +15,37 @@ import (
 	"genaiz.com/genaiz/task"
 )
 
+// x86_64 is not getting renamed for golang no
+//
+//goland:noinspection GoSnakeCaseUsage
 const (
 	ConfigTypeJson ConfigType = "json"
 	ConfigTypeNone ConfigType = ""
 	ConfigTypeToml ConfigType = "toml"
 	ConfigTypeYaml ConfigType = "yaml"
+
+	ArchTypeX86    ArchType = "x86"
+	ArchTypeX86_64 ArchType = "x86_64"
+	ArchTypeArm    ArchType = "arm"
+	ArchTypeArm64  ArchType = "arm64"
+
+	FunctionTypeConnector FunctionType = "connector"
+	FunctionTypeFunction  FunctionType = "function"
+	FunctionTypeTrigger   FunctionType = "trigger"
 )
 
 var (
-	ConfigTypes = enumz.NewEnumType(ConfigTypeJson, ConfigTypeNone, ConfigTypeToml, ConfigTypeYaml)
+	ArchTypes     = enumz.NewEnumType(ArchTypeX86, ArchTypeX86_64, ArchTypeArm, ArchTypeArm64)
+	ConfigTypes   = enumz.NewEnumType(ConfigTypeJson, ConfigTypeNone, ConfigTypeToml, ConfigTypeYaml)
+	FunctionTypes = enumz.NewEnumType(FunctionTypeConnector, FunctionTypeFunction, FunctionTypeTrigger)
 
 	ErrorConfigFileExists  = errors.New("config file exists")
 	ErrorConfigFileInvalid = errors.New("config file is invalid")
 )
 
+type ArchType = string
 type ConfigType = string
+type FunctionType = string
 
 type ConfigParams struct {
 	ConfigName   string

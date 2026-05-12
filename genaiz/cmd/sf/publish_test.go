@@ -22,6 +22,7 @@ import (
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 func TestPublishExecutor_Display(t *testing.T) {
@@ -32,12 +33,12 @@ func TestPublishExecutor_Display(t *testing.T) {
 		WithOutput(io.Writer(testOutput)).
 		Build()
 	var testOptions = NewPublishOptions(NewSfCli(nil, nil, nil))
-	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
+	var expectedArches = []string{shared.ArchTypeArm64, shared.ArchTypeX86}
 	var expectedBroker = "broker"
 	var expectedHandle = "handle"
 	var expectedName = "name-publish"
 	var expectedOem = "oem"
-	var expectedType = layout.FunctionTypeFunction
+	var expectedType = shared.FunctionTypeFunction
 	var expectedVersion = "0.0.0"
 	var testExecutor = &PublishExecutor{
 		BaseExecutor: BaseExecutor{
@@ -110,7 +111,7 @@ func TestPublishExecutor_PretendNoRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionNoUpdate.Key, true)
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
@@ -167,7 +168,7 @@ func TestPublishExecutor_PretendNoRebuildUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
@@ -224,7 +225,7 @@ func TestPublishExecutor_PretendRebuildUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionRebuild.Key, true)
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
@@ -282,7 +283,7 @@ func TestPublishExecutor_PretendRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionRebuild.Key, true)
 		testViper.Set(testExecutor.optionNoUpdate.Key, true)
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
@@ -344,7 +345,7 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionNoUpdate.Key, true)
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
@@ -363,7 +364,7 @@ func TestPublishExecutor_ProceedNoRebuildNoUpdate(t *testing.T) {
 
 func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
-	var expectedArches = []string{layout.ArchTypeX86, layout.ArchTypeArm64}
+	var expectedArches = []string{shared.ArchTypeX86, shared.ArchTypeArm64}
 	var expectedHandle = "handleNoRebuildUpdate"
 	var testDir = filepath.Join(t.TempDir(), expectedHandle)
 	var testBuildParams = &docker.BuildParams{}
@@ -413,7 +414,7 @@ func TestPublishExecutor_ProceedNoRebuildUpdate(t *testing.T) {
 			testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 			testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 			testViper.Set(testExecutor.optionArches.Key, expectedArches)
-			testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+			testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 			testViper.Set(testExecutor.optionOem.Key, "oem")
 			testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 			testLedger.Logger = &logrus.Logger{}
@@ -473,7 +474,7 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
 		testViper.Set(testExecutor.optionRebuild.Key, true)
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
@@ -493,7 +494,7 @@ func TestPublishExecutor_ProceedRebuildUpdate(t *testing.T) {
 
 func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 	var calledBuild, calledInspect, calledProvision, calledPublish, calledInit, calledPush bool
-	var expectedArches = []string{layout.ArchTypeX86, layout.ArchTypeArm64}
+	var expectedArches = []string{shared.ArchTypeX86, shared.ArchTypeArm64}
 	var testDir = t.TempDir()
 	var testBuildParams = &docker.BuildParams{}
 	var testProvisionParams = &broker.ProvisionParams{}
@@ -538,7 +539,7 @@ func TestPublishExecutor_ProceedRebuildNoUpdate(t *testing.T) {
 		testViper.Set(testExecutor.optionArches.Key, expectedArches)
 		testViper.Set(testExecutor.optionRebuild.Key, true)
 		testViper.Set(testExecutor.optionNoUpdate.Key, true)
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionHandle.Key, "test-genaiz")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")

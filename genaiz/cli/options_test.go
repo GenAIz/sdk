@@ -14,7 +14,6 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
-	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -369,10 +368,10 @@ func Test_OptionsFunctionsArches(t *testing.T) {
 
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
-	assert.True(t, testOption.Validator(layout.ArchTypeArm))
-	assert.True(t, testOption.Validator(layout.ArchTypeArm64))
-	assert.True(t, testOption.Validator(layout.ArchTypeX86))
-	assert.True(t, testOption.Validator(layout.ArchTypeX86_64))
+	assert.True(t, testOption.Validator(shared.ArchTypeArm))
+	assert.True(t, testOption.Validator(shared.ArchTypeArm64))
+	assert.True(t, testOption.Validator(shared.ArchTypeX86))
+	assert.True(t, testOption.Validator(shared.ArchTypeX86_64))
 	assert.False(t, testOption.Validator("invalid"))
 }
 
@@ -491,10 +490,10 @@ func Test_OptionsFunctionsType(t *testing.T) {
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Short)
 	assert.NotEmpty(t, testOption.Usage)
-	assert.Equal(t, layout.FunctionTypeFunction, testOption.DefaultValue)
-	assert.True(t, testOption.Validator(layout.FunctionTypeConnector))
-	assert.True(t, testOption.Validator(layout.FunctionTypeFunction))
-	assert.True(t, testOption.Validator(layout.FunctionTypeTrigger))
+	assert.Equal(t, shared.FunctionTypeFunction, testOption.DefaultValue)
+	assert.True(t, testOption.Validator(shared.FunctionTypeConnector))
+	assert.True(t, testOption.Validator(shared.FunctionTypeFunction))
+	assert.True(t, testOption.Validator(shared.FunctionTypeTrigger))
 }
 
 func Test_OptionsFunctionsVersion(t *testing.T) {
@@ -640,10 +639,10 @@ func Test_OptionsSolutionsFunctionArches(t *testing.T) {
 	assert.NotEmpty(t, testOption.Key)
 	// Needs to be empty, there can be several functions, and they would collide on the cmd line
 	assert.Empty(t, testOption.Param)
-	assert.True(t, testOption.Validator(layout.ArchTypeArm))
-	assert.True(t, testOption.Validator(layout.ArchTypeArm64))
-	assert.True(t, testOption.Validator(layout.ArchTypeX86))
-	assert.True(t, testOption.Validator(layout.ArchTypeX86_64))
+	assert.True(t, testOption.Validator(shared.ArchTypeArm))
+	assert.True(t, testOption.Validator(shared.ArchTypeArm64))
+	assert.True(t, testOption.Validator(shared.ArchTypeX86))
+	assert.True(t, testOption.Validator(shared.ArchTypeX86_64))
 	assert.False(t, testOption.Validator("invalid"))
 }
 
@@ -705,10 +704,10 @@ func Test_OptionsSolutionsFunctionType(t *testing.T) {
 	assert.NotEmpty(t, testOption.Key)
 	// Needs to be empty, there can be several functions, and they would collide on the cmd line
 	assert.Empty(t, testOption.Param)
-	assert.Equal(t, layout.FunctionTypeFunction, testOption.DefaultValue)
-	assert.True(t, testOption.Validator(layout.FunctionTypeConnector))
-	assert.True(t, testOption.Validator(layout.FunctionTypeFunction))
-	assert.True(t, testOption.Validator(layout.FunctionTypeTrigger))
+	assert.Equal(t, shared.FunctionTypeFunction, testOption.DefaultValue)
+	assert.True(t, testOption.Validator(shared.FunctionTypeConnector))
+	assert.True(t, testOption.Validator(shared.FunctionTypeFunction))
+	assert.True(t, testOption.Validator(shared.FunctionTypeTrigger))
 }
 
 func Test_OptionsSolutionsFunctionVersion(t *testing.T) {

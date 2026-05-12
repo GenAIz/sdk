@@ -24,7 +24,6 @@ import (
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
-	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -60,7 +59,7 @@ var (
 			Publish: &broker.Function{
 				Oem:     "testOem",
 				Handle:  "testHandle",
-				Type:    layout.FunctionTypeFunction,
+				Type:    shared.FunctionTypeFunction,
 				Version: "0.1.0",
 			},
 		},

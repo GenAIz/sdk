@@ -17,6 +17,7 @@ import (
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 func TestProxyExecutor_Add(t *testing.T) {
@@ -56,7 +57,7 @@ func TestProxyExecutor_Add(t *testing.T) {
 			BuildStringOption(),
 	}
 
-	testViper.Set(testExecutor.innerType.Key, layout.FunctionTypeConnector)
+	testViper.Set(testExecutor.innerType.Key, shared.FunctionTypeConnector)
 	testViper.Set(testExecutor.innerProxies.Key, []interface{}{
 		map[string]any{
 			"host": expectedProxies[0].Host,
@@ -85,7 +86,7 @@ func TestProxyExecutor_Add_AlreadyConfigured(t *testing.T) {
 			BuildStringOption(),
 	}
 
-	testViper.Set(testExecutor.innerType.Key, layout.FunctionTypeConnector)
+	testViper.Set(testExecutor.innerType.Key, shared.FunctionTypeConnector)
 	testViper.Set(testExecutor.innerProxies.Key, []interface{}{
 		map[string]any{
 			"host": expectedHost,
@@ -110,7 +111,7 @@ func TestProxyExecutor_Add_InvalidConnector(t *testing.T) {
 	var testOptions = NewProxyAddOptions()
 	var testExecutor = newProxyAddFactory(testLedger, testCli, testOptions)(&cobra.Command{})
 
-	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, layout.FunctionTypeTrigger)
+	testViper.Set(schema.Genaiz.Function.Publish.Type.Doc, shared.FunctionTypeTrigger)
 	assert.ErrorIs(t, testExecutor.Add(expectedHost, expectedPort), errInvalidConnectorType)
 }
 

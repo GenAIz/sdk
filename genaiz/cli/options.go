@@ -7,7 +7,6 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
-	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -253,7 +252,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("arch").
 					WithUsage("a list of architectures supported by the function. Supported: x86, x86_64, arm and arm64").
-					WithValidator(config.AllFromEnumerated(layout.ArchTypes))
+					WithValidator(config.AllFromEnumerated(shared.ArchTypes))
 			},
 			Handle: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -326,7 +325,7 @@ var (
 					WithShort("t").
 					WithDefaultValue("function").
 					WithUsage("type of smart function to create, only \"connector\", \"function\" or \"trigger\" are supported").
-					WithValidator(config.AnyOfEnumerated(layout.FunctionTypes))
+					WithValidator(config.AnyOfEnumerated(shared.FunctionTypes))
 			},
 			Version: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -427,7 +426,7 @@ var (
 			FunctionArches: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Publish.Arches).
-					WithValidator(config.AllFromEnumerated(layout.ArchTypes))
+					WithValidator(config.AllFromEnumerated(shared.ArchTypes))
 			},
 			FunctionDesc: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -452,8 +451,8 @@ var (
 			FunctionType: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Publish.Type).
-					WithDefaultValue(layout.FunctionTypeFunction).
-					WithValidator(config.AnyOfEnumerated(layout.FunctionTypes))
+					WithDefaultValue(shared.FunctionTypeFunction).
+					WithValidator(config.AnyOfEnumerated(shared.FunctionTypes))
 			},
 			FunctionVersion: func() OptionBuilder {
 				return NewOptionBuilder().

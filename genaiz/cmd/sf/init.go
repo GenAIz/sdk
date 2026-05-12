@@ -18,6 +18,7 @@ import (
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type InitWriter struct {
@@ -519,12 +520,15 @@ func NewInitOptions(sfCli *Cli) *InitOptions {
 
 func newInitParams(createParams layout.CreateParams, ledger *config.Ledger, initOptions *InitOptions) *layout.InitParams {
 	var functionTypeString = ledger.GetString(initOptions.optionType)
-	var functionType, _ = layout.FunctionTypes.FromString(functionTypeString)
+	var functionType, err = shared.FunctionTypes.FromString(functionTypeString)
 	var archTypeStrings = ledger.GetList(initOptions.optionArches)
-	var archTypes []layout.ArchType
+	var archTypes []shared.ArchType
+
+	panicz.PanicIfError(err)
 
 	if len(archTypeStrings) > 0 {
-		archTypes, _ = layout.ArchTypes.AllFromStrings(&archTypeStrings)
+		archTypes, err = shared.ArchTypes.AllFromStrings(&archTypeStrings)
+		panicz.PanicIfError(err)
 	}
 
 	return &layout.InitParams{

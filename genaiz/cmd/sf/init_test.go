@@ -22,6 +22,7 @@ import (
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 var (
@@ -372,14 +373,14 @@ func TestInitWriter_BuildType(t *testing.T) {
 		},
 		vp: viper.New(),
 	}
-	var actualKey, actualValue = testWriter.WithType(layout.FunctionTypeConnector).BuildType()
+	var actualKey, actualValue = testWriter.WithType(shared.FunctionTypeConnector).BuildType()
 
 	assert.EqualValues(t, testWriter.optionType.Key, actualKey)
-	assert.EqualValues(t, layout.FunctionTypeConnector, actualValue)
+	assert.EqualValues(t, shared.FunctionTypeConnector, actualValue)
 
 	_, actualValue = testWriter.WithType("").BuildType()
 
-	assert.EqualValues(t, layout.FunctionTypeConnector, actualValue)
+	assert.EqualValues(t, shared.FunctionTypeConnector, actualValue)
 }
 
 func TestInitWriter_BuildVersion(t *testing.T) {
@@ -464,7 +465,7 @@ func TestInitExecutor_Display(t *testing.T) {
 		WithOutput(io.Writer(testOutput)).
 		Build()
 	var testOptions = NewInitOptions(NewSfCli(nil, nil, nil))
-	var expectedArches = []string{layout.ArchTypeArm64, layout.ArchTypeX86}
+	var expectedArches = []string{shared.ArchTypeArm64, shared.ArchTypeX86}
 	var expectedHandle = "handle"
 	var expectedName = "name-init"
 	var expectedOem = "oem"
@@ -481,7 +482,7 @@ func TestInitExecutor_Display(t *testing.T) {
 	testViper.Set(testOptions.optionHandle.Key, expectedHandle)
 	testViper.Set(testOptions.optionName.Key, expectedName)
 	testViper.Set(testOptions.optionOem.Key, expectedOem)
-	testViper.Set(testOptions.optionType.Key, layout.FunctionTypeFunction)
+	testViper.Set(testOptions.optionType.Key, shared.FunctionTypeFunction)
 	testViper.Set(testOptions.optionVersion.Key, expectedVersion)
 	testExecutor.Display()
 	actual := testOutput.String()
@@ -489,7 +490,7 @@ func TestInitExecutor_Display(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionHandle.Param+`:[\s\t]*`+expectedHandle), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionName.Param+`:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionOem.Param+`:[\s\t]*`+expectedOem), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionType.Param+`:[\s\t]*`+layout.FunctionTypeFunction), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionType.Param+`:[\s\t]*`+shared.FunctionTypeFunction), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionVersion.Param+`:[\s\t]*`+expectedVersion), actual)
 }
 
@@ -517,11 +518,11 @@ func TestInitExecutor_Pretend(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, expectedFile)
 		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionHandle.Key, "init-pretend")
 		testViper.Set(testExecutor.optionOem.Key, "oem")
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
-		testViper.Set(testInitOptionArches.Key, layout.ArchTypeArm64)
+		testViper.Set(testInitOptionArches.Key, shared.ArchTypeArm64)
 		testExecutor.Pretend()
 		assert.True(t, calledInit)
 	} else {
@@ -565,7 +566,7 @@ func TestInitExecutor_Proceed(t *testing.T) {
 	var calledInit bool
 	var expectedHandle = "handleProceed"
 	var testDir = filepath.Join(t.TempDir(), expectedHandle)
-	var expectedArches = []string{layout.ArchTypeX86, layout.ArchTypeArm}
+	var expectedArches = []string{shared.ArchTypeX86, shared.ArchTypeArm}
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCli = NewSfCli(nil, nil, nil)
@@ -593,7 +594,7 @@ func TestInitExecutor_Proceed(t *testing.T) {
 			testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 			testViper.Set(testExecutor.optionArches.Key, expectedArches)
 			testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-			testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+			testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 			testViper.Set(testExecutor.optionOem.Key, "oem")
 			testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 			testExecutor.Proceed()
@@ -660,7 +661,7 @@ func TestInitExecutor_Proceed_InvalidOem(t *testing.T) {
 		t.Chdir(testDir)
 		testLedger.Logger = logrus.New()
 		testViper.Set(testExecutor.optionConfigType.Key, "yaml")
-		testViper.Set(testExecutor.optionType.Key, layout.FunctionTypeFunction)
+		testViper.Set(testExecutor.optionType.Key, shared.FunctionTypeFunction)
 		testViper.Set(testExecutor.optionVersion.Key, "0.0.0")
 		testExecutor.Proceed()
 	}
@@ -692,7 +693,7 @@ func TestNewInit(t *testing.T) {
 
 	testViper.Set(schema.Genaiz.Function.Init.Handle.Doc, expectedHandle)
 	testViper.Set(schema.Genaiz.Function.Init.Oem.Doc, expectedOem)
-	testViper.Set(schema.Genaiz.Function.Init.Type.Doc, layout.FunctionTypeFunction)
+	testViper.Set(schema.Genaiz.Function.Init.Type.Doc, shared.FunctionTypeFunction)
 	testInit.PostRun = func(cmd *cobra.Command, args []string) {
 		initCompleted = true
 	}
@@ -703,7 +704,7 @@ func TestNewInit(t *testing.T) {
 	if actual := testOutput.String(); actual != "" {
 		assert.Contains(t, actual, expectedHandle)
 		assert.Contains(t, actual, expectedOem)
-		assert.Contains(t, actual, layout.FunctionTypeFunction)
+		assert.Contains(t, actual, shared.FunctionTypeFunction)
 	} else {
 		assert.Fail(t, "no --dry content")
 	}
