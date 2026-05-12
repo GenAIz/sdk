@@ -12,31 +12,10 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/lang"
-	"genaiz.com/genaiz/lang/enumz"
 	"genaiz.com/genaiz/task"
 )
 
-type ArchType = string
-type FunctionType = string
-
-// x86_64 is not getting renamed for golang no
-//
-//goland:noinspection GoSnakeCaseUsage
-const (
-	ArchTypeX86    ArchType = "x86"
-	ArchTypeX86_64 ArchType = "x86_64"
-	ArchTypeArm    ArchType = "arm"
-	ArchTypeArm64  ArchType = "arm64"
-
-	FunctionTypeConnector FunctionType = "connector"
-	FunctionTypeFunction  FunctionType = "function"
-	FunctionTypeTrigger   FunctionType = "trigger"
-)
-
 var (
-	ArchTypes     = enumz.NewEnumType(ArchTypeX86, ArchTypeX86_64, ArchTypeArm, ArchTypeArm64)
-	FunctionTypes = enumz.NewEnumType(FunctionTypeConnector, FunctionTypeFunction, FunctionTypeTrigger)
-
 	outputRegex    = regexp.MustCompile(`out(?:put)?/?$`)
 	timestampRegex = regexp.MustCompile(`\{timestamp(?::.+?)?}/?$`)
 )

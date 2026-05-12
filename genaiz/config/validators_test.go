@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
-	"genaiz.com/genaiz/task/layout"
+	"genaiz.com/genaiz/task/shared"
 )
 
 func TestAllOf(t *testing.T) {
@@ -25,14 +25,14 @@ func TestAllOf(t *testing.T) {
 }
 
 func TestAllFromEnumerated(t *testing.T) {
-	var testValidates = AllFromEnumerated(layout.ArchTypes)
+	var testValidates = AllFromEnumerated(shared.ArchTypes)
 
 	assert.True(t, testValidates([]string{"x86", "arm"}))
 	assert.False(t, testValidates([]string{"x86_64", "test"}))
 }
 
 func TestAnyOfEnumerated(t *testing.T) {
-	var testValidates = AnyOfEnumerated(layout.FunctionTypes)
+	var testValidates = AnyOfEnumerated(shared.FunctionTypes)
 
 	assert.True(t, testValidates("trigger"))
 	assert.False(t, testValidates("notValid"))

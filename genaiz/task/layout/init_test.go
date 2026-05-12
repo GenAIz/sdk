@@ -339,7 +339,7 @@ func Test_handleLayoutInitCreate(t *testing.T) {
 		Output: "test.json",
 	}
 	var testParams = &InitParams{
-		Arches:      []ArchType{ArchTypeX86},
+		Arches:      []shared.ArchType{shared.ArchTypeX86},
 		Handle:      "handle",
 		Name:        "name",
 		Type:        "type",
@@ -372,7 +372,7 @@ func Test_handleLayoutInitPretend(t *testing.T) {
 		Output: "test.yaml",
 	}
 	var testParams = &InitParams{
-		Arches:      []ArchType{ArchTypeX86},
+		Arches:      []shared.ArchType{shared.ArchTypeX86},
 		Handle:      "handle",
 		Name:        "name",
 		Type:        "type",
@@ -716,7 +716,7 @@ func Test_handleLayoutInitUpdate(t *testing.T) {
 		Error:  shared.ErrorConfigFileExists,
 	}
 	var testParams = &InitParams{
-		Arches:      []ArchType{ArchTypeX86},
+		Arches:      []shared.ArchType{shared.ArchTypeX86},
 		Handle:      "handle",
 		Name:        "name",
 		Type:        "type",

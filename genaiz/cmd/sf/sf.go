@@ -22,7 +22,6 @@ import (
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
-	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -39,7 +38,7 @@ type BaseExecutor struct {
 func (be *BaseExecutor) validateConnector(typeOption *config.StringOption) error {
 	var functionType = be.Ledger.GetString(typeOption)
 
-	if strings.ToLower(functionType) != layout.FunctionTypeConnector {
+	if strings.ToLower(functionType) != shared.FunctionTypeConnector {
 		return errInvalidConnectorType
 	}
 

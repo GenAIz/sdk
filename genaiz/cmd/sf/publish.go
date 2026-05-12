@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
+	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
@@ -171,12 +172,17 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 
 func (pe *PublishExecutor) makePublishInitParams() *layout.InitParams {
 	var functionTypeString = pe.Ledger.GetString(pe.optionType)
-	var functionType, _ = layout.FunctionTypes.FromString(functionTypeString)
+	var functionType, err = shared.FunctionTypes.FromString(functionTypeString)
 	var archTypeStrings = pe.Ledger.GetList(pe.optionArches)
-	var archTypes []layout.ArchType
+	var archTypes []shared.ArchType
+
+	// This should never happen, unless there's a bug with optionType
+	panicz.PanicIfError(err)
 
 	if len(archTypeStrings) > 0 {
-		archTypes, _ = layout.ArchTypes.AllFromStrings(&archTypeStrings)
+		archTypes, err = shared.ArchTypes.AllFromStrings(&archTypeStrings)
+		// This should never happen, unless there's a bug with optionArches
+		panicz.PanicIfError(err)
 	}
 
 	return &layout.InitParams{

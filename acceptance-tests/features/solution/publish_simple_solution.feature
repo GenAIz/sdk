@@ -7,7 +7,7 @@ Feature: solution publish with simple solution
     Given the following parameters
       | folder      | oem            | handle     | name        | version | workflowDesc         | workflowHandle | workflowName |
       | my-solution | com.genaiz.dev | solution-1 | My Solution | 0.1.1   | workflow description | workflow-1     | workflow one |
-    When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --name='<name>' --version=<version> --workflow-desc='<workflowDesc>' --workflow-handle=<workflowHandle> --workflow-name='<workflowName>'
+    When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --name='<name>' --version=<version> --workflow-desc='<workflowDesc>' --workflow-handle=<workflowHandle> --workflow-name='<workflowName>'"
     Then I should have a solution under "<folder>" named "<name>" with oem "<oem>", handle "<handle>", description "<name>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDesc>"
 

@@ -44,6 +44,8 @@ A successful command will print the oem, handle and version that were accepted b
 
 * if the type is not specified publish will read the value from Genaiz.yaml under function.publish.type
 * if the resolved type does not match a valid type option (see [type validity](index#type)), the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [function.publish.type] is invalid`
+* if the resolved type does not allow data sources, only connectors do, the command will return an error: `Error: type [...] can not specify data sources`
+* if the resolved type does not allow data stores, only connectors do, the command will return an error: `Error: type [...] can not specify data stores`
 
 ### arch
 

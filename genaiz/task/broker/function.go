@@ -15,6 +15,14 @@ var (
 	errorNoProvision         = errors.New("can not publish non-provisioned functions")
 	errorNoRepoIdentity      = errors.New("could not identify repository hash")
 	errorNoRepoProvisioning  = errors.New("can not publish without provisioning rights")
+
+	errorInvalidDataSourceType = func(t string) error {
+		return fmt.Errorf("type [%s] can not specify data sources", t)
+	}
+
+	errorInvalidDataStoreType = func(t string) error {
+		return fmt.Errorf("type [%s] can not specify data stores", t)
+	}
 )
 
 type ProvisionParams struct {
@@ -63,6 +71,20 @@ func (pp ProvisionParams) asFunction() *Function {
 	}
 }
 
+func (pp ProvisionParams) validate() error {
+	if !strings.EqualFold(pp.Type, shared.FunctionTypeConnector) {
+		if len(pp.DataSources) > 0 {
+			return errorInvalidDataSourceType(pp.Type)
+		}
+
+		if len(pp.DataSources) > 0 {
+			return errorInvalidDataStoreType(pp.Type)
+		}
+	}
+
+	return nil
+}
+
 type PublishParams struct {
 	Broker
 	Handle      string
@@ -95,6 +117,10 @@ func handleFunctionProvisionContext(params *ProvisionParams, state *task.State) 
 
 		if !strings.HasPrefix(current.Id, "sha256") {
 			return errors.New("can not provision smart function without a known image digest")
+		}
+
+		if err := params.validate(); err != nil {
+			return err
 		}
 
 		if params.Oem != "" && params.Handle != "" {

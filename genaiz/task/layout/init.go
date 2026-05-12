@@ -101,13 +101,13 @@ type ConfigWriter interface {
 
 type InitParams struct {
 	CreateParams
-	Arches          []ArchType
+	Arches          []shared.ArchType
 	DataSources     []string
 	DataStores      []string
 	Handle          string
 	InputPorts      []broker.DataPort
 	Name            string
-	Type            FunctionType
+	Type            shared.FunctionType
 	MountInput      string
 	MountOutput     string
 	OEM             string
