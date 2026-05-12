@@ -59,7 +59,7 @@ The name option of the create command is used to initialize the key `solution.na
 
 The version option of the create command is used to initialize the key `solution.version`. A solution version is always required, even on create.
 
-* if there is no version specified, the version value will default to `0.1.0`
+* if there is no version specified, the version value will default to `1.0.0`
 * if the resolved version does not match a valid SemVer version string (see [version validity](index.md#version)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [solution.create.version] is invalid`
 
 ### workflow-desc

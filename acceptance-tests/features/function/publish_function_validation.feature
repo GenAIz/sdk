@@ -6,7 +6,7 @@ Feature: function publish with validation
   Scenario: create bash example function
     Given the following parameters
       | recipe       | handle      | oem            | type      | version |
-      | bash-example | my-function | com.genaiz.dev | connector | 0.1.0   |
+      | bash-example | my-function | com.genaiz.dev | connector | 1.0.0   |
     When I run the command "sf create <handle> --recipe=<recipe> --type=<type> --oem=<oem>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
 

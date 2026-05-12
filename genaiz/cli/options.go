@@ -496,7 +496,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("version").
 					WithUsage("version of the solution").
-					WithDefaultValue("0.1.0")
+					WithDefaultValue("1.0.0")
 			},
 			WorkflowDesc: func() OptionBuilder {
 				return NewOptionBuilder().

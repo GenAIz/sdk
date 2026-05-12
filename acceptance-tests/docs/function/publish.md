@@ -43,7 +43,7 @@ the build coordinates in the `Genaiz.yaml` file, the command will return `Error:
 * if the version is not specified, publish will read the value from Genaiz.yaml under function.publish.version
 * if the version is not specified under the Smart Function Genaiz.yaml file, publish will retrieve the parent's solution
   version
-* if the version could not be retrieved from the parent solution, 0.1.0 is used as the default string
+* if the version could not be retrieved from the parent solution, 1.0.0 is used as the default string
 * If the resolved version string does not match a valid version string (see [version validity](index.md#version)), the
   command will return an error with the key of the field and the invalid value;
   `Error: value [...] for option [function.publish.version] is invalid`

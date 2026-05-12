@@ -213,7 +213,7 @@ func (c *Cli) parseParentSolution(ledger *config.Ledger, parentOption *config.St
 		lang.HandleExit(err)
 	}
 
-	return &broker.Solution{Version: "0.1.0"}
+	return &broker.Solution{Version: "1.0.0"}
 }
 
 func NewSf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Decisive) *cobra.Command {

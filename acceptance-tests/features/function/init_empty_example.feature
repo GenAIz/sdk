@@ -55,7 +55,7 @@ Feature: function init on empty folder
   Scenario: init empty example bad type
     Given the following parameters
       | handle        | oem            | version | type    |
-      | empty-example | com.genaiz.dev | 1.0.0   | invalid |
+      | empty-example | com.genaiz.dev | 1.0.1   | invalid |
     When I run the command "sf init --handle=<handle> --oem=<oem> --version=<version> --type=<type>"
     Then I should have an error for field "function.init.type"
 

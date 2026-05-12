@@ -6,7 +6,7 @@ Feature: connector run with the bash example and a datalink
   Scenario: create bash connector
     Given the following parameters
       | path              | oem            | version | type      |
-      | run-bash-datalink | com.genaiz.dev | 1.0.0   | connector |
+      | run-bash-datalink | com.genaiz.dev | 1.0.1   | connector |
     When I run the command "sf create <path> --oem=<oem> --version=<version> --recipe=bash-example --type=<type>"
     Then I should have a function under "<path>" named "<path>", handle "<path>", oem "<oem>" with version "<version>"
     And I should have dockerfile under "<path>" named "Dockerfile"

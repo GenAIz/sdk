@@ -7,7 +7,7 @@ Feature: workflow node properties for a connector workflow
   Scenario: create basic solution
     Given the following parameters
       | folder      | oem            | version | workflowHandle | workflowName     | workflowDescription |
-      | my-solution | com.genaiz.dev | 0.1.0   | default        | Default Workflow | default workflow    |
+      | my-solution | com.genaiz.dev | 1.0.0   | default        | Default Workflow | default workflow    |
     When I run the command "sn create <folder> --oem=com.genaiz.dev"
     Then I should have a solution under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", description "<folder>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDescription>"
@@ -16,7 +16,7 @@ Feature: workflow node properties for a connector workflow
     Given the scenario "create basic solution" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | recipe       | handle      | oem            | version | type      |
-      | my-solution | bash-example | my-function | com.genaiz.dev | 1.0.0   | connector |
+      | my-solution | bash-example | my-function | com.genaiz.dev | 1.0.1   | connector |
     And the workdir changes to "<folder>"
     When I run the command "sf create <handle> --version=<version> --type=<type> --recipe=<recipe>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>" and version "<version>"

@@ -55,7 +55,7 @@ Feature: function create for the bash example
   Scenario: create bash example bad type
     Given the following parameters
       | handle       | oem            | version | type    |
-      | bash-example | com.genaiz.dev | 1.0.0   | invalid |
+      | bash-example | com.genaiz.dev | 1.0.1   | invalid |
     When I run the command "sf create <handle> --oem=<oem> --version=<version> --type=<type>"
     Then I should have an error for field "function.create.type"
 

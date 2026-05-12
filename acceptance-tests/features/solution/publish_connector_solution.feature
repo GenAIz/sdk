@@ -6,7 +6,7 @@ Feature: solution publish with a simple connector
   Scenario: create simple solution with defaults
     Given the following parameters
       | folder      | oem            | version | workflowDesc     | workflowHandle | workflowName     |
-      | my-solution | com.genaiz.dev | 0.1.0   | default workflow | default        | Default Workflow |
+      | my-solution | com.genaiz.dev | 1.0.0   | default workflow | default        | Default Workflow |
     When I run the command "sn create <folder> --oem=<oem>'
     Then I should have a solution under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", description "<folder>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDesc>"

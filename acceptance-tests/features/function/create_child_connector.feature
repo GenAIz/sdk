@@ -33,7 +33,7 @@ Feature: connector create for a parent solution
   Scenario: create data link for child function
     Given the following parameters
       | configFile                       | handle     | oem            | version |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.1   |
     And the user genaiz config folder is under <path>
     When I run the command "dk create <handle> --oem=<oem> --version=<version>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
@@ -42,7 +42,7 @@ Feature: connector create for a parent solution
     Given the scenario "create data link for child function" ran with condition "service_completed_successfully"
     And the following parameters
       | configFile                       | handle     | oem            | version | key        | type |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   | SECRET_KEY | int  |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.1   | SECRET_KEY | int  |
     When I run the command "dk prop add <oem>/<handle> <key> --version=<version> --type=<type> --secret"
     Then I should have a "<type>" secret property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>"
 
@@ -60,7 +60,7 @@ Feature: connector create for a parent solution
     And the scenario "add data link secret property" ran with condition "service_completed_successfully"
     And the following parameters
       | handle     | oem            | version |
-      | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | datalink-1 | com.genaiz.dev | 1.0.1   |
     When I run the command "dk publish <oem>/<handle>:<version>"
     Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<version>"
 

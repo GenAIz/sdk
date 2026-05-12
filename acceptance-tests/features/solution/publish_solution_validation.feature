@@ -6,7 +6,7 @@ Feature: solution publish with validation
   Scenario: create solution to validate
     Given the following parameters
       | folder      | oem            | version | workflowDesc     | workflowHandle | workflowName     |
-      | my-solution | com.genaiz.dev | 0.1.0   | default workflow | default        | Default Workflow |
+      | my-solution | com.genaiz.dev | 1.0.0   | default workflow | default        | Default Workflow |
     When I run the command "sn create <folder> --oem=<oem>"
     Then I should have a solution under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", description "<folder>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDesc>"
@@ -14,7 +14,7 @@ Feature: solution publish with validation
   Scenario: create node function
     Given the following parameters
       | folder      | recipe       | handle      | oem            | type      | version |
-      | my-solution | bash-example | my-function | com.genaiz.dev | connector | 0.1.0   |
+      | my-solution | bash-example | my-function | com.genaiz.dev | connector | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf create <handle> --recipe=<recipe> --type=<type>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
@@ -68,7 +68,7 @@ Feature: solution publish with validation
     Given the scenario "build bash connector" ran with condition "service_completed_successfully"
     And the following parameters
       | solution    | function    | workflowHandle | handle | description | functionOem    | functionVersion |
-      | my-solution | my-function | default        | node-1 |             | com.genaiz.dev | 0.1.0           |
+      | my-solution | my-function | default        | node-1 |             | com.genaiz.dev | 1.0.0           |
     And the workdir changes to "<solution>"
     When I run the command "wf nodes add <workflowHandle> <handle>/"
     Then I should have a workflow node under "<solution>" with handle "<handle>", oem "<oem>", description "<description>" and smart function "<functionOem>/<function>:<functionVersion>"
