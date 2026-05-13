@@ -6,7 +6,7 @@ Feature: connector publish with the bash example
   Scenario: create bash connector no version
     Given the following parameters
       | recipe       | handle            | oem            | type      | version |
-      | bash-example | my-bash-connector | com.genaiz.dev | connector | 0.1.0   |
+      | bash-example | my-bash-connector | com.genaiz.dev | connector | 1.0.0   |
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --type=<type>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
 
@@ -80,7 +80,7 @@ Feature: connector publish with the bash example
     And the registry is running with condition: "service_healthy"
     And the following parameters
       | handle            | oem        | version |
-      | my-bash-connector | com.genaiz | 0.1.0   |
+      | my-bash-connector | com.genaiz | 1.0.0   |
     And the execution group "<docker_gid>"
     And the workdir changes to "<handle>"
     When I run the command "sf publish"

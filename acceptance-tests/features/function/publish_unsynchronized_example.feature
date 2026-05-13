@@ -6,7 +6,7 @@ Feature: function publish, un-synchronized, with the bash example
   Scenario: create bash example
     Given the following parameters
       | recipe       | handle      | oem            | type     | version |
-      | bash-example | my-function | com.genaiz.dev | function | 0.1.0   |
+      | bash-example | my-function | com.genaiz.dev | function | 1.0.0   |
     When I run the command "sf create <handle> --recipe=<recipe> --handle=<handle> --oem=<oem>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
 
@@ -35,7 +35,7 @@ Feature: function publish, un-synchronized, with the bash example
     And the registry is running with condition: "service_healthy"
     And the following parameters
       | folder      | oem            | version    |
-      | my-function | com.genaiz.dev | 0.1.0-rc-0 |
+      | my-function | com.genaiz.dev | 1.0.0-rc-0 |
     And the execution group "<docker_gid>"
     And the workdir changes to "<handle>"
     When I run the command "sf publish"
@@ -46,7 +46,7 @@ Feature: function publish, un-synchronized, with the bash example
     Given the scenario "publish bash example" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | com.genaiz.dev | version    |
-      | my-function | oem            | 0.1.0-rc-0 |
+      | my-function | oem            | 1.0.0-rc-0 |
     When I run the command "sf list |grep '<oem/<folder>:latest' |awk '{print $3}' |xargs docker image rm -f"
     Then I should not have an image tagged "registry/<oem>/<folder>:<version>" locally
 
@@ -64,7 +64,7 @@ Feature: function publish, un-synchronized, with the bash example
     Given the scenario "rebuild bash example" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | oem            | version    |
-      | my-function | com.genaiz.dev | 0.1.0-rc-0 |
+      | my-function | com.genaiz.dev | 1.0.0-rc-0 |
     And the execution group "<docker_gid>"
     And the workdir changes to "<handle>"
     When I run the command "sf publish --version=<version>"

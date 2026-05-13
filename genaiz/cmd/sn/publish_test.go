@@ -45,7 +45,7 @@ var (
 							Sf: &broker.WorkflowNodeFunction{
 								Oem:     "testOem",
 								Handle:  "testHandle",
-								Version: "0.1.0",
+								Version: "1.0.0",
 							},
 						},
 					},
@@ -60,7 +60,7 @@ var (
 				Oem:     "testOem",
 				Handle:  "testHandle",
 				Type:    shared.FunctionTypeFunction,
-				Version: "0.1.0",
+				Version: "1.0.0",
 			},
 		},
 	}

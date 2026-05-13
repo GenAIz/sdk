@@ -55,7 +55,7 @@ The oem option of the init command is used to initialize the key `function.publi
 The version option of the init command is used to initialize the key `function.publish.version`. This version is used strictly when using the [publish](publish.md) command. The key `function.build.version` will always default to `latest` when using init.
 
 * if there is no version specified, and the parent folder has a valid solution configuration, the version value will default to the solution value.
-* if there is no version specified, and the parent folder does not contain a valid solution configuration, the version value will default to `0.1.0`
+* if there is no version specified, and the parent folder does not contain a valid solution configuration, the version value will default to `1.0.0`
 * if the resolved version does not match a valid SemVer version string (see [version validity](index.md#version)), the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [function.init.version] is invalid`
 
 ### type

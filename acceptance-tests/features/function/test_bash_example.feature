@@ -6,7 +6,7 @@ Feature: function test with the bash example
   Scenario: create bash example
     Given the following parameters
       | path               | oem            | version |
-      | test-bash-function | com.genaiz.dev | 0.1.0   |
+      | test-bash-function | com.genaiz.dev | 1.0.0   |
     When I run the command "sf create <path> --oem=<oem> --recipe=bash-example"
     Then I should have a function under "<path>" named "<path>", handle "<path>", oem "<oem>" with version "<version>"
     And I should have dockerfile under "<path>" named "Dockerfile"

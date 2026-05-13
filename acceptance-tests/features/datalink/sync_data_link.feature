@@ -76,7 +76,7 @@ Feature: data link sync
     Given the scenario "synchronize data link new revision to user configuration" ran with condition "service_completed_successfully"
     And the following parameters
       | configFile                       | handle  | oem            | version |
-      | $HOME/.config/genaiz/Genaiz.yaml | unknown | com.genaiz.dev | 0.1.0   |
+      | $HOME/.config/genaiz/Genaiz.yaml | unknown | com.genaiz.dev | 1.0.0   |
     When I run the command "dk sync <oem>/<handle>:<version>"
     Then I should not have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
     And I should not have a datalink under "<configFile>" named "", with handle "", oem "" and version ""

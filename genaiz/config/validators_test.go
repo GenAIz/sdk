@@ -125,8 +125,8 @@ func TestValidateRepository(t *testing.T) {
 
 func TestValidateVersion(t *testing.T) {
 	assert.False(t, validateVersion(""))
-	assert.False(t, validateVersion("0.1"))
-	assert.False(t, validateVersion("0.1.0.1"))
+	assert.False(t, validateVersion("1.1"))
+	assert.False(t, validateVersion("1.1.0.1"))
 	assert.False(t, validateVersion("0.1a.0"))
 	assert.False(t, validateVersion("03.0.0"))
 	assert.True(t, validateVersion("0.0.0"))

@@ -33,7 +33,7 @@ Working with the GenAIz CLI is a simple series of commands. You may run `genaiz 
 
 #### Creating a simple solution
 
-The following example creates a solution **solution-1** and a smart function **my-bash-example** using the recipe **bash-example**. It then builds the function with the default version assigned by create, [0.1.0](acceptance-tests/docs/function/index.md#version), assigns a single node to the **default** workflow, authenticates a user with [broker.genaiz.com](acceptance-tests/docs/account/index.md#host) and publishes the solution to the broker.
+The following example creates a solution **solution-1** and a smart function **my-bash-example** using the recipe **bash-example**. It then builds the function with the default version assigned by create, [1.0.0](acceptance-tests/docs/function/index.md#version), assigns a single node to the **default** workflow, authenticates a user with [broker.genaiz.com](acceptance-tests/docs/account/index.md#host) and publishes the solution to the broker.
 
 ```bash
 genaiz sn create mySolutionDir --name="My Solution" --handle="solution-1" \
@@ -45,7 +45,7 @@ cd mySmartFunction
 genaiz sf build
 cd ..
 genaiz wf nodes add default node1 --name="Single Node" \
-  --description="My Single Node" --sf="com.genaiz/my-bash-example:0.1.0"
+  --description="My Single Node" --sf="com.genaiz/my-bash-example:1.0.0"
 genaiz ac login broker.genaiz.com --username="myUsername"
 genaiz sn publish
 ```
@@ -114,7 +114,7 @@ function:
             - excel
             - valid-set
         type: function
-        version: 0.1.0
+        version: 1.0.0
     run:
         input: run/in
         log: run/{timestamp}/log

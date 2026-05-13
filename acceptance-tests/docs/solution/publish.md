@@ -49,5 +49,5 @@ The handle option of the create command is used to initialize the key `solution.
 ### version
 
 * if the version is not specified, the value of `solution.version` will be used.
-* if the resolved version evaluates to empty string, the default `0.1.0` is used.
+* if the resolved version evaluates to empty string, the default `1.0.0` is used.
 * If the resolved version string does not match a valid version string (see [version validity](index.md#version)), the command will return an error with the key of the field and the invalid value; `Error: value [...] for option [solution.publish.version] is invalid`

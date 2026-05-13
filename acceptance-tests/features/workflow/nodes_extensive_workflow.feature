@@ -15,7 +15,7 @@ Feature: function nodes for an extensive workflow
     Given the scenario "create basic solution" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | recipe       | handle      | oem            | version | type     |
-      | my-solution | bash-example | my-function | com.genaiz.dev | 0.1.0   | function |
+      | my-solution | bash-example | my-function | com.genaiz.dev | 1.0.0   | function |
     And the workdir changes to "<folder>"
     When I run the command "sf create <handle> --recipe=<recipe>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>" and version "<version>"
@@ -25,7 +25,7 @@ Feature: function nodes for an extensive workflow
     Given the scenario "create basic solution" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | functionHandle | workflowHandle   | oem            | version |
-      | my-solution | my-function    | invalid-workflow | com.genaiz.dev | 0.1.0   |
+      | my-solution | my-function    | invalid-workflow | com.genaiz.dev | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <functionHandle>/
     Then I should have an error with "workflow hande [<workflowHandle>] not found"
@@ -34,7 +34,7 @@ Feature: function nodes for an extensive workflow
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | functionHandle | workflowHandle | nodeHandle | oem            | version |
-      | my-solution | my-function    | workflow-1     | my-node    | com.genaiz.dev | 0.1.0   |
+      | my-solution | my-function    | workflow-1     | my-node    | com.genaiz.dev | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <nodeHandle> --sf=<oem>/<functionHandle>:<version>"
     Then I should have a node under "<folder>" and workflow "<workflowHandle> named "<nodeHandle>" and handle "<nodeHandle>"
@@ -44,7 +44,7 @@ Feature: function nodes for an extensive workflow
     Given the scenario "add serialized node" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | workflowHandle | nodeHandle       | sfOem          | sfHandle    | sfVersion | sfSeq |
-      | my-solution | workflow-1     | my-external-node | com.genaiz.dev | my-external | 0.1.0     | 2     |
+      | my-solution | workflow-1     | my-external-node | com.genaiz.dev | my-external | 1.0.0     | 2     |
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <nodeHandle> --sf-oem=<sfOem> --sf-handle=<sfHandle> --sf-version=<sfVersion> --sf-seq=<sfSeq>"
     Then I should have a node under "<folder>" and workflow "<workflowHandle> named "<nodeHandle>" and handle "<nodeHandle>"
@@ -54,7 +54,7 @@ Feature: function nodes for an extensive workflow
     Given the scenario "add serialized node" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | functionFolder | workflowHandle | nodeHandle | oem            | version |
-      | my-solution | my-function    | workflow-1     | my-node    | com.genaiz.dev | 0.1.0   |
+      | my-solution | my-function    | workflow-1     | my-node    | com.genaiz.dev | 1.0.0   |
     When I run the command "wf nodes add <workflowHandle> <nodeHandle>"
     Then I should have an error with "the node specified already exists"
 
