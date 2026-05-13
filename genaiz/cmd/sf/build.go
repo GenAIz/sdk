@@ -96,9 +96,9 @@ func NewBuildExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 
 			if useLegacy {
 				return docker.NewBuildLegacyTask()
-			} else {
-				return docker.NewBuildTask()
 			}
+
+			return docker.NewBuildTask()
 		},
 	}
 }
