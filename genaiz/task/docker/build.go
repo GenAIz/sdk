@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
@@ -36,6 +37,10 @@ const (
 var (
 	ErrorLatestBuild = errors.New("latest needs to be rebuilt")
 	ErrorNoBuild     = errors.New("could not find a build image")
+
+	errorImageNotFound = func(t string) error {
+		return fmt.Errorf("could not find image [%s]", t)
+	}
 )
 
 type HasReference interface {
@@ -172,11 +177,11 @@ func NewBuildTask() *task.Task[BuildParams] {
 		}
 
 		return NewBuildForkTask(dockerPath)
-	} else {
-		fmt.Println("DEPRECATED: The legacy Moby builder is deprecated and will be removed in a future release.\n" +
-			"You should install the docker-cli with docker-buildx to build images: https://docs.docker.com/go/buildx/")
-		return NewBuildLegacyTask()
 	}
+
+	fmt.Println("DEPRECATED: The legacy Moby builder is deprecated and will be removed in a future release.\n" +
+		"You should install the docker-cli with docker-buildx to build images: https://docs.docker.com/go/buildx/")
+	return NewBuildLegacyTask()
 }
 
 func NewBuildLegacyTask() *task.Task[BuildParams] {
@@ -221,9 +226,9 @@ func formatCreated(createdSeconds int64, threshold time.Time) string {
 
 	if createdTime.After(threshold) {
 		return createdTime.Format(time.TimeOnly)
-	} else {
-		return createdTime.Format(time.DateOnly)
 	}
+
+	return createdTime.Format(time.DateOnly)
 }
 
 func handleBuildContext(params *BuildParams, state *task.State) error {
@@ -239,7 +244,7 @@ func handleBuildContext(params *BuildParams, state *task.State) error {
 	if summaries, err = dockerClient.ImageList(params.Context, image.ListOptions{Filters: listFilters}); err == nil {
 		if len(summaries) == 0 {
 			state.Logger.Debugf("Could not find an image for reference [%s]", reference)
-			err = ErrorNoBuild
+			err = errorImageNotFound(reference)
 		} else if version == "latest" {
 			state.Logger.Debugf("Version latest requires a fresh build")
 			state.Output = summaries[0].ID
@@ -309,7 +314,6 @@ func handleBuildForkPrune(dockerPath string, params *BuildParams, state *task.St
 func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 	var dockerClient = dockerFactory.Get()
 	var reference = params.GetReference()
-	var buildCtx, _ = archive.TarWithOptions(params.DockerContext, &archive.TarOptions{})
 	var options = build.ImageBuildOptions{
 		Dockerfile: params.Dockerfile,
 		Tags:       []string{reference},
@@ -317,6 +321,8 @@ func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 		PullParent: true,
 		NoCache:    params.NoCache,
 	}
+	var buildReader io.ReadCloser
+	var err error
 
 	if params.Label {
 		options.Labels = map[string]string{"sf": params.DockerRepository}
@@ -324,28 +330,34 @@ func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 
 	state.Logger.Debugf("Building a docker image tagged [%s] with the legacy builder", reference)
 
-	if resp, err := dockerClient.ImageBuild(params.Context, buildCtx, options); err == nil {
-		var scanner = bufio.NewScanner(resp.Body)
-		defer filez.CloseSilently(resp.Body)
+	if buildReader, err = archive.TarWithOptions(params.DockerContext, &archive.TarOptions{}); err == nil {
+		var resp build.ImageBuildResponse
 
-		for scanner.Scan() {
-			var output BuildOutput
+		defer filez.CloseSilently(buildReader)
 
-			if err = json.Unmarshal(scanner.Bytes(), &output); err == nil {
-				if output.Stream != "" {
-					state.Logger.Debugf("%s", strings.TrimSuffix(output.Stream, "\n"))
+		if resp, err = dockerClient.ImageBuild(params.Context, buildReader, options); err == nil {
+			var scanner = bufio.NewScanner(resp.Body)
+			defer filez.CloseSilently(resp.Body)
+
+			for scanner.Scan() {
+				var output BuildOutput
+
+				if err = json.Unmarshal(scanner.Bytes(), &output); err == nil {
+					if output.Stream != "" {
+						state.Logger.Debugf("%s", strings.TrimSuffix(output.Stream, "\n"))
+					}
+				} else {
+					state.Logger.Warningf("Could not parse json with error: %s", err)
+					state.Logger.Debugf("String: %s", scanner.Text())
 				}
-			} else {
-				state.Logger.Warningf("Could not parse json with error: %s", err)
-				state.Logger.Debugf("String: %s", scanner.Text())
 			}
-		}
 
-		state.Output = ""
-		return nil
-	} else {
-		return err
+			state.Output = ""
+			return nil
+		}
 	}
+
+	return err
 }
 
 func handleBuildPretend(params *BuildParams, state *task.State) error {

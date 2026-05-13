@@ -375,13 +375,21 @@ func Test_handleBuildContext_listError(t *testing.T) {
 }
 
 func Test_handleBuildContext_noResults(t *testing.T) {
+	var testParams = &BuildParams{
+		DockerRepository: "repository",
+	}
 	var testState = &task.State{
 		Logger: logrus.New(),
 	}
 	var stubClient = &stubDockerClient{}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handleBuildContext(&BuildParams{}, testState), ErrorNoBuild)
+
+	if actual := handleBuildContext(testParams, testState); actual != nil {
+		assert.Contains(t, actual.Error(), testParams.GetReference())
+	} else {
+		assert.Fail(t, "expected error")
+	}
 }
 
 func Test_handleBuildForkCreate(t *testing.T) {
