@@ -1,0 +1,59 @@
+name: Debian Package
+on:
+  workflow_dispatch:
+    inputs:
+      tagVersion:
+        description: 'Version tag, we will tag after successful packaging'
+        required: true
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Go Setup
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24.2'
+
+      - name: Go Compile
+        run: |
+          cd genaiz && make build
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential binutils
+
+      - name: Prepare directory structure
+        run: |
+          mkdir -p genaiz_${{ github.event.inputs.tagVersion }}_amd64/usr/local/bin
+          mkdir -p genaiz_${{ github.event.inputs.tagVersion }}_amd64/DEBIAN
+
+      - name: Copy application files
+        run: |
+          cp genaiz/genaiz genaiz_${{ github.event.inputs.tagVersion }}_amd64/usr/local/bin/genaiz
+          chmod +x genaiz_${{ github.event.inputs.tagVersion }}_amd64/usr/local/bin/genaiz
+
+      - name: Create control file
+        run: |
+          cat <<EOF > genaiz_${{ github.event.inputs.tagVersion }}_amd64/DEBIAN/control
+          Package: genaiz
+          Version: ${{ github.event.inputs.tagVersion }}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: libc6
+          Description: GenAIz SDK tool
+          EOF
+
+      - name: Build DEB package
+        run: dpkg-deb --build --root-owner-group genaiz_${{ github.event.inputs.tagVersion }}_amd64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: genaiz_${{ github.event.inputs.tagVersion }}_amd64.deb
