@@ -194,6 +194,28 @@ func TestBuildParams_toBuildArgs_WithDockerfile(t *testing.T) {
 	assert.Equal(t, ".", actual[6])
 }
 
+func TestBuildParams_toBuildArgs_WithPlatform(t *testing.T) {
+	var expectedFile = filepath.Join(t.TempDir(), "Dockerfile")
+	var testParams = &BuildParams{
+		DockerRepository: "repository",
+		DockerVersion:    "version",
+		Dockerfile:       expectedFile,
+		Platform:         "testPlatform",
+	}
+
+	actual := testParams.toBuildArgs()
+	assert.NotEmpty(t, actual)
+	assert.Equal(t, "build", actual[0])
+	assert.Equal(t, "--pull", actual[1])
+	assert.Equal(t, "-t", actual[2])
+	assert.Equal(t, fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion), actual[3])
+	assert.Equal(t, "-f", actual[4])
+	assert.Equal(t, expectedFile, actual[5])
+	assert.Equal(t, "--platform", actual[6])
+	assert.Equal(t, testParams.Platform, actual[7])
+	assert.Equal(t, ".", actual[8])
+}
+
 func TestBuildParams_toBuildArgs_WithLabel(t *testing.T) {
 	var testParams = &BuildParams{
 		DockerRepository: "repository",

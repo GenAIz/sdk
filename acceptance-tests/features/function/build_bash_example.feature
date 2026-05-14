@@ -46,3 +46,23 @@ Feature: function build with the bash example
     And the workdir changes to "<handle>"
     When I run the command "sf build"
     Then I should have a docker image tagged "<oem>/<handle>:latest"
+
+  Scenario: build bash example for platform
+    Given the scenario "build bash example no arguments" ran with condition "service_completed_successfully"
+    And the following parameters
+      | handle          | oem            | platform    |
+      | my-bash-example | com.genaiz.dev | linux/arm64 |
+    And the workdir changes to "<handle>"
+    When I run the command "sf build --platform=<platform"
+    Then I should have dock image tagged "<oem>/<handle>:latest"
+    And I should have the platform "<platform>" documented in the image metadata
+
+  Scenario: build bash example for platform with legacy builder
+    Given the scenario "build bash example no arguments" ran with condition "service_completed_successfully"
+    And the following parameters
+      | handle          | oem            | platform    |
+      | my-bash-example | com.genaiz.dev | linux/arm64 |
+    And the workdir changes to "<handle>"
+    When I run the command "sf build --platform=<platform --legacy-builder"
+    Then I should have dock image tagged "<oem>/<handle>:latest"
+    And I should have the platform "<platform>" documented in the image metadata

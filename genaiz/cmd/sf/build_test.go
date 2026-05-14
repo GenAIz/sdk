@@ -72,6 +72,7 @@ func TestBuildExecutor_Pretend(t *testing.T) {
 		},
 		BuildOptions: &BuildOptions{
 			optionLabelling: cli.Options.Docker.Label().BuildBoolOption(),
+			optionPlatform:  cli.Options.Docker.Platform().BuildStringOption(),
 			optionPruning:   cli.Options.Docker.Prune().BuildBoolOption(),
 		},
 
@@ -104,6 +105,7 @@ func TestBuildExecutor_Proceed(t *testing.T) {
 		},
 		BuildOptions: &BuildOptions{
 			optionLabelling: cli.Options.Docker.Label().BuildBoolOption(),
+			optionPlatform:  cli.Options.Docker.Platform().BuildStringOption(),
 			optionPruning:   cli.Options.Docker.Prune().BuildBoolOption(),
 		},
 

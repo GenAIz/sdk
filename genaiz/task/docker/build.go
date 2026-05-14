@@ -59,6 +59,7 @@ type BuildParams struct {
 	DockerVersion    string
 	Label            bool
 	NoCache          bool
+	Platform         string
 	Prune            bool
 	Streams          *BuildStreams
 }
@@ -138,6 +139,10 @@ func (p *BuildParams) toBuildArgs() []string {
 
 	if p.Dockerfile != "" {
 		args = append(args, "-f", p.Dockerfile)
+	}
+
+	if p.Platform != "" {
+		args = append(args, "--platform", p.Platform)
 	}
 
 	if p.Label {
@@ -318,6 +323,7 @@ func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 		Dockerfile: params.Dockerfile,
 		Tags:       []string{reference},
 		Remove:     true,
+		Platform:   params.Platform,
 		PullParent: true,
 		NoCache:    params.NoCache,
 	}
