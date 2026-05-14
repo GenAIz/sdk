@@ -22,6 +22,15 @@ func TestArgsHostAndPort(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestArgsHostAndPort_Any(t *testing.T) {
+	var expectedHost = "*"
+	var host, port, err = ArgsHostAndPort(expectedHost)
+
+	assert.Equal(t, expectedHost, host)
+	assert.Equal(t, 0, port)
+	assert.NoError(t, err)
+}
+
 func TestArgsHostAndPort_PortRange(t *testing.T) {
 	var host, port, err = ArgsHostAndPort("a:65536")
 

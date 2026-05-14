@@ -889,17 +889,17 @@ func resultOrError[T any](response responseBridge, transformer func(body any) *T
 
 				if err := json.Unmarshal(bytes, &respError); err == nil {
 					return nil, errors.New(respError.Message)
-				} else {
-					return nil, errors.New(string(bytes))
 				}
+
+				return nil, errors.New(string(bytes))
 			}
 
 			return nil, clientErrors[400]
-		} else {
-			return nil, mapz.GetOrDefault(clientErrors, response.StatusCode(), func() error {
-				return fmt.Errorf("%d %s", response.StatusCode(), response.Status())
-			})
 		}
+		
+		return nil, mapz.GetOrDefault(clientErrors, response.StatusCode(), func() error {
+			return fmt.Errorf("%d %s", response.StatusCode(), response.Status())
+		})
 	}
 
 	return nil, errorNoResponse
