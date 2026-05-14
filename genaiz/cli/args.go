@@ -17,7 +17,9 @@ func ArgsHostAndPort(address string) (string, int, error) {
 	var host, portString string
 	var err error
 
-	if host, portString, err = net.SplitHostPort(address); err == nil {
+	if address == "*" {
+		return address, 0, nil
+	} else if host, portString, err = net.SplitHostPort(address); err == nil {
 		var port int
 
 		if port, err = strconv.Atoi(portString); err == nil {

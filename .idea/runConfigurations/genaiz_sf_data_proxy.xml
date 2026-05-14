@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz sf data proxy" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz sf data">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$/out/my-solution/my-function" />
+    <go_parameters value="-tags dev" />
+    <parameters value="sf data proxy add *:*" />
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>
