@@ -1,12 +1,11 @@
 name: Debian Package
 on:
-  pull_request:
-    branches:
-      - '**'
+  workflow_dispatch:
 
 jobs:
   build-deb:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -58,3 +57,23 @@ jobs:
         with:
           name: deb-package
           path: genaiz_${{env.GENAIZ_VERSION}}_amd64.deb
+
+      - name: Fetch Public Email
+        id: fetch_email_step
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const user = await github.rest.users.getByUsername({
+              username: context.actor
+            });
+            const email = user.data.email || `${context.actor}@users.noreply.github.com`;
+            
+            // Set the output variable named 'user_email'
+            core.setOutput('user_email', email);
+
+      - name: Tag
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ fetch_email_step.user_email }}"
+          git tag v${{env.GENAIZ_VERSION}}
+          git push origin v${{env.GENAIZ_VERSION}}
