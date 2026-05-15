@@ -77,7 +77,7 @@ func (pp ProvisionParams) validate() error {
 			return errorInvalidDataSourceType(pp.Type)
 		}
 
-		if len(pp.DataSources) > 0 {
+		if len(pp.DataStores) > 0 {
 			return errorInvalidDataStoreType(pp.Type)
 		}
 	}

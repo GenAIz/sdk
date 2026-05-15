@@ -71,6 +71,25 @@ func TestProvisionParams_asFunction(t *testing.T) {
 	assert.Equal(t, testParams.Version, testFunc.Version)
 }
 
+func TestProvisionParams_validate_Connector(t *testing.T) {
+	var testParams = &ProvisionParams{
+		Type:        shared.FunctionTypeConnector,
+		DataSources: []string{"source"},
+		DataStores:  []string{"store"},
+	}
+
+	assert.Nil(t, testParams.validate())
+}
+
+func TestProvisionParams_validate_FunctionSources(t *testing.T) {
+	var testParams = &ProvisionParams{
+		Type:        shared.FunctionTypeFunction,
+		DataSources: []string{"source"},
+	}
+
+	assert.Error(t, testParams.validate())
+}
+
 func TestNewFunctionProvisionTask(t *testing.T) {
 	var testTask = NewFunctionProvisionTask()
 
@@ -102,6 +121,23 @@ func Test_handleFunctionProvisionContext(t *testing.T) {
 	assert.Error(t, handleFunctionProvisionContext(&ProvisionParams{}, &task.State{Internal: &shared.Identity{Id: "sha256:1"}}))
 	assert.NoError(t, handleFunctionProvisionContext(testParams, &task.State{Logger: testLogger, Internal: &shared.Identity{Id: "sha256:1"}}))
 	assert.NoError(t, handleFunctionProvisionContext(testParams, &task.State{Logger: testLogger, Internal: &shared.Identity{Id: "sha256:1", Hash: "hash"}}))
+}
+
+func Test_handleFunctionProvisionContext_InvalidFunctionStores(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Internal: &shared.Identity{
+			Id: "sha256:1",
+		},
+	}
+	var testParams = &ProvisionParams{
+		Type:       shared.FunctionTypeFunction,
+		DataStores: []string{"store"},
+		Oem:        "oem",
+		Handle:     "handle",
+	}
+
+	assert.Error(t, handleFunctionProvisionContext(testParams, testState))
 }
 
 func Test_handleFunctionProvisionComplete(t *testing.T) {

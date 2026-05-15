@@ -96,6 +96,7 @@ type Document struct {
 			Label         Keys
 			LegacyBuilder Keys
 			NoCache       Keys
+			Platform      Keys
 			Prune         Keys
 			Repository    Keys
 			Version       Keys
@@ -466,6 +467,7 @@ func init() {
 	Genaiz.Function.Build.Label = newKeys("Function.Build.Label", "SF_BUILD_LABEL", "Sf.Build.Label")
 	Genaiz.Function.Build.LegacyBuilder = newKeys("Function.Build.LegacyBuilder", "SF_BUILD_LEGACY", "Sf.Build.LegacyBuilder")
 	Genaiz.Function.Build.NoCache = newKeys("Function.Build.NoCache", "SF_BUILD_NOCACHE", "Sf.Build.NoCache")
+	Genaiz.Function.Build.Platform = newKeys("Function.Build.Platform", "SF_BUILD_PLATFORM", "Sf.Build.Platform")
 	Genaiz.Function.Build.Prune = newKeys("Function.Build.Prune", "SF_BUILD_PRUNE", "Sf.Build.Prune")
 	Genaiz.Function.Build.Repository = newKeys("Function.Build.Repository", "SF_BUILD_REPOSITORY", "Sf.Build.Tag", "Function.Build.Tag", "Sf.Build.Repository")
 	Genaiz.Function.Build.Version = newKeys("Function.Build.Version", "SF_BUILD_VERSION", "Sf.Build.Version")

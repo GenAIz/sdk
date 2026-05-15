@@ -47,6 +47,7 @@ func (be *BuildExecutor) makeBuildParams() *docker.BuildParams {
 	var result = makeBuildParams(&be.BaseExecutor)
 
 	result.Label = be.Ledger.GetBool(be.optionLabelling)
+	result.Platform = be.Ledger.GetString(be.optionPlatform)
 	result.Prune = be.Ledger.GetBool(be.optionPruning)
 	return result
 }
@@ -55,6 +56,7 @@ type BuildOptions struct {
 	optionLabelling *config.BoolOption
 	optionLegacy    *config.BoolOption
 	optionNoCache   *config.BoolOption
+	optionPlatform  *config.StringOption
 	optionPruning   *config.BoolOption
 }
 
@@ -63,6 +65,7 @@ func (bo BuildOptions) allDefiners() []config.Definer {
 		bo.optionLabelling,
 		bo.optionLegacy,
 		bo.optionNoCache,
+		bo.optionPlatform,
 		bo.optionPruning,
 	}
 }
@@ -108,6 +111,7 @@ func NewBuildOptions() *BuildOptions {
 		optionLabelling: cli.Options.Docker.Label().BuildBoolOption(),
 		optionLegacy:    cli.Options.Docker.Legacy().BuildBoolOption(),
 		optionNoCache:   cli.Options.Docker.NoCache().BuildBoolOption(),
+		optionPlatform:  cli.Options.Docker.Platform().BuildStringOption(),
 		optionPruning:   cli.Options.Docker.Prune().BuildBoolOption(),
 	}
 }

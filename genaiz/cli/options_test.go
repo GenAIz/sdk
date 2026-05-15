@@ -314,6 +314,15 @@ func Test_OptionsDockerNoCache(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
+func Test_OptionsDockerPlatform(t *testing.T) {
+	var testOption = Options.Docker.Platform().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, testOption.DefaultValue)
+}
+
 func Test_OptionsDockerPreserve(t *testing.T) {
 	var testOption = Options.Docker.Preserve().BuildBoolOption()
 

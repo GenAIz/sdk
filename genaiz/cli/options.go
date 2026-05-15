@@ -210,6 +210,13 @@ var (
 					WithUsage("disables caching of some build layers").
 					WithDefaultValue("false")
 			},
+			Platform: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.Platform).
+					WithParam("platform").
+					WithUsage("specifies the build platform of the image").
+					WithDefaultValue("linux/amd64")
+			},
 			Preserve: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("preserve").
@@ -646,10 +653,11 @@ type dockerOptions struct {
 	Label           func() OptionBuilder
 	Legacy          func() OptionBuilder
 	NoCache         func() OptionBuilder
-	Replace         func() OptionBuilder
-	Repository      func() OptionBuilder
+	Platform        func() OptionBuilder
 	Preserve        func() OptionBuilder
 	Prune           func() OptionBuilder
+	Replace         func() OptionBuilder
+	Repository      func() OptionBuilder
 	Version         func() OptionBuilder
 }
 
