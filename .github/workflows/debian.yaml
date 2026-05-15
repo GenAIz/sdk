@@ -21,7 +21,7 @@ jobs:
           cd genaiz && make build
 
       - name: Setup Version
-        run: echo "GENAIZ_VERSION=$(./genaiz --version |cut -d' ' -f3)" >> $GITHUB_ENV
+        run: echo "GENAIZ_VERSION=$(./genaiz/genaiz --version |cut -d' ' -f3)" >> $GITHUB_ENV
 
       - name: Install packaging tools
         run: |
