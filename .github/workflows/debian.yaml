@@ -73,6 +73,6 @@ jobs:
       - name: Tag
         run: |
           git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ fetch_email_step.user_email }}"
+          git config --global user.email "${{ steps.fetch_email_step.user_email }}"
           git tag v${{env.GENAIZ_VERSION}}
           git push origin v${{env.GENAIZ_VERSION}}
