@@ -172,9 +172,21 @@ func (i Identity) IsFlagSet(flag int) bool {
 type VarSpec interface {
 	GetDefaultValue() string
 
+	GetDescription() string
+
 	GetKey() string
 
 	Validate(value any) error
+}
+
+func FindVarSpec(specs []VarSpec, key string) VarSpec {
+	if i := slices.IndexFunc(specs, func(spec VarSpec) bool {
+		return strings.EqualFold(spec.GetKey(), key)
+	}); i >= 0 {
+		return specs[i]
+	}
+
+	return nil
 }
 
 type VarSpecTracking struct {

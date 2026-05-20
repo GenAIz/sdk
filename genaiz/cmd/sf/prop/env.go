@@ -7,29 +7,36 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
+	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/shared"
 )
 
 type EnvExecutor struct {
 	*EnvOptions
+	dk.SyncBridge
 	Context context.Context
 	Ledger  *config.Ledger
 
-	innerPropSpecs *config.Option
-	key            string
-	value          string
+	innerSources *config.ListOption
+	innerStores  *config.ListOption
+
+	key   string
+	value string
 }
 
-func (ee *EnvExecutor) Display() {
+func (ee EnvExecutor) Display() {
 	ee.Ledger.DisplayOptionsWithMap(&map[string]string{
 		"key":   ee.key,
 		"value": ee.value,
@@ -39,7 +46,48 @@ func (ee *EnvExecutor) Display() {
 	)
 }
 
-func (ee *EnvExecutor) Pretend() {
+func (ee EnvExecutor) List() ([]cobra.Completion, error) {
+	var dataLinks = ee.getFunctionDataLinks()
+	var specs []broker.PropSpec
+	var results []string
+	var err error
+
+	if len(dataLinks) > 0 {
+		var varSpecs []shared.VarSpec
+
+		if varSpecs, err = ee.collectDataLinks(dataLinks); err == nil {
+			for _, spec := range varSpecs {
+				if spec.GetDescription() != "" && !strings.EqualFold(spec.GetKey(), spec.GetDescription()) {
+					results = append(results, cobra.CompletionWithDesc(spec.GetKey(), spec.GetDescription()))
+				} else {
+					results = append(results, spec.GetKey())
+				}
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	if err = ee.Ledger.Unmarshal(schema.Genaiz.Function.Publish.PropSpecs, &specs); err == nil {
+		for _, spec := range specs {
+			if spec.Description != "" && !strings.EqualFold(spec.Key, spec.Description) {
+				results = append(results, cobra.CompletionWithDesc(spec.Key, spec.Description))
+			} else {
+				results = append(results, spec.Key)
+			}
+		}
+	} else {
+		ee.Ledger.Logger.Errorf("Could not read propSpecs: [%s]", err)
+	}
+
+	if len(results) > 0 {
+		return results, nil
+	}
+
+	return nil, err
+}
+
+func (ee EnvExecutor) Pretend() {
 	var envFile = ee.Ledger.GetString(ee.optionEnvFile)
 	var envBytes []byte
 	var err error
@@ -57,7 +105,7 @@ func (ee *EnvExecutor) Pretend() {
 	}
 }
 
-func (ee *EnvExecutor) Proceed() {
+func (ee EnvExecutor) Proceed() {
 	var envFile = ee.Ledger.GetString(ee.optionEnvFile)
 	var resultEnv []string
 	var fd *os.File
@@ -103,25 +151,72 @@ func (ee *EnvExecutor) Proceed() {
 	lang.HandleExit(err)
 }
 
-func (ee *EnvExecutor) validate() error {
-	var specs = ee.Ledger.Get(ee.innerPropSpecs)
+func (ee EnvExecutor) collectDataLinks(dataLinks []string) ([]shared.VarSpec, error) {
+	var datalinkWorkers []task.Worker
+	var err error
 
-	if propSpec := broker.FindPropSpec(specs, ee.key); propSpec != nil {
-		return propSpec.Validate(ee.value)
+	if datalinkWorkers, err = ee.MakeSyncWorkers(dataLinks, ee.Ledger, ee.optionNoPropSync); err == nil &&
+		len(datalinkWorkers) > 0 {
+		var results []shared.VarSpec
+		var plan = task.NewPlanBuilder(ee.Ledger.Logger).
+			WithFailures(func(i interface{}) { err = i.(error) }).
+			WithReturn(func(i interface{}) {
+				if specTracking, ok := i.(shared.VarSpecTracking); ok {
+					results = append(results, specTracking.VarSpecs...)
+				}
+			}).Build()
+
+		plan.Sequence(datalinkWorkers...)
+		return results, err
+	}
+
+	return nil, err
+}
+
+func (ee EnvExecutor) getFunctionDataLinks() []string {
+	var dataLink []string
+
+	dataLink = append(dataLink, ee.Ledger.GetList(ee.innerSources)...)
+	dataLink = append(dataLink, ee.Ledger.GetList(ee.innerStores)...)
+	return dataLink
+}
+
+func (ee EnvExecutor) validate() error {
+	var specs []broker.PropSpec
+	var err error
+
+	if err = ee.Ledger.Unmarshal(schema.Genaiz.Function.Publish.PropSpecs, &specs); err == nil {
+		if propSpec := broker.FindPropSpec(specs, ee.key); propSpec != nil {
+			return propSpec.Validate(ee.value)
+		}
+	}
+
+	if dataLinks := ee.getFunctionDataLinks(); len(dataLinks) > 0 {
+		var varSpecs []shared.VarSpec
+
+		if varSpecs, err = ee.collectDataLinks(dataLinks); err == nil {
+			if varSpec := shared.FindVarSpec(varSpecs, ee.key); varSpec != nil {
+				return varSpec.Validate(ee.value)
+			}
+		} else {
+			return err
+		}
 	}
 
 	return fmt.Errorf("property specification for key [%s] is not defined", ee.key)
 }
 
 type EnvOptions struct {
-	optionContext *config.StringOption
-	optionEnvFile *config.StringOption
+	optionContext    *config.StringOption
+	optionEnvFile    *config.StringOption
+	optionNoPropSync *config.BoolOption
 }
 
 func (eo EnvOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		eo.optionContext,
 		eo.optionEnvFile,
+		eo.optionNoPropSync,
 	}
 }
 
@@ -148,6 +243,22 @@ func NewEnv(ledger *config.Ledger, cli *cli.BaseCli) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			cli.Exec(ledger, NewEnvExecutor(ledger, envOptions, args[0], args[1]))
 		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+			if len(args) < 2 {
+				var executor = NewEnvExecutor(ledger, envOptions, toComplete, "")
+				var keys []string
+				var err error
+
+				if keys, err = executor.List(); err != nil {
+					return nil, cobra.ShellCompDirectiveError |
+						cobra.ShellCompDirectiveNoFileComp
+				}
+
+				return keys, cobra.ShellCompDirectiveNoFileComp
+			}
+
+			return nil, cobra.ShellCompDirectiveDefault
+		},
 	}
 
 	ledger.Register(envCmd, envOptions.allDefiners()...)
@@ -158,10 +269,15 @@ func NewEnvExecutor(ledger *config.Ledger, options *EnvOptions, key, value strin
 	return &EnvExecutor{
 		EnvOptions: options,
 		Ledger:     ledger,
+		SyncBridge: dk.NewSyncBridgeBuilder().Build(),
 
-		innerPropSpecs: cli.NewOptionBuilder().
-			WithKeys(&schema.Genaiz.Function.Publish.PropSpecs).
-			BuildOption(),
+		innerSources: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
+			BuildListOption(),
+		innerStores: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataStores).
+			BuildListOption(),
+
 		key:   key,
 		value: value,
 	}
@@ -176,5 +292,8 @@ func NewEnvOptions() *EnvOptions {
 		optionEnvFile: cli.Options.Docker.EnvFile().
 			WithKeys(&schema.Genaiz.Function.Env.File).
 			BuildStringOption(),
+		optionNoPropSync: cli.Options.Functions.NoPropSync().
+			WithKeys(&schema.Genaiz.Function.Env.NoPropSync).
+			BuildBoolOption(),
 	}
 }

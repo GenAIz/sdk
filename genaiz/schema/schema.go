@@ -117,8 +117,9 @@ type Document struct {
 			Version      Keys
 		}
 		Env struct {
-			Context Keys
-			File    Keys
+			Context    Keys
+			File       Keys
+			NoPropSync Keys
 		}
 		Init struct {
 			Arches       Keys
@@ -487,6 +488,7 @@ func init() {
 
 	Genaiz.Function.Env.Context = newKeys("Function.Env.Context", "SF_ENV_CONTEXT", "Sf.Env.Context")
 	Genaiz.Function.Env.File = newKeys("Function.Env.File", "SF_ENV_FILE", "Sf.Env.File")
+	Genaiz.Function.Env.NoPropSync = newKeys("Function.Env.NoPropSync", "SF_ENV_NO_PROP_SYNC", "Sf.Env.NoPropSync")
 
 	Genaiz.Function.Init.Arches = newKeys("Function.Init.Arches", "SF_INIT_ARCHES", "Sf.Init.Arches")
 	Genaiz.Function.Init.ConfigType = newKeys("Function.Init.ConfigType", "SF_INIT_CONFIG_TYPE", "Sf.Init.ConfigType")
