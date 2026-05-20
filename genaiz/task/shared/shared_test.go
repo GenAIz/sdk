@@ -14,12 +14,17 @@ import (
 )
 
 type testSpec struct {
-	Key   string
-	Value string
+	Description string
+	Key         string
+	Value       string
 }
 
 func (t testSpec) GetDefaultValue() string {
 	return t.Value
+}
+
+func (t testSpec) GetDescription() string {
+	return t.Description
 }
 
 func (t testSpec) GetKey() string {
@@ -265,6 +270,23 @@ func TestConfigParams_ResolveOptionalType_NoConfigNameFound(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, testParams.GetConfigPath()+"."+ConfigTypeJson, actual)
+}
+
+func TestFindVarSpec(t *testing.T) {
+	var expectedVarSpec = &testSpec{
+		Key: "expectedKey",
+	}
+
+	assert.Equal(t, expectedVarSpec, FindVarSpec([]VarSpec{expectedVarSpec}, expectedVarSpec.Key))
+}
+
+func TestFindVarSpec_NoResults(t *testing.T) {
+	var testVarSpec = &testSpec{
+		Key: "testKey",
+	}
+
+	assert.Nil(t, FindVarSpec([]VarSpec{}, "key"))
+	assert.Nil(t, FindVarSpec([]VarSpec{testVarSpec}, "key"))
 }
 
 func TestNewVarSpecState(t *testing.T) {

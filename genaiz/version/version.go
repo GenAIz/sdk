@@ -6,7 +6,7 @@ import (
 	"genaiz.com/genaiz/version/env"
 )
 
-var version = "0.3.9"
+var version = "0.3.10"
 
 func GetVersion() string {
 	return fmt.Sprintf("%s%s", version, env.GetVersionTag())

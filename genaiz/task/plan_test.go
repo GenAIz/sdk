@@ -138,6 +138,38 @@ func TestPlan_Sequence_OnProgress(t *testing.T) {
 	assert.EqualValues(t, []string{expectedProgress}, actualProgress)
 }
 
+func TestPlan_Sequence_OnReturn(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testParam = "param"
+	var expectedValue = "test"
+	var testStruct = struct {
+		A string
+	}{
+		A: expectedValue,
+	}
+	var testWorker = NewWorker(&testParam, &Task[string]{
+		OnPrepare: func(params *string, state *State) error {
+			return nil
+		},
+		OnComplete: func(params *string, state *State) error {
+			state.Internal = testStruct
+			return nil
+		},
+	})
+	var actual struct{ A string }
+	var ok bool
+
+	defer patch.Unpatch()
+
+	NewPlanBuilder(testLogger).
+		WithReturn(func(i interface{}) {
+			actual, ok = i.(struct{ A string })
+		}).Build().Sequence(testWorker)
+	assert.False(t, patch.Called)
+	assert.True(t, ok)
+	assert.Equal(t, expectedValue, actual.A)
+}
+
 func TestPlan_Sequence_OnSuccess(t *testing.T) {
 	var actualOutput interface{}
 	var expectedOutput = "output"

@@ -2,6 +2,7 @@ package prop
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,9 +17,12 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
+	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/shared"
 )
 
 func TestEnvExecutor_Display(t *testing.T) {
@@ -48,6 +52,123 @@ func TestEnvExecutor_Display(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`value:[\s\t]*`+testExecutor.value), actual)
 }
 
+func TestEnvExecutor_List(t *testing.T) {
+	var testViper = viper.New()
+	var testOptions = NewEnvOptions()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = NewEnvExecutor(testLedger, testOptions, "expectedKey", "")
+	var actualKeys []cobra.Completion
+	var err error
+
+	testLedger.InitLogging()
+	actualKeys, err = testExecutor.List()
+	assert.Nil(t, actualKeys)
+	assert.Error(t, err)
+	assert.Contains(t, "not found", err.Error())
+}
+
+func TestEnvExecutor_List_InvalidDataLink(t *testing.T) {
+	var testViper = viper.New()
+	var testOptions = NewEnvOptions()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testExecutor = NewEnvExecutor(testLedger, testOptions, "expectedKey", "")
+	var expectedDataLinks = "expectedInvalid"
+	var actualKeys []cobra.Completion
+	var err error
+
+	testViper.Set(schema.Genaiz.Function.Publish.PropSpecs.Doc, []broker.PropSpec{})
+	testViper.Set(schema.Genaiz.Function.Publish.DataSources.Doc, []string{expectedDataLinks})
+	testLedger.InitLogging()
+	actualKeys, err = testExecutor.List()
+	assert.Nil(t, actualKeys)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedDataLinks)
+}
+
+func TestEnvExecutor_List_NoDataLinks(t *testing.T) {
+	var testViper = viper.New()
+	var testOptions = NewEnvOptions()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testPropSpecs = []broker.PropSpec{
+		{
+			Key: "key1",
+		},
+		{
+			Key:         "key2",
+			Description: "key2",
+		},
+		{
+			Key:         "key3",
+			Description: "diff description",
+		},
+	}
+	var testExecutor = NewEnvExecutor(testLedger, testOptions, "", "")
+	var expectedKeys = []string{
+		testPropSpecs[0].Key,
+		testPropSpecs[1].Key,
+		fmt.Sprintf("%s\t%s", testPropSpecs[2].Key, testPropSpecs[2].Description),
+	}
+	var actualKeys []cobra.Completion
+	var err error
+
+	testViper.Set(schema.Genaiz.Function.Publish.PropSpecs.Doc, testPropSpecs)
+	testLedger.InitLogging()
+	actualKeys, err = testExecutor.List()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedKeys, actualKeys)
+}
+
+func TestEnvExecutor_List_NoPropSpecs(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
+	var testVarSpecs = []shared.VarSpec{
+		broker.PropSpec{
+			Key: "key1",
+		},
+		broker.PropSpec{
+			Key:         "key2",
+			Description: "key2",
+		},
+		broker.PropSpec{
+			Key:         "key3",
+			Description: "diff description",
+		},
+	}
+	var testExecutor = &EnvExecutor{
+		EnvOptions: NewEnvOptions(),
+		Ledger:     testLedger,
+		SyncBridge: dk.NewSyncBridgeBuilder().
+			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink})).
+			WithExportLinkTaskFactory(newExportLinkCompleteReturn(testVarSpecs)).
+			Build(),
+
+		innerSources: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
+			BuildListOption(),
+		innerStores: &config.ListOption{},
+	}
+	var expectedKeys = []string{
+		testVarSpecs[0].GetKey(),
+		testVarSpecs[1].GetKey(),
+		fmt.Sprintf("%s\t%s", testVarSpecs[2].GetKey(), testVarSpecs[2].GetDescription()),
+	}
+	var actualKeys []cobra.Completion
+	var err error
+
+	testViper.Set(schema.Genaiz.Function.Publish.DataSources.Doc, []string{
+		fmt.Sprintf("%s/%s:%s", testDataLink.Oem, testDataLink.Handle, testDataLink.Version),
+	})
+	testLedger.InitLogging()
+	actualKeys, err = testExecutor.List()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedKeys, actualKeys)
+}
+
 func TestEnvExecutor_Pretend(t *testing.T) {
 	var testDir = t.TempDir()
 	var fd *os.File
@@ -66,7 +187,7 @@ func TestEnvExecutor_Pretend(t *testing.T) {
 
 			defer patch.Unpatch()
 			testLedger.WorkDir = testDir
-			testViper.Set(testExecutor.innerPropSpecs.Key, []interface{}{
+			testViper.Set(schema.Genaiz.Function.Publish.PropSpecs.Doc, []interface{}{
 				map[string]interface{}{
 					"key":  testExecutor.key,
 					"type": broker.PropSpecTypeString,
@@ -96,7 +217,7 @@ func TestEnvExecutor_Pretend_PathError(t *testing.T) {
 
 	defer patch.Unpatch()
 	testLedger.WorkDir = testDir
-	testViper.Set(testExecutor.innerPropSpecs.Key, []interface{}{
+	testViper.Set(schema.Genaiz.Function.Publish.PropSpecs.Doc, []interface{}{
 		map[string]interface{}{
 			"key":  testExecutor.key,
 			"type": broker.PropSpecTypeString,
@@ -127,7 +248,7 @@ func TestEnvExecutor_Pretend_PermissionError(t *testing.T) {
 
 		defer patch.Unpatch()
 		testViper.Set(testOptions.optionEnvFile.Key, testFile)
-		testViper.Set(testExecutor.innerPropSpecs.Key, []interface{}{
+		testViper.Set(schema.Genaiz.Function.Publish.PropSpecs.Doc, []interface{}{
 			map[string]interface{}{
 				"key":  testExecutor.key,
 				"type": broker.PropSpecTypeString,
@@ -156,6 +277,41 @@ func TestEnvExecutor_Pretend_ValidationError(t *testing.T) {
 	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
+func TestEnvExecutor_Pretend_VarSpecNotFound(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
+	var expectedKey = "expectedKey"
+	var testExecutor = &EnvExecutor{
+		EnvOptions: NewEnvOptions(),
+		Ledger:     testLedger,
+		SyncBridge: dk.NewSyncBridgeBuilder().
+			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink})).
+			WithExportLinkTaskFactory(newExportLinkCompleteReturn([]shared.VarSpec{})).
+			Build(),
+
+		innerSources: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
+			BuildListOption(),
+		innerStores: &config.ListOption{},
+		key:         expectedKey,
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.innerSources.Key, []string{
+		fmt.Sprintf("%s/%s:%s", testDataLink.Oem, testDataLink.Handle, testDataLink.Version),
+	})
+	testLedger.InitLogging()
+	testExecutor.Pretend()
+	assert.True(t, patch.Called)
+	assert.EqualValues(t, 1, patch.CalledWith)
+}
+
 func TestEnvExecutor_Proceed(t *testing.T) {
 	var testFile = filepath.Join(t.TempDir(), ".env")
 	var fd *os.File
@@ -163,9 +319,7 @@ func TestEnvExecutor_Proceed(t *testing.T) {
 
 	if fd, err = os.Create(testFile); err == nil {
 		var testViper = viper.New()
-		var testLedger = config.NewBuilder().
-			WithViper(testViper).
-			Build()
+		var testLedger = config.NewBuilder().WithViper(testViper).Build()
 		var testOptions = NewEnvOptions()
 		var testExecutor = NewEnvExecutor(testLedger, testOptions, "expectedKey", "expectedValue")
 		var testKeyPair = fmt.Sprintf("%s=\"%s\"\n", testExecutor.key, "notRightValue")
@@ -174,10 +328,12 @@ func TestEnvExecutor_Proceed(t *testing.T) {
 		defer filez.CloseSilently(fd)
 
 		if _, err = fd.Write([]byte(testKeyPair + expectedOther)); err == nil {
+			var patch = mock.Patches{T: t}.OsExit(func(int) {})
 			var content []byte
 
+			defer patch.Unpatch()
 			testViper.Set(testExecutor.optionEnvFile.Key, testFile)
-			testViper.Set(testExecutor.innerPropSpecs.Key, []interface{}{
+			testViper.Set(schema.Genaiz.Function.Publish.PropSpecs.Doc, []interface{}{
 				map[string]interface{}{
 					"key":  testExecutor.key,
 					"type": broker.PropSpecTypeString,
@@ -191,6 +347,8 @@ func TestEnvExecutor_Proceed(t *testing.T) {
 				actual := string(content)
 				assert.Contains(t, actual, expectedOther)
 				assert.Contains(t, actual, expectedKeyPair)
+				assert.Empty(t, patch.CalledWith)
+				return
 			}
 		}
 	}
@@ -210,7 +368,7 @@ func TestEnvExecutor_Proceed_CreateFileError(t *testing.T) {
 
 	defer patch.Unpatch()
 	testViper.Set(testExecutor.optionEnvFile.Key, filepath.Join(testDir, "not_exist", ".env"))
-	testViper.Set(testExecutor.innerPropSpecs.Key, []interface{}{
+	testViper.Set(schema.Genaiz.Function.Publish.PropSpecs.Doc, []interface{}{
 		map[string]interface{}{
 			"key":  testExecutor.key,
 			"type": broker.PropSpecTypeString,
@@ -234,6 +392,79 @@ func TestEnvExecutor_Proceed_ValidationError(t *testing.T) {
 	testExecutor.Proceed()
 	assert.True(t, patch.Called)
 	assert.EqualValues(t, 1, patch.CalledWith)
+}
+
+func TestEnvExecutor_Proceed_VarSpecFailure(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
+	var expectedError = errors.New("expected")
+	var testExecutor = &EnvExecutor{
+		EnvOptions: NewEnvOptions(),
+		Ledger:     testLedger,
+		SyncBridge: dk.NewSyncBridgeBuilder().
+			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink})).
+			WithExportLinkTaskFactory(newExportLinkCompleteFailure(expectedError)).
+			Build(),
+
+		innerSources: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
+			BuildListOption(),
+		innerStores: &config.ListOption{},
+		key:         "key",
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.innerSources.Key, []string{
+		fmt.Sprintf("%s/%s:%s", testDataLink.Oem, testDataLink.Handle, testDataLink.Version),
+	})
+	testLedger.InitLogging()
+	testExecutor.Proceed()
+	assert.True(t, patch.Called)
+	assert.EqualValues(t, 1, patch.CalledWith)
+}
+
+func TestEnvExecutor_Proceed_VarSpecSuccess(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var testFile = filepath.Join(t.TempDir(), ".env")
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testDataLink = &broker.DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "0.1.1",
+	}
+	var testVarSpec = &broker.PropSpec{
+		Key: "expectedKey",
+	}
+	var testExecutor = &EnvExecutor{
+		EnvOptions: NewEnvOptions(),
+		Ledger:     testLedger,
+		SyncBridge: dk.NewSyncBridgeBuilder().
+			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{*testDataLink})).
+			WithExportLinkTaskFactory(newExportLinkCompleteReturn([]shared.VarSpec{*testVarSpec})).
+			Build(),
+
+		innerSources: cli.NewOptionBuilder().
+			WithKeys(&schema.Genaiz.Function.Publish.DataSources).
+			BuildListOption(),
+		innerStores: &config.ListOption{},
+		key:         testVarSpec.Key,
+	}
+
+	defer patch.Unpatch()
+	testViper.Set(testExecutor.innerSources.Key, []string{
+		fmt.Sprintf("%s/%s:%s", testDataLink.Oem, testDataLink.Handle, testDataLink.Version),
+	})
+	testViper.Set(testExecutor.optionEnvFile.Key, testFile)
+	testLedger.InitLogging()
+	testExecutor.Proceed()
+	assert.False(t, patch.Called)
 }
 
 func TestNewEnv(t *testing.T) {
@@ -284,4 +515,89 @@ func TestNewEnv_Validation(t *testing.T) {
 
 	assert.Error(t, testEnv.ValidateArgs([]string{"..NotValid..", "value"}))
 	assert.NoError(t, testEnv.ValidateArgs([]string{"MY_KEY", "value"}))
+}
+
+func TestNewEnv_ValidArgsFunction(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testConfig = filepath.Join(t.TempDir(), testLedger.ConfigName+"."+shared.ConfigTypeYaml)
+	var expectedKey = "expectedKey"
+	var err error
+
+	testViper.Set(schema.Genaiz.Function.Publish.PropSpecs.Doc, []broker.PropSpec{
+		{
+			Key: expectedKey,
+		},
+	})
+
+	if err = testViper.WriteConfigAs(testConfig); err == nil {
+		var testEnv = NewEnv(testLedger, &cli.BaseCli{})
+
+		testLedger.InitLogging()
+		actual, directive := testEnv.ValidArgsFunction(testEnv, []string{"one"}, "complete")
+		assert.Equal(t, []string{expectedKey}, actual)
+		assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestNewEnv_ValidArgsFunction_ListError(t *testing.T) {
+	var testLedger = config.NewBuilder().Build()
+	var testEnv = NewEnv(testLedger, &cli.BaseCli{})
+
+	testLedger.InitLogging()
+	actual, directive := testEnv.ValidArgsFunction(testEnv, []string{"one"}, "complete")
+	assert.Empty(t, actual)
+	assert.Equal(t, cobra.ShellCompDirectiveError|cobra.ShellCompDirectiveNoFileComp, directive)
+}
+
+func TestNewEnv_ValidArgsFunction_NoArgs(t *testing.T) {
+	var testLedger = config.NewBuilder().Build()
+	var testEnv = NewEnv(testLedger, &cli.BaseCli{})
+
+	actual, directive := testEnv.ValidArgsFunction(testEnv, []string{"one", "two"}, "complete")
+	assert.Empty(t, actual)
+	assert.Equal(t, cobra.ShellCompDirectiveDefault, directive)
+}
+
+func newDataLinksWriterTestFactory(current []broker.DataLink) dk.DataLinksWriterFactory {
+	return func(ledger *config.Ledger, s string) *dk.DataLinksWriter {
+		var reader = &config.DataLinksReader{}
+
+		return &dk.DataLinksWriter{
+			DataLinksWriter: &config.DataLinksWriter{
+				DataLinksReader: *reader.WithCurrent(current),
+			},
+		}
+	}
+}
+
+func newExportLinkCompleteReturn(varSpecs []shared.VarSpec) dk.ExportLinkTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *broker.DataLinkParams, state *task.State) error {
+				state.Internal = shared.VarSpecTracking{
+					VarSpecs: varSpecs,
+				}
+				return nil
+			},
+		}
+	}
+}
+
+func newExportLinkCompleteFailure(err error) dk.ExportLinkTaskFactory {
+	return func(writer broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *broker.DataLinkParams, state *task.State) error {
+				return err
+			},
+		}
+	}
 }

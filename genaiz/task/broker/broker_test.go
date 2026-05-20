@@ -277,40 +277,36 @@ func TestPropSpec_Validate(t *testing.T) {
 
 func TestPropSpec_VarSpec(t *testing.T) {
 	var expectedSpec = &PropSpec{
-		Key:   "expectedKey",
-		Value: "expectedValue",
-		Type:  PropSpecTypeInt,
+		Key:         "expectedKey",
+		Value:       "expectedValue",
+		Description: "expectedDesc",
+		Type:        PropSpecTypeInt,
 	}
 	var actualSpec = expectedSpec.VarSpec()
 
 	assert.Equal(t, expectedSpec.Key, actualSpec.GetKey())
 	assert.Equal(t, expectedSpec.Value, actualSpec.GetDefaultValue())
+	assert.Equal(t, expectedSpec.Description, actualSpec.GetDescription())
 	assert.NoError(t, actualSpec.Validate(37))
 	assert.Error(t, actualSpec.Validate("test"))
 }
 
 func TestFindPropSpec(t *testing.T) {
-	var expectedKey = "expectedKey"
-	var expectedSpecMap = map[string]any{
-		"key":         expectedKey,
-		"name":        "expectedName",
-		"description": "expectedDescription",
-		"value":       "expectedValue",
-		"values":      []string{"expected1", "expected2"},
-		"type":        PropSpecTypeInt,
+	var testOtherKey = "anotherKey"
+	var expectedPropSpec = &PropSpec{Key: "expectedKey"}
+	var testPropSpecs = []PropSpec{
+		{
+			Key: testOtherKey,
+		},
+		*expectedPropSpec,
 	}
 
-	assert.Empty(t, FindPropSpec("notAList", expectedKey))
-	if actual := FindPropSpec([]interface{}{expectedSpecMap, "notASpec"}, expectedKey); actual != nil {
-		assert.Equal(t, expectedSpecMap["description"], actual.Description)
-		assert.Equal(t, expectedSpecMap["key"], actual.Key)
-		assert.Equal(t, expectedSpecMap["name"], actual.Name)
-		assert.Equal(t, expectedSpecMap["value"], actual.Value)
-		assert.Equal(t, expectedSpecMap["values"], actual.Values)
-		assert.Equal(t, expectedSpecMap["type"], actual.Type)
-	} else {
-		assert.Fail(t, "propSpec not found")
-	}
+	assert.Equal(t, expectedPropSpec, FindPropSpec(testPropSpecs, expectedPropSpec.Key))
+	assert.NotNil(t, expectedPropSpec, FindPropSpec(testPropSpecs, testOtherKey))
+}
+
+func TestFindPropSpec_Empty(t *testing.T) {
+	assert.Nil(t, FindPropSpec([]PropSpec{}, "KEY"))
 }
 
 func TestListDataPorts(t *testing.T) {

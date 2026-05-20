@@ -384,6 +384,10 @@ func (ps PropSpec) GetDefaultValue() string {
 	return ps.Value
 }
 
+func (ps PropSpec) GetDescription() string {
+	return ps.Description
+}
+
 func (ps PropSpec) GetKey() string {
 	return ps.Key
 }
@@ -427,32 +431,14 @@ func (ps PropSpec) VarSpec() shared.VarSpec {
 	return ps
 }
 
-func FindPropSpec(specs any, key string) *PropSpec {
-	var result *PropSpec
-	var list []interface{}
-	var ok bool
-
-	if list, ok = specs.([]interface{}); ok {
-		var specMap map[string]interface{}
-
-		for _, specInterface := range list {
-			if specMap, ok = specInterface.(map[string]interface{}); ok {
-				if key == specMap["key"] {
-					result = &PropSpec{
-						Key:         cast.ToString(specMap["key"]),
-						Description: cast.ToString(specMap["description"]),
-						Name:        cast.ToString(specMap["name"]),
-						Type:        cast.ToString(specMap["type"]),
-						Value:       cast.ToString(specMap["value"]),
-						Values:      cast.ToStringSlice(specMap["values"]),
-					}
-					break
-				}
-			}
-		}
+func FindPropSpec(specs []PropSpec, key string) *PropSpec {
+	if i := slices.IndexFunc(specs, func(spec PropSpec) bool {
+		return strings.EqualFold(spec.Key, key)
+	}); i >= 0 {
+		return &specs[i]
 	}
 
-	return result
+	return nil
 }
 
 // ListPropSpecs is deprecated, viper.UnmarshallKey was overlooked, see schema.Keys.Unmarshall

@@ -3,7 +3,7 @@ Feature: function test with property of bash example
   As a local user
   I should be able to create and build the bash example
   I should be able to create a property specification for MY_KEY
-  I should be able to add and environment variable for MY_KEY
+  I should be able to add an environment variable for MY_KEY
   I should be able to test the function
 
   Scenario: create bash example
