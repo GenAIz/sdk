@@ -12,7 +12,7 @@ import (
 )
 
 // CloseSilently ignores any error on calling Close on an os.File
-func CloseSilently(toClose io.ReadCloser) {
+func CloseSilently(toClose io.Closer) {
 	if toClose != nil {
 		_ = toClose.Close()
 	}

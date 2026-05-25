@@ -8,33 +8,42 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"genaiz.com/genaiz-lib/browser"
+	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/stdz"
 	"genaiz.com/genaiz/task"
 )
 
 const (
-	oidcClientId    = "com.genaiz.sdk"
-	oidcClientScope = "openid profile email"
-	oidcGrantType   = "urn:ietf:params:oauth:grant-type:device_code"
+	oidcClientId       = "com.genaiz.sdk"
+	oidcClientScope    = "openid profile email"
+	oidcDefaultTimeout = 3500 * time.Millisecond
+	oidcDefaultTries   = 4
+	oidcGrantType      = "urn:ietf:params:oauth:grant-type:device_code"
 )
 
 var (
-	oidcDeviceClient      = NewDeviceClient(oidcClientId, oidcClientScope, oidcGrantType)
-	oidcDefaultUrlHandler = handleOidcCopyPasteUrl
+	oidcDeviceClient = NewDeviceClient(oidcClientId, oidcClientScope, oidcGrantType)
 
-	ErrorOidcNotSupported = errors.New("broker does not support OIDC logins")
-	ErrorOidcPending      = errors.New("authorization_pending")
+	ErrorOidcNotSupported  = errors.New("broker does not support OIDC logins")
+	ErrorOidcPending       = errors.New("authorization_pending")
+	ErrorOidcSlowDown      = errors.New("slow_down")
+	ErrorOidcClientTimeout = errors.New("client timeout, too many attempts")
 )
 
 type OidcParams struct {
 	*Broker
-	Input           io.Reader
+	Input           io.ReadCloser
 	Output          io.Writer
 	BrowserRedirect bool
+	Tries           *int
+	Timeout         *time.Duration
 }
 
-func (op OidcParams) GetInput() io.Reader {
+func (op OidcParams) GetInput() io.ReadCloser {
 	if op.Input == nil {
 		return os.Stdin
 	}
@@ -50,12 +59,20 @@ func (op OidcParams) GetOutput() io.Writer {
 	return op.Output
 }
 
-func (op OidcParams) GetUrlHandler() func(*OidcParams, *DeviceAuth) error {
-	if op.BrowserRedirect {
-		return handleOidcBrowserUrl
+func (op OidcParams) GetTimeout() time.Duration {
+	if op.Timeout != nil {
+		return *op.Timeout
 	}
 
-	return oidcDefaultUrlHandler
+	return oidcDefaultTimeout
+}
+
+func (op OidcParams) GetTries() int {
+	if op.Tries != nil {
+		return *op.Tries
+	}
+
+	return oidcDefaultTries
 }
 
 type oidcTracking struct {
@@ -82,6 +99,89 @@ func (os *OidcState) SetTokenUrl(tokenUrl string) {
 	os.state.Internal = os.oidcTracking
 }
 
+type OidcUrlHandler struct {
+	auth      *DeviceAuth
+	params    *OidcParams
+	pollInput stdz.Input
+	once      sync.Once
+	timeout   time.Duration
+	tries     int
+}
+
+func (ou *OidcUrlHandler) getInitHandler() func() error {
+	if ou.params.BrowserRedirect {
+		return ou.initBrowserRedirectUrl
+	}
+
+	return ou.initCopyPasteUrl
+}
+
+func (ou *OidcUrlHandler) initBrowserRedirectUrl() error {
+	var errOut = bufio.NewWriter(new(bytes.Buffer))
+	var out = ou.params.GetOutput()
+	var err error
+
+	if err = browser.OpenUrl(ou.auth.VerificationUriComplete, errOut, out); err == nil {
+		_, err = fmt.Fprintf(out, "Redirecting authorization to URL: %s\n", ou.auth.VerificationUriComplete)
+	} else {
+		return ou.initCopyPasteUrl()
+	}
+
+	return err
+}
+
+func (ou *OidcUrlHandler) initCopyPasteUrl() error {
+	var out = ou.params.GetOutput()
+
+	_, err := fmt.Fprintf(out, "Authorize with the following URL: %s\n", ou.auth.VerificationUriComplete)
+	return err
+}
+
+func (ou *OidcUrlHandler) Init() error {
+	return ou.getInitHandler()()
+}
+
+func (ou *OidcUrlHandler) PollForToken(brokerClient Client, tokenUrl string, deviceClient *DeviceClient) (string, error) {
+	var token string
+	var err error
+
+	ou.once.Do(func() {
+		ou.pollInput = stdz.NewInput(ou.params.GetInput())
+	})
+
+	defer filez.CloseSilently(ou.pollInput)
+
+	if _, err = fmt.Fprintln(ou.params.GetOutput(), "Press enter after login..."); err != nil {
+		return token, err
+	}
+
+	for {
+		if ou.tries > 0 {
+			ou.pollInput.Poll(ou.timeout, "\n", func() {
+				if token, err = brokerClient.OidcTokenCreate(tokenUrl, ou.auth.DeviceCode, deviceClient); err != nil {
+					if strings.EqualFold(err.Error(), ErrorOidcPending.Error()) {
+						err = nil
+					} else if strings.EqualFold(err.Error(), ErrorOidcSlowDown.Error()) {
+						ou.timeout += 1500 * time.Millisecond
+						err = nil
+					}
+				}
+			})
+
+			if err != nil || token != "" {
+				break
+			}
+
+			ou.tries -= 1
+		} else {
+			err = ErrorOidcClientTimeout
+			break
+		}
+	}
+
+	return token, err
+}
+
 func NewOidcState(state *task.State) *OidcState {
 	var current, ok = state.Internal.(oidcTracking)
 	var deviceUrl, tokenUrl string
@@ -105,6 +205,16 @@ func NewOidcTask() *task.Task[OidcParams] {
 		Name:       "broker-oidc",
 		OnPrepare:  handleOidcContext,
 		OnComplete: handleOidcCreate,
+	}
+}
+
+func NewOidcUrlHandler(params *OidcParams, auth *DeviceAuth) *OidcUrlHandler {
+	return &OidcUrlHandler{
+		auth:    auth,
+		once:    sync.Once{},
+		params:  params,
+		timeout: params.GetTimeout(),
+		tries:   params.GetTries(),
 	}
 }
 
@@ -139,30 +249,20 @@ func handleOidcCreate(params *OidcParams, state *task.State) error {
 
 	if oidcState.IsSupported() {
 		var brokerClient = clientFactory.New(params.HostAddr)
-		var urlHandler = params.GetUrlHandler()
 		var deviceAuth *DeviceAuth
 		var err error
 
 		state.Logger.Debugf("Obtaining oidc device code from [%s]", oidcState.deviceUrl)
 
 		if deviceAuth, err = brokerClient.OidcDeviceCode(oidcState.deviceUrl, oidcDeviceClient); err == nil {
+			var urlHandler = NewOidcUrlHandler(params, deviceAuth)
+
 			state.Logger.Debugf("Authorizing oidc device at [%s]", deviceAuth.VerificationUriComplete)
 
-			if err = urlHandler(params, deviceAuth); err == nil {
+			if err = urlHandler.Init(); err == nil {
 				var authToken string
 
-				for {
-					if authToken, err = brokerClient.OidcTokenCreate(oidcState.tokenUrl, deviceAuth.DeviceCode, oidcDeviceClient); err == nil ||
-						!strings.EqualFold(err.Error(), ErrorOidcPending.Error()) {
-						break
-					}
-
-					if err = handleOidcPendingUrl(params, deviceAuth); err != nil {
-						break
-					}
-				}
-
-				if err == nil {
+				if authToken, err = urlHandler.PollForToken(brokerClient, oidcState.tokenUrl, oidcDeviceClient); err == nil {
 					var session *AuthSession
 
 					state.Logger.Debugf("Creating session token for broker [%s]", params.HostAddr)
@@ -184,58 +284,4 @@ func handleOidcCreate(params *OidcParams, state *task.State) error {
 	}
 
 	return ErrorOidcNotSupported
-}
-
-func handleOidcBrowserUrl(params *OidcParams, deviceAuth *DeviceAuth) error {
-	var errOut = bufio.NewWriter(new(bytes.Buffer))
-	var out = params.GetOutput()
-	var err error
-
-	if err = browser.OpenUrl(deviceAuth.VerificationUriComplete, errOut, out); err == nil {
-		if _, err = fmt.Fprintf(out, "Redirecting authorization to URL: %s\n", deviceAuth.VerificationUriComplete); err == nil {
-			handleOidcShellQuery(params)
-		}
-	} else {
-		return handleOidcCopyPasteUrl(params, deviceAuth)
-	}
-
-	return err
-}
-
-func handleOidcCopyPasteUrl(params *OidcParams, deviceAuth *DeviceAuth) error {
-	var out = params.GetOutput()
-	var err error
-
-	if _, err = fmt.Fprintf(out, "Authorize with the following URL: %s\n", deviceAuth.VerificationUriComplete); err == nil {
-		handleOidcShellQuery(params)
-	}
-
-	return err
-}
-
-func handleOidcPendingUrl(params *OidcParams, deviceAuth *DeviceAuth) error {
-	var out = params.GetOutput()
-	var err error
-
-	if _, err = fmt.Fprintf(out, "Waiting for authorization on URL: %s\n", deviceAuth.VerificationUriComplete); err == nil {
-		handleOidcShellQuery(params)
-	}
-
-	return err
-}
-
-func handleOidcShellQuery(params *OidcParams) {
-	var out = params.GetOutput()
-	var buff = bufio.NewReader(params.GetInput())
-	var message = "Press enter after login...\n"
-	var keyPressed rune
-
-	for {
-		_, _ = fmt.Fprint(out, message)
-		keyPressed, _, _ = buff.ReadRune()
-
-		if keyPressed == '\n' {
-			return
-		}
-	}
 }
