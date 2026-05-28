@@ -525,6 +525,14 @@ func Test_OptionsModesInteractive(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
+func Test_OptionsPrinterJsonPrinter(t *testing.T) {
+	var testOption = Options.Printer.JsonPrinter().BuildBoolOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsPropSpecsDefaultValue(t *testing.T) {
 	var testOption = Options.PropSpecs.DefaultValue().BuildStringOption()
 

@@ -2,13 +2,53 @@
 
 ## Test Cases
 
+* [Account listings](../../features/account/list_accounts_username_oidc.feature)
 * [Account login with username](../../features/account/login_username.feature)
 * [Account login with OIDC](../../features/account/login_oidc.feature)
 
 ## Commands
 
+* [list](#list)
 * [login](#login)
 * [logout](#logout)
+
+### List
+
+`genaiz account list [USER_STRING][@][HOST_STRING] --json`
+
+The command will list currently known account sessions with their creation and expiry times. It should also indicate with a color supported terminal which session are expired and which is the currently active session.
+
+If the command does not find any results it should print `Error: No sessions found`
+
+#### USER_STRING
+
+* the `USER_STRING` and/or `@` symbols are purely optional. The command will test the string as a prefix or suffix to both the username and the full session name
+* should not typically contain spaces. It could be interpreted as several arguments will be returned as an error with the command usage
+
+>[!NOTE]
+>When a session was established through OIDC, the username is unknown and the string is substituted with the first 10 characters of the access token used.
+
+#### HOST_STRING
+
+* the `HOST_STRING` can be a prefix, a suffix or the fully qualified domain name of the host providing the account.
+* since we match the string on all of 'username', 'host address' and 'session name' fields, if a username is also a host address, this can provide some false positives in the filtering results. Use `@` as a prefix or suffix to refine the search.
+
+#### json
+
+* if the command finds no accounts, an empty list is returned.
+* boolean flag which will produce the output list as a JSON array of `account.UserAccount`
+
+```json
+[
+   {                                                                                                                                                                                         
+      "active": true,                                                                                                                                                                        
+      "username": "test_user",                                                                                                                                                              
+      "hostAddr": "dev.genaiz.com",                                                                                                                                                          
+      "created": "09:03:09",                                                                                                                                                                 
+      "expiry": "2026-06-19"                                                                                                                                                                 
+   }
+]
+```
 
 ### Login
 

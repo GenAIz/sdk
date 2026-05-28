@@ -61,3 +61,12 @@ func SubstrFrom(label string, index int) string {
 
 	return ""
 }
+
+// YesOrNo simply translates a boolean to yes for True, no for false
+func YesOrNo(flag bool) string {
+	if flag {
+		return "yes"
+	}
+
+	return "no"
+}

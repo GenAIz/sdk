@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/panicz"
@@ -219,6 +220,15 @@ func TestAuthSession_IsExpired(t *testing.T) {
 	assert.False(t, NewAuthSession(&Session{Expiry: -1}, "username", "token").IsExpired())
 }
 
+func TestNewAuthTask(t *testing.T) {
+	var actual = NewAuthTask()
+
+	assert.NotEmpty(t, actual.Name)
+	assert.NotEmpty(t, actual.OnPrepare)
+	assert.NotEmpty(t, actual.OnComplete)
+	assert.Empty(t, actual.OnPretend)
+}
+
 func TestNewLoginTask(t *testing.T) {
 	var actual = NewLoginTask()
 
@@ -244,6 +254,214 @@ func TestNewSessionTask(t *testing.T) {
 	assert.NotEmpty(t, actual.OnPrepare)
 	assert.NotEmpty(t, actual.OnComplete)
 	assert.Empty(t, actual.OnPretend)
+}
+
+func Test_handleAuthContext(t *testing.T) {
+	var testParams = &AuthParams{
+		Broker: &Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testAuth = &AuthData{
+		Active: 0,
+		Accounts: []*AuthAccount{
+			{
+				HostAddr: "testHost",
+				AuthSession: &AuthSession{
+					Username: "testUsername",
+				},
+			},
+		},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuth); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.NoError(t, handleAuthContext(testParams, testState))
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func Test_handleAuthContext_NoAccountsFound(t *testing.T) {
+	var testParams = &AuthParams{
+		Broker: &Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	err := handleAuthContext(testParams, testState)
+	assert.Equal(t, errorSessionsNotFound(), err)
+}
+
+func Test_handleAuthList(t *testing.T) {
+	var testParams = &AuthParams{
+		Broker: &Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		},
+		Expired: false,
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testAuth = &AuthData{
+		Active: 1,
+		Accounts: []*AuthAccount{
+			{
+				HostAddr: "expiredHost",
+				AuthSession: &AuthSession{
+					Username: "testUsername",
+					Expiry:   1,
+				},
+			},
+			{
+				HostAddr: "testHost",
+				AuthSession: &AuthSession{
+					Username: "testUsername2",
+					Expiry:   time.Now().Add(time.Hour).UnixMilli(),
+				},
+			},
+		},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuth); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.NoError(t, handleAuthList(testParams, testState))
+				assert.NotEqual(t, testAuth, testState.Internal)
+				actual, ok := testState.Internal.(*AuthData)
+				assert.True(t, ok)
+				assert.Equal(t, 0, actual.Active)
+				assert.Equal(t, 1, len(actual.Accounts))
+				assert.Equal(t, testAuth.Accounts[1].HostAddr, actual.Accounts[0].HostAddr)
+				assert.Equal(t, testAuth.Accounts[1].AuthSession.Username, actual.Accounts[0].AuthSession.Username)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func Test_handleAuthList_OutActiveExpired(t *testing.T) {
+	var testParams = &AuthParams{
+		Broker: &Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		},
+		Expired: false,
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testAuth = &AuthData{
+		Active: 3,
+		Accounts: []*AuthAccount{
+			{
+				HostAddr: "expiredHost",
+				AuthSession: &AuthSession{
+					Username: "testUsername",
+					Expiry:   1,
+				},
+			},
+			{
+				HostAddr: "testHost",
+				AuthSession: &AuthSession{
+					Username: "testUsername2",
+					Expiry:   time.Now().Add(time.Hour).UnixMilli(),
+				},
+			},
+		},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuth); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.NoError(t, handleAuthList(testParams, testState))
+				assert.NotEqual(t, testAuth, testState.Internal)
+				actual, ok := testState.Internal.(*AuthData)
+				assert.True(t, ok)
+				assert.Equal(t, 0, actual.Active)
+				assert.Equal(t, 1, len(actual.Accounts))
+				assert.Equal(t, testAuth.Accounts[1].HostAddr, actual.Accounts[0].HostAddr)
+				assert.Equal(t, testAuth.Accounts[1].AuthSession.Username, actual.Accounts[0].AuthSession.Username)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func Test_handleAuthList_NegActiveNoExpired(t *testing.T) {
+	var testParams = &AuthParams{
+		Broker: &Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		},
+		Expired: true,
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testAuth = &AuthData{
+		Active: -1,
+		Accounts: []*AuthAccount{
+			{
+				HostAddr: "testHost",
+				AuthSession: &AuthSession{
+					Username: "testUsername",
+				},
+			},
+		},
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuth); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.NoError(t, handleAuthList(testParams, testState))
+				assert.NotEqual(t, testAuth, testState.Internal)
+				actual, ok := testState.Internal.(*AuthData)
+				assert.True(t, ok)
+				assert.Equal(t, 0, actual.Active)
+				assert.Equal(t, testAuth.Accounts, actual.Accounts)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
 }
 
 func Test_handleLoginContext_EmptyFile(t *testing.T) {

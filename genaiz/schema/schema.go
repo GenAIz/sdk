@@ -18,6 +18,9 @@ var (
 // Document is the registry containing all Keys used by the genaiz commands
 type Document struct {
 	Account struct {
+		List struct {
+			Printer Keys
+		}
 		Login struct {
 			Password Keys
 			Refresh  Keys
@@ -404,6 +407,8 @@ func Normalize(vp *viper.Viper) *viper.Viper {
 }
 
 func init() {
+	Genaiz.Account.List.Printer = newKeys("Account.List.Printer", "AC_LIST_PRINTER", "Ac.List.Printer")
+	
 	Genaiz.Account.Login.Password = newKeys("p", "GENAIZ_PASSWORD")
 	Genaiz.Account.Login.Refresh = newKeys("Account.Login.Refresh", "AC_LOGIN_REFRESH", "Ac.Login.Refresh")
 	Genaiz.Account.Login.Username = newKeys("Account.Login.Username", "GENAIZ_USERNAME", "Ac.Login.Username")

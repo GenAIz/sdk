@@ -8,6 +8,7 @@ The GenAIz SDK is a tool for creating, building and publishing Smart Functions t
 * [Running the GenAIz CLI](#running-the-genaiz-cli)
   * [Quickstart Examples](#quickstart-examples)
   * [Result Values](#result-values)
+  * [Account Management](#account-management)
 * [Development Guide](#development-guide)
   * [Prerequisites](#prerequisites)
   * [Building from source](#building-from-source)
@@ -130,6 +131,18 @@ function:
         output: run/{timestamp}/out
         var: run/{timestamp}/var
 ```
+
+### Account Management
+
+#### login to an OIDC enabled broker
+
+```bash
+genaiz ac login dev.genaiz.com
+genaiz ac list
+```
+
+The command should print a tab separated table with the active session in blue.
+
 
 ## Development Guide
 
@@ -263,7 +276,7 @@ to your `$HOME/.bashrc` or `$HOME/.bash_profile` file. Note that `/var/tmp` is j
 that is usually the target for temporary files while compiling projects. You could very well just use `$HOME/go/tmp`,
 depending on how your partition layout was created, if `/var/tmp` is also "secured".
 
-#### Tests are failing will nil panic traces
+#### Tests are failing with nil panic traces
 
 We use a flavor of **Monkey Patching** to capture calls to various core methods like os.Exit and fmt.Printf. These
 require the source to be compiled without function inlining enabled:
