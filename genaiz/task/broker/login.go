@@ -98,6 +98,7 @@ func (ad *AuthData) Push(hostAddr string, session *AuthSession) *AuthData {
 	var accounts = []*AuthAccount{
 		{
 			AuthSession: &AuthSession{
+				Created:   session.Created,
 				Expiry:    session.Expiry,
 				SessionId: session.SessionId,
 				Token:     session.Token,
@@ -140,7 +141,13 @@ func (ad *AuthData) Write(outFile string) error {
 	return err
 }
 
+type AuthParams struct {
+	*Broker
+	Expired bool
+}
+
 type AuthSession struct {
+	Created   int64
 	Expiry    int64
 	SessionId int64
 	Token     string
@@ -177,11 +184,20 @@ func NewAuthData(authFile ...string) *AuthData {
 
 func NewAuthSession(session *Session, username string, token string) *AuthSession {
 	return &AuthSession{
+		Created:   time.Now().UnixMilli(),
 		Expiry:    session.Expiry,
 		Token:     token,
 		SessionId: session.Id,
 		UserId:    session.UserId,
 		Username:  username,
+	}
+}
+
+func NewAuthTask() *task.Task[AuthParams] {
+	return &task.Task[AuthParams]{
+		Name:       "auth-data",
+		OnPrepare:  handleAuthContext,
+		OnComplete: handleAuthList,
 	}
 }
 
@@ -208,6 +224,10 @@ func NewSessionTask() *task.Task[Broker] {
 		OnIncomplete: handleSessionValidate,
 		OnComplete:   handleSessionActivate,
 	}
+}
+
+func errorSessionsNotFound() task.Error {
+	return task.NewError("No sessions found")
 }
 
 func handleLoginContext(params *LoginParams, state *task.State) error {
@@ -363,6 +383,60 @@ func handleSessionContext(params *Broker, state *task.State) error {
 	}
 
 	return ErrorNoAuth
+}
+
+func handleAuthContext(params *AuthParams, state *task.State) error {
+	var auth = NewAuthData(params.AuthFile)
+
+	if len(auth.Accounts) > 0 {
+		state.Logger.Debug("Accounts found")
+		return nil
+	}
+
+	return errorSessionsNotFound()
+}
+
+func handleAuthList(params *AuthParams, state *task.State) error {
+	var auth = NewAuthData(params.AuthFile)
+	var effectiveAuth *AuthData
+
+	if auth.Active < 0 || auth.Active >= len(auth.Accounts) {
+		effectiveAuth = &AuthData{
+			Active:   0,
+			Accounts: auth.Accounts,
+		}
+		state.Logger.Debug("Invalid activated index, defaulting to 0")
+	} else {
+		effectiveAuth = auth
+	}
+
+	if !params.Expired {
+		var accountsFiltered []*AuthAccount
+		var activeFiltered = effectiveAuth.Active
+
+		state.Logger.Debug("Filtering expired accounts")
+
+		for i, acc := range effectiveAuth.Accounts {
+			if !acc.IsExpired() {
+				accountsFiltered = append(accountsFiltered, acc)
+
+				if i == activeFiltered {
+					activeFiltered = len(accountsFiltered) - 1
+				}
+			} else if i == activeFiltered {
+				activeFiltered = 0
+			}
+		}
+
+		state.Internal = &AuthData{
+			Active:   activeFiltered,
+			Accounts: accountsFiltered,
+		}
+		return nil
+	}
+
+	state.Internal = effectiveAuth
+	return nil
 }
 
 func handleSessionValidate(params *Broker, state *task.State) error {

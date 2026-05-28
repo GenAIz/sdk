@@ -20,6 +20,6 @@ func NewAc(ledger *config.Ledger) *cobra.Command {
 	ac.AddCommand(
 		NewLogin(ledger),
 		NewLogout(ledger),
-		NewPolicy(ledger))
+		NewList(ledger))
 	return ac
 }

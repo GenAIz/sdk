@@ -350,6 +350,14 @@ var (
 					WithDefaultValue("false")
 			},
 		},
+		Printer: printOptions{
+			JsonPrinter: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("json").
+					WithUsage("print results as a json object").
+					WithDefaultValue("false")
+			},
+		},
 		Proxies: proxyOptions{
 			Inactive: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -613,6 +621,7 @@ type cliOptions struct {
 	Docker    dockerOptions
 	Functions functionOptions
 	Modes     modeOptions
+	Printer   printOptions
 	Proxies   proxyOptions
 	PropSpecs propSpecsOptions
 	Solutions solutionOptions
@@ -679,6 +688,10 @@ type functionOptions struct {
 
 type modeOptions struct {
 	Interactive func() OptionBuilder
+}
+
+type printOptions struct {
+	JsonPrinter func() OptionBuilder
 }
 
 type propSpecsOptions struct {

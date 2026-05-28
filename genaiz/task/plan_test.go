@@ -53,19 +53,22 @@ func TestPlan_Sequence_Continue(t *testing.T) {
 
 func TestPlan_Sequence_Error(t *testing.T) {
 	var expectedError = errors.New("expected")
-	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var actualError error
 	var testParam = "param"
-	var testPlan = &Plan{Logger: testLogger}
+	var testPlan = &Plan{
+		Logger: testLogger,
+		OnFailure: func(i interface{}) {
+			actualError = i.(error)
+		},
+	}
 	var testWorker = NewWorker(&testParam, &Task[string]{
 		OnPrepare: func(params *string, state *State) error {
 			return expectedError
 		},
 	})
 
-	defer patch.Unpatch()
 	testPlan.Sequence(testWorker)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
+	assert.ErrorIs(t, actualError, expectedError)
 }
 
 func TestPlan_Sequence_NoSuccess(t *testing.T) {
@@ -86,7 +89,6 @@ func TestPlan_Sequence_NoSuccess(t *testing.T) {
 func TestPlan_Sequence_OnFailure(t *testing.T) {
 	var actualError interface{}
 	var expectedError = errors.New("error")
-	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "param"
 	var testPlan = &Plan{
 		Logger: testLogger,
@@ -103,10 +105,7 @@ func TestPlan_Sequence_OnFailure(t *testing.T) {
 		},
 	})
 
-	defer patch.Unpatch()
 	testPlan.Sequence(testWorker)
-	assert.True(t, patch.Called)
-	assert.EqualValues(t, 1, patch.CalledWith)
 	assert.EqualValues(t, expectedError, actualError)
 }
 
@@ -230,14 +229,17 @@ func TestPlan_Sequence_OnPrintReportsOnly(t *testing.T) {
 }
 
 func TestNewPlan_Failure(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var output = new(bytes.Buffer)
 	var expectedName = "Failed"
 	var expectedFailure = "failure"
 	var ioLogger = logrus.New()
 	var testPlan = NewPlan(expectedName, ioLogger)
 
+	defer patch.Unpatch()
 	ioLogger.Out = io.Writer(output)
 	testPlan.OnFailure(expectedFailure)
+	assert.True(t, patch.Called)
 	assert.Contains(t, output.String(), expectedFailure)
 }
 

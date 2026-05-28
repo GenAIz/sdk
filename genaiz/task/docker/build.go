@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 	"text/tabwriter"
-	"time"
 
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
@@ -25,6 +24,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz-lib/lang/stringz"
+	"genaiz.com/genaiz-lib/lang/timez"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
@@ -224,16 +224,6 @@ func NewListTask() *task.Task[BuildParams] {
 		OnPrepare:  handleListContext,
 		OnComplete: handleListComplete,
 	}
-}
-
-func formatCreated(createdSeconds int64, threshold time.Time) string {
-	var createdTime = time.UnixMilli(createdSeconds * 1000)
-
-	if createdTime.After(threshold) {
-		return createdTime.Format(time.TimeOnly)
-	}
-
-	return createdTime.Format(time.DateOnly)
 }
 
 func handleBuildContext(params *BuildParams, state *task.State) error {
@@ -474,13 +464,12 @@ func handleListComplete(params *BuildParams, state *task.State) error {
 	var dockerState = NewClientState(state)
 
 	if dockerState.HasImages() {
-		var year, month, day = time.Now().In(time.Local).Date()
-		var today = time.Date(year, month, day, 0, 0, 0, 0, time.Local)
+		var formatter = timez.NewTodayFormatter()
 		var imgList = dockerState.GetImages()
 		var output bytes.Buffer
 
 		state.Logger.Debugf("Listing Docker Images for Smart Function [%s], Version [%s]", params.DockerRepository, params.DockerVersion)
-		listImages(imgList, &output, today)
+		listImages(imgList, &output, formatter)
 		state.Output = output.String()
 		output.Reset()
 
@@ -490,7 +479,7 @@ func handleListComplete(params *BuildParams, state *task.State) error {
 			})
 
 			state.Logger.Debugf("Listing Docker Containers for Smart Function [%s], Version [%s]", params.DockerRepository, params.DockerVersion)
-			listContainers(dockerState.GetContainers(), imagesById, &output, today)
+			listContainers(dockerState.GetContainers(), imagesById, &output, formatter)
 			state.Output += "\n" + output.String()
 		} else {
 			state.Output += "\nNo containers associated with the listed images\n"
@@ -573,14 +562,14 @@ func handleInspectPretend(params *BuildParams, state *task.State) error {
 	return state.Error
 }
 
-func listContainers(containers []container.Summary, imageMap map[string]image.Summary, output *bytes.Buffer, threshold time.Time) {
+func listContainers(containers []container.Summary, imageMap map[string]image.Summary, output *bytes.Buffer, formatter timez.Formatter) {
 	var writer = tabwriter.NewWriter(output, 1, 1, 3, ' ', 0)
 
 	_, _ = fmt.Fprintf(writer, "CONTAINER\tID\tIMAGE\tSTATUS\tCREATED\n")
 
 	for _, ct := range containers {
 		if img, ok := imageMap[ct.ImageID]; ok {
-			var created = formatCreated(ct.Created, threshold)
+			var created = formatter.FormatSeconds(ct.Created)
 			var imageRepoTag, name string
 
 			if len(img.RepoTags) >= 1 {
@@ -600,14 +589,14 @@ func listContainers(containers []container.Summary, imageMap map[string]image.Su
 	panicz.PanicIfError(writer.Flush())
 }
 
-func listImages(images []image.Summary, output *bytes.Buffer, threshold time.Time) {
+func listImages(images []image.Summary, output *bytes.Buffer, formatter timez.Formatter) {
 	var writer = tabwriter.NewWriter(output, 1, 1, 3, ' ', 0)
 
 	_, _ = fmt.Fprintf(writer, "REPOSITORY\tVERSION\tIMAGE ID\tCREATED\tSIZE\n")
 
 	for _, img := range images {
 		for _, repoTag := range img.RepoTags {
-			var created = formatCreated(img.Created, threshold)
+			var created = formatter.FormatSeconds(img.Created)
 			var parts = strings.Split(repoTag, ":")
 			var hash = img.ID[7:19]
 			var size = fmt.Sprintf("%3.1fMB", float64(img.Size/1024/1024))

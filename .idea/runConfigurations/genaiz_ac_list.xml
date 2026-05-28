@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz ac login invalidip.com" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz ac">
+  <configuration default="false" name="genaiz ac list" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz ac">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
     <go_parameters value="-tags dev" />
-    <parameters value="ac login invalidip.com --no-browser" />
+    <parameters value="ac list" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

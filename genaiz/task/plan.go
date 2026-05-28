@@ -90,11 +90,7 @@ func (p Plan) Sequence(workers ...Worker) {
 	if result.Error != nil {
 		if p.OnFailure != nil {
 			p.OnFailure(result.Error)
-		} else {
-			p.Logger.Errorf("Failure with error: %s", result.Error)
 		}
-
-		lang.HandleExit(result.Error)
 	} else if p.OnSuccess != nil {
 		if p.PrintReportsOnly {
 			p.OnSuccess(result.Reports)
@@ -210,6 +206,7 @@ func Single[P any](plan Planner, params *P, task *Task[P]) {
 func newFailureWriter(planName string, logger *logrus.Logger) func(interface{}) {
 	return func(msg interface{}) {
 		logger.Errorf("%s failed with error: %s", planName, msg)
+		lang.HandleExit(msg)
 	}
 }
 
