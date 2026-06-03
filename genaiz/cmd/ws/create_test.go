@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -70,7 +71,7 @@ func TestCreateExecutor_Display(t *testing.T) {
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(`name:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedDescription), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionDisallowRc.Param+`:[\s\t]*false`), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionRcEnabled.Param+`:[\s\t]*false`), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionJsonPrinter.Param+`:[\s\t]*false`), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionVisibility.Param+`:[\s\t]*`+broker.WorkspaceVisibilityOrg), actual)
 }
@@ -103,7 +104,7 @@ func TestCreateExecutor_Display_WithAccount(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`name:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionAccount.Param+`:[\s\t]*`+expectedAccount), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedDescription), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionDisallowRc.Param+`:[\s\t]*false`), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionRcEnabled.Param+`:[\s\t]*false`), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionJsonPrinter.Param+`:[\s\t]*false`), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionVisibility.Param+`:[\s\t]*`+broker.WorkspaceVisibilityOrg), actual)
 }
@@ -131,6 +132,7 @@ func TestCreateExecutor_Pretend(t *testing.T) {
 	}
 
 	testViper.Set(testOptions.optionDescription.Key, expectedDescription)
+	testViper.Set(testOptions.optionRcEnabled.Key, cast.ToString(true))
 	testViper.Set(testOptions.optionAccount.Key, expectedAccount)
 	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityPrivate)
 	testLedger.InitLogging()
@@ -172,6 +174,7 @@ func TestCreateExecutor_Proceed_DefaultPrinter(t *testing.T) {
 
 	testViper.Set(testOptions.optionDescription.Key, expectedDescription)
 	testViper.Set(testOptions.optionAccount.Key, expectedAccount)
+	testViper.Set(testOptions.optionRcEnabled.Key, cast.ToString(true))
 	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityPrivate)
 	testLedger.InitLogging()
 	testExecutor.Proceed()
@@ -210,6 +213,7 @@ func TestCreateExecutor_Proceed_JsonPrinter(t *testing.T) {
 		}),
 	}
 
+	testViper.Set(testOptions.optionRcEnabled.Key, cast.ToString(true))
 	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityOrg)
 	testLedger.InitLogging()
 	testExecutor.Proceed()
@@ -249,7 +253,7 @@ func TestNewCreate(t *testing.T) {
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(`name:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedDescription), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionDisallowRc.Param+`:[\s\t]*false`), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionRcEnabled.Param+`:[\s\t]*false`), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionJsonPrinter.Param+`:[\s\t]*false`), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionVisibility.Param+`:[\s\t]*`+broker.WorkspaceVisibilityOrg), actual)
 }

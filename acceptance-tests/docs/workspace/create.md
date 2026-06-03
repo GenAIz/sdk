@@ -1,9 +1,9 @@
 ## Workspace Create
 
 ```
-genaiz ws create NAME --account=[<user>@][host] \
-    --description=DESC --disallow-rc --visibility=[PRIVATE|ORG] \
-    --json 
+genaiz ws create NAME --account=[[<user>@]host] \
+    --description=DESC --rc-enabled[=true|false] --visibility=[PRIVATE|ORG] \
+    --json[=true|false]
 ```
 
 Workspace create is used to create a workspace on an account from which a user can eventually deploy Solution Workflows. 
@@ -20,12 +20,7 @@ The name of the workspace is required by the create command, but is not mandator
 The account under which to create the workspace.
 
 * if the value of the account does not evaluate to a Host address, the command returns an error: `Error could not elect a session`
-*account values will auto-complete if the shell completion script is sourced:
-
-```bash
-genaiz completion bash > ~/.config/genaiz/completion.sh
-source ~/.config/genaiz/completion.sh
-```
+* account values will auto-complete if the shell completion script is sourced.
 
 ### description
 
@@ -34,9 +29,9 @@ The description option of the command is used to populate the `workspace.descrip
 * if the value of description is empty, it will be left empty
 * if the name does not resolve to a valid description string (see [description validity](../index.md#description)), the command will return an error with the key of the field and the shortened invalid value: `Error: value [...] for option [workspace.create.description] is invalid`
 
-### disallow-rc
+### rc-enabled
 
-Disallowing release candidates, means the workspace will not be able to use Solutions with -rc-N version suffix. Only allowing released stable versions.
+Enables or disables release candidates. Not enabled means the workspace will not be able to use Solutions with -rc-N version suffix. Only allowing released stable versions.
 
 * by default, all workspace creation with the create command allow Release Candidates
 

@@ -959,13 +959,13 @@ func Test_OptionsWorkspacesDescription(t *testing.T) {
 	assert.NotEmpty(t, testOption.Validator)
 }
 
-func Test_OptionsWorkspacesDisallowsRc(t *testing.T) {
-	var testOption = Options.Workspaces.DisallowRc().BuildBoolOption()
+func Test_OptionsWorkspacesRcEnabled(t *testing.T) {
+	var testOption = Options.Workspaces.RcEnabled().BuildBoolOption()
 
 	assert.Empty(t, testOption.Key)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
-	assert.False(t, cast.ToBool(testOption.DefaultValue))
+	assert.True(t, cast.ToBool(testOption.DefaultValue))
 }
 
 func Test_OptionsWorkspacesVisibility(t *testing.T) {

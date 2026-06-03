@@ -32,5 +32,5 @@ Feature: create simple workspace
     And the following parameters
       | name           | description      | visibility   | flags |
       | test_workspace | test description | ORGANIZATION | 1     |
-    When I run the command "ws create <name> --description='<test_desc>' --visibility=<visibility> --disallow-rc --json"
+    When I run the command "ws create <name> --description='<test_desc>' --visibility=<visibility> --rc-enabled=false --json"
     Then I should have a workspace with name "<name>", a created timestamp the visibility set to "<visibility>" and flags set to "<flags>"

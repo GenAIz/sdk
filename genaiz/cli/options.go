@@ -616,11 +616,11 @@ var (
 					WithUsage("description of the workspace").
 					WithValidator(config.Validation.Blob)
 			},
-			DisallowRc: func() OptionBuilder {
+			RcEnabled: func() OptionBuilder {
 				return NewOptionBuilder().
-					WithParam("disallow-rc").
-					WithUsage("disallows usage of solution workflows that are not released").
-					WithDefaultValue("false")
+					WithParam("rc-enabled").
+					WithUsage("allows usage of workflows from solutions that are release candidates").
+					WithDefaultValue("true")
 			},
 			Visibility: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -782,7 +782,7 @@ type workflowOptions struct {
 type workspaceOptions struct {
 	mgmtOptions
 	Description func() OptionBuilder
-	DisallowRc  func() OptionBuilder
+	RcEnabled   func() OptionBuilder
 	Visibility  func() OptionBuilder
 }
 

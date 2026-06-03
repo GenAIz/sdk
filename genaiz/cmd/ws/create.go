@@ -36,7 +36,7 @@ func (ce CreateExecutor) Display() {
 	ce.Ledger.DisplayOptionsWithMap(
 		&optionMap,
 		&ce.optionDescription.Option,
-		&ce.optionDisallowRc.Option,
+		&ce.optionRcEnabled.Option,
 		&ce.optionJsonPrinter.Option,
 		&ce.optionVisibility.Option,
 	)
@@ -76,7 +76,7 @@ func (ce CreateExecutor) newCreateParams(brokerParams *broker.Broker) *broker.Wo
 		Workspace: &broker.Workspace{
 			Name:        ce.workspaceName,
 			Description: ce.Ledger.GetString(ce.optionDescription),
-			RcEnabled:   !ce.Ledger.GetBool(ce.optionDisallowRc),
+			RcEnabled:   ce.Ledger.GetBool(ce.optionRcEnabled),
 			Visibility:  ce.Ledger.GetString(ce.optionVisibility),
 		},
 	}
@@ -85,8 +85,8 @@ func (ce CreateExecutor) newCreateParams(brokerParams *broker.Broker) *broker.Wo
 type CreateOptions struct {
 	optionAccount     *config.StringOption
 	optionDescription *config.StringOption
-	optionDisallowRc  *config.BoolOption
 	optionJsonPrinter *config.BoolOption
+	optionRcEnabled   *config.BoolOption
 	optionVisibility  *config.StringOption
 }
 
@@ -94,7 +94,7 @@ func (co CreateOptions) allDefiners() []config.Definer {
 	return []config.Definer{
 		co.optionAccount,
 		co.optionDescription,
-		co.optionDisallowRc,
+		co.optionRcEnabled,
 		co.optionJsonPrinter,
 		co.optionVisibility,
 	}
@@ -142,8 +142,8 @@ func NewCreateOptions() *CreateOptions {
 		optionDescription: cli.Options.Workspaces.Description().
 			WithKeys(&schema.Genaiz.Workspace.Create.Description).
 			BuildStringOption(),
-		optionDisallowRc: cli.Options.Workspaces.DisallowRc().
-			WithKeys(&schema.Genaiz.Workspace.Create.DisallowsRc).
+		optionRcEnabled: cli.Options.Workspaces.RcEnabled().
+			WithKeys(&schema.Genaiz.Workspace.Create.RcEnabled).
 			BuildBoolOption(),
 		optionJsonPrinter: cli.Options.Printer.JsonPrinter().
 			WithKeys(&schema.Genaiz.Workspace.Create.Printer).

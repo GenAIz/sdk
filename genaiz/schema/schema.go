@@ -334,8 +334,8 @@ type Document struct {
 		Create struct {
 			Account     Keys
 			Description Keys
-			DisallowsRc Keys
 			Printer     Keys
+			RcEnabled   Keys
 			Visibility  Keys
 		}
 	}
@@ -663,8 +663,8 @@ func init() {
 
 	Genaiz.Workspace.Create.Account = newKeys("Workspace.Create.Account", "WS_CREATE_ACCOUNT", "Ws.Create.Account")
 	Genaiz.Workspace.Create.Description = newKeys("Workspace.Create.Description", "WS_CREATE_DESCRIPTION", "Ws.Create.Description")
-	Genaiz.Workspace.Create.DisallowsRc = newKeys("Workspace.Create.DisallowRc", "WS_CREATE_DISALLOW_RC", "Ws.Create.DisallowRc")
 	Genaiz.Workspace.Create.Printer = newKeys("Workspace.Create.Printer", "WS_CREATE_PRINTER", "Ws.Create.Printer")
+	Genaiz.Workspace.Create.RcEnabled = newKeys("Workspace.Create.RcEnabled", "WS_CREATE_RC_ENABLED", "Ws.Create.RcEnabled")
 	Genaiz.Workspace.Create.Visibility = newKeys("Workspace.Create.Visibility", "WS_CREATE_VISIBILITY", "Ws.Create.Visibility")
 }
 
