@@ -25,6 +25,7 @@ var (
 	ErrorSessionConflict = errors.New("could not choose a session to logout")
 	ErrorSessionExists   = errors.New("session exists")
 	ErrorSessionInvalid  = errors.New("session is not valid")
+	ErrorSessionsEmpty   = task.NewError("No sessions found")
 )
 
 type AuthAccount struct {
@@ -226,10 +227,6 @@ func NewSessionTask() *task.Task[Broker] {
 	}
 }
 
-func errorSessionsNotFound() task.Error {
-	return task.NewError("No sessions found")
-}
-
 func handleLoginContext(params *LoginParams, state *task.State) error {
 	var auth = NewAuthData(params.AuthFile)
 	var accounts []*AuthAccount
@@ -393,7 +390,7 @@ func handleAuthContext(params *AuthParams, state *task.State) error {
 		return nil
 	}
 
-	return errorSessionsNotFound()
+	return ErrorSessionsEmpty
 }
 
 func handleAuthList(params *AuthParams, state *task.State) error {

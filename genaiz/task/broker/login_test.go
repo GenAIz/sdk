@@ -305,8 +305,7 @@ func Test_handleAuthContext_NoAccountsFound(t *testing.T) {
 		Logger: logrus.New(),
 	}
 
-	err := handleAuthContext(testParams, testState)
-	assert.Equal(t, errorSessionsNotFound(), err)
+	assert.ErrorIs(t, handleAuthContext(testParams, testState), ErrorSessionsEmpty)
 }
 
 func Test_handleAuthList(t *testing.T) {

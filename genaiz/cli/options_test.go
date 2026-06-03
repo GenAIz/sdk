@@ -942,6 +942,43 @@ func Test_OptionsWorkflowSfVersion(t *testing.T) {
 	assert.False(t, testOption.Validator("1.2"))
 }
 
+func Test_OptionsWorkspacesAccount(t *testing.T) {
+	var testOption = Options.Workspaces.Account().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsWorkspacesDescription(t *testing.T) {
+	var testOption = Options.Workspaces.Description().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotEmpty(t, testOption.Validator)
+}
+
+func Test_OptionsWorkspacesDisallowsRc(t *testing.T) {
+	var testOption = Options.Workspaces.DisallowRc().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsWorkspacesVisibility(t *testing.T) {
+	var testOption = Options.Workspaces.Visibility().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator(broker.WorkspaceVisibilityOrg))
+	assert.True(t, testOption.Validator(broker.WorkspaceVisibilityPrivate))
+	assert.False(t, testOption.Validator("InvalidVisibility"))
+}
+
 func TestOptionBuilder_Validated(t *testing.T) {
 	var called bool
 	var expectedValue = "value"

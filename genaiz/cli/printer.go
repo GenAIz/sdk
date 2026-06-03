@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"strings"
 	"text/tabwriter"
@@ -12,7 +11,6 @@ import (
 	"github.com/fatih/color"
 
 	"genaiz.com/genaiz-lib/lang/panicz"
-	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 )
@@ -25,7 +23,6 @@ var (
 	ErrorConsoleNoMarshal = task.NewError("interface{} does not implement MarshalSlice")
 	ErrorConsoleNothing   = task.NewError("interface{} with no columns to print")
 
-	StdPrinter     printerFactory
 	StdCliTag      = "cli"
 	StdCliRedGreen = "redGreen"
 	StdCliSelected = "selected"
@@ -313,22 +310,14 @@ func NewJsonPrinter(output io.Writer) Printer {
 	}
 }
 
-type printerFactory struct {
-	consoleFactory func(io.Writer, io.Writer) Printer
-	jsonFactory    func(io.Writer) Printer
-}
-
-func (pf printerFactory) JsonOrConsole(ledger *config.Ledger, jsonOption *config.BoolOption) Printer {
-	if ledger.GetBool(jsonOption) {
-		return pf.jsonFactory(os.Stdout)
+func HandlePrint(printer Printer) func(interface{}) {
+	return func(i interface{}) {
+		panicz.PanicIfError(printer.Print(i))
 	}
-
-	return pf.consoleFactory(os.Stderr, os.Stdout)
 }
 
-func init() {
-	StdPrinter = printerFactory{
-		consoleFactory: NewConsolePrinter,
-		jsonFactory:    NewJsonPrinter,
+func HandleError(printer Printer) func(interface{}) {
+	return func(i interface{}) {
+		panicz.PanicIfError(printer.Error(i))
 	}
 }

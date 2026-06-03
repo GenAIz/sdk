@@ -36,6 +36,38 @@ go build
 
 ## Commands
 
+### account (ac)
+
+The account module is used to manage account credentials and configuration policies with an Orchestrating Broker.
+
+#### list
+
+The list command displays a tab delimited table of account sessions available to the CLI. It can also display the results as a JSON list.
+
+It can use an argument to apply basic filtering to the list:
+
+```bash
+genaiz ac list --help
+genaiz ac list dev.genaiz.com
+genaiz ac list dev.genaiz.com --json
+```
+
+#### login
+
+The login command obtains an identity token from the specified Orchestrating Broker and registers the current active account for a specified amount of time by the broker.
+
+```shell
+genaiz ac login dev.genaiz.com
+```
+
+#### logout
+
+The logout command is invoked to explicitly remove a known session id from the local sdk configuration. The file is found under $HOME/.cache/genaiz/.auth. The command will log out the active session by default is no --host parameter is specified.
+
+```shell
+genaiz ac logout
+```
+
 ### function (sf)
 
 The function module is used to manage smart functions and publish them as Docker images to an Orchestrating Broker.
@@ -168,22 +200,15 @@ genaiz wf nodes add --help
 genaiz wf nodes rm --help
 ```
 
-### account (ac)
 
-The account module is used to manage account credentials and configuration policies with an Orchestrating Broker.
+### Workspace (ws)
 
-#### login
+The workspace module is used to create, list and manage workspaces with an associated account. A workspace is necessary for being able to run workflows on a group of brokered agents.
 
-The login command obtains an identity token from the specified Orchestrating Broker and registers the current active account for a specified amount of time by the broker.
+#### create
 
-```shell
-genaiz ac login www.genaiz.com
-```
+The create command is a simple first step when configuring a workspace for an account.
 
-#### logout
-
-The logout command is invoked to explicitly remove a known session id from the local sdk configuration. The file is found under $HOME/.cache/genaiz/.auth. The command will log out the active session by default is no --host parameter is specified.
-
-```shell
-genaiz ac logout
+```bash
+genaiz ws create --help
 ```

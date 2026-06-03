@@ -21,6 +21,7 @@ import (
 	"genaiz.com/genaiz/cmd/sf"
 	"genaiz.com/genaiz/cmd/sn"
 	"genaiz.com/genaiz/cmd/wf"
+	"genaiz.com/genaiz/cmd/ws"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/version"
 
@@ -128,12 +129,13 @@ func New(ledger *config.Ledger) *cobra.Command {
 
 	ledger.Register(root, options.allDefiners()...)
 	ledger.AddConfigOption(options.runConfig)
-	root.AddCommand(wf.NewWf(ledger, options.Confirm, options.Dry, options.Pretend))
-	root.AddCommand(sn.NewSn(ledger, options.Confirm, options.Dry, options.Pretend))
-	root.AddCommand(sf.NewSf(ledger, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(ac.NewAc(ledger))
-	root.AddCommand(sc.NewSc())
+	root.AddCommand(sf.NewSf(ledger, options.Confirm, options.Dry, options.Pretend))
+	root.AddCommand(sn.NewSn(ledger, options.Confirm, options.Dry, options.Pretend))
+	root.AddCommand(wf.NewWf(ledger, options.Confirm, options.Dry, options.Pretend))
+	root.AddCommand(ws.NewWs(ledger, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(dk.NewDk(ledger, options.Confirm, options.Dry, options.Pretend))
+	root.AddCommand(sc.NewSc())
 	return root
 }
 
@@ -161,11 +163,11 @@ func getFormatter(format string) logrus.Formatter {
 			TimestampFormat: time.DateTime,
 			LogFormat:       format + "\n",
 		}
-	} else {
-		return &easy.Formatter{
-			TimestampFormat: time.DateTime,
-			LogFormat:       "[%time%|%lvl%] %msg%\n",
-		}
+	}
+
+	return &easy.Formatter{
+		TimestampFormat: time.DateTime,
+		LogFormat:       "[%time%|%lvl%] %msg%\n",
 	}
 }
 

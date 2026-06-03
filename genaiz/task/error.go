@@ -1,5 +1,7 @@
 package task
 
+import "genaiz.com/genaiz/lang"
+
 // Error is a custom error interface used to frame the printing of hierarchical error information in various formats. To note: JSON
 type Error interface {
 	error
@@ -80,4 +82,11 @@ func (be *buildError) Build(message string) Error {
 
 func NewErrorBuilder() ErrorBuilder {
 	return &buildError{}
+}
+
+func NewRequestError(msg string, status int) Error {
+	return &baseError{
+		Message: msg,
+		Status:  lang.Ref(status),
+	}
 }

@@ -31,3 +31,13 @@ func TestNewErrorBuilder(t *testing.T) {
 	assert.True(t, testError.IsRequestError())
 	assert.Equal(t, expectedMessage, testError.Error())
 }
+
+func TestNewRequestError(t *testing.T) {
+	var expectedMessage = "expectedMessage"
+	var testError = NewRequestError(expectedMessage, 400)
+
+	assert.Equal(t, expectedMessage, testError.Error())
+	assert.True(t, testError.IsRequestError())
+	assert.False(t, testError.IsFieldError())
+	assert.False(t, testError.HasAllowedValues())
+}

@@ -15,13 +15,13 @@ type ListExecutor struct {
 	*ListOption
 	ledger *config.Ledger
 
-	cliPrinterProvider        func() cli.Printer
+	printerParams             cli.PrinterParametric
 	userAccountFacadeProvider func() mgmt.UserAccountFacade
 }
 
 func (le ListExecutor) List(filter string) error {
 	var accountList = le.userAccountFacadeProvider()
-	var printer = le.getPrinter()
+	var printer = le.printerParams.Printer()
 	var accounts, err = accountList.WithParams(le.newAuthParams()).
 		WithLogger(le.ledger.Logger).
 		Filtering(filter).
@@ -32,14 +32,6 @@ func (le ListExecutor) List(filter string) error {
 	}
 
 	return printer.Error(err)
-}
-
-func (le ListExecutor) getPrinter() cli.Printer {
-	if le.cliPrinterProvider == nil {
-		return cli.StdPrinter.JsonOrConsole(le.ledger, le.optionJsonPrinter)
-	}
-
-	return le.cliPrinterProvider()
 }
 
 func (le ListExecutor) newAuthParams() *broker.AuthParams {
@@ -63,7 +55,7 @@ func (lo ListOption) allDefiners() []config.Definer {
 }
 
 func NewList(ledger *config.Ledger) *cobra.Command {
-	var exec = NewListExecutor(ledger)
+	var options = NewListOptions()
 	var login = &cobra.Command{
 		Use:     "list [USER_STRING][@][HOST_STRING]",
 		Aliases: []string{"ls"},
@@ -72,6 +64,7 @@ func NewList(ledger *config.Ledger) *cobra.Command {
 		Example: "genaiz account list",
 		Args:    cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			var exec = NewListExecutor(ledger, options)
 			var filter = cli.ArgsOptionalSingle(args)
 			var err = exec.List(filter)
 
@@ -79,14 +72,16 @@ func NewList(ledger *config.Ledger) *cobra.Command {
 		},
 	}
 
-	ledger.Register(login, exec.allDefiners()...)
+	ledger.Register(login, options.allDefiners()...)
 	return login
 }
 
-func NewListExecutor(ledger *config.Ledger) *ListExecutor {
+func NewListExecutor(ledger *config.Ledger, options *ListOption) *ListExecutor {
 	return &ListExecutor{
-		ListOption:                NewListOptions(),
+		ListOption: options,
+
 		ledger:                    ledger,
+		printerParams:             cli.NewPrinterParam(ledger, options.optionJsonPrinter),
 		userAccountFacadeProvider: mgmt.NewUserAccountFacade,
 	}
 }

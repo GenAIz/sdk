@@ -18,6 +18,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 	"genaiz.com/genaiz/version/env"
 )
@@ -34,23 +35,24 @@ const (
 	pathOidcToken  path    = "oidc/token"
 	pathSession    path    = "user/session"
 	pathSolution   path    = "oem/solution"
+	pathWorkspace  path    = "workspace"
 )
 
 var (
-	errorBadRequest         = errors.New("broker refused the request")
-	errorDatalinkUnknown    = errors.New("datalink is unknown to the broker")
-	errorDisallowedProtocol = errors.New("broker protocol is not allowed")
-	errorDisconnected       = errors.New("broker connection timed out")
-	errorForbidden          = errors.New("broker denied access")
-	errorInternal           = errors.New("broker request crashed")
-	errorInvalidHost        = errors.New("invalid host address")
-	errorNoAuth             = errors.New("client not authenticated")
-	errorNotFound           = errors.New("broker did not find the entity")
-	errorNoResponse         = errors.New("client did not get a response")
-	errorNoPath             = errors.New("broker path is not available")
-	errorNoToken            = errors.New("could not read token from cookie")
-	errorSessionExpired     = errors.New("broker session is expired")
-	errorUnauthorized       = errors.New("unauthorized, please login")
+	errorBadRequest         = task.NewRequestError("bad broker request", 400)
+	errorDatalinkUnknown    = task.NewRequestError("datalink is unknown to the broker", 404)
+	errorDisallowedProtocol = task.NewRequestError("broker protocol is not allowed", 505)
+	errorDisconnected       = task.NewRequestError("broker connection timed out", 0)
+	errorForbidden          = task.NewRequestError("broker refused the request", 403)
+	errorInternal           = task.NewRequestError("broker request crashed internally", 500)
+	errorInvalidHost        = task.NewRequestError("invalid host address", 410)
+	errorNoAuth             = task.NewRequestError("client not authenticated", 401)
+	errorNotFound           = task.NewRequestError("broker did not find the entity", 404)
+	errorNoResponse         = task.NewRequestError("client expected a response, but got none", 0)
+	errorNoPath             = task.NewRequestError("broker path is not available", 501)
+	errorNoToken            = task.NewRequestError("could not read token from cookie", 500)
+	errorSessionExpired     = task.NewRequestError("broker session is expired", 401)
+	errorUnauthorized       = task.NewRequestError("unauthorized, please login", 401)
 
 	clientByHost = map[string]Client{}
 	clientErrors = map[int]error{
@@ -59,8 +61,10 @@ var (
 		401: errorUnauthorized,
 		403: errorForbidden,
 		404: errorNotFound,
+		410: errorInvalidHost,
 		500: errorInternal,
 		501: errorNoPath,
+		505: errorDisallowedProtocol,
 	}
 	clientFactory = NewClientFactory()
 )
@@ -70,6 +74,14 @@ type path string
 type version string
 
 type Client interface {
+	CreateWorkspace(*Workspace) (*Workspace, error)
+
+	CreateWorkspaceUrl() string
+
+	ExportDataLink(string, string, string, string) (*DataLink, error)
+
+	FindDataLink(string, string, string) (*DataLink, error)
+
 	GetAuthToken() string
 
 	GetExpiry() int
@@ -77,10 +89,6 @@ type Client interface {
 	GetHostAddr() string
 
 	GetTimeout() int
-
-	ExportDataLink(string, string, string, string) (*DataLink, error)
-
-	FindDataLink(string, string, string) (*DataLink, error)
 
 	ListDataLinks(string, string, int) ([]DataLink, error)
 
@@ -162,22 +170,48 @@ type solutionSlices struct {
 	SmartFunctions []Function     `json:"smartFunctions"`
 }
 
-func (c *client) GetAuthToken() string {
-	return c.AuthToken
+type workspaceSlices struct {
+	Workspace *Workspace `json:"workspace"`
 }
 
-func (c *client) GetExpiry() int {
-	return c.Expiry
+func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspace, "create"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[workspaceSlices]{}).
+				FormData(map[string]string{
+					"name":        workspace.Name,
+					"description": workspace.Description,
+					"visibility":  strings.ToUpper(workspace.Visibility),
+					"rcEnabled":   cast.ToString(workspace.IsRcEnabled()),
+				}).
+				Post(url)
+
+			if err == nil {
+				return resultOrError(resp, func(body any) *Workspace {
+					var payload = resp.Result().(*clientPayload[workspaceSlices])
+
+					return payload.Data.Workspace
+				})
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
 }
 
-func (c *client) GetHostAddr() string {
-	return c.HostAddr
-}
-
-func (c *client) GetTimeout() int {
-	var bridge = c.requestBridge()
-
-	return int(bridge.Timeout() / time.Second)
+func (c *client) CreateWorkspaceUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "create")
 }
 
 func (c *client) ExportDataLink(oem, handle, version, sequence string) (*DataLink, error) {
@@ -258,6 +292,24 @@ func (c *client) FindDataLink(oem, handle, version string) (*DataLink, error) {
 	}
 
 	return nil, errorNoAuth
+}
+
+func (c *client) GetAuthToken() string {
+	return c.AuthToken
+}
+
+func (c *client) GetExpiry() int {
+	return c.Expiry
+}
+
+func (c *client) GetHostAddr() string {
+	return c.HostAddr
+}
+
+func (c *client) GetTimeout() int {
+	var bridge = c.requestBridge()
+
+	return int(bridge.Timeout() / time.Second)
 }
 
 func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error) {
@@ -896,7 +948,7 @@ func resultOrError[T any](response responseBridge, transformer func(body any) *T
 
 			return nil, clientErrors[400]
 		}
-		
+
 		return nil, mapz.GetOrDefault(clientErrors, response.StatusCode(), func() error {
 			return fmt.Errorf("%d %s", response.StatusCode(), response.Status())
 		})
