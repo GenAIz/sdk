@@ -16,7 +16,7 @@ The handle of the workflow created will be written as the key `solution.workflow
 ### config-type
 
 > [!CAUTION]
-> Only the yaml config type is supported by all commands at this time. Support for json and toml are under planning and none is under testing.
+> Only the YAML config type is supported by all commands at this time. Support for JSON and toml are under planning and none is under testing.
 
 * if there is no config type specified, the default type will be `yaml`
 * if the config type specified does not resolve to `yaml`, `json`, `toml` or `none`, the command will return an error with the key of the field and the invalid value: `Error: value [...] for option [workflow.create.configtype] is invalid`
@@ -37,7 +37,7 @@ The name option of the create command is used to initialize the key `solution.wo
 
 ### description
 
-The name option of the create command is used to initialize the key `solution.workflows[n].name` of the workflow to create.
+The description option of the create command is used to initialize the key `solution.workflows[n].name` of the workflow to create.
 
-* if there is no name specified the value of [handle](#handle) will be used.
-* if the name does not resolve to a valid name string (see [description validity](../index.md#description)), the command will return an error with the key of the field and the shortened invalid value: `Error: value [...] for option [workflow.create.description] is invalid`
+* if there is no description specified the value of [handle](#handle) will be used.
+* if the name does not resolve to a valid description string (see [description validity](../index.md#description)), the command will return an error with the key of the field and the shortened invalid value: `Error: value [...] for option [workflow.create.description] is invalid`

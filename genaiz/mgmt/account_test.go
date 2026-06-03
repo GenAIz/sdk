@@ -132,7 +132,7 @@ func TestNewUserAccountFacade_Filtering(t *testing.T) {
 			{
 				HostAddr: expectedFilter,
 				AuthSession: &broker.AuthSession{
-					Username: expectedUsername1,
+					Username: fmt.Sprintf("%s@%s", expectedUsername1, expectedFilter),
 					Expiry:   time.Now().Add(24 * time.Hour).UnixMilli(),
 				},
 			},

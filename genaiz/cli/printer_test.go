@@ -10,12 +10,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/mock"
 	io2 "genaiz.com/genaiz-lib/mock/io"
-	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 )
@@ -65,11 +63,24 @@ func (stc simpleTwoColumns) MarshalSlice() ([]string, error) {
 	return nil, stc.Err
 }
 
+type stubPrinter struct {
+	err        error
+	printerErr interface{}
+	printerOut interface{}
+}
+
+func (sp *stubPrinter) Error(i interface{}) error {
+	sp.printerErr = i
+	return sp.err
+}
+
+func (sp *stubPrinter) Print(i interface{}) error {
+	sp.printerOut = i
+	return sp.err
+}
+
 func TestConsolePrinter_Error(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = &config.BoolOption{Option: config.Option{Key: "key"}}
 	var expectedField = "expectedField"
 	var expectedAllowed1 = "allowed1"
 	var expectedAllowed2 = "allowed2"
@@ -90,10 +101,8 @@ func TestConsolePrinter_Error(t *testing.T) {
 		os.Stderr = stderrRestore
 	}()
 
-	testViper.Set(testOption.Key, false)
-	testPrinter = StdPrinter.JsonOrConsole(testLedger, testOption)
+	testPrinter = NewConsolePrinter(os.Stderr, os.Stdout)
 	assert.NoError(t, testPrinter.Error(testError))
-
 	_ = w.Close()
 	err, _ := io.ReadAll(r)
 	actual := string(err)
@@ -235,9 +244,6 @@ func TestConsolePrinter_Print_NotSlice_NothingStruct(t *testing.T) {
 }
 
 func TestJsonPrinter_Error(t *testing.T) {
-	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testOption = &config.BoolOption{Option: config.Option{Key: "key"}}
 	var expectedField = "expectedField"
 	var expectedAllowed1 = "allowed1"
 	var expectedAllowed2 = "allowed2"
@@ -248,22 +254,11 @@ func TestJsonPrinter_Error(t *testing.T) {
 		Allowed(expectedAllowed1, expectedAllowed2).
 		Status(expectedStatus).
 		Build(expectedMessage)
-	var stdoutRestore = os.Stdout
-	var testPrinter Printer
+	var output = new(bytes.Buffer)
+	var testPrinter = NewJsonPrinter(output)
 
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	defer func() {
-		os.Stdout = stdoutRestore
-	}()
-
-	testViper.Set(testOption.Key, true)
-	testPrinter = StdPrinter.JsonOrConsole(testLedger, testOption)
 	assert.NoError(t, testPrinter.Error(testError))
-
-	_ = w.Close()
-	out, _ := io.ReadAll(r)
-	actual := string(out)
+	actual := output.String()
 	assert.Contains(t, actual, expectedField)
 	assert.Contains(t, actual, expectedAllowed1)
 	assert.Contains(t, actual, expectedAllowed2)
@@ -301,4 +296,36 @@ func TestJsonPrinter_Print_WriterErr(t *testing.T) {
 	var testPrinter = NewJsonPrinter(testOutput)
 
 	assert.ErrorIs(t, testPrinter.Print(struct{ A string }{A: "value"}), expectedError)
+}
+
+func TestHandleError(t *testing.T) {
+	var testPrinter = &stubPrinter{}
+	var testError = errors.New("expected")
+
+	HandleError(testPrinter)(testError)
+	assert.Same(t, testPrinter.printerErr, testError)
+}
+
+func TestHandleError_Panics(t *testing.T) {
+	var expectedPanic = errors.New("panic")
+	var testPrinter = &stubPrinter{err: expectedPanic}
+	var testError = errors.New("expected")
+
+	assert.Panics(t, func() { HandleError(testPrinter)(testError) })
+}
+
+func TestHandlePrint(t *testing.T) {
+	var testPrinter = &stubPrinter{}
+	var testStruct = struct{ A string }{A: "test"}
+
+	HandlePrint(testPrinter)(testStruct)
+	assert.Equal(t, testPrinter.printerOut, testStruct)
+}
+
+func TestHandlePrint_Panics(t *testing.T) {
+	var expectedPanic = errors.New("panic")
+	var testPrinter = &stubPrinter{err: expectedPanic}
+	var testStruct = struct{ A string }{A: "test"}
+
+	assert.Panics(t, func() { HandlePrint(testPrinter)(testStruct) })
 }

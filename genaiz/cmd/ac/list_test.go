@@ -46,6 +46,17 @@ func (s *stubUserAccountFacade) WithParams(params *broker.AuthParams) mgmt.Facad
 	return s
 }
 
+type stubCliPrinterParametric struct {
+}
+
+func (s stubCliPrinterParametric) Printer() cli.Printer {
+	return &stubCliPrinter{}
+}
+
+func (s stubCliPrinterParametric) IsDefault() bool {
+	return true
+}
+
 type stubCliPrinter struct {
 	errorError   error
 	errorPayload interface{}
@@ -70,10 +81,9 @@ func TestListExecutor_List(t *testing.T) {
 	var testUserAccountFacade = &stubUserAccountFacade{}
 	var testExecutor = &ListExecutor{
 		ListOption: NewListOptions(),
-		ledger:     testLedger,
-		cliPrinterProvider: func() cli.Printer {
-			return &stubCliPrinter{}
-		},
+
+		ledger:        testLedger,
+		printerParams: &stubCliPrinterParametric{},
 		userAccountFacadeProvider: func() mgmt.UserAccountFacade {
 			return testUserAccountFacade
 		},

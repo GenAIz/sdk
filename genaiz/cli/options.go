@@ -602,6 +602,34 @@ var (
 					WithValidator(config.Validation.Version)
 			},
 		},
+		Workspaces: workspaceOptions{
+			mgmtOptions: mgmtOptions{
+				Account: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("account").
+						WithUsage("account managing the workspace")
+				},
+			},
+			Description: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("description").
+					WithUsage("description of the workspace").
+					WithValidator(config.Validation.Blob)
+			},
+			RcEnabled: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("rc-enabled").
+					WithUsage("allows usage of workflows from solutions that are release candidates").
+					WithDefaultValue("true")
+			},
+			Visibility: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("visibility").
+					WithUsage("who can use the workspace, private workspaces can only be viewed by their owners").
+					WithUsage("supported values are PRIVATE and ORG").
+					WithValidator(config.AnyOfEnumerated(broker.WorkspaceVisibilities))
+			},
+		},
 	}
 )
 
@@ -614,18 +642,19 @@ type accountOptions struct {
 }
 
 type cliOptions struct {
-	Accounts  accountOptions
-	Configs   configOptions
-	DataLinks dataLinkOptions
-	DataPorts dataPortOptions
-	Docker    dockerOptions
-	Functions functionOptions
-	Modes     modeOptions
-	Printer   printOptions
-	Proxies   proxyOptions
-	PropSpecs propSpecsOptions
-	Solutions solutionOptions
-	Workflows workflowOptions
+	Accounts   accountOptions
+	Configs    configOptions
+	DataLinks  dataLinkOptions
+	DataPorts  dataPortOptions
+	Docker     dockerOptions
+	Functions  functionOptions
+	Modes      modeOptions
+	Printer    printOptions
+	Proxies    proxyOptions
+	PropSpecs  propSpecsOptions
+	Solutions  solutionOptions
+	Workflows  workflowOptions
+	Workspaces workspaceOptions
 }
 
 type configOptions struct {
@@ -686,6 +715,10 @@ type functionOptions struct {
 	Version     func() OptionBuilder
 }
 
+type mgmtOptions struct {
+	Account func() OptionBuilder
+}
+
 type modeOptions struct {
 	Interactive func() OptionBuilder
 }
@@ -744,6 +777,13 @@ type workflowOptions struct {
 	SfSequence       func() OptionBuilder
 	SfSerialized     func() OptionBuilder
 	SfVersion        func() OptionBuilder
+}
+
+type workspaceOptions struct {
+	mgmtOptions
+	Description func() OptionBuilder
+	RcEnabled   func() OptionBuilder
+	Visibility  func() OptionBuilder
 }
 
 type OptionBuilder interface {

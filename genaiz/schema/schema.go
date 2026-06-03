@@ -330,6 +330,15 @@ type Document struct {
 			}
 		}
 	}
+	Workspace struct {
+		Create struct {
+			Account     Keys
+			Description Keys
+			Printer     Keys
+			RcEnabled   Keys
+			Visibility  Keys
+		}
+	}
 }
 
 // Keys describe a structure of string used to refer to a specific option or value read by the genaiz commands
@@ -408,7 +417,7 @@ func Normalize(vp *viper.Viper) *viper.Viper {
 
 func init() {
 	Genaiz.Account.List.Printer = newKeys("Account.List.Printer", "AC_LIST_PRINTER", "Ac.List.Printer")
-	
+
 	Genaiz.Account.Login.Password = newKeys("p", "GENAIZ_PASSWORD")
 	Genaiz.Account.Login.Refresh = newKeys("Account.Login.Refresh", "AC_LOGIN_REFRESH", "Ac.Login.Refresh")
 	Genaiz.Account.Login.Username = newKeys("Account.Login.Username", "GENAIZ_USERNAME", "Ac.Login.Username")
@@ -651,6 +660,12 @@ func init() {
 	Genaiz.Workflow.Props.Edit.NoSync = newKeys("Workflow.Props.Edit.NoSync", "WF_PROPS_EDIT_NO_SYNC", "Wf.Props.Edit.NoSync")
 	Genaiz.Workflow.Props.Edit.NoValidation = newKeys("Workflow.Props.Edit.NoValidation", "WF_PROPS_EDIT_NO_VALIDATION", "Wf.Props.Edit.NoValidation")
 	Genaiz.Workflow.Props.List.NoSync = newKeys("Workflow.Props.List.NoSync", "WF_PROPS_LIST_NO_SYNC", "Wf.Props.List.NoSync")
+
+	Genaiz.Workspace.Create.Account = newKeys("Workspace.Create.Account", "WS_CREATE_ACCOUNT", "Ws.Create.Account")
+	Genaiz.Workspace.Create.Description = newKeys("Workspace.Create.Description", "WS_CREATE_DESCRIPTION", "Ws.Create.Description")
+	Genaiz.Workspace.Create.Printer = newKeys("Workspace.Create.Printer", "WS_CREATE_PRINTER", "Ws.Create.Printer")
+	Genaiz.Workspace.Create.RcEnabled = newKeys("Workspace.Create.RcEnabled", "WS_CREATE_RC_ENABLED", "Ws.Create.RcEnabled")
+	Genaiz.Workspace.Create.Visibility = newKeys("Workspace.Create.Visibility", "WS_CREATE_VISIBILITY", "Ws.Create.Visibility")
 }
 
 func newKeys(docKey, envKey string, pseudonyms ...string) Keys {

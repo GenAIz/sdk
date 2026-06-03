@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -19,6 +20,9 @@ const (
 	PropSpecTypeEnum    PropSpecType = "ENUM"
 	PropSpecTypeInt     PropSpecType = "INT"
 	PropSpecTypeString  PropSpecType = "STRING"
+
+	WorkspaceVisibilityPrivate WorkspaceVisibility = "PRIVATE"
+	WorkspaceVisibilityOrg     WorkspaceVisibility = "ORGANIZATION"
 )
 
 var (
@@ -36,8 +40,13 @@ var (
 		ProtocolTcp: 1 << 1,
 		ProtocolUdp: 1 << 2,
 	}
+	WorkspaceFlags = &workspaceFlags{
+		Active:    1 << 0,
+		RcEnabled: 1 << 1,
+	}
 	PropSpecTypes = enumz.NewEnumType(PropSpecTypeBoolean, PropSpecTypeDouble,
 		PropSpecTypeEnum, PropSpecTypeInt, PropSpecTypeString)
+	WorkspaceVisibilities = enumz.NewEnumType(WorkspaceVisibilityPrivate, WorkspaceVisibilityOrg)
 
 	ErrorDataPortNotFound     = errors.New("data port not found")
 	ErrorPropIllegalBool      = errors.New("illegal default value for bool type")
@@ -51,6 +60,7 @@ var (
 type Broker struct {
 	AuthFile string
 	HostAddr string
+	Username string
 }
 
 func (b Broker) GetClient() (Client, error) {
@@ -832,4 +842,68 @@ func WorkflowNamePredicate(name string) func(Workflow) bool {
 	return func(wf Workflow) bool {
 		return strings.EqualFold(wf.Name, name)
 	}
+}
+
+type WorkspaceVisibility = string
+
+type Workspace struct {
+	Id          int64  `yaml:"id,omitempty" json:"id,omitempty"`
+	Created     int64  `yaml:"nco,omitempty" json:"nco,omitempty"`
+	Modified    int64  `yaml:"nms,omitempty" json:"nms,omitempty"`
+	Name        string `yaml:"name" json:"name"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+	RcEnabled   bool   `yaml:"-" json:"-"`
+	Visibility  string `yaml:"visibility" json:"visibility"`
+	Flags       *int   `yaml:"Flags,omitempty"`
+}
+
+func (w Workspace) IsActive() bool {
+	return w.Flags != nil && (*w.Flags&WorkspaceFlags.Active) == WorkspaceFlags.Active
+}
+
+func (w Workspace) IsRcEnabled() bool {
+	if w.Flags != nil {
+		return (*w.Flags & WorkspaceFlags.RcEnabled) == WorkspaceFlags.RcEnabled
+	}
+
+	return w.RcEnabled
+}
+
+func (w Workspace) MarshalJSON() ([]byte, error) {
+	var bytes []byte
+	var flags int
+
+	if w.Flags == nil {
+		if w.RcEnabled {
+			flags = WorkspaceFlags.Active | WorkspaceFlags.RcEnabled
+		} else {
+			flags = WorkspaceFlags.Active
+		}
+	} else {
+		flags = *w.Flags
+	}
+
+	bytes, _ = json.Marshal(struct {
+		Id          string `json:"id"`
+		Created     int64  `json:"created"`
+		Modified    int64  `json:"modified"`
+		Name        string `json:"name"`
+		Description string `json:"description,omitempty"`
+		Visibility  string `json:"visibility"`
+		Flags       int    `json:"flags"`
+	}{
+		Id:          cast.ToString(w.Id),
+		Created:     w.Created,
+		Modified:    w.Modified,
+		Name:        w.Name,
+		Description: w.Description,
+		Visibility:  strings.ToUpper(w.Visibility),
+		Flags:       flags,
+	})
+	return bytes, nil
+}
+
+type workspaceFlags struct {
+	Active    int
+	RcEnabled int
 }

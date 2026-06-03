@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/mock"
@@ -400,6 +401,29 @@ func TestSingle_OnPrintReportsOnly(t *testing.T) {
 	assert.Equal(t, 1, len(actual.([]string)))
 	assert.Equal(t, expectedReport, actual.([]string)[0])
 	assert.False(t, patch.Called)
+}
+
+func TestSingle_OnReturn(t *testing.T) {
+	var testParam = "param"
+	var expectedReturn = "return"
+	var actualReturn string
+	var testPlan = &Plan{
+		Logger: testLogger,
+		OnReturn: func(i interface{}) {
+			actualReturn = cast.ToString(i)
+		}}
+
+	Single(testPlan, &testParam, &Task[string]{
+		OnPrepare: func(params *string, state *State) error {
+			return nil
+		},
+		OnComplete: func(params *string, state *State) error {
+			state.Internal = expectedReturn
+			return nil
+		},
+	})
+
+	assert.Equal(t, expectedReturn, actualReturn)
 }
 
 func Test_successWriter_Slice(t *testing.T) {

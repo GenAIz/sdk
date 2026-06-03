@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -798,4 +799,76 @@ func TestWorkflowNode_ValidateProps_Error(t *testing.T) {
 	workflowNode.AssignProp(expectedKey, expectedValue)
 	assert.Error(t, workflowNode.ValidateProps([]shared.VarSpec{}))
 	assert.Error(t, workflowNode.ValidateProps([]shared.VarSpec{varSpec}))
+}
+
+func TestWorkspace_IsActive(t *testing.T) {
+	var testWorkspace = &Workspace{}
+
+	assert.False(t, testWorkspace.IsActive())
+	testWorkspace.Flags = lang.Ref(WorkspaceFlags.RcEnabled)
+	assert.False(t, testWorkspace.IsActive())
+	testWorkspace.Flags = lang.Ref(WorkspaceFlags.Active | WorkspaceFlags.RcEnabled)
+	assert.True(t, testWorkspace.IsActive())
+}
+
+func TestWorkspace_IsRcEnabled(t *testing.T) {
+	var testWorkspace = &Workspace{}
+
+	assert.False(t, testWorkspace.IsRcEnabled())
+	testWorkspace.RcEnabled = true
+	assert.True(t, testWorkspace.IsRcEnabled())
+	testWorkspace.Flags = lang.Ref(WorkspaceFlags.Active)
+	assert.False(t, testWorkspace.IsRcEnabled())
+	testWorkspace.Flags = lang.Ref(WorkspaceFlags.Active | WorkspaceFlags.RcEnabled)
+	assert.True(t, testWorkspace.IsRcEnabled())
+}
+
+func TestWorkspace_MarshalJSON(t *testing.T) {
+	var testWorkspace = &Workspace{
+		Name:        "expectedName",
+		Description: "expectedDesc",
+		Visibility:  "expectedlyVisible",
+		Flags:       lang.Ref(37),
+	}
+
+	bytes, err := testWorkspace.MarshalJSON()
+	assert.NoError(t, err)
+	actual := string(bytes)
+	assert.Contains(t, actual, testWorkspace.Name)
+	assert.Contains(t, actual, testWorkspace.Description)
+	assert.Contains(t, actual, strings.ToUpper(testWorkspace.Visibility))
+	assert.Contains(t, actual, cast.ToString(testWorkspace.Flags))
+}
+
+func TestWorkspace_MarshalJSON_DefaultActive(t *testing.T) {
+	var testWorkspace = &Workspace{
+		Name:        "expectedName",
+		Description: "expectedDesc",
+		Visibility:  "expectedlyVisible",
+	}
+
+	bytes, err := testWorkspace.MarshalJSON()
+	assert.NoError(t, err)
+	actual := string(bytes)
+	assert.Contains(t, actual, testWorkspace.Name)
+	assert.Contains(t, actual, testWorkspace.Description)
+	assert.Contains(t, actual, strings.ToUpper(testWorkspace.Visibility))
+	assert.Contains(t, actual, cast.ToString(WorkspaceFlags.Active))
+}
+
+func TestWorkspace_MarshalJSON_RcEnabled(t *testing.T) {
+	var testWorkspace = &Workspace{
+		Name:        "expectedName",
+		Description: "expectedDesc",
+		Visibility:  "expectedlyVisible",
+		RcEnabled:   true,
+	}
+
+	bytes, err := testWorkspace.MarshalJSON()
+	assert.NoError(t, err)
+	actual := string(bytes)
+	assert.Contains(t, actual, testWorkspace.Name)
+	assert.Contains(t, actual, testWorkspace.Description)
+	assert.Contains(t, actual, strings.ToUpper(testWorkspace.Visibility))
+	assert.Contains(t, actual, cast.ToString(WorkspaceFlags.RcEnabled|WorkspaceFlags.Active))
 }

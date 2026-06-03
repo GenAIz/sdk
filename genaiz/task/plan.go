@@ -123,6 +123,8 @@ func (p Plan) Single(worker Worker, exitHandler func(interface{})) {
 		} else {
 			p.OnSuccess(result.Output)
 		}
+	} else if p.OnReturn != nil {
+		p.OnReturn(result.Internal)
 	}
 }
 
@@ -198,7 +200,7 @@ func HandleString(str *string) func(interface{}) {
 	}
 }
 
-// Single is a shorthand way to express the execution of a task.Task with the provided par
+// Single is a shorthand way to express the execution of a task.Task with the provided params and task
 func Single[P any](plan Planner, params *P, task *Task[P]) {
 	plan.Single(NewWorker(params, task), lang.HandleExit)
 }

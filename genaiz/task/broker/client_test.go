@@ -123,6 +123,70 @@ type testStruct struct {
 	field2 int
 }
 
+func TestClient_CreateWorkspace(t *testing.T) {
+	var expectedToken = "token"
+	var expectedWorkspace = &Workspace{Name: "name"}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[workspaceSlices]{
+				Data: workspaceSlices{
+					Workspace: expectedWorkspace,
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateWorkspace(expectedWorkspace)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedWorkspace, actual)
+}
+
+func TestClient_CreateWorkspace_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.CreateWorkspace(&Workspace{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_CreateWorkspace_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateWorkspace(&Workspace{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_CreateWorkspace_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.CreateWorkspace(&Workspace{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_CreateWorkspace_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateWorkspace(&Workspace{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
 func TestClient_ExportDataLink(t *testing.T) {
 	var expectedToken = "token"
 	var expectedDataLink = &DataLink{Handle: "handle"}

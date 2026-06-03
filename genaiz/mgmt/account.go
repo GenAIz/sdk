@@ -140,13 +140,15 @@ func (uap userAccountsProvider) Get() ([]UserAccount, task.Error) {
 
 			if strings.EqualFold("token", aa.Username) && len(aa.Token) >= 10 {
 				username = aa.Token[:10]
+			} else if strings.Contains(aa.Username, "@") {
+				username = strings.Split(aa.Username, "@")[0]
 			} else {
 				username = aa.Username
 			}
 
 			account := &UserAccount{
 				Active:   i == authAccounts.Active,
-				Name:     fmt.Sprintf("%s@%s", aa.Username, aa.HostAddr),
+				Name:     fmt.Sprintf("%s@%s", username, aa.HostAddr),
 				HostAddr: aa.HostAddr,
 				Username: username,
 				Expiry:   aa.Expiry,
