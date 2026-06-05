@@ -8,6 +8,7 @@ The GenAIz SDK is a tool for creating, building and publishing Smart Functions t
 * [Running the GenAIz CLI](#running-the-genaiz-cli)
   * [Quickstart Examples](#quickstart-examples)
   * [Result Values](#result-values)
+  * [Auto-Completion](#auto-completion)
   * [Account Management](#account-management)
 * [Development Guide](#development-guide)
   * [Prerequisites](#prerequisites)
@@ -131,6 +132,18 @@ function:
         output: run/{timestamp}/out
         var: run/{timestamp}/var
 ```
+
+### Auto-Completion
+
+Auto-completion in Bash and other shell types can be achieved by generating the corresponding script file and sourcing it inside the terminal session:
+
+```bash
+gennaiz completion --help
+genaiz completion bash > ~/.config/genaiz/completion.sh
+source ~/.config/genaiz/completion.sh
+```
+
+For Bash, the source instruction can be added to `$HOME/.bashrc` or `$HOME/.bash_profile`, depending on your terminal shell's configuration.
 
 ### Account Management
 

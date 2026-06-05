@@ -6,6 +6,7 @@ invoke a Workflow on a groups of Agents managed by the Broker.
 
 * [Features](#features)
     * [Workspace Creation](#workspace-creation)
+    * [Workspace Listing](#workspace-listing)
 * [By Command](#commands)
 * [By Test Cases](#test-cases)
 
@@ -26,10 +27,27 @@ flowchart LR
     login --> wsCreate([create<br>workspace])
 ```
 
+### Workspace Listing
+
+The workspace listing activity is a simple user to broker request which returns the list of workspaces for an integer flag value representing Workspace status and type. It involves a series of scenarios detailed under [list simple use workspaces](../../features/workspace/list_simple_user_workspaces.feature)
+
+```mermaid
+---
+title: Workspace Listing Activity
+---
+flowchart LR
+    use>user] --> login([account<br>login])
+    login --> wsCreate([create<br>workspace])
+    login --> wsList([list<br>workspaces])
+    wsCreate <--> wsList
+```
+
 ## Commands
 
 * [create](create.md)
+* [list](list.md)
 
 ## Test Cases
 
 * [Create Simple Workspace](../../features/workspace/create_simple_workspace.feature)
+* [List Simple User Workspaces](../../features/workspace/list_simple_user_workspaces.feature)

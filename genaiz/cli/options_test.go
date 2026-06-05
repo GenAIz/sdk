@@ -950,6 +950,33 @@ func Test_OptionsWorkspacesAccount(t *testing.T) {
 	assert.NotEmpty(t, testOption.Usage)
 }
 
+func Test_OptionsWorkspacesDateMonthly(t *testing.T) {
+	var testOption = Options.Workspaces.DateMonthly().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsWorkspacesDateToday(t *testing.T) {
+	var testOption = Options.Workspaces.DateToday().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsWorkspacesDateWeekly(t *testing.T) {
+	var testOption = Options.Workspaces.DateWeekly().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsWorkspacesDescription(t *testing.T) {
 	var testOption = Options.Workspaces.Description().BuildStringOption()
 
@@ -957,6 +984,15 @@ func Test_OptionsWorkspacesDescription(t *testing.T) {
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
 	assert.NotEmpty(t, testOption.Validator)
+}
+
+func Test_OptionsWorkspacesOwnerOnly(t *testing.T) {
+	var testOption = Options.Workspaces.OwnerOnly().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
 func Test_OptionsWorkspacesRcEnabled(t *testing.T) {

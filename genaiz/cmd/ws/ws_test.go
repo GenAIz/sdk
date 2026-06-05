@@ -6,15 +6,45 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 )
+
+type stubPrinter struct {
+	err        error
+	printError interface{}
+	printOut   interface{}
+}
+
+func (s *stubPrinter) Error(i interface{}) error {
+	s.printError = i
+	return s.err
+}
+
+func (s *stubPrinter) Print(i interface{}) error {
+	s.printOut = i
+	return s.err
+}
+
+type stubPrinterParametric struct {
+	defaultPrinter bool
+	printer        cli.Printer
+}
+
+func (s stubPrinterParametric) IsDefault() bool {
+	return s.defaultPrinter
+}
+
+func (s stubPrinterParametric) Printer() cli.Printer {
+	return s.printer
+}
 
 func TestNewWs(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewWs(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 1, len(testCmd.Commands()))
+	assert.Equal(t, 2, len(testCmd.Commands()))
 }
 
 func TestValidation_ArgsWorkspaceName(t *testing.T) {

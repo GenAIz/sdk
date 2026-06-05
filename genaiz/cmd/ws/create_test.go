@@ -17,35 +17,6 @@ import (
 	"genaiz.com/genaiz/task/broker"
 )
 
-type stubPrinter struct {
-	err        error
-	printError interface{}
-	printOut   interface{}
-}
-
-func (s *stubPrinter) Error(i interface{}) error {
-	s.printError = i
-	return s.err
-}
-
-func (s *stubPrinter) Print(i interface{}) error {
-	s.printOut = i
-	return s.err
-}
-
-type stubPrinterParametric struct {
-	defaultPrinter bool
-	printer        cli.Printer
-}
-
-func (s stubPrinterParametric) IsDefault() bool {
-	return s.defaultPrinter
-}
-
-func (s stubPrinterParametric) Printer() cli.Printer {
-	return s.printer
-}
-
 func TestCreateExecutor_Display(t *testing.T) {
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
@@ -132,7 +103,7 @@ func TestCreateExecutor_Pretend(t *testing.T) {
 	}
 
 	testViper.Set(testOptions.optionDescription.Key, expectedDescription)
-	testViper.Set(testOptions.optionRcEnabled.Key, cast.ToString(true))
+	testViper.Set(testOptions.optionRcEnabled.Key, true)
 	testViper.Set(testOptions.optionAccount.Key, expectedAccount)
 	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityPrivate)
 	testLedger.InitLogging()

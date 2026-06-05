@@ -84,6 +84,18 @@ func NewErrorBuilder() ErrorBuilder {
 	return &buildError{}
 }
 
+func NewFailure(i interface{}) Error {
+	//it's just plain wrong, Error is an interface not an implementation of error
+	//goland:noinspection ALL
+	if taskError, ok := i.(Error); ok {
+		return taskError
+	} else if err, _ := i.(error); err != nil {
+		return NewError(err.Error())
+	}
+
+	return NewError("unknown failure object")
+}
+
 func NewRequestError(msg string, status int) Error {
 	return &baseError{
 		Message: msg,

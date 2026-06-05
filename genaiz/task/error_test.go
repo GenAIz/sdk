@@ -1,6 +1,7 @@
 package task
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,6 +31,28 @@ func TestNewErrorBuilder(t *testing.T) {
 	assert.True(t, testError.IsFieldError())
 	assert.True(t, testError.IsRequestError())
 	assert.Equal(t, expectedMessage, testError.Error())
+}
+
+func TestNewFailure(t *testing.T) {
+	var expectedError = NewError("expected")
+	var testError = NewFailure(expectedError)
+
+	assert.Equal(t, testError.Error(), expectedError.Error())
+}
+
+func TestNewFailure_error(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testError = NewFailure(expectedError)
+
+	assert.Equal(t, testError.Error(), expectedError.Error())
+}
+
+func TestNewFailure_unknown(t *testing.T) {
+	var expectedObj = struct{ A string }{A: "Expected"}
+	var testError = NewFailure(expectedObj)
+
+	assert.NotEqual(t, testError.Error(), expectedObj.A)
+	assert.NotEmpty(t, testError.Error())
 }
 
 func TestNewRequestError(t *testing.T) {
