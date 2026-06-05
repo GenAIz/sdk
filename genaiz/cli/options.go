@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cast"
+
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
@@ -21,7 +23,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("no-browser").
 					WithUsage("prevents the shell from redirecting login urls to the system default browser").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Password: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -32,7 +34,7 @@ var (
 					WithKeys(&schema.Genaiz.Account.Login.Refresh).
 					WithParam("refresh").
 					WithShort("r").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Username: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -44,7 +46,7 @@ var (
 			NoUpdate: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("no-update").
-					WithDefaultValue("false").
+					WithDefaultValue(cast.ToString(false)).
 					WithUsage("do not update local configuration values after successful completion of the command")
 			},
 			SolutionPath: func() OptionBuilder {
@@ -82,7 +84,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("no-validation").
 					WithUsage("if true, the data link used will only be validated on publishing to the broker").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Oem: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -194,21 +196,21 @@ var (
 					WithKeys(&schema.Genaiz.Function.Build.Label).
 					WithParam("label").
 					WithUsage("enables labelling, creating a supplementary image layer to hold metadata used with --prune to remove dangling images").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Legacy: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Build.LegacyBuilder).
 					WithParam("legacy-builder").
 					WithUsage("enables legacy building using the Moby library instead of the Docker Buildx plugin").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			NoCache: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Build.NoCache).
 					WithParam("no-cache").
 					WithUsage("disables caching of some build layers").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Platform: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -221,14 +223,14 @@ var (
 				return NewOptionBuilder().
 					WithParam("preserve").
 					WithUsage("preserves the container after it exits").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Prune: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Function.Build.Prune).
 					WithParam("prune").
 					WithUsage("enables pruning, removing dangling images for the same repository built, this requires --label to work").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Replace: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -236,7 +238,7 @@ var (
 					WithParam("replace").
 					WithShort("r").
 					WithUsage("removes any previous containers before creating a new one").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Repository: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -306,7 +308,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("no-prop-sync").
 					WithUsage("disables property specification sync when creating a container").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Oem: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -317,7 +319,7 @@ var (
 			Rebuild: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("rebuild").
-					WithDefaultValue("false").
+					WithDefaultValue(cast.ToString(false)).
 					WithUsage("forces a rebuild of the smart function before completing the command")
 			},
 			Recipe: func() OptionBuilder {
@@ -347,7 +349,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("it").
 					WithUsage("specify smart function value through input questions").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 		},
 		Printer: printOptions{
@@ -355,7 +357,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("json").
 					WithUsage("print results as a json object").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 		},
 		Proxies: proxyOptions{
@@ -363,7 +365,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("inactive").
 					WithUsage("sets whether the proxy is active or not").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Tcp: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -374,7 +376,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("udp").
 					WithUsage("sets the udp flag for the proxy").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 		},
 		PropSpecs: propSpecsOptions{
@@ -416,7 +418,7 @@ var (
 				return NewOptionBuilder().
 					WithParam("secret").
 					WithUsage("the property will be defined amongst the secret specifications, which can not have a default value").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			Type: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -558,19 +560,19 @@ var (
 				return NewOptionBuilder().
 					WithParam("no-validation").
 					WithUsage("instructs the command to skip validation of link handles and ports").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			NoPropSync: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("no-prop-sync").
 					WithUsage("disables property specification sync when creating a container").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			NoPropValidation: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("no-validation").
 					WithUsage("instructs the command to skip prop spec validation of workflow properties").
-					WithDefaultValue("false")
+					WithDefaultValue(cast.ToString(false))
 			},
 			SfHandle: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -603,6 +605,26 @@ var (
 			},
 		},
 		Workspaces: workspaceOptions{
+			listOptions: listOptions{
+				DateMonthly: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("monthly").
+						WithUsage("filters the result sets for workspaces created this month").
+						WithDefaultValue(cast.ToString(false))
+				},
+				DateToday: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("today").
+						WithUsage("filters the result sets for workspaces created today").
+						WithDefaultValue(cast.ToString(false))
+				},
+				DateWeekly: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("weekly").
+						WithUsage("filters the result sets for workspaces created this week").
+						WithDefaultValue(cast.ToString(false))
+				},
+			},
 			mgmtOptions: mgmtOptions{
 				Account: func() OptionBuilder {
 					return NewOptionBuilder().
@@ -616,11 +638,17 @@ var (
 					WithUsage("description of the workspace").
 					WithValidator(config.Validation.Blob)
 			},
+			OwnerOnly: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("owner-only").
+					WithUsage("only show workspaces owned by the user logged in").
+					WithDefaultValue(cast.ToString(false))
+			},
 			RcEnabled: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("rc-enabled").
 					WithUsage("allows usage of workflows from solutions that are release candidates").
-					WithDefaultValue("true")
+					WithDefaultValue(cast.ToString(true))
 			},
 			Visibility: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -715,6 +743,12 @@ type functionOptions struct {
 	Version     func() OptionBuilder
 }
 
+type listOptions struct {
+	DateMonthly func() OptionBuilder
+	DateToday   func() OptionBuilder
+	DateWeekly  func() OptionBuilder
+}
+
 type mgmtOptions struct {
 	Account func() OptionBuilder
 }
@@ -780,8 +814,10 @@ type workflowOptions struct {
 }
 
 type workspaceOptions struct {
+	listOptions
 	mgmtOptions
 	Description func() OptionBuilder
+	OwnerOnly   func() OptionBuilder
 	RcEnabled   func() OptionBuilder
 	Visibility  func() OptionBuilder
 }

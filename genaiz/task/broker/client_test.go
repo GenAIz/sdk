@@ -403,6 +403,70 @@ func TestClient_ListDataLinksUrl(t *testing.T) {
 	assert.Contains(t, testClient.ListDataLinksUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
+func TestClient_ListWorkspaces(t *testing.T) {
+	var expectedToken = "token"
+	var expectedWorkspace = &Workspace{Name: "name"}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[*workspaceList]{
+				Data: &workspaceList{
+					Workspaces: []Workspace{*expectedWorkspace},
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListWorkspaces(1, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, []Workspace{*expectedWorkspace}, actual)
+}
+
+func TestClient_ListWorkspaces_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.ListWorkspaces(1, 1)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_ListWorkspaces_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListWorkspaces(1, 1)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_ListWorkspaces_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.ListWorkspaces(1, 1)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_ListWorkspaces_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListWorkspaces(1, 1)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
 func TestClient_Login(t *testing.T) {
 	var expectedUser = "user"
 	var expectedPassword = "password"

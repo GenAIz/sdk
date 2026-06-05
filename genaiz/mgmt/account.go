@@ -8,14 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"genaiz.com/genaiz-lib/lang/stringz"
-	"genaiz.com/genaiz-lib/lang/timez"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
-)
-
-var (
-	createdFormatter = timez.NewTodayFormatter()
-	expiryFormatter  = timez.NewMidnightFormatter()
 )
 
 type UserAccountFacade Facade[[]UserAccount, broker.AuthParams]

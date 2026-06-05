@@ -212,3 +212,11 @@ The create command is a simple first step when configuring a workspace for an ac
 ```bash
 genaiz ws create --help
 ```
+
+#### list
+
+The list command serves an intermediary command for IDE displaying a list of available workspaces to the user. For subsequent Account Management commands the list is used to instruct adding building blocks to an enclosing workspace.
+
+```bash
+genaiz ws list --help
+```

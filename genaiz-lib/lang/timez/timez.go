@@ -63,3 +63,26 @@ func NewFormatter(start, end *time.Time) Formatter {
 		start: start,
 	}
 }
+
+func NewMonthTime() *time.Time {
+	var now = time.Now()
+	var result = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	return &result
+}
+
+func NewTodayTime() *time.Time {
+	var now = time.Now()
+	var result = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	return &result
+}
+
+func NewWeekTime() *time.Time {
+	var now = time.Now()
+	var weekDay = now.Weekday()
+	var beginning = now.AddDate(0, 0, int(time.Sunday-weekDay))
+	var result = time.Date(beginning.Year(), beginning.Month(), beginning.Day(), 0, 0, 0, 0, beginning.Location())
+
+	return &result
+}

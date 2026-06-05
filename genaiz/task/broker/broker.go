@@ -852,8 +852,10 @@ type Workspace struct {
 	Modified    int64  `yaml:"nms,omitempty" json:"nms,omitempty"`
 	Name        string `yaml:"name" json:"name"`
 	Description string `yaml:"description,omitempty" json:"description,omitempty"`
-	RcEnabled   bool   `yaml:"-" json:"-"`
+	OwnerAppId  int    `yaml:"ownerAppId,omitempty" json:"ownerAppId,omitempty"`
+	OwnerUserId int    `yaml:"OwnerUserId,omitempty" json:"OwnerUserId,omitempty"`
 	Visibility  string `yaml:"visibility" json:"visibility"`
+	RcEnabled   bool   `yaml:"-" json:"-"`
 	Flags       *int   `yaml:"Flags,omitempty"`
 }
 

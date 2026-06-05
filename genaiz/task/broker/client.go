@@ -90,9 +90,15 @@ type Client interface {
 
 	GetTimeout() int
 
+	GetUserId() int
+
 	ListDataLinks(string, string, int) ([]DataLink, error)
 
 	ListDataLinksUrl() string
+
+	ListWorkspaces(int, int) ([]Workspace, error)
+
+	ListWorkspacesUrl() string
 
 	Login(string, []byte) (*AuthSession, error)
 
@@ -168,6 +174,10 @@ type solutionSlices struct {
 	WorkflowLinks  []WorkflowLink `json:"workflowLinks"`
 	WorkflowNodes  []WorkflowNode `json:"workflowNodes"`
 	SmartFunctions []Function     `json:"smartFunctions"`
+}
+
+type workspaceList struct {
+	Workspaces []Workspace `json:"workspaces"`
 }
 
 type workspaceSlices struct {
@@ -312,6 +322,10 @@ func (c *client) GetTimeout() int {
 	return int(bridge.Timeout() / time.Second)
 }
 
+func (c *client) GetUserId() int {
+	return c.UserId
+}
+
 func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error) {
 	if c.AuthToken != "" {
 		var url string
@@ -352,6 +366,47 @@ func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error
 
 func (c *client) ListDataLinksUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "list")
+}
+
+func (c *client) ListWorkspaces(mask, flags int) ([]Workspace, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspace, "list"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *[]Workspace
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[*workspaceList]{}).
+				QueryParams(map[string]string{
+					"mask":  cast.ToString(mask),
+					"flags": cast.ToString(flags),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *[]Workspace {
+					var payload = resp.Result().(*clientPayload[*workspaceList])
+
+					return &payload.Data.Workspaces
+				}); err == nil {
+					return *result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) ListWorkspacesUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "list")
 }
 
 func (c *client) Login(username string, password []byte) (*AuthSession, error) {

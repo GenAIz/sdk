@@ -338,6 +338,15 @@ type Document struct {
 			RcEnabled   Keys
 			Visibility  Keys
 		}
+		List struct {
+			Account     Keys
+			DateMonthly Keys
+			DateToday   Keys
+			DateWeekly  Keys
+			OwnerOnly   Keys
+			Printer     Keys
+			RcEnabled   Keys
+		}
 	}
 }
 
@@ -666,6 +675,14 @@ func init() {
 	Genaiz.Workspace.Create.Printer = newKeys("Workspace.Create.Printer", "WS_CREATE_PRINTER", "Ws.Create.Printer")
 	Genaiz.Workspace.Create.RcEnabled = newKeys("Workspace.Create.RcEnabled", "WS_CREATE_RC_ENABLED", "Ws.Create.RcEnabled")
 	Genaiz.Workspace.Create.Visibility = newKeys("Workspace.Create.Visibility", "WS_CREATE_VISIBILITY", "Ws.Create.Visibility")
+
+	Genaiz.Workspace.List.Account = newKeys("Workspace.List.Account", "WS_LIST_ACCOUNT", "Ws.List.Account")
+	Genaiz.Workspace.List.DateMonthly = newKeys("Workspace.List.DateMonthly", "WS_LIST_DATE_MONTHLY", "Ws.List.DateMonthly")
+	Genaiz.Workspace.List.DateToday = newKeys("Workspace.List.DateToday", "WS_LIST_DATE_TODAY", "Ws.List.DateToday")
+	Genaiz.Workspace.List.DateWeekly = newKeys("Workspace.List.DateWeekly", "WS_LIST_DATE_WEEKLY", "Ws.List.DateWeekly")
+	Genaiz.Workspace.List.OwnerOnly = newKeys("Workspace.List.OwnerOnly", "WS_LIST_OWNER_ONLY", "Ws.List.OwnerOnly")
+	Genaiz.Workspace.List.Printer = newKeys("Workspace.List.Printer", "WS_LIST_PRINTER", "Ws.List.Printer")
+	Genaiz.Workspace.List.RcEnabled = newKeys("Workspace.List.RcEnabled", "WS_LIST_RC_ENABLED", "Ws.List.RcEnabled")
 }
 
 func newKeys(docKey, envKey string, pseudonyms ...string) Keys {
