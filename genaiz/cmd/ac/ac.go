@@ -17,9 +17,9 @@ func NewAc(ledger *config.Ledger) *cobra.Command {
 		Short:   "GenAIz Account Toolkit",
 	}
 
-	ac.AddCommand(
-		NewLogin(ledger),
-		NewLogout(ledger),
-		NewList(ledger))
+	ac.AddCommand(NewActivate(ledger))
+	ac.AddCommand(NewList(ledger))
+	ac.AddCommand(NewLogin(ledger))
+	ac.AddCommand(NewLogout(ledger))
 	return ac
 }

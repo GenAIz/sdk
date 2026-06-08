@@ -1,24 +1,24 @@
 # GenAIz SDK
-<sub>Genaiz Version 0.3.9</sub>
 
+<sub>Genaiz Version 0.3.9</sub>
 
 The GenAIz SDK is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestrator platform.
 
 * [Installation](#installation)
 * [Running the GenAIz CLI](#running-the-genaiz-cli)
-  * [Quickstart Examples](#quickstart-examples)
-  * [Result Values](#result-values)
-  * [Auto-Completion](#auto-completion)
-  * [Account Management](#account-management)
+    * [Quickstart Examples](#quickstart-examples)
+    * [Result Values](#result-values)
+    * [Auto-Completion](#auto-completion)
+    * [Account Management](#account-management)
 * [Development Guide](#development-guide)
-  * [Prerequisites](#prerequisites)
-  * [Building from source](#building-from-source)
-  * [Modules](#modules)
-  * [Unit testing](#unit-testing)
+    * [Prerequisites](#prerequisites)
+    * [Building from source](#building-from-source)
+    * [Modules](#modules)
+    * [Unit testing](#unit-testing)
 * [Acceptance Testing](#acceptance-testing)
 * [Troubleshooting](#troubleshooting)
-  * [GoLang](#golang)
-  * [Docker](#docker)
+    * [GoLang](#golang)
+    * [Docker](#docker)
 * [Contributing](#contributing)
 * [License](#license)
 
@@ -37,8 +37,10 @@ available commands and their options.
 #### Creating a simple solution
 
 The following example creates a solution **solution-1** and a smart function **my-bash-example** using the recipe
-**bash-example**. It then builds the function with the default version assigned by create, [1.0.0](acceptance-tests/docs/function/index.md#version), assigns a
-single node to the **default** workflow, authenticates a user with [broker.genaiz.com](acceptance-tests/docs/account/index.md#host) and publishes the solution
+**bash-example**. It then builds the function with the default version assigned by
+create, [1.0.0](acceptance-tests/docs/function/index.md#version), assigns a
+single node to the **default** workflow, authenticates a user
+with [broker.genaiz.com](acceptance-tests/docs/account/index.md#host) and publishes the solution
 to the broker.
 
 ```bash
@@ -114,28 +116,29 @@ Support for result values is provided on `genaiz sf publish` only. From manually
 
 ```yaml
 function:
-    build:
-        repository: com.genaiz/result-values
-        version: latest
-    publish:
-        handle: result-values
-        name: result-values
-        oem: com.genaiz
-        resultvalues:
-            - excel
-            - valid-set
-        type: function
-        version: 1.0.0
-    run:
-        input: run/in
-        log: run/{timestamp}/log
-        output: run/{timestamp}/out
-        var: run/{timestamp}/var
+  build:
+    repository: com.genaiz/result-values
+    version: latest
+  publish:
+    handle: result-values
+    name: result-values
+    oem: com.genaiz
+    resultvalues:
+      - excel
+      - valid-set
+    type: function
+    version: 1.0.0
+  run:
+    input: run/in
+    log: run/{timestamp}/log
+    output: run/{timestamp}/out
+    var: run/{timestamp}/var
 ```
 
 ### Auto-Completion
 
-Auto-completion in Bash and other shell types can be achieved by generating the corresponding script file and sourcing it inside the terminal session:
+Auto-completion in Bash and other shell types can be achieved by generating the corresponding script file and sourcing
+it inside the terminal session:
 
 ```bash
 gennaiz completion --help
@@ -143,19 +146,31 @@ genaiz completion bash > ~/.config/genaiz/completion.sh
 source ~/.config/genaiz/completion.sh
 ```
 
-For Bash, the source instruction can be added to `$HOME/.bashrc` or `$HOME/.bash_profile`, depending on your terminal shell's configuration.
+For Bash, the source instruction can be added to `$HOME/.bashrc` or `$HOME/.bash_profile`, depending on your terminal
+shell's configuration.
 
 ### Account Management
 
-#### login to an OIDC enabled broker
+#### login to OIDC enabled brokers
+
+The account command can be used to authenticate with multiple OIDC enabled brokers with valid account credentials.
 
 ```bash
 genaiz ac login dev.genaiz.com
 genaiz ac list
+genaiz ac login lab.genaiz.com
+genaiz ac activate dev.genaiz.com
+genaiz ac list --json
 ```
 
-The command should print a tab separated table with the active session in blue.
+The command should print a JSON array with the sessions currently known to the SDK. Logging out of a session can be
+achieved by specifying the host account to log out or by simply logging out of the active session without adding any
+host argument:
 
+```bash
+genaiz ac logout dev.genaiz.com
+genaiz ac logout
+```
 
 ## Development Guide
 
@@ -165,8 +180,10 @@ To be able to build the project you will need to install the following tools for
 information at the links provided here:
 
 * [Golang](https://go.dev/doc/install) - All tools and the SDK are written in Go
-* [GNU Make](https://www.gnu.org/software/make/manual/make.html) - Not strictly required, but all build scripts are driven through Makefiles
-* [Docker](https://docs.docker.com/engine/install/) - The local execution and build runtime requires a local Docker installation
+* [GNU Make](https://www.gnu.org/software/make/manual/make.html) - Not strictly required, but all build scripts are
+  driven through Makefiles
+* [Docker](https://docs.docker.com/engine/install/) - The local execution and build runtime requires a local Docker
+  installation
 
 ### Building from Source
 
@@ -181,7 +198,7 @@ make genaiz/install
 > platform.
 
 Building the individual modules can be achieved in the same manner or simply by running the install target on the root
-project: 
+project:
 
 ```bash
 make install
@@ -226,12 +243,14 @@ The oauth utility kit provides functionality to:
 - Manage JWKS public key stores
 - Create and Decode JWT Signed tokens
 
-These facilities should be used to integrate token authentication on  [CNCF Distribution Registry](https://distribution.github.io/distribution/spec/auth/jwt/). With source
+These facilities should be used to integrate token authentication
+on  [CNCF Distribution Registry](https://distribution.github.io/distribution/spec/auth/jwt/). With source
 code available on [GitHub](https://github.com/distribution/distribution)
 
 ### Unit testing
 
-Genaiz unit testing facilities only cover the production module of [genaiz](#genaiz-smartfunction-toolkit). The unit test files cover the entire
+Genaiz unit testing facilities only cover the production module of [genaiz](#genaiz-smartfunction-toolkit). The unit
+test files cover the entire
 functionality with ideally, individual units tested in isolation to provide a `White Box` map of the implementation.
 
 The goal here is to provide a minimal harness for catching regression and also provide future functionality for
@@ -242,6 +261,7 @@ Currently, a coverage report can be obtained with:
 ```bash
 cd genaiz && make coverage
 ```
+
 This opens a visual HTML report of the implementation tested by the unit tests.
 
 ## Acceptance Testing
@@ -250,11 +270,13 @@ Not to be confused with unit testing: Acceptance testing is to unit testing what
 test case is composed of several units working to achieve feature requirements. Acceptance typically provides a
 `Black Box` map of a feature set.
 
-[Acceptance testing is made of a repository](acceptance-tests/docs/index.md) of [Gherkin](https://cucumber.io/docs/gherkin/) features describing what the [genaiz](#genaiz-smartfunction-toolkit) needs to
+[Acceptance testing is made of a repository](acceptance-tests/docs/index.md)
+of [Gherkin](https://cucumber.io/docs/gherkin/) features describing what the [genaiz](#genaiz-smartfunction-toolkit)
+needs to
 provide to a CLI user, but also to other types of integrations relying on CLI commands.
 
->[!NOTE]
->Currently, the features can only be read and ran manually. The runtime to automatically execute them would be hosted
+> [!NOTE]
+> Currently, the features can only be read and ran manually. The runtime to automatically execute them would be hosted
 > under the [genaiz-it](#genaiz-integration-test-toolkit) module.
 
 ## Troubleshooting
@@ -297,12 +319,12 @@ require the source to be compiled without function inlining enabled:
 `-gcflags=-l`
 
 The option is set in the `Makefile` requiring it for the `test` and `report` targets, but if you use an IDE Run
-configuration you will have to configure it manually. Under **Intellij**, this is configured under 
+configuration you will have to configure it manually. Under **Intellij**, this is configured under
 
 * `Run/Debug Configurations`
-  * `Edit configuration templates`
-    * `Go Test`
-      * `Go tool arguments`
+    * `Edit configuration templates`
+        * `Go Test`
+            * `Go tool arguments`
 
 ### Docker
 
@@ -321,9 +343,10 @@ ls -l /var/run/docker.sock
 groups
 ```
 
-Your user should be in the same group owning the docker.sock file. 
+Your user should be in the same group owning the docker.sock file.
 
 If all conditions are met, and you are not using Windows, write to `sdk 'at' genaiz.com` with the following details:
+
 * Docker version
 * OS and version
 * If you can build with docker build

@@ -15,17 +15,26 @@ import (
 type LogoutTaskFactory func() *task.Task[broker.LoginParams]
 
 type LogoutExecutor struct {
-	Ledger *config.Ledger
+	*LogoutOptions
 
-	optionHost     *config.StringOption
-	optionUsername *config.StringOption
-
+	host              string
+	ledger            *config.Ledger
 	logoutTaskFactory LogoutTaskFactory
+}
+
+type LogoutOptions struct {
+	optionUsername *config.StringOption
+}
+
+func (lo LogoutOptions) allDefiners() []config.Definer {
+	return []config.Definer{
+		lo.optionUsername,
+	}
 }
 
 func (le *LogoutExecutor) Logout() {
 	var logoutParams = le.makeLogoutParams()
-	var logoutPlan = task.NewPlan("Logout", le.Ledger.Logger)
+	var logoutPlan = task.NewPlan("Logout", le.ledger.Logger)
 
 	logoutPlan.OnSuccess = func(i interface{}) {
 		fmt.Printf("%s logged out\n", i)
@@ -36,41 +45,47 @@ func (le *LogoutExecutor) Logout() {
 func (le *LogoutExecutor) makeLogoutParams() *broker.LoginParams {
 	return &broker.LoginParams{
 		Broker: &broker.Broker{
-			AuthFile: le.Ledger.AuthFile,
-			HostAddr: le.Ledger.GetString(le.optionHost),
+			AuthFile: le.ledger.AuthFile,
+			HostAddr: le.host,
 		},
-		Username: le.Ledger.GetString(le.optionUsername),
+		Username: le.ledger.GetString(le.optionUsername),
 	}
 }
 
 func NewLogout(ledger *config.Ledger) *cobra.Command {
-	var exec = NewLogoutExecutor(ledger)
+	var options = NewLogoutOptions()
 	var logout = &cobra.Command{
-		Use:     "logout",
+		Use:     "logout [HOST]",
 		Short:   "Removes any previously acquired session",
 		Long:    "Removes any previously acquired session tokens held for the current user",
-		Args:    cobra.ExactArgs(0),
-		Example: "genaiz ac logout",
+		Args:    cobra.MaximumNArgs(1),
+		Example: "genaiz ac logout dev.genaiz.com",
 		Run: func(cmd *cobra.Command, args []string) {
+			var host = cli.ArgsOptionalSingle(args)
+			var exec = NewLogoutExecutor(ledger, options, host)
+
 			exec.Logout()
 		},
 	}
 
-	ledger.Register(logout, exec.optionHost, exec.optionUsername)
+	ledger.Register(logout, options.allDefiners()...)
 	return logout
 }
 
-func NewLogoutExecutor(ledger *config.Ledger) *LogoutExecutor {
+func NewLogoutExecutor(ledger *config.Ledger, options *LogoutOptions, host string) *LogoutExecutor {
 	return &LogoutExecutor{
-		Ledger: ledger,
+		LogoutOptions: options,
 
-		optionHost: cli.Options.Accounts.Host().
-			WithKeys(&schema.Genaiz.Account.Logout.Host).
-			BuildStringOption(),
+		host:              host,
+		ledger:            ledger,
+		logoutTaskFactory: broker.NewLogoutTask,
+	}
+}
+
+func NewLogoutOptions() *LogoutOptions {
+	return &LogoutOptions{
 		optionUsername: cli.Options.Accounts.Username().
 			WithKeys(&schema.Genaiz.Account.Logout.Username).
 			BuildStringOption(),
-
-		logoutTaskFactory: broker.NewLogoutTask,
 	}
 }

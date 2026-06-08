@@ -114,7 +114,7 @@ func NewCreate(ledger *config.Ledger, wsCli *Cli, wsValidation *Validation) *cob
 	}
 
 	ledger.Register(createCmd, createOptions.allDefiners()...)
-	cli.AutoBridge.Accounts().Register(createCmd, ledger, createOptions.optionAccount)
+	cli.AutoBridge.Accounts().Option(createCmd, ledger, createOptions.optionAccount)
 	return createCmd
 }
 

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -58,7 +57,24 @@ func (s stubUserAccountProvider) Get() ([]mgmt.UserAccount, task.Error) {
 	return s.accounts, s.err
 }
 
-func TestBridgeAccounts_Register_Error(t *testing.T) {
+func TestBridgeAccounts_Arguments(t *testing.T) {
+	var testCmd = &cobra.Command{}
+	var testRegistering = AutoBridge.Accounts()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithUserPath(t.TempDir()).
+		WithViper(testViper).
+		Build()
+
+	testLedger.InitLogging()
+	testRegistering.Arguments(testCmd, testLedger)
+	// it won't read any sessions under t.TempDir and therefor will error out
+	results, directive := testCmd.ValidArgsFunction(testCmd, []string{}, "")
+	assert.Empty(t, results)
+	assert.Equal(t, cobra.ShellCompDirectiveError, directive)
+}
+
+func TestBridgeAccounts_Option_Error(t *testing.T) {
 	var testCmd = &cobra.Command{}
 	var testRegistering = AutoBridge.Accounts()
 	var testViper = viper.New()
@@ -70,8 +86,8 @@ func TestBridgeAccounts_Register_Error(t *testing.T) {
 	}
 
 	testLedger.Register(testCmd, testOption)
-	testRegistering.Register(testCmd, testLedger, testOption)
-	assert.Panics(t, func() { testRegistering.Register(testCmd, testLedger, testOption) })
+	testRegistering.Option(testCmd, testLedger, testOption)
+	assert.Panics(t, func() { testRegistering.Option(testCmd, testLedger, testOption) })
 }
 
 func TestBridgeAccounts_Complete(t *testing.T) {
@@ -105,14 +121,14 @@ func TestBridgeAccounts_Complete(t *testing.T) {
 
 	testLedger.AuthFile = expectedAuthFile
 	testLedger.Register(testCmd, testOption)
-	testRegistering.Register(testCmd, testLedger, testOption)
+	testRegistering.Option(testCmd, testLedger, testOption)
 	testFunc, found := testCmd.GetFlagCompletionFunc(testOption.Param)
 	assert.True(t, found)
 	results, directive := testFunc(testCmd, []string{}, expectedFilter)
 
 	if len(results) == 2 {
 		assert.Equal(t, expectedAddr1, results[0])
-		assert.Equal(t, fmt.Sprintf("%s\t%s", expectedAddr2, expectedName2), results[1])
+		assert.Equal(t, expectedAddr2, results[1])
 		assert.Equal(t, cobra.ShellCompDirectiveKeepOrder, directive)
 		assert.Equal(t, expectedAuthFile, testFacade.params.AuthFile)
 		assert.Equal(t, expectedFilter, testFacade.filter)
@@ -141,7 +157,7 @@ func TestBridgeAccounts_Complete_Empty(t *testing.T) {
 
 	testLedger.AuthFile = expectedAuthFile
 	testLedger.Register(testCmd, testOption)
-	testRegistering.Register(testCmd, testLedger, testOption)
+	testRegistering.Option(testCmd, testLedger, testOption)
 	testFunc, found := testCmd.GetFlagCompletionFunc(testOption.Param)
 	assert.True(t, found)
 	results, directive := testFunc(testCmd, []string{}, expectedFilter)
@@ -172,7 +188,7 @@ func TestBridgeAccounts_Complete_Error(t *testing.T) {
 
 	testLedger.AuthFile = expectedAuthFile
 	testLedger.Register(testCmd, testOption)
-	testRegistering.Register(testCmd, testLedger, testOption)
+	testRegistering.Option(testCmd, testLedger, testOption)
 	testFunc, found := testCmd.GetFlagCompletionFunc(testOption.Param)
 	assert.True(t, found)
 	results, directive := testFunc(testCmd, []string{}, expectedFilter)
