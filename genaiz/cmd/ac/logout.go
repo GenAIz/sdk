@@ -54,8 +54,8 @@ func (le *LogoutExecutor) makeLogoutParams() *broker.LoginParams {
 
 func NewLogout(ledger *config.Ledger) *cobra.Command {
 	var options = NewLogoutOptions()
-	var logout = &cobra.Command{
-		Use:     "logout [HOST]",
+	var logoutCmd = &cobra.Command{
+		Use:     "logout [[USER_STRING@]HOST]",
 		Short:   "Removes any previously acquired session",
 		Long:    "Removes any previously acquired session tokens held for the current user",
 		Args:    cobra.MaximumNArgs(1),
@@ -68,8 +68,9 @@ func NewLogout(ledger *config.Ledger) *cobra.Command {
 		},
 	}
 
-	ledger.Register(logout, options.allDefiners()...)
-	return logout
+	ledger.Register(logoutCmd, options.allDefiners()...)
+	cli.AutoBridge.Accounts().Arguments(logoutCmd, ledger)
+	return logoutCmd
 }
 
 func NewLogoutExecutor(ledger *config.Ledger, options *LogoutOptions, host string) *LogoutExecutor {
