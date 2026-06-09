@@ -14,7 +14,9 @@ var (
 )
 
 type AutoRegistering interface {
-	Register(*cobra.Command, *config.Ledger, *config.StringOption)
+	Arguments(*cobra.Command, *config.Ledger)
+
+	Option(*cobra.Command, *config.Ledger, *config.StringOption)
 }
 
 type autoBridge struct {
@@ -25,21 +27,10 @@ type bridgeAccounts struct {
 	facadeProvider func() mgmt.UserAccountFacade
 }
 
-func (ba bridgeAccounts) Register(cmd *cobra.Command, ledger *config.Ledger, option *config.StringOption) {
-	var err = cmd.RegisterFlagCompletionFunc(option.Param,
-		func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
-			var facade = ba.facadeProvider().
-				WithLogger(ledger.Logger).
-				WithParams(&broker.AuthParams{
-					Broker: &broker.Broker{
-						AuthFile: ledger.AuthFile,
-					},
-				})
-
-			return ba.Complete(facade, toComplete)
-		})
-
-	panicz.PanicIfError(err)
+func (ba bridgeAccounts) Arguments(cmd *cobra.Command, ledger *config.Ledger) {
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+		return ba.bridge(ledger, toComplete)
+	}
 }
 
 func (ba bridgeAccounts) Complete(facade mgmt.UserAccountFacade, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
@@ -48,11 +39,7 @@ func (ba bridgeAccounts) Complete(facade mgmt.UserAccountFacade, toComplete stri
 			var results []cobra.Completion
 
 			for _, a := range accounts {
-				if a.Name == "" {
-					results = append(results, a.HostAddr)
-				} else {
-					results = append(results, cobra.CompletionWithDesc(a.HostAddr, a.Name))
-				}
+				results = append(results, a.Matched())
 			}
 
 			return results, cobra.ShellCompDirectiveKeepOrder
@@ -62,6 +49,27 @@ func (ba bridgeAccounts) Complete(facade mgmt.UserAccountFacade, toComplete stri
 	}
 
 	return nil, cobra.ShellCompDirectiveError
+}
+
+func (ba bridgeAccounts) Option(cmd *cobra.Command, ledger *config.Ledger, option *config.StringOption) {
+	var err = cmd.RegisterFlagCompletionFunc(option.Param,
+		func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+			return ba.bridge(ledger, toComplete)
+		})
+
+	panicz.PanicIfError(err)
+}
+
+func (ba bridgeAccounts) bridge(ledger *config.Ledger, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+	var facade = ba.facadeProvider().
+		WithLogger(ledger.Logger).
+		WithParams(&broker.AuthParams{
+			Broker: &broker.Broker{
+				AuthFile: ledger.AuthFile,
+			},
+		})
+
+	return ba.Complete(facade, toComplete)
 }
 
 func init() {

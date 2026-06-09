@@ -119,6 +119,22 @@ func TestUserAccount_MarshalSlice_NoCreated(t *testing.T) {
 	}
 }
 
+func TestUserAccount_Matched_HostAddr(t *testing.T) {
+	var expectedHost = "expectedAddr"
+	var testUa = &UserAccount{
+		HostAddr: expectedHost,
+	}
+
+	assert.Equal(t, expectedHost, testUa.Matched())
+	actual := testUa.Match(expectedHost)
+
+	if actual != nil {
+		assert.Equal(t, expectedHost, actual.Matched())
+	} else {
+		assert.Fail(t, "should have matched")
+	}
+}
+
 func TestNewUserAccountFacade_Filtering(t *testing.T) {
 	var testAuthFile = filepath.Join(t.TempDir(), ".auth")
 	var expectedFilter = "filterHost"
@@ -193,6 +209,75 @@ func TestNewUserAccountFacade_Filtering(t *testing.T) {
 
 func TestNewUserAccountFacade_Provider(t *testing.T) {
 	var testAuthFile = filepath.Join(t.TempDir(), ".auth")
+	var expectedUsername1 = "user1"
+	var expectedUsername2 = "user2"
+	var testAuthData = &broker.AuthData{
+		Active: 0,
+		Accounts: []*broker.AuthAccount{
+			{
+				HostAddr: "activeHost",
+				AuthSession: &broker.AuthSession{
+					Username: expectedUsername1,
+					Expiry:   time.Now().Add(24 * time.Hour).UnixMilli(),
+				},
+			},
+			{
+				HostAddr: "notHost",
+				AuthSession: &broker.AuthSession{
+					Username: expectedUsername2,
+					Expiry:   -1,
+				},
+			},
+			{
+				HostAddr: "inactiveHost",
+				AuthSession: &broker.AuthSession{
+					Username: "token",
+					Token:    "token",
+					Expiry:   time.Now().Add(24 * time.Hour).UnixMilli(),
+				},
+			},
+		},
+	}
+	var testParams = &broker.AuthParams{
+		Broker: &broker.Broker{
+			AuthFile: testAuthFile,
+		},
+		Expired: false,
+	}
+	var testLogger = &logrus.Logger{}
+	var testProvider = NewUserAccountFacade().
+		WithParams(testParams).
+		WithLogger(testLogger).
+		Provider()
+	var bytes []byte
+	var err error
+
+	if bytes, err = yaml.Marshal(testAuthData); err == nil {
+		var fd *os.File
+
+		if fd, err = os.Create(testAuthFile); err == nil {
+			defer filez.CloseSilently(fd)
+
+			if _, err = fd.Write(bytes); err == nil {
+				var i interface{}
+
+				i, err = testProvider.Get()
+				assert.NoError(t, err)
+				assert.NotNil(t, i)
+				actual := i.([]UserAccount)
+				assert.Equal(t, 3, len(actual))
+				assert.Equal(t, expectedUsername1, actual[0].Username)
+				assert.Equal(t, expectedUsername2, actual[1].Username)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestNewUserAccountFacade_Provider_Error(t *testing.T) {
+	var testAuthFile = filepath.Join(t.TempDir(), ".auth")
 	var testParams = &broker.AuthParams{
 		Broker: &broker.Broker{
 			AuthFile: testAuthFile,
@@ -206,6 +291,6 @@ func TestNewUserAccountFacade_Provider(t *testing.T) {
 
 	actual, err := testProvider.Get()
 	assert.Error(t, err)
-	assert.Equal(t, "No sessions found", err.Error())
+	assert.Equal(t, "no sessions found", err.Error())
 	assert.Nil(t, actual)
 }

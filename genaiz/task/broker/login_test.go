@@ -220,6 +220,14 @@ func TestAuthSession_IsExpired(t *testing.T) {
 	assert.False(t, NewAuthSession(&Session{Expiry: -1}, "username", "token").IsExpired())
 }
 
+func TestNewActivateTask(t *testing.T) {
+	var actual = NewActivateTask()
+
+	assert.NotEmpty(t, actual.Name)
+	assert.NotEmpty(t, actual.OnPrepare)
+	assert.NotEmpty(t, actual.OnComplete)
+}
+
 func TestNewAuthTask(t *testing.T) {
 	var actual = NewAuthTask()
 
@@ -254,6 +262,179 @@ func TestNewSessionTask(t *testing.T) {
 	assert.NotEmpty(t, actual.OnPrepare)
 	assert.NotEmpty(t, actual.OnComplete)
 	assert.Empty(t, actual.OnPretend)
+}
+
+func Test_handleActivateContext(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		HostAddr: "hostAddr",
+	}
+	var expectedToken = "token1337"
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+		var testAuthData = &AuthData{
+			Active: 0,
+			Accounts: []*AuthAccount{
+				{
+					HostAddr: testParams.HostAddr,
+					AuthSession: &AuthSession{
+						Token: expectedToken,
+					},
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuthData); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.NoError(t, handleActivateContext(testParams, testState))
+				assert.Equal(t, expectedToken, testState.Output)
+				return
+			}
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleActivateContext_CheckedOutput(t *testing.T) {
+	assert.NoError(t, handleActivateContext(&Broker{}, &task.State{Output: "output"}))
+}
+
+func Test_handleActivateContext_NoHostAddr(t *testing.T) {
+	assert.ErrorIs(t, handleActivateContext(&Broker{}, &task.State{}), ErrorNoHostAddr)
+}
+
+func Test_handleActivateContext_NoSession(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		HostAddr: "hostAddr",
+	}
+
+	assert.ErrorIs(t, handleActivateContext(testParams, testState), ErrorNoSession)
+}
+
+func Test_handleActivateContext_TokenMatch(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var expectedToken = "0123456789ABC"
+	var testParams = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		HostAddr: "hostAddr",
+		Username: expectedToken[:10],
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+		var testAuthData = &AuthData{
+			Active: 0,
+			Accounts: []*AuthAccount{
+				{
+					HostAddr: testParams.HostAddr,
+					AuthSession: &AuthSession{
+						Token:    expectedToken,
+						Username: "token",
+					},
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuthData); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.NoError(t, handleActivateContext(testParams, testState))
+				assert.Equal(t, expectedToken, testState.Output)
+				return
+			}
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleActivateContext_UsernameMatch(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		HostAddr: "hostAddr",
+		Username: "expected",
+	}
+	var expectedToken = "token"
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+		var testAuthData = &AuthData{
+			Active: 0,
+			Accounts: []*AuthAccount{
+				{
+					HostAddr: testParams.HostAddr,
+					AuthSession: &AuthSession{
+						Token:    expectedToken,
+						Username: testParams.Username,
+					},
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuthData); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.NoError(t, handleActivateContext(testParams, testState))
+				assert.Equal(t, expectedToken, testState.Output)
+				return
+			}
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleActivateContext_WithUsername(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		HostAddr: "hostAddr",
+		Username: "expected",
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+		var testAuthData = &AuthData{
+			Active: 0,
+			Accounts: []*AuthAccount{
+				{
+					HostAddr: testParams.HostAddr,
+					AuthSession: &AuthSession{
+						Username: "notTheOne",
+					},
+				},
+			},
+		}
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuthData); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.ErrorIs(t, handleActivateContext(testParams, testState), ErrorNoSession)
+				return
+			}
+		}
+	}
+
+	assert.Fail(t, err.Error())
 }
 
 func Test_handleAuthContext(t *testing.T) {
@@ -611,45 +792,6 @@ func Test_handleLoginCreate(t *testing.T) {
 	}
 }
 
-func Test_handleLoginDelete_NoSession(t *testing.T) {
-	var testState = &task.State{}
-	var testParams = &LoginParams{}
-
-	assert.ErrorIs(t, ErrorNoSession, handleLoginDelete(testParams, testState))
-}
-
-func Test_handleLoginDelete_LogoutFailed(t *testing.T) {
-	var dir = t.TempDir()
-
-	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
-		var expectedSessionId = int64(37)
-		var testState = &task.State{
-			Logger: logrus.New(),
-			Output: cast.ToString(expectedSessionId),
-		}
-		var testParams = &LoginParams{
-			Broker: &Broker{
-				AuthFile: fd.Name(),
-				HostAddr: "hostAddr",
-			},
-		}
-		var restoredFactory = clientFactory.Get
-
-		defer func() {
-			clientFactory.Get = restoredFactory
-		}()
-		clientFactory.Get = func(authFile, addr string) (Client, error) {
-			return &stubLoginClient{
-				logoutErr: errors.New("unexpected"),
-			}, nil
-		}
-
-		assert.NoError(t, handleLoginDelete(testParams, testState))
-	} else {
-		assert.Fail(t, err.Error())
-	}
-}
-
 func Test_handleLoginDelete(t *testing.T) {
 	var dir = t.TempDir()
 
@@ -689,6 +831,102 @@ func Test_handleLoginDelete(t *testing.T) {
 	} else {
 		assert.Fail(t, err.Error())
 	}
+}
+
+func Test_handleLoginDelete_DeleteActive(t *testing.T) {
+	var expectedSessionId = int64(37)
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: cast.ToString(expectedSessionId),
+	}
+	var testParams = &LoginParams{
+		Broker: &Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubLoginClient{
+			logoutErr: errors.New("unexpected"),
+		}, nil
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+		var testAuthData = &AuthData{
+			Active: 1,
+			Accounts: []*AuthAccount{
+				{
+					HostAddr: "anotherHost",
+					AuthSession: &AuthSession{
+						SessionId: 1337,
+					},
+				},
+				{
+					HostAddr: testParams.HostAddr,
+					AuthSession: &AuthSession{
+						SessionId: expectedSessionId,
+					},
+				},
+			},
+		}
+
+		if bytes, err = yaml.Marshal(testAuthData); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.NoError(t, handleLoginDelete(testParams, testState))
+				assert.Equal(t, testParams.HostAddr, testState.Output)
+				return
+			}
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleLoginDelete_LogoutFailed(t *testing.T) {
+	var dir = t.TempDir()
+
+	if fd, err := os.CreateTemp(dir, "genaiz.logout*"); err == nil {
+		var expectedSessionId = int64(37)
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: cast.ToString(expectedSessionId),
+		}
+		var testParams = &LoginParams{
+			Broker: &Broker{
+				AuthFile: fd.Name(),
+				HostAddr: "hostAddr",
+			},
+		}
+		var restoredFactory = clientFactory.Get
+
+		defer func() {
+			clientFactory.Get = restoredFactory
+		}()
+		clientFactory.Get = func(authFile, addr string) (Client, error) {
+			return &stubLoginClient{
+				logoutErr: errors.New("unexpected"),
+			}, nil
+		}
+
+		assert.NoError(t, handleLoginDelete(testParams, testState))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleLoginDelete_NoSession(t *testing.T) {
+	var testState = &task.State{}
+	var testParams = &LoginParams{}
+
+	assert.ErrorIs(t, ErrorNoSession, handleLoginDelete(testParams, testState))
 }
 
 func Test_handleLogoutContext_NoAuth(t *testing.T) {
@@ -897,6 +1135,48 @@ func Test_handleSessionActivate(t *testing.T) {
 		assert.NoError(t, handleSessionActivate(testParams, testState))
 		actual := NewAuthData(fd.Name())
 		assert.Equal(t, 1, len(actual.Accounts))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleSessionActivate_Expired(t *testing.T) {
+	var testAuthFile = filepath.Join(t.TempDir(), "authTest")
+
+	if fd, err := os.Create(testAuthFile); err == nil {
+		var expectedToken = "token"
+		var testSession = &AuthSession{
+			Expiry: 0,
+			Token:  expectedToken,
+		}
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: expectedToken,
+		}
+		var restoredFactory = clientFactory.New
+		var testParams = &Broker{
+			AuthFile: fd.Name(),
+			HostAddr: "hostAddr",
+		}
+
+		panicz.PanicIfError(NewAuthData().
+			Push("hostAddr", testSession).
+			Write(fd.Name()))
+
+		defer filez.CloseSilently(fd)
+		defer func() {
+			clientFactory.New = restoredFactory
+		}()
+		clientFactory.New = func(hostAddr string) Client {
+			return &stubLoginClient{
+				session: &AuthSession{
+					Token:    "token",
+					Username: "user",
+				},
+			}
+		}
+
+		assert.ErrorIs(t, handleSessionActivate(testParams, testState), ErrorSessionExpired)
 	} else {
 		assert.Fail(t, err.Error())
 	}

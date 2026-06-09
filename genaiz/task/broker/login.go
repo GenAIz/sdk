@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"gopkg.in/yaml.v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
@@ -19,13 +17,15 @@ import (
 )
 
 var (
-	ErrorNoAuth          = errors.New("auth not established")
-	ErrorNoLogin         = errors.New("not logged in")
-	ErrorNoSession       = errors.New("could not elect a session")
-	ErrorSessionConflict = errors.New("could not choose a session to logout")
-	ErrorSessionExists   = errors.New("session exists")
-	ErrorSessionInvalid  = errors.New("session is not valid")
-	ErrorSessionsEmpty   = task.NewError("No sessions found")
+	ErrorNoAuth          = task.NewError("auth not established")
+	ErrorNoHostAddr      = task.NewError("host address not specified")
+	ErrorNoLogin         = task.NewError("not logged in")
+	ErrorNoSession       = task.NewError("could not elect a session")
+	ErrorSessionConflict = task.NewError("could not choose a session to logout")
+	ErrorSessionExists   = task.NewError("session exists")
+	ErrorSessionExpired  = task.NewError("session is expired")
+	ErrorSessionInvalid  = task.NewError("session is not valid")
+	ErrorSessionsEmpty   = task.NewError("no sessions found")
 )
 
 type AuthAccount struct {
@@ -194,6 +194,14 @@ func NewAuthSession(session *Session, username string, token string) *AuthSessio
 	}
 }
 
+func NewActivateTask() *task.Task[Broker] {
+	return &task.Task[Broker]{
+		Name:       "activate-auth",
+		OnPrepare:  handleActivateContext,
+		OnComplete: handleSessionActivate,
+	}
+}
+
 func NewAuthTask() *task.Task[AuthParams] {
 	return &task.Task[AuthParams]{
 		Name:       "auth-data",
@@ -225,6 +233,37 @@ func NewSessionTask() *task.Task[Broker] {
 		OnIncomplete: handleSessionValidate,
 		OnComplete:   handleSessionActivate,
 	}
+}
+
+func handleActivateContext(params *Broker, state *task.State) error {
+	if state.Output == "" {
+		if params.HostAddr != "" {
+			var auth = NewAuthData(params.AuthFile)
+
+			state.Logger.Debugf("Looking for a session on [%s] under [%s]", params.HostAddr, params.AuthFile)
+
+			if params.Username != "" {
+				state.Logger.Debugf("Username [%s]", params.Username)
+			}
+
+			for _, acc := range auth.Accounts {
+				if strings.EqualFold(acc.HostAddr, params.HostAddr) {
+					if params.Username == "" ||
+						(acc.Username == "token" && acc.Token[:10] == params.Username) ||
+						strings.HasPrefix(acc.Username, params.Username) {
+						state.Output = acc.Token
+						return nil
+					}
+				}
+			}
+
+			return ErrorNoSession
+		}
+
+		return ErrorNoHostAddr
+	}
+
+	return nil
 }
 
 func handleLoginContext(params *LoginParams, state *task.State) error {
@@ -274,6 +313,7 @@ func handleLoginDelete(params *LoginParams, state *task.State) error {
 		var auth = NewAuthData(params.AuthFile)
 		var accounts []*AuthAccount
 		var brokerClient Client
+		var deletedIndex *int
 		var err error
 
 		state.Logger.Debugf("Logging out session id [%s]", state.Output)
@@ -286,12 +326,17 @@ func handleLoginDelete(params *LoginParams, state *task.State) error {
 
 		state.Logger.Debugf("Pruning session id [%s]", state.Output)
 
-		for _, a := range auth.Accounts {
+		for i, a := range auth.Accounts {
 			if state.Output != fmt.Sprintf("%d", a.SessionId) {
 				accounts = append(accounts, a)
 			} else {
-				state.Output = fmt.Sprintf("%s:%s", a.Username, a.HostAddr)
+				state.Output = a.HostAddr
+				deletedIndex = &i
 			}
+		}
+
+		if deletedIndex != nil && *deletedIndex <= auth.Active && auth.Active > 0 {
+			auth.Active -= 1
 		}
 
 		auth.Accounts = accounts
@@ -342,7 +387,11 @@ func handleSessionActivate(params *Broker, state *task.State) error {
 		var err error
 
 		if i, account := auth.AccountIndexForToken(state.Output); i >= 0 {
-			state.Logger.Debugf("Activating session for user [%s] on host [%s]", account.Username, params.HostAddr)
+			if account.IsExpired() {
+				return ErrorSessionExpired
+			}
+
+			state.Logger.Debugf("Activating session on host [%s] for user [%d]", params.HostAddr, account.UserId)
 			auth.Active = i
 
 			if err = auth.Write(params.AuthFile); err == nil {

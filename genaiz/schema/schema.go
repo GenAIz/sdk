@@ -18,6 +18,9 @@ var (
 // Document is the registry containing all Keys used by the genaiz commands
 type Document struct {
 	Account struct {
+		Activate struct {
+			Username Keys
+		}
 		List struct {
 			Printer Keys
 		}
@@ -27,7 +30,6 @@ type Document struct {
 			Username Keys
 		}
 		Logout struct {
-			Host     Keys
 			Username Keys
 		}
 	}
@@ -425,13 +427,14 @@ func Normalize(vp *viper.Viper) *viper.Viper {
 }
 
 func init() {
+	Genaiz.Account.Activate.Username = newKeys("Account.Activate.Username", "AC_ACTIVATE_USERNAME", "Ac.Activate.Username")
+
 	Genaiz.Account.List.Printer = newKeys("Account.List.Printer", "AC_LIST_PRINTER", "Ac.List.Printer")
 
 	Genaiz.Account.Login.Password = newKeys("p", "GENAIZ_PASSWORD")
 	Genaiz.Account.Login.Refresh = newKeys("Account.Login.Refresh", "AC_LOGIN_REFRESH", "Ac.Login.Refresh")
 	Genaiz.Account.Login.Username = newKeys("Account.Login.Username", "GENAIZ_USERNAME", "Ac.Login.Username")
 
-	Genaiz.Account.Logout.Host = newKeys("Account.Logout.Host", "AC_LOGOUT_HOST", "Ac.Logout.Host")
 	Genaiz.Account.Logout.Username = newKeys("Account.Logout.Username", "GENAIZ_USERNAME", "Ac.Logout.Username")
 
 	Genaiz.DataLink.Create.ConfigType = newKeys("DataLink.Create.ConfigType", "DK_CREATE_CONFIG_TYPE", "Dk.Create.ConfigType")

@@ -15,10 +15,6 @@ import (
 var (
 	Options = &cliOptions{
 		Accounts: accountOptions{
-			Host: func() OptionBuilder {
-				return NewOptionBuilder().
-					WithParam("host")
-			},
 			NoBrowser: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("no-browser").
@@ -662,7 +658,6 @@ var (
 )
 
 type accountOptions struct {
-	Host      func() OptionBuilder
 	NoBrowser func() OptionBuilder
 	Password  func() OptionBuilder
 	Refresh   func() OptionBuilder

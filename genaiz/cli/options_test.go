@@ -17,14 +17,6 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
-func Test_OptionsAccountsHost(t *testing.T) {
-	var testOption = Options.Accounts.Host().BuildStringOption()
-
-	assert.Empty(t, testOption.Key)
-	assert.Empty(t, testOption.Env)
-	assert.NotEmpty(t, testOption.Param)
-}
-
 func Test_OptionsNoBrowser(t *testing.T) {
 	var testOption = Options.Accounts.NoBrowser().BuildBoolOption()
 

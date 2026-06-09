@@ -129,7 +129,7 @@ func NewList(ledger *config.Ledger, wsCli *Cli) *cobra.Command {
 	}
 
 	ledger.Register(listCmd, listOptions.allDefiners()...)
-	cli.AutoBridge.Accounts().Register(listCmd, ledger, listOptions.optionAccount)
+	cli.AutoBridge.Accounts().Option(listCmd, ledger, listOptions.optionAccount)
 	return listCmd
 }
 

@@ -10,9 +10,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
-	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
-	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
@@ -23,13 +21,9 @@ func TestLogoutExecutor_Logout(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testExecutor = &LogoutExecutor{
-		Ledger: testLedger,
+		LogoutOptions: NewLogoutOptions(),
 
-		optionHost: cli.Options.Accounts.Host().BuildStringOption(),
-		optionUsername: cli.Options.Accounts.Username().
-			WithKeys(&schema.Genaiz.Account.Logout.Username).
-			BuildStringOption(),
-
+		ledger: testLedger,
 		logoutTaskFactory: func() *task.Task[broker.LoginParams] {
 			return &task.Task[broker.LoginParams]{
 				Name: "test-logout",
