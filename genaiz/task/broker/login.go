@@ -81,6 +81,10 @@ func (ad *AuthData) ForHostUser(host string, username string) (*AuthAccount, err
 		}
 	}
 
+	if len(accounts) > 0 {
+		return accounts[0], nil
+	}
+
 	return nil, ErrorNoSession
 }
 
@@ -356,7 +360,7 @@ func handleLogoutContext(params *LoginParams, state *task.State) error {
 		var account *AuthAccount
 		var err error
 
-		if params.Username != "" {
+		if params.HostAddr != "" || params.Username != "" {
 			account, err = auth.ForHostUser(params.HostAddr, params.Username)
 		} else if auth.Active < size {
 			account = auth.Accounts[auth.Active]

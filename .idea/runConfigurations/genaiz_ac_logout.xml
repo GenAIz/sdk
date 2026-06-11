@@ -3,7 +3,7 @@
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$" />
     <go_parameters value="-tags dev" />
-    <parameters value="ac logout" />
+    <parameters value="ac logout lab.genaiz.com" />
     <envs>
       <env name="GENAIZ_PASSWORD" value="success" />
     </envs>

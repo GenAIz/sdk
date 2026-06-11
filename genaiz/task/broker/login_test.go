@@ -113,6 +113,22 @@ func TestAuthData_ForHostUser_NoHost(t *testing.T) {
 	assert.Same(t, authData.Accounts[0], actual)
 }
 
+func TestAuthData_ForHostUser_NoUser(t *testing.T) {
+	var expectedHost = "hostAddr"
+	var authData = &AuthData{
+		Accounts: []*AuthAccount{
+			{
+				HostAddr:    "hostAddr",
+				AuthSession: &AuthSession{},
+			},
+		},
+	}
+	var actual, err = authData.ForHostUser(expectedHost, "")
+
+	assert.NoError(t, err)
+	assert.Same(t, authData.Accounts[0], actual)
+}
+
 func TestAuthData_ForHostUser(t *testing.T) {
 	var expectedUser = "username"
 	var expectedHost = "hostAddr"
