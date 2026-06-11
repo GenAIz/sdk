@@ -77,6 +77,22 @@ type Document struct {
 			UserDefined Keys
 			Version     Keys
 		}
+		ProxyAdd struct {
+			ConfigType  Keys
+			Handle      Keys
+			Oem         Keys
+			Tcp         Keys
+			Udp         Keys
+			UserDefined Keys
+			Version     Keys
+		}
+		ProxyRm struct {
+			ConfigType  Keys
+			Handle      Keys
+			Oem         Keys
+			UserDefined Keys
+			Version     Keys
+		}
 		Publish struct {
 			ConfigType       Keys
 			Handle           Keys
@@ -474,6 +490,20 @@ func init() {
 	Genaiz.DataLink.PropSpecRemove.Oem = newKeys("DataLink.PropSpecRemove.Oem", "DK_PROP_SPEC_RM_OEM", "Dk.PropSpecRemove.Oem")
 	Genaiz.DataLink.PropSpecRemove.UserDefined = newKeys("DataLink.PropSpecRemove.UserDefined", "DK_PROP_SPEC_RM_USER_DEFINED", "Dk.PropSpecRemove.UserDefined")
 	Genaiz.DataLink.PropSpecRemove.Version = newKeys("DataLink.PropSpecRemove.Version", "DK_PROP_SPEC_RM_VERSION", "Dk.PropSpecRemove.Version")
+
+	Genaiz.DataLink.ProxyAdd.ConfigType = newKeys("DataLink.ProxyAdd.ConfigType", "DK_PROXY_ADD_CONFIG_TYPE", "Dk.ProxyAdd.ConfigType")
+	Genaiz.DataLink.ProxyAdd.Handle = newKeys("DataLink.ProxyAdd.Handle", "DK_PROXY_ADD_HANDLE", "Dk.ProxyAdd.Handle")
+	Genaiz.DataLink.ProxyAdd.Oem = newKeys("DataLink.ProxyAdd.Oem", "DK_PROXY_ADD_OEM", "Dk.ProxyAdd.Oem")
+	Genaiz.DataLink.ProxyAdd.Tcp = newKeys("DataLink.ProxyAdd.Tcp", "DK_PROXY_ADD_TCP", "Dk.ProxyAdd.Tcp")
+	Genaiz.DataLink.ProxyAdd.Udp = newKeys("DataLink.ProxyAdd.Udp", "DK_PROXY_ADD_UDP", "Dk.ProxyAdd.Udp")
+	Genaiz.DataLink.ProxyAdd.UserDefined = newKeys("DataLink.ProxyAdd.UserDefined", "DK_PROXY_ADD_USER_DEFINED", "Dk.ProxyAdd.UserDefined")
+	Genaiz.DataLink.ProxyAdd.Version = newKeys("DataLink.ProxyAdd.Version", "DK_PROXY_ADD_VERSION", "Dk.ProxyAdd.Version")
+
+	Genaiz.DataLink.ProxyRm.ConfigType = newKeys("DataLink.ProxyRm.ConfigType", "DK_PROXY_RM_CONFIG_TYPE", "Dk.ProxyRm.ConfigType")
+	Genaiz.DataLink.ProxyRm.Handle = newKeys("DataLink.ProxyRm.Handle", "DK_PROXY_RM_HANDLE", "Dk.ProxyRm.Handle")
+	Genaiz.DataLink.ProxyRm.Oem = newKeys("DataLink.ProxyRm.Oem", "DK_PROXY_RM_OEM", "Dk.ProxyRm.Oem")
+	Genaiz.DataLink.ProxyRm.UserDefined = newKeys("DataLink.ProxyRm.UserDefined", "DK_PROXY_RM_USER_DEFINED", "Dk.ProxyRm.UserDefined")
+	Genaiz.DataLink.ProxyRm.Version = newKeys("DataLink.ProxyRm.Version", "DK_PROXY_RM_VERSION", "Dk.ProxyRm.Version")
 
 	Genaiz.DataLink.Publish.ConfigType = newKeys("DataLink.Publish.ConfigType", "DK_PUBLISH_CONFIG_TYPE", "Dk.Publish.ConfigType")
 	Genaiz.DataLink.Publish.Handle = newKeys("DataLink.Publish.Handle", "DK_PUBLISH_HANDLE", "Dk.Publish.Handle")

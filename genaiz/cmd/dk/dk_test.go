@@ -73,7 +73,7 @@ func TestNewDk(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewDk(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 4, len(testCmd.Commands()))
+	assert.Equal(t, 5, len(testCmd.Commands()))
 }
 
 func Test_ParseDataLinkArgument(t *testing.T) {
@@ -106,11 +106,12 @@ func Test_newDataLinksWriter(t *testing.T) {
 	var testOutput = filepath.Join(t.TempDir(), "Genaiz.yaml")
 	var testLinks = []broker.DataLink{
 		{
-			Handle:      "handle",
-			Oem:         "oem",
-			Version:     "version",
-			PropSpecs:   []broker.PropSpec{},
-			SecretSpecs: []broker.PropSpec{},
+			Handle:          "handle",
+			Oem:             "oem",
+			Version:         "version",
+			OutboundProxies: []broker.Proxy{},
+			PropSpecs:       []broker.PropSpec{},
+			SecretSpecs:     []broker.PropSpec{},
 		},
 	}
 	var fd *os.File
@@ -137,4 +138,14 @@ func Test_newDataLinksWriter(t *testing.T) {
 	}
 
 	assert.NoError(t, err)
+}
+
+func makeTestBaseOptions() BaseOptions {
+	return BaseOptions{
+		optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
+		optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
+		optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
+		optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
+		optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
+	}
 }

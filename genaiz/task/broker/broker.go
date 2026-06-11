@@ -72,17 +72,18 @@ func (b Broker) GetClient() (Client, error) {
 }
 
 type DataLink struct {
-	Id          int64      `json:"id,omitempty"`
-	Flags       int        `json:"flags,omitempty"`
-	Seq         int        `json:"seq,omitempty"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Oem         string     `json:"oem"`
-	Handle      string     `json:"handle"`
-	Fqdn        string     `json:"fqdn,omitempty"`
-	Version     string     `json:"version"`
-	PropSpecs   []PropSpec `json:"propSpecs,omitempty"`
-	SecretSpecs []PropSpec `json:"secretSpecs,omitempty"`
+	Id              int64      `json:"id,omitempty"`
+	Flags           int        `json:"flags,omitempty"`
+	Seq             int        `json:"seq,omitempty"`
+	Name            string     `json:"name"`
+	Description     string     `json:"description"`
+	Oem             string     `json:"oem"`
+	Handle          string     `json:"handle"`
+	Fqdn            string     `json:"fqdn,omitempty"`
+	Version         string     `json:"version"`
+	OutboundProxies []Proxy    `json:"outboundProxies,omitempty"`
+	PropSpecs       []PropSpec `json:"propSpecs,omitempty"`
+	SecretSpecs     []PropSpec `json:"secretSpecs,omitempty"`
 }
 
 func (dl *DataLink) FindPropSpec(key string) *PropSpec {
@@ -90,6 +91,16 @@ func (dl *DataLink) FindPropSpec(key string) *PropSpec {
 		return strings.EqualFold(spec.Key, key)
 	}); i >= 0 {
 		return &dl.PropSpecs[i]
+	}
+
+	return nil
+}
+
+func (dl *DataLink) FindProxy(host string, port int) *Proxy {
+	if i := slices.IndexFunc(dl.OutboundProxies, func(proxy Proxy) bool {
+		return strings.EqualFold(host, proxy.Host) && port == proxy.Port
+	}); i >= 0 {
+		return &dl.OutboundProxies[i]
 	}
 
 	return nil
@@ -130,6 +141,17 @@ func (dl *DataLink) RemovePropSpec(key string) *PropSpec {
 	return nil
 }
 
+func (dl *DataLink) RemoveProxy(host string, port int) *Proxy {
+	if proxy := dl.FindProxy(host, port); proxy != nil {
+		var result = *proxy
+
+		dl.OutboundProxies = dl.removeProxy(dl.OutboundProxies, host, port)
+		return &result
+	}
+
+	return nil
+}
+
 func (dl *DataLink) RemoveSecretSpec(key string) *PropSpec {
 	if spec := dl.FindSecretSpec(key); spec != nil {
 		var result = *spec
@@ -163,6 +185,10 @@ func (dl *DataLink) Sanitize() *DataLink {
 		Description: dl.Description,
 	}
 
+	for _, proxy := range dl.OutboundProxies {
+		result.OutboundProxies = append(result.OutboundProxies, proxy)
+	}
+
 	for _, spec := range dl.PropSpecs {
 		result.PropSpecs = append(result.PropSpecs, spec.Sanitize())
 	}
@@ -177,6 +203,12 @@ func (dl *DataLink) Sanitize() *DataLink {
 func (dl *DataLink) removePropSpec(specs []PropSpec, key string) []PropSpec {
 	return slices.DeleteFunc(specs, func(s PropSpec) bool {
 		return strings.EqualFold(key, s.Key)
+	})
+}
+
+func (dl *DataLink) removeProxy(proxies []Proxy, host string, port int) []Proxy {
+	return slices.DeleteFunc(proxies, func(p Proxy) bool {
+		return strings.EqualFold(host, p.Host) && port == p.Port
 	})
 }
 
@@ -478,9 +510,9 @@ func ListPropSpecs(specs any) []PropSpec {
 }
 
 type Proxy struct {
-	Host  string `json:"host"`
-	Port  int    `json:"port"`
-	Flags int    `json:"flags"`
+	Host  string `json:"host" yaml:"host"`
+	Port  int    `json:"port" yaml:"port"`
+	Flags int    `json:"flags" yaml:"flags"`
 }
 
 func (p *Proxy) IsActive() bool {

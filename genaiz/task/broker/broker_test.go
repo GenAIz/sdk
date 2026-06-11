@@ -20,6 +20,16 @@ func TestDataLink_FindPropSpec(t *testing.T) {
 	assert.Equal(t, &testLink.PropSpecs[0], testLink.FindPropSpec(testKey))
 }
 
+func TestDataLink_FindProxy(t *testing.T) {
+	var expectedHost = "host"
+	var expectedPort = 1337
+	var testLink = &DataLink{}
+
+	assert.Nil(t, testLink.FindProxy(expectedHost, expectedPort))
+	testLink.OutboundProxies = []Proxy{{Host: expectedHost, Port: expectedPort}}
+	assert.Equal(t, &testLink.OutboundProxies[0], testLink.FindProxy(expectedHost, expectedPort))
+}
+
 func TestDataLink_FindSecretSpec(t *testing.T) {
 	var testKey = "testKey"
 	var testLink = &DataLink{}
@@ -45,6 +55,22 @@ func TestDataLink_RemovePropSpec(t *testing.T) {
 	assert.Equal(t, testProp, testLink.RemovePropSpec(testProp.Key))
 }
 
+func TestDataLink_RemoveProxy(t *testing.T) {
+	var testProxy = &Proxy{Host: "testHost", Port: 1337}
+	var testLink = &DataLink{OutboundProxies: []Proxy{*testProxy}}
+
+	assert.Nil(t, testLink.RemoveProxy("wrongHost", 0))
+	assert.Equal(t, testProxy, testLink.RemoveProxy(testProxy.Host, testProxy.Port))
+}
+
+func TestDataLink_RemoveSecretSpec(t *testing.T) {
+	var testProp = &PropSpec{Key: "testKey"}
+	var testLink = &DataLink{SecretSpecs: []PropSpec{*testProp}}
+
+	assert.Nil(t, testLink.RemoveSecretSpec("wrongKey"))
+	assert.Equal(t, testProp, testLink.RemoveSecretSpec(testProp.Key))
+}
+
 func TestDataLink_ReplacePropSpec(t *testing.T) {
 	var expectedStaying = "staying"
 	var replacement = &PropSpec{Key: "replaced", Name: "replacing"}
@@ -62,14 +88,6 @@ func TestDataLink_ReplacePropSpec(t *testing.T) {
 	assert.Equal(t, 2, len(testLink.PropSpecs))
 	assert.Equal(t, replacement.Name, testLink.PropSpecs[0].Name)
 	assert.Equal(t, expectedStaying, testLink.PropSpecs[1].Key)
-}
-
-func TestDataLink_RemoveSecretSpec(t *testing.T) {
-	var testProp = &PropSpec{Key: "testKey"}
-	var testLink = &DataLink{SecretSpecs: []PropSpec{*testProp}}
-
-	assert.Nil(t, testLink.RemoveSecretSpec("wrongKey"))
-	assert.Equal(t, testProp, testLink.RemoveSecretSpec(testProp.Key))
 }
 
 func TestDataLink_ReplaceSecretSpec(t *testing.T) {
@@ -93,6 +111,13 @@ func TestDataLink_ReplaceSecretSpec(t *testing.T) {
 
 func TestDataLink_Sanitize(t *testing.T) {
 	var testDataLink = &DataLink{
+		OutboundProxies: []Proxy{
+			{
+				Host:  "host",
+				Port:  0,
+				Flags: ProxyFlags.Active,
+			},
+		},
 		PropSpecs: []PropSpec{
 			{
 				Key:         "key",
@@ -116,6 +141,8 @@ func TestDataLink_Sanitize(t *testing.T) {
 	}
 
 	actual := testDataLink.Sanitize()
+	assert.Equal(t, testDataLink.OutboundProxies, actual.OutboundProxies)
+
 	assert.Equal(t, testDataLink.PropSpecs[0].Key, actual.PropSpecs[0].Key)
 	assert.Equal(t, "INT", actual.PropSpecs[0].Type)
 	assert.Equal(t, testDataLink.PropSpecs[0].Name, actual.PropSpecs[0].Name)
