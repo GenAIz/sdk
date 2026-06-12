@@ -744,16 +744,6 @@ func TestNewProp(t *testing.T) {
 	assert.Equal(t, 3, len(testCmd.Commands()))
 }
 
-func makeTestBaseOptions() BaseOptions {
-	return BaseOptions{
-		optionConfigType:  &config.StringOption{Option: config.Option{Key: "configType"}},
-		optionHandle:      &config.StringOption{Option: config.Option{Key: "handle"}},
-		optionOem:         &config.StringOption{Option: config.Option{Key: "oem"}},
-		optionVersion:     &config.StringOption{Option: config.Option{Key: "version"}},
-		optionUserDefined: &config.BoolOption{Option: config.Option{Key: "userDefined"}},
-	}
-}
-
 func newDataLinksWriterTestFactory(current []broker.DataLink) DataLinksWriterFactory {
 	return func(ledger *config.Ledger, s string) *DataLinksWriter {
 		var reader = &config.DataLinksReader{}

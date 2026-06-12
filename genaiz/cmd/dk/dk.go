@@ -87,6 +87,7 @@ func NewDk(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 
 	dkCmd.AddCommand(NewCreate(ledger, dkCli))
 	dkCmd.AddCommand(NewProp(ledger, dkCli))
+	dkCmd.AddCommand(NewProxy(ledger, dkCli))
 	dkCmd.AddCommand(NewPublish(ledger, dkCli))
 	dkCmd.AddCommand(NewSync(ledger, dkCli))
 	return dkCmd

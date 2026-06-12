@@ -4,6 +4,7 @@
 
 * [Create data link](../../features/datalink/create_data_link.feature)
 * [Prop data link](../../features/datalink/prop_data_link.feature)
+* [Proxy data link](../../features/datalink/proxy_data_link.feature)
 * [Publish data link](../../features/datalink/publish_data_link.feature)
 * [Sync data link](../../features/datalink/sync_data_link.feature)
 
@@ -11,6 +12,7 @@
 
 * [create](create.md)
 * [prop](prop.md)
+* [proxy](proxy.md)
 * [publish](publish.md)
 * [sync](sync.md)
 

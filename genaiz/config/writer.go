@@ -66,24 +66,26 @@ func (bw *BaseWriter) UpdatePath(vp *viper.Viper, path string) (*os.File, error)
 //
 // Note that the capitalization is still wrong, another dogma from Viper
 type dataLinkMapStruct struct {
-	Handle      string            `json:"handle" yaml:"handle"`
-	Oem         string            `json:"oem" yaml:"oem"`
-	Version     string            `json:"version" yaml:"version"`
-	Name        string            `json:"name" yaml:"name"`
-	Description string            `json:"description,omitempty" yaml:"description,omitempty"`
-	PropSpecs   []broker.PropSpec `json:"propSpecs,omitempty" yaml:"propSpecs,omitempty"`
-	SecretSpecs []broker.PropSpec `json:"secretSpecs,omitempty" yaml:"secretSpecs,omitempty"`
+	Handle          string            `json:"handle" yaml:"handle"`
+	Oem             string            `json:"oem" yaml:"oem"`
+	Version         string            `json:"version" yaml:"version"`
+	Name            string            `json:"name" yaml:"name"`
+	Description     string            `json:"description,omitempty" yaml:"description,omitempty"`
+	OutboundProxies []broker.Proxy    `json:"outboundProxies,omitempty" yaml:"outboundProxies,omitempty"`
+	PropSpecs       []broker.PropSpec `json:"propSpecs,omitempty" yaml:"propSpecs,omitempty"`
+	SecretSpecs     []broker.PropSpec `json:"secretSpecs,omitempty" yaml:"secretSpecs,omitempty"`
 }
 
 func toDataLinkMapStruct(dataLink *broker.DataLink) dataLinkMapStruct {
 	return dataLinkMapStruct{
-		Handle:      dataLink.Handle,
-		Oem:         dataLink.Oem,
-		Version:     dataLink.Version,
-		Name:        dataLink.Name,
-		Description: dataLink.Description,
-		PropSpecs:   dataLink.PropSpecs,
-		SecretSpecs: dataLink.SecretSpecs,
+		Handle:          dataLink.Handle,
+		Oem:             dataLink.Oem,
+		Version:         dataLink.Version,
+		Name:            dataLink.Name,
+		Description:     dataLink.Description,
+		OutboundProxies: dataLink.OutboundProxies,
+		PropSpecs:       dataLink.PropSpecs,
+		SecretSpecs:     dataLink.SecretSpecs,
 	}
 }
 
