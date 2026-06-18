@@ -3,12 +3,15 @@
 ## Test Cases
 
 * [Create simple solution](../../features/solution/create_simple_solution.feature)
+* [List account solutions](../../features/solution/list_account_solutions.feature)
+* [List simple solutions](../../features/solution/list_simple_solutions.feature)
 * [Publish simple solution](../../features/solution/publish_simple_solution.feature)
 * [Publish connector solution](../../features/solution/publish_connector_solution.feature)
 
 ## Commands
 
 * [create](create.md)
+* [list](list.md)
 * [publish](publish.md)
 
 ## Validation

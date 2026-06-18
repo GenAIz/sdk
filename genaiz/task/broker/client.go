@@ -28,14 +28,15 @@ const (
 	defaultExpiryMinutes  = 5 * 24 * 60
 	defaultTimeoutSeconds = 30
 
-	apiVersion1    version = "v1"
-	pathDataLink   path    = "datalink"
-	pathFunction   path    = "sf"
-	pathOidcDevice path    = "oidc/device"
-	pathOidcToken  path    = "oidc/token"
-	pathSession    path    = "user/session"
-	pathSolution   path    = "oem/solution"
-	pathWorkspace  path    = "workspace"
+	apiVersion1     version = "v1"
+	pathDataLink    path    = "datalink"
+	pathFunction    path    = "sf"
+	pathOemSolution path    = "oem/solution"
+	pathOidcDevice  path    = "oidc/device"
+	pathOidcToken   path    = "oidc/token"
+	pathSession     path    = "user/session"
+	pathSolution    path    = "solution"
+	pathWorkspace   path    = "workspace"
 )
 
 var (
@@ -95,6 +96,10 @@ type Client interface {
 	ListDataLinks(string, string, int) ([]DataLink, error)
 
 	ListDataLinksUrl() string
+
+	ListSolutions(string) ([]Solution, error)
+
+	ListSolutionsUrl() string
 
 	ListWorkspaces(int, int) ([]Workspace, error)
 
@@ -169,7 +174,7 @@ type oauthResponse struct {
 }
 
 type solutionSlices struct {
-	Solution       SolutionRemote `json:"solution"`
+	Solution       Solution       `json:"solution"`
 	Workflows      []Workflow     `json:"workflows"`
 	WorkflowLinks  []WorkflowLink `json:"workflowLinks"`
 	WorkflowNodes  []WorkflowNode `json:"workflowNodes"`
@@ -366,6 +371,48 @@ func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error
 
 func (c *client) ListDataLinksUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "list")
+}
+
+func (c *client) ListSolutions(oem string) ([]Solution, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathSolution, "list"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *[]Solution
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[[]Solution]{}).
+				QueryParams(map[string]string{
+					"oem":   oem,
+					"mask":  cast.ToString(SolutionFlags.Released | SolutionFlags.Active),
+					"flags": cast.ToString(SolutionFlags.Active),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *[]Solution {
+					var payload = resp.Result().(*clientPayload[[]Solution])
+
+					return &payload.Data
+				}); err == nil {
+					return *result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) ListSolutionsUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "list")
 }
 
 func (c *client) ListWorkspaces(mask, flags int) ([]Workspace, error) {
@@ -735,7 +782,7 @@ func (c *client) PublishSolution(solution *Solution) (*shared.Identity, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathSolution, "publish"); err == nil {
+		if url, err = c.makeUrl(apiVersion1, pathOemSolution, "publish"); err == nil {
 			var solutionBytes, _ = json.Marshal(solution)
 			var rb = c.requestBridge()
 			var resp responseBridge
@@ -764,7 +811,7 @@ func (c *client) PublishSolution(solution *Solution) (*shared.Identity, error) {
 }
 
 func (c *client) PublishSolutionUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "publish")
+	return makeHostUrl(c.HostAddr, apiVersion1, pathOemSolution, "publish")
 }
 
 func (c *client) Session() (*Session, error) {

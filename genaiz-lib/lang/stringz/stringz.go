@@ -44,6 +44,15 @@ func MultiTagLabel(label string, delimiter string, tag string) string {
 	return label
 }
 
+// NilToEmpty converts
+func NilToEmpty(s *string) string {
+	if s == nil {
+		return ""
+	}
+
+	return *s
+}
+
 // SingleTagLabel appends a tag to its label with the provided delimiter if both the tag and delimiter are not empty and if the delimiter is not already present in the label
 func SingleTagLabel(label string, delimiter string, tag string) string {
 	if tag != "" && delimiter != "" && !strings.Contains(label, delimiter) {

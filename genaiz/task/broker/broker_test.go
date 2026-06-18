@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -464,6 +465,115 @@ func TestSolution_FindWorkflowByHandle_NotFound(t *testing.T) {
 	assert.ErrorIs(t, err, ErrorWorkflowNotFound)
 }
 
+func TestSolution_GetBranch(t *testing.T) {
+	var testSolution = &Solution{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "version",
+	}
+	var expectedBranch = fmt.Sprintf("%s/%s:%s", testSolution.Oem, testSolution.Handle, testSolution.Version)
+
+	assert.Equal(t, expectedBranch, testSolution.GetBranch())
+}
+
+func TestSolution_GetFqdn(t *testing.T) {
+	var testSolution = &Solution{
+		Oem:    "oem",
+		Handle: "handle",
+	}
+	var expectedFqdn = fmt.Sprintf("%s/%s", testSolution.Oem, testSolution.Handle)
+
+	assert.Equal(t, expectedFqdn, testSolution.GetFqdn())
+	testSolution.Fqdn = lang.Ref("expectedFqdn")
+	assert.Equal(t, *testSolution.Fqdn, testSolution.GetFqdn())
+}
+
+func TestSolution_GetVersion(t *testing.T) {
+	var testSolution = &Solution{
+		Version: "version",
+	}
+
+	assert.Equal(t, testSolution.Version, testSolution.GetVersion())
+	testSolution.Seq = lang.Ref(1)
+	assert.Equal(t, fmt.Sprintf("%s-rc-%d", testSolution.Version, *testSolution.Seq), testSolution.GetVersion())
+	testSolution.Flags = lang.Ref(SolutionFlags.Active | SolutionFlags.Released)
+	assert.Equal(t, testSolution.Version, testSolution.GetVersion())
+}
+
+func TestSolution_IsActive(t *testing.T) {
+	var testSolution = &Solution{}
+
+	assert.False(t, testSolution.IsActive())
+	testSolution.Flags = lang.Ref(SolutionFlags.Active)
+	assert.True(t, testSolution.IsActive())
+	testSolution.Flags = lang.Ref(SolutionFlags.Released | *testSolution.Flags)
+	assert.True(t, testSolution.IsActive())
+}
+
+func TestSolution_IsAfter(t *testing.T) {
+	var branchOem = "oem"
+	var branchHandle = "handle"
+	var testSolution1 = &Solution{
+		Oem:    branchOem,
+		Handle: branchHandle,
+		Seq:    lang.Ref(37),
+	}
+	var testSolution2 = &Solution{
+		Oem:    branchOem,
+		Handle: branchHandle,
+		Seq:    lang.Ref(1337),
+	}
+
+	assert.False(t, testSolution1.IsAfter(*testSolution2))
+	assert.True(t, testSolution2.IsAfter(*testSolution1))
+}
+
+func TestSolution_IsAfter_DifferentBranch(t *testing.T) {
+	var branchOem = "oem"
+	var branchHandle = "handle"
+	var testSolution1 = &Solution{
+		Oem:    branchOem,
+		Handle: branchHandle,
+	}
+	var testSolution2 = &Solution{
+		Oem:    branchOem,
+		Handle: "different",
+	}
+
+	assert.False(t, testSolution1.IsAfter(*testSolution2))
+}
+
+func TestSolution_IsAfter_NoSequence(t *testing.T) {
+	var branchOem = "oem"
+	var branchHandle = "handle"
+	var testSolution1 = &Solution{
+		Oem:    branchOem,
+		Handle: branchHandle,
+	}
+	var testSolution2 = &Solution{
+		Oem:    branchOem,
+		Handle: branchHandle,
+	}
+
+	assert.False(t, testSolution1.IsAfter(*testSolution2))
+}
+
+func TestSolution_IsAfter_Partial(t *testing.T) {
+	var branchOem = "oem"
+	var branchHandle = "handle"
+	var testSolution1 = &Solution{
+		Oem:    branchOem,
+		Handle: branchHandle,
+		Seq:    lang.Ref(37),
+	}
+	var testSolution2 = &Solution{
+		Oem:    branchOem,
+		Handle: branchHandle,
+	}
+
+	assert.True(t, testSolution1.IsAfter(*testSolution2))
+}
+
 func TestSolution_Merge(t *testing.T) {
 	var expectedDescription = "description"
 	var expectedHandle = "handle"
@@ -530,19 +640,17 @@ func TestSolution_MergeWorkflows(t *testing.T) {
 
 func TestSolution_asIdentity(t *testing.T) {
 	var actual *shared.Identity
-	var solution = SolutionRemote{
-		Solution: Solution{
-			Version: "version",
-		},
-		Id:     37,
-		Digest: "digest",
-		Fqdn:   "path",
+	var solution = Solution{
+		Id:      lang.Ref(int64(37)),
+		Digest:  lang.Ref("digest"),
+		Fqdn:    lang.Ref("path"),
+		Version: "version",
 	}
 
 	actual = solution.asIdentity()
-	assert.Equal(t, solution.Id, cast.ToInt64(actual.Id))
-	assert.Equal(t, solution.Digest, actual.Hash)
-	assert.Equal(t, solution.Fqdn, actual.Path)
+	assert.Equal(t, *solution.Id, cast.ToInt64(actual.Id))
+	assert.Equal(t, *solution.Digest, actual.Hash)
+	assert.Equal(t, *solution.Fqdn, actual.Path)
 	assert.Equal(t, solution.Version, actual.Version)
 }
 

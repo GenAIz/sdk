@@ -18,6 +18,7 @@ import (
 	"resty.dev/v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/version/env"
 )
 
@@ -401,6 +402,79 @@ func TestClient_ListDataLinksUrl(t *testing.T) {
 	var testClient = &client{HostAddr: expectedHost}
 
 	assert.Contains(t, testClient.ListDataLinksUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
+}
+
+func TestClient_ListSolutions(t *testing.T) {
+	var expectedToken = "token"
+	var expectedSolution = &Solution{
+		Id:   lang.Ref(int64(37)),
+		Name: "name",
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[[]Solution]{
+				Data: []Solution{*expectedSolution},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListSolutions("oem")
+	assert.NoError(t, err)
+	assert.Equal(t, []Solution{*expectedSolution}, actual)
+}
+
+func TestClient_ListSolutions_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.ListSolutions("oem")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_ListSolutions_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListSolutions("oem")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_ListSolutions_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.ListSolutions("oem")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_ListSolutions_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListSolutions("oem")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_ListSolutionsUrl(t *testing.T) {
+	var expectedHost = "host"
+	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.ListSolutionsUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
 }
 
 func TestClient_ListWorkspaces(t *testing.T) {
@@ -1083,13 +1157,11 @@ func TestClient_PublishSolution(t *testing.T) {
 			success: true,
 			result: &clientPayload[solutionSlices]{
 				Data: solutionSlices{
-					Solution: SolutionRemote{
-						Solution: Solution{
-							Version: testSolution.Version,
-						},
-						Id:     expectedId,
-						Digest: expectedDigest,
-						Fqdn:   expectedPath,
+					Solution: Solution{
+						Version: testSolution.Version,
+						Id:      lang.Ref(expectedId),
+						Digest:  lang.Ref(expectedDigest),
+						Fqdn:    lang.Ref(expectedPath),
 					},
 				},
 			},
