@@ -425,6 +425,19 @@ var (
 			},
 		},
 		Solutions: solutionOptions{
+			mgmtOptions: mgmtOptions{
+				Account: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("account").
+						WithUsage("account managing the solution")
+				},
+				AccountOnly: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("account-only").
+						WithUsage("only lists account solutions").
+						WithDefaultValue(cast.ToString(false))
+				},
+			},
 			Broker: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("broker").
@@ -745,7 +758,8 @@ type listOptions struct {
 }
 
 type mgmtOptions struct {
-	Account func() OptionBuilder
+	Account     func() OptionBuilder
+	AccountOnly func() OptionBuilder
 }
 
 type modeOptions struct {
@@ -774,6 +788,7 @@ type proxyOptions struct {
 }
 
 type solutionOptions struct {
+	mgmtOptions
 	Broker          func() OptionBuilder
 	Description     func() OptionBuilder
 	FunctionArches  func() OptionBuilder

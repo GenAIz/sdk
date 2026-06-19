@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cast"
 
+	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/lang/enumz"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -39,6 +40,10 @@ var (
 		Active:      1 << 0,
 		ProtocolTcp: 1 << 1,
 		ProtocolUdp: 1 << 2,
+	}
+	SolutionFlags = &solutionFlags{
+		Active:   1 << 0,
+		Released: 1 << 1,
 	}
 	WorkspaceFlags = &workspaceFlags{
 		Active:    1 << 0,
@@ -603,12 +608,19 @@ type Session struct {
 
 type Solution struct {
 	// Keep the ordering for the marshaler
+	Id          *int64     `json:"id,omitempty"`
+	Digest      *string    `json:"digest,omitempty"`
 	Handle      string     `json:"handle"`
 	Name        string     `json:"name"`
-	Description string     `json:"description"`
+	Description string     `json:"description,omitempty"`
+	Fqdn        *string    `json:"fqdn,omitempty"`
 	Oem         string     `json:"oem"`
+	Seq         *int       `json:"seq,omitempty"`
 	Version     string     `json:"version"`
-	Workflows   []Workflow `json:"workflows"`
+	Workflows   []Workflow `json:"workflows,omitempty"`
+	Flags       *int       `json:"flags,omitempty"`
+	Created     *int64     `json:"nco,omitempty"`
+	Modified    *int64     `json:"nms,omitempty"`
 }
 
 func (s Solution) FindWorkflowByHandle(handle string) (*Workflow, error) {
@@ -621,6 +633,52 @@ func (s Solution) FindWorkflowByHandle(handle string) (*Workflow, error) {
 	}
 
 	return &s.Workflows[nodeIndex], nil
+}
+
+func (s Solution) GetBranch() string {
+	// The difference with GetVersion is omission of the sequence
+	return fmt.Sprintf("%s:%s", s.GetFqdn(), s.Version)
+}
+
+func (s Solution) GetFqdn() string {
+	if s.Fqdn != nil {
+		return *s.Fqdn
+	}
+
+	return fmt.Sprintf("%s/%s", s.Oem, s.Handle)
+}
+
+func (s Solution) GetVersion() string {
+	if s.Seq != nil && !s.IsReleased() {
+		return fmt.Sprintf("%s-rc-%d", s.Version, *s.Seq)
+	}
+
+	return s.Version
+}
+
+func (s Solution) IsAfter(solution Solution) bool {
+	if s.GetBranch() == solution.GetBranch() {
+		// When a sequence value is blank, we assume it's a local build, and it is not the latest for the given branch
+		if s.Seq != nil {
+			if solution.Seq == nil {
+				return !solution.IsReleased()
+			}
+
+			return *s.Seq > *solution.Seq
+		}
+
+		return s.IsReleased()
+	}
+
+	return false
+}
+
+func (s Solution) IsActive() bool {
+	return s.Flags != nil && (*s.Flags&SolutionFlags.Active) == SolutionFlags.Active
+}
+
+func (s Solution) IsReleased() bool {
+	return s.Flags != nil && (*s.Flags&SolutionFlags.Released) == SolutionFlags.Released
 }
 
 func (s Solution) Merge(update Solution) *Solution {
@@ -659,20 +717,24 @@ func (s Solution) Merge(update Solution) *Solution {
 	return result
 }
 
-type SolutionRemote struct {
-	Solution
-	Id     int64
-	Digest string
-	Fqdn   string
+func (s Solution) asIdentity() *shared.Identity {
+	var id string
+
+	if s.Id != nil {
+		id = strconv.FormatInt(*s.Id, 10)
+	}
+
+	return &shared.Identity{
+		Id:      id,
+		Hash:    stringz.NilToEmpty(s.Digest),
+		Path:    stringz.NilToEmpty(s.Fqdn),
+		Version: s.Version,
+	}
 }
 
-func (r SolutionRemote) asIdentity() *shared.Identity {
-	return &shared.Identity{
-		Id:      strconv.FormatInt(r.Id, 10),
-		Hash:    r.Digest,
-		Path:    r.Fqdn,
-		Version: r.Version,
-	}
+type solutionFlags struct {
+	Active   int
+	Released int
 }
 
 type Workflow struct {

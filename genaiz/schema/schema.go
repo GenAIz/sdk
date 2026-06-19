@@ -285,6 +285,11 @@ type Document struct {
 				Description Keys
 			}
 		}
+		List struct {
+			Account     Keys
+			AccountOnly Keys
+			Printer     Keys
+		}
 		Log struct {
 			Format Keys
 			Level  Keys
@@ -663,6 +668,10 @@ func init() {
 	Genaiz.Solution.Create.Workflow.Description = newKeys("Solution.Create.Workflow.Description", "SN_CREATE_WORKFLOW_DESCRIPTION", "Sn.Create.Workflow.Description")
 	Genaiz.Solution.Create.Workflow.Handle = newKeys("Solution.Create.Workflow.Handle", "SN_CREATE_WORKFLOW_HANDLE", "Sn.Create.Workflow.Handle")
 	Genaiz.Solution.Create.Workflow.Name = newKeys("Solution.Create.Workflow.Name", "SN_CREATE_WORKFLOW_NAME", "Sn.Create.Workflow.Name")
+
+	Genaiz.Solution.List.Account = newKeys("Solution.List.Account", "SN_LIST_ACCOUNT", "Sn.List.Account")
+	Genaiz.Solution.List.AccountOnly = newKeys("Solution.List.AccountOnly", "SN_LIST_ACCOUNT_ONLY", "Sn.List.AccountOnly")
+	Genaiz.Solution.List.Printer = newKeys("Solution.List.Printer", "SN_LIST_PRINTER", "Sn.List.Printer")
 
 	Genaiz.Solution.Log.Format = newKeys("Solution.Log.Format", "SN_LOG_FORMAT", "Sn.Log.Format")
 	Genaiz.Solution.Log.Level = newKeys("Solution.Log.Level", "SN_LOG_LEVEL", "Sn.Log.Level")

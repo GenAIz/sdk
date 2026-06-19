@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -16,13 +17,14 @@ import (
 )
 
 var (
-	errorSolutionFileInvalid    = errors.New("solution config is invalid")
-	errorSolutionInvalid        = errors.New("solution is invalid")
-	errorWorkflowConflict       = errors.New("workflow already exists")
-	errorWorkflowFileInvalid    = errors.New("workflow config is invalid")
-	errorWorkflowFileNotFound   = errors.New("workflow config file not found")
-	errorWorkflowNotFound       = errors.New("workflow not found")
-	ErrorWorkflowPropIncomplete = errors.New("workflow prop specs are empty")
+	errorSolutionFileInvalid    = task.NewError("solution config is invalid")
+	errorSolutionInvalid        = task.NewError("solution is invalid")
+	errorSolutionOemRequired    = task.NewError("solution oem is required")
+	errorWorkflowConflict       = task.NewError("workflow already exists")
+	errorWorkflowFileInvalid    = task.NewError("workflow config is invalid")
+	errorWorkflowFileNotFound   = task.NewError("workflow config file not found")
+	errorWorkflowNotFound       = task.NewError("workflow not found")
+	ErrorWorkflowPropIncomplete = task.NewError("workflow prop specs are empty")
 
 	errorInvalidNodeProp = func(key, handle string) error {
 		return fmt.Errorf("the key [%s] is invalid for node [%s]", strings.ToUpper(key), handle)
@@ -66,6 +68,13 @@ type SolutionParams struct {
 
 func (sp SolutionParams) HasWorkflows() bool {
 	return sp.Solution != nil && len(sp.Workflows) > 0
+}
+
+type SolutionListParams struct {
+	Broker
+	AccountOnly bool
+	Local       []Solution
+	Oem         string
 }
 
 type SolutionPublishParams struct {
@@ -119,12 +128,29 @@ func (wp WorkflowParams) workflowPredicate() func(Workflow) bool {
 	}
 }
 
+func NewSolutionListTask() *task.Task[SolutionListParams] {
+	return &task.Task[SolutionListParams]{
+		Name:         "solution-list",
+		OnPrepare:    handleSolutionListContext,
+		OnComplete:   handleSolutionListComplete,
+		OnIncomplete: handleSolutionListIncomplete,
+	}
+}
+
 func NewSolutionPublishTask() *task.Task[SolutionPublishParams] {
 	return &task.Task[SolutionPublishParams]{
 		Name:       "solution-publish",
 		OnPrepare:  handleSolutionPublishContext,
 		OnComplete: handleSolutionPublishComplete,
 		OnPretend:  handleSolutionPublishPretend,
+	}
+}
+
+func NewSolutionReduceTask() *task.Task[SolutionListParams] {
+	return &task.Task[SolutionListParams]{
+		Name:       "solution-reduce",
+		OnPrepare:  handleSolutionReduceContext,
+		OnComplete: handleSolutionReduceComplete,
 	}
 }
 
@@ -197,6 +223,65 @@ func handleSolutionCreateContext(params *SolutionParams, state *task.State) erro
 		}
 	}
 
+	return nil
+}
+
+func handleSolutionListComplete(params *SolutionListParams, state *task.State) error {
+	if state.Internal == nil {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var results []Solution
+
+			state.Logger.Debugf("List solutions from [%s] for oem [%s]", brokerClient.ListSolutionsUrl(), params.Oem)
+
+			if results, err = brokerClient.ListSolutions(params.Oem); err == nil {
+				state.Logger.Debugf("Found [%d] solutions", len(results))
+				state.Internal = results
+				return nil
+			}
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+func handleSolutionListContext(params *SolutionListParams, state *task.State) error {
+	if state.Output == "" {
+		if params.Oem == "" {
+			return errorSolutionOemRequired
+		}
+
+		if brokerClient, err := params.GetClient(); err == nil {
+			if params.AccountOnly {
+				state.Logger.Debugf("Account only solution will be listed")
+
+				if len(params.Local) > 0 {
+					state.Logger.Warn("Local solutions provided will be ignored")
+				}
+			}
+
+			state.Output = brokerClient.GetHostAddr()
+		} else {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func handleSolutionListIncomplete(params *SolutionListParams, state *task.State) error {
+	if state.Error != nil {
+		if params.AccountOnly {
+			state.Logger.Errorf("Could not list solution for account only")
+			return state.Error
+		}
+	}
+
+	state.Completed = true
 	return nil
 }
 
@@ -278,6 +363,51 @@ func handleSolutionPublishPretend(params *SolutionPublishParams, state *task.Sta
 	}
 
 	return state.Error
+}
+
+func handleSolutionReduceComplete(params *SolutionListParams, state *task.State) error {
+	var branchMap = map[string]Solution{}
+	var result []Solution
+
+	if remotes, hasInternal := state.Internal.([]Solution); hasInternal {
+		state.Logger.Debugf("Reducing [%d] account solutions", len(remotes))
+
+		for _, sol := range remotes {
+			if sol.IsReleased() {
+				result = append(result, sol)
+				branchMap[sol.GetBranch()] = sol
+			} else if latest, ok := branchMap[sol.GetBranch()]; !ok || sol.IsAfter(latest) {
+				branchMap[sol.GetBranch()] = sol
+			}
+		}
+
+		for _, sol := range slices.Collect(maps.Values(branchMap)) {
+			if !sol.IsReleased() {
+				if _, ok := branchMap[sol.GetBranch()]; ok {
+					result = append(result, sol)
+				}
+			}
+		}
+	}
+
+	for _, sol := range params.Local {
+		if _, ok := branchMap[sol.GetBranch()]; !ok {
+			result = append(result, sol)
+		}
+	}
+
+	state.Internal = result
+	return nil
+}
+
+func handleSolutionReduceContext(params *SolutionListParams, state *task.State) error {
+	var count = len(params.Local)
+
+	if count > 0 {
+		state.Logger.Debugf("Reducing [%d] local solutions", count)
+	}
+
+	return nil
 }
 
 func handleSolutionUpdateConfig(writer SolutionWriter, params *SolutionParams, state *task.State) error {

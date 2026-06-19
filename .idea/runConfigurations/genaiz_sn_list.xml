@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz sn create --dry" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz sn">
+  <configuration default="false" name="genaiz sn list" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz sn">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out" />
     <go_parameters value="-tags dev" />
-    <parameters value="sn create myIdeSolution --name=&quot;Ide Solution&quot; --handle=solution-1 --description=&quot;IDE Solution test&quot; --oem=genaiz.com --dry" />
+    <parameters value="sn list --json" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

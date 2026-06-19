@@ -134,12 +134,18 @@ func (mww *mockWorkflowWriter) Write(testOutput string) error {
 type stubSolutionClient struct {
 	client
 	brokerAddr      string
+	listError       error
+	listSolutions   []Solution
 	publishError    error
 	publishIdentity *shared.Identity
 }
 
 func (ssc stubSolutionClient) GetHostAddr() string {
 	return ssc.brokerAddr
+}
+
+func (ssc stubSolutionClient) ListSolutions(string) ([]Solution, error) {
+	return ssc.listSolutions, ssc.listError
 }
 
 func (ssc stubSolutionClient) PublishSolution(*Solution) (*shared.Identity, error) {
@@ -219,6 +225,15 @@ func TestWorkflowParams_workflowPredicate(t *testing.T) {
 	assert.True(t, testParams.workflowPredicate()(Workflow{Handle: testParams.Handle}))
 }
 
+func TestNewSolutionListTask(t *testing.T) {
+	var testTask = NewSolutionListTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnComplete)
+	assert.NotEmpty(t, testTask.OnIncomplete)
+	assert.NotEmpty(t, testTask.OnPrepare)
+}
+
 func TestNewSolutionPublishTask(t *testing.T) {
 	var testTask = NewSolutionPublishTask()
 
@@ -226,6 +241,14 @@ func TestNewSolutionPublishTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnPretend)
 	assert.NotEmpty(t, testTask.OnComplete)
 	assert.Empty(t, testTask.OnIncomplete)
+	assert.NotEmpty(t, testTask.OnPrepare)
+}
+
+func TestNewSolutionReduceTask(t *testing.T) {
+	var testTask = NewSolutionReduceTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnComplete)
 	assert.NotEmpty(t, testTask.OnPrepare)
 }
 
@@ -347,6 +370,208 @@ func Test_handleSolutionCreateContext_OutputAlreadySelected(t *testing.T) {
 	}
 
 	assert.NoError(t, handleSolutionCreateContext(&SolutionParams{}, testState))
+}
+
+func Test_handleSolutionListContext(t *testing.T) {
+	var expectedBrokerAddr = "brokerAddr"
+	var restoredFactory = clientFactory.Active
+	var testLogger, testHook = test.NewNullLogger()
+	var testParams = &SolutionListParams{
+		Oem: "oem",
+	}
+	var testState = &task.State{Logger: testLogger}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubSolutionClient{
+			brokerAddr: expectedBrokerAddr,
+		}, nil
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.NoError(t, handleSolutionListContext(testParams, testState))
+	assert.Equal(t, 0, len(testHook.Entries))
+	assert.Equal(t, expectedBrokerAddr, testState.Output)
+}
+
+func Test_handleSolutionListContext_AccountOnly(t *testing.T) {
+	var expectedBrokerAddr = "brokerAddr"
+	var restoredFactory = clientFactory.Active
+	var testLogger, testHook = test.NewNullLogger()
+	var testParams = &SolutionListParams{
+		Oem:         "oem",
+		AccountOnly: true,
+	}
+	var testState = &task.State{Logger: testLogger}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubSolutionClient{
+			brokerAddr: expectedBrokerAddr,
+		}, nil
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.NoError(t, handleSolutionListContext(testParams, testState))
+	assert.Equal(t, 1, len(testHook.Entries))
+	assert.Equal(t, expectedBrokerAddr, testState.Output)
+}
+
+func Test_handleSolutionListContext_CheckedOutput(t *testing.T) {
+	var testState = &task.State{Output: "brokerAddr"}
+
+	assert.Nil(t, handleSolutionListContext(&SolutionListParams{}, testState))
+}
+
+func Test_handleSolutionListContext_LocalAccountOnlyConflict(t *testing.T) {
+	var expectedBrokerAddr = "brokerAddr"
+	var restoredFactory = clientFactory.Active
+	var testLogger, testHook = test.NewNullLogger()
+	var testParams = &SolutionListParams{
+		Oem:         "oem",
+		AccountOnly: true,
+		Local: []Solution{
+			{
+				Id: lang.Ref(int64(37)),
+			},
+		},
+	}
+	var testState = &task.State{Logger: testLogger}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubSolutionClient{
+			brokerAddr: expectedBrokerAddr,
+		}, nil
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.NoError(t, handleSolutionListContext(testParams, testState))
+	assert.Equal(t, 2, len(testHook.Entries))
+	assert.Equal(t, expectedBrokerAddr, testState.Output)
+}
+
+func Test_handleSolutionListContext_NoOem(t *testing.T) {
+	assert.ErrorIs(t, handleSolutionListContext(&SolutionListParams{}, &task.State{}), errorSolutionOemRequired)
+}
+
+func Test_handleSolutionListContext_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var restoredFactory = clientFactory.Active
+	var testParams = &SolutionListParams{Oem: "oem"}
+	var testState = &task.State{}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleSolutionListContext(testParams, testState), expectedError)
+}
+
+func Test_handleSolutionListComplete(t *testing.T) {
+	var restoredFactory = clientFactory.Active
+	var expectedSolutions = []Solution{
+		{
+			Id: lang.Ref(int64(37)),
+		},
+	}
+	var testParams = &SolutionListParams{Oem: "oem"}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubSolutionClient{
+			listSolutions: expectedSolutions,
+		}, nil
+	}
+
+	assert.NoError(t, handleSolutionListComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.([]Solution); ok {
+		assert.Equal(t, expectedSolutions, actual)
+	} else {
+		assert.Fail(t, "expected a list of solutions")
+	}
+
+}
+
+func Test_handleSolutionListComplete_Failure(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var restoredFactory = clientFactory.Active
+	var testParams = &SolutionListParams{Oem: "oem"}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubSolutionClient{
+			listError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleSolutionListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleSolutionListComplete_InternalSkip(t *testing.T) {
+	var testState = &task.State{Internal: "something"}
+
+	assert.Nil(t, handleSolutionListComplete(&SolutionListParams{}, testState))
+}
+
+func Test_handleSolutionListComplete_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var restoredFactory = clientFactory.Active
+	var testParams = &SolutionListParams{Oem: "oem"}
+	var testState = &task.State{}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleSolutionListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleSolutionListIncomplete(t *testing.T) {
+	var testParams = &SolutionListParams{}
+	var testState = &task.State{
+		Error:  errors.New("expected"),
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleSolutionListIncomplete(testParams, testState))
+}
+
+func Test_handleSolutionListIncomplete_AccountOnlyError(t *testing.T) {
+	var testParams = &SolutionListParams{AccountOnly: true}
+	var testState = &task.State{
+		Error:  errors.New("expected"),
+		Logger: logrus.New(),
+	}
+
+	assert.ErrorIs(t, handleSolutionListIncomplete(testParams, testState), testState.Error)
+}
+
+func Test_handleSolutionListIncomplete_NoError(t *testing.T) {
+	assert.NoError(t, handleSolutionListIncomplete(&SolutionListParams{}, &task.State{}))
 }
 
 func Test_handleSolutionPublishComplete(t *testing.T) {
@@ -597,6 +822,106 @@ func Test_handleSolutionPublishPretend_StateError(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleSolutionPublishPretend(&SolutionPublishParams{}, testState), expectedError)
+}
+
+func Test_handleSolutionReduceComplete(t *testing.T) {
+	var expectedReleased = &Solution{
+		Id:      lang.Ref(int64(37)),
+		Fqdn:    lang.Ref("releasedFqdn"),
+		Version: "1.3.37",
+		Flags:   lang.Ref(SolutionFlags.Active | SolutionFlags.Released),
+	}
+	var expectedCandidate = &Solution{
+		Id:      lang.Ref(int64(42)),
+		Fqdn:    lang.Ref("candidateFqdn"),
+		Version: "1.0.0",
+		Seq:     lang.Ref(1),
+		Flags:   lang.Ref(SolutionFlags.Active),
+	}
+	var testSolutions = []Solution{
+		*expectedReleased,
+		{
+			Id:      lang.Ref(int64(372)),
+			Fqdn:    lang.Ref("releasedFqdn"),
+			Version: "1.3.37",
+			// Makes no sense, but if it happens it should be reduced
+			Seq:   lang.Ref(16),
+			Flags: lang.Ref(SolutionFlags.Active),
+		},
+		*expectedCandidate,
+		{
+			Id:      lang.Ref(int64(42)),
+			Fqdn:    lang.Ref("candidateFqdn"),
+			Version: "1.0.0",
+			Seq:     lang.Ref(0),
+			Flags:   lang.Ref(SolutionFlags.Active),
+		},
+	}
+	var testState = &task.State{
+		Internal: testSolutions,
+		Logger:   logrus.New(),
+	}
+	var testParams = &SolutionListParams{
+		Local: []Solution{
+			{
+				Oem:     "oem",
+				Handle:  "handle",
+				Version: "1.0.0",
+			},
+		},
+	}
+
+	assert.NoError(t, handleSolutionReduceComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.([]Solution); ok {
+		assert.Equal(t, 3, len(actual))
+		assert.Equal(t, *expectedReleased, actual[0])
+		assert.Equal(t, *expectedCandidate, actual[1])
+		assert.Equal(t, testParams.Local[0], actual[2])
+	} else {
+		assert.Fail(t, "expected a list of solutions")
+	}
+}
+
+func Test_handleSolutionReduceComplete_NoInternal(t *testing.T) {
+	var testState = &task.State{}
+	var testParams = &SolutionListParams{
+		Local: []Solution{
+			{
+				Oem:    "oem",
+				Handle: "handle",
+			},
+		},
+	}
+
+	assert.NoError(t, handleSolutionReduceComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.([]Solution); ok {
+		assert.Equal(t, testParams.Local, actual)
+	} else {
+		assert.Fail(t, "expected a list of solutions")
+	}
+}
+
+func Test_handleSolutionReduceContext(t *testing.T) {
+	var testLogger, testHook = test.NewNullLogger()
+	var testParams = &SolutionListParams{
+		Local: []Solution{
+			{
+				Id: lang.Ref(int64(37)),
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: testLogger,
+	}
+
+	assert.NoError(t, handleSolutionReduceContext(testParams, testState))
+	assert.Equal(t, 0, len(testHook.Entries))
+}
+
+func Test_handleSolutionReduceContext_NoLocal(t *testing.T) {
+	assert.NoError(t, handleSolutionReduceContext(&SolutionListParams{}, &task.State{}))
 }
 
 func Test_handleSolutionUpdateConfig(t *testing.T) {

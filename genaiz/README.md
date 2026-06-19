@@ -187,6 +187,23 @@ creating a solution implies creating a default workflow with default or specifie
 genaiz sn create --help
 ```
 
+#### list
+
+List is used to get list of solutions either from a local folder, from a specific account or from both ends.
+
+```shell
+genaiz sn list --help
+```
+
+#### publish
+
+Publish is the command used to publish a Solution with its Workflows, and its local Smart Functions. The command will
+iterate through all the Smart Functions found locally and invoke [genaiz sf publish](#publish)
+
+```shell
+genaiz sn publish --help
+```
+
 ### workflow (wf)
 
 The workflow module allows a user to create, add and remove workflow configurations from a solution file.

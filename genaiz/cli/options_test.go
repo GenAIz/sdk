@@ -625,6 +625,23 @@ func Test_OptionsProxyUdp(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
+func Test_OptionsSolutionsAccount(t *testing.T) {
+	var testOption = Options.Solutions.Account().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsSolutionsAccountOnly(t *testing.T) {
+	var testOption = Options.Solutions.AccountOnly().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsSolutionsBroker(t *testing.T) {
 	var testOption = Options.Solutions.Broker().BuildStringOption()
 

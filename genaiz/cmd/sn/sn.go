@@ -46,6 +46,7 @@ func NewSn(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	}
 
 	wfCmd.AddCommand(NewCreate(ledger, snCli))
+	wfCmd.AddCommand(NewList(ledger))
 	wfCmd.AddCommand(NewPublish(ledger, snCli))
 	return wfCmd
 }
