@@ -6,7 +6,7 @@ Feature: workflow delete for a simple solution
   Scenario: create simple solution with workflow
     Given the following parameters
       | folder      | oem            | version | workflowHandle | workflowName     | workflowDescription |
-      | my-solution | com.genaiz.dev | 1.1.0   | my-workflow    | Default Workflow | default workflow    |
+      | my-solution | com.genaiz.test | 1.1.0   | my-workflow    | Default Workflow | default workflow    |
     When I run the command "sn create <folder> --oem=<oem> --version=<version> --workflow-handle=<workflowHandle>"
     Then I should have a solution under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", description "<folder>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDescription>"

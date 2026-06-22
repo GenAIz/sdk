@@ -7,8 +7,8 @@ Feature: workflow node properties for a connector workflow
   Scenario: create basic solution
     Given the following parameters
       | folder      | oem            | version | workflowHandle | workflowName     | workflowDescription |
-      | my-solution | com.genaiz.dev | 1.0.0   | default        | Default Workflow | default workflow    |
-    When I run the command "sn create <folder> --oem=com.genaiz.dev"
+      | my-solution | com.genaiz.test | 1.0.0   | default        | Default Workflow | default workflow    |
+    When I run the command "sn create <folder> --oem=com.genaiz.test"
     Then I should have a solution under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", description "<folder>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDescription>"
 
@@ -16,7 +16,7 @@ Feature: workflow node properties for a connector workflow
     Given the scenario "create basic solution" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | recipe       | handle      | oem            | version | type      |
-      | my-solution | bash-example | my-function | com.genaiz.dev | 1.0.1   | connector |
+      | my-solution | bash-example | my-function | com.genaiz.test | 1.0.1   | connector |
     And the workdir changes to "<folder>"
     When I run the command "sf create <handle> --version=<version> --type=<type> --recipe=<recipe>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>" and version "<version>"
@@ -26,7 +26,7 @@ Feature: workflow node properties for a connector workflow
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | functionFolder | workflowHandle | nodeHandle       | oem            | version |
-      | my-solution | my-function    | default        | my-function-node | com.genaiz.dev | 1.0.0   |
+      | my-solution | my-function    | default        | my-function-node | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <functionFolder>"
     Then I should have a node under "<folder>" and workflow "<workflowHandle> named "<nodeHandle>" and handle "<nodeHandle>"
@@ -35,7 +35,7 @@ Feature: workflow node properties for a connector workflow
   Scenario: create data source data link
     Given the following parameters
       | configFile                       | handle       | oem            | version |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-src | com.genaiz.dev | 1.0.0   |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-src | com.genaiz.test | 1.0.0   |
     And the user genaiz config folder is under <path>
     When I run the command "dk create <oem>/<handle>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
@@ -44,7 +44,7 @@ Feature: workflow node properties for a connector workflow
     Given the scenario "create data source data link" ran with condition "service_completed_successfully"
     And the following parameters
       | configFile                       | handle       | oem            | version | key     | type   |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-src | com.genaiz.dev | 1.0.0   | SRC_KEY | STRING |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-src | com.genaiz.test | 1.0.0   | SRC_KEY | STRING |
     When I run the command "dk prop add <oem>/<handle>:<version> <key>"
     Then I should have a "<type>" property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>" and default value ""
 
@@ -52,7 +52,7 @@ Feature: workflow node properties for a connector workflow
     Given the scenario "add data source data link property" ran with condition "service_completed_successfully"
     Given the following parameters
       | configFile                       | handle       | oem            | version |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-str | com.genaiz.dev | 1.0.1   |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-str | com.genaiz.test | 1.0.1   |
     And the user genaiz config folder is under <path>
     When I run the command "dk create <oem>/<handle> --version=<version>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
@@ -61,7 +61,7 @@ Feature: workflow node properties for a connector workflow
     Given the scenario "create data store data link" ran with condition "service_completed_successfully"
     And the following parameters
       | configFile                       | handle       | oem            | version | key     | type | defaultValue |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-str | com.genaiz.dev | 1.0.1   | STR_KEY | INT  | 37           |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-str | com.genaiz.test | 1.0.1   | STR_KEY | INT  | 37           |
     When I run the command "dk prop add <oem>/<handle>:<version> <key> --type=<type> --default-value=37"
     Then I should have a "<type>" property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>" and default value "<defaultValue>"
 
@@ -69,7 +69,7 @@ Feature: workflow node properties for a connector workflow
     Given the scenario "add data source data link property" ran with condition "service_completed_successfully"
     And the following parameters
       | folder                  | handle       | oem            | version |
-      | my-solution/my-function | datalink-src | com.genaiz.dev | 1.0.0   |
+      | my-solution/my-function | datalink-src | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle>:<version> --no-validation"
     Then I should have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"
@@ -78,7 +78,7 @@ Feature: workflow node properties for a connector workflow
     Given the scenario "add data source to bash example" ran with condition "service_completed_successfully"
     And the following parameters
       | folder                  | handle       | oem            | version |
-      | my-solution/my-function | datalink-str | com.genaiz.dev | 1.0.1   |
+      | my-solution/my-function | datalink-str | com.genaiz.test | 1.0.1   |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle>:<version> --no-validation"
     Then I should have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"

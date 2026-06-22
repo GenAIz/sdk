@@ -6,8 +6,8 @@ Feature: data link create
   Scenario: create bash example
     Given the scenario "create bash example solution" ran with condition "service_completed_successfully"
     And the following parameters
-      | recipe       | handle            | oem            | name              | type      | version |
-      | bash-example | my-bash-connector | com.genaiz.dev | My Bash Connector | connector | 0.1.1   |
+      | recipe       | handle            | oem             | name              | type      | version |
+      | bash-example | my-bash-connector | com.genaiz.test | My Bash Connector | connector | 0.1.1   |
     When I run the command "sf create <handle> --oem=<oem> --name='<name>' --recipe=<recipe> --type=<type>"
     Then I should have a function under "<handle>" named "<name>" with oem "<oem>", version "<version>" and type "<type>"
 
@@ -32,8 +32,8 @@ Feature: data link create
   Scenario: create data link invalid version
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder          | handle     | oem            | version |
-      | my-bash-example | datalink-1 | com.genaiz.dev | 1..0    |
+      | folder          | handle     | oem             | version |
+      | my-bash-example | datalink-1 | com.genaiz.test | 1..0    |
     And the workdir changes to "<folder>"
     When I run the command "dk create <handle> --oem=<oem> --version=<version>"
     Then I should have an error for field "datalink.create.version"
@@ -50,8 +50,8 @@ Feature: data link create
   Scenario: create data link for bash example
     Given the scenario "login bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | configFile                       | handle     | oem            | version |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.1   |
+      | configFile                       | handle     | oem             | version |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 1.0.1   |
     And the user genaiz config folder is under <path>
     When I run the command "dk create <handle> --oem=<oem> --version=<version>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
@@ -59,16 +59,16 @@ Feature: data link create
   Scenario: publish data link for bash example
     Given the scenario "create data link for bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | handle     | oem            | version |
-      | datalink-1 | com.genaiz.dev | 1.0.1   |
+      | handle     | oem             | version |
+      | datalink-1 | com.genaiz.test | 1.0.1   |
     When I run the command "dk publish <oem>/<handle>:<version>"
     Then I should have a datalink published to the orchestrator
 
   Scenario: add data source to bash example
     Given the scenario "create data link for bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder          | handle     | oem            | version |
-      | my-bash-example | datalink-1 | com.genaiz.dev | 1.0.1   |
+      | folder          | handle     | oem             | version |
+      | my-bash-example | datalink-1 | com.genaiz.test | 1.0.1   |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle>:<version>"
     Then I should have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"

@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz sf create --dry" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz sf create">
+  <configuration default="false" name="genaiz sf create --dry" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz sf">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/" />
     <go_parameters value="-tags dev" />
-    <parameters value="sf create --arch=x86 --arch=arm --oem=com.genaiz --handle=my-idea-pretend --name=&quot;My Idea Pretend&quot; --mount-in=../input --mount-out=../output --dry out/samples/myIdeaPretend" />
+    <parameters value="sf create --arch=x86 --arch=arm --oem=com.genaiz.test --handle=my-idea-pretend --name=&quot;My Idea Pretend&quot; --mount-in=../input --mount-out=../output --dry out/samples/myIdeaPretend" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

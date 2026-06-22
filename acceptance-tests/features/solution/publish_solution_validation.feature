@@ -6,7 +6,7 @@ Feature: solution publish with validation
   Scenario: create solution to validate
     Given the following parameters
       | folder      | oem            | version | workflowDesc     | workflowHandle | workflowName     |
-      | my-solution | com.genaiz.dev | 1.0.0   | default workflow | default        | Default Workflow |
+      | my-solution | com.genaiz.test | 1.0.0   | default workflow | default        | Default Workflow |
     When I run the command "sn create <folder> --oem=<oem>"
     Then I should have a solution under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", description "<folder>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDesc>"
@@ -14,7 +14,7 @@ Feature: solution publish with validation
   Scenario: create node function
     Given the following parameters
       | folder      | recipe       | handle      | oem            | type      | version |
-      | my-solution | bash-example | my-function | com.genaiz.dev | connector | 1.0.0   |
+      | my-solution | bash-example | my-function | com.genaiz.test | connector | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf create <handle> --recipe=<recipe> --type=<type>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
@@ -32,7 +32,7 @@ Feature: solution publish with validation
     Given the scenario "login function validation" ran with condition "service_completed_successfully"
     And the following parameters
       | configFile                       | handle     | oem            | version |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 1.0.0   |
     And the user genaiz config folder is under <path>
     When I run the command "dk create <handle> --oem=<oem> --version=<version>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
@@ -41,7 +41,7 @@ Feature: solution publish with validation
     Given the scenario "login data link" ran with condition "service_completed_successfully"
     And the following parameters
       | handle     | oem            | version |
-      | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | datalink-1 | com.genaiz.test | 1.0.0   |
     When I run the command "dk publish <oem>/<handle>:<version>"
     Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<version>"
 
@@ -49,7 +49,7 @@ Feature: solution publish with validation
     Given the scenario "publish data link for function validation" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | handle     | oem            | version |
-      | my-function | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | my-function | datalink-1 | com.genaiz.test | 1.0.0   |
     When I run the command "sf data src add <oem>/<handle>:<version>"
     Then I should have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"
 
@@ -59,7 +59,7 @@ Feature: solution publish with validation
     Given the scenario "add data source to bash example function" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | type     | srcDataLink                      |
-      | my-function | function | com.genaiz.dev/data-source:1.0.0 |
+      | my-function | function | com.genaiz.test/data-source:1.0.0 |
     When I run the command "sf init --type=<type>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
     And I should have a data source under "<folder>" with datalink "<srcDataLink>"
@@ -68,7 +68,7 @@ Feature: solution publish with validation
     Given the scenario "build bash connector" ran with condition "service_completed_successfully"
     And the following parameters
       | solution    | function    | workflowHandle | handle | description | functionOem    | functionVersion |
-      | my-solution | my-function | default        | node-1 |             | com.genaiz.dev | 1.0.0           |
+      | my-solution | my-function | default        | node-1 |             | com.genaiz.test | 1.0.0           |
     And the workdir changes to "<solution>"
     When I run the command "wf nodes add <workflowHandle> <handle>/"
     Then I should have a workflow node under "<solution>" with handle "<handle>", oem "<oem>", description "<description>" and smart function "<functionOem>/<function>:<functionVersion>"

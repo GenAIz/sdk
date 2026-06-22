@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz wf delete --dry" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz wf">
+  <configuration default="false" name="genaiz dk proxy add" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz dk">
     <module name="sdk" />
-    <working_directory value="$PROJECT_DIR$/out/myBashSolution" />
+    <working_directory value="$PROJECT_DIR$/" />
     <go_parameters value="-tags dev" />
-    <parameters value="wf delete workflow-1 --dry" />
+    <parameters value="dk proxy add com.genaiz.test/datalink-1:1.0.0 '*'" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

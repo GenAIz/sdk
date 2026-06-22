@@ -3,7 +3,7 @@
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/" />
     <go_parameters value="-tags dev" />
-    <parameters value="dk sync com.genaiz/datalink-1:0.1.2" />
+    <parameters value="dk sync com.genaiz.test/datalink-1:0.1.2" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

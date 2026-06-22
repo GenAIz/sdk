@@ -6,7 +6,7 @@ Feature: function run with the bash example
   Scenario: create bash example
     Given the following parameters
       | path              | oem            | version |
-      | run-bash-function | com.genaiz.dev | 1.0.0   |
+      | run-bash-function | com.genaiz.test | 1.0.0   |
     When I run the command "sf create <path> --oem=<oem> --recipe=bash-example"
     Then I should have a function under "<path>" named "<path>", handle "<path>", oem "<oem>" with version "<version>"
     And I should have dockerfile under "<path>" named "Dockerfile"
@@ -15,7 +15,7 @@ Feature: function run with the bash example
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the following parameters
       | path              | repository                       | version |
-      | run-bash-function | com.genaiz.dev/run-bash-function | latest  |
+      | run-bash-function | com.genaiz.test/run-bash-function | latest  |
     When I run the command "sf build --context=<path>"
     Then I should have a docker image under repository "<repository>" with tag "<version>"
 
@@ -23,7 +23,7 @@ Feature: function run with the bash example
     Given the scenario "build bash example out of context" ran with condition "service_completed_successfully"
     And the following parameters
       | path              | repository                       | version |
-      | run-bash-function | com.genaiz.dev/run-bash-function | latest  |
+      | run-bash-function | com.genaiz.test/run-bash-function | latest  |
     And the workdir changes to "<path>"
     When I run the command "sf list"
     Then I should have a list with an image named "<repository>" with a version "<version>" and a docker image id
@@ -111,7 +111,7 @@ Feature: function run with the bash example
     Given the scenario "build bash example out of context" ran with condition "service_completed_successfully"
     And the following parameters
       | path              | oem            | handle            | version |
-      | run-bash-function | com.genaiz.dev | run-bash-function | latest  |
+      | run-bash-function | com.genaiz.test | run-bash-function | latest  |
     And the workdir changes to "<path>"
     When I run the command "sf run"
     Then I should have a build confirmation with repository "<oem>/<handle>:<version>" and a docker image id

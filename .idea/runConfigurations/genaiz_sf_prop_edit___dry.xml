@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz sf prop edit --dry" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz sf prop">
+  <configuration default="false" name="genaiz sf prop edit --dry" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz sf">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out/samples/myBashExample" />
     <go_parameters value="-tags dev" />

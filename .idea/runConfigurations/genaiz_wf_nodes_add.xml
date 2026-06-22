@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz wf nodes add" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz wf nodes">
+  <configuration default="false" name="genaiz wf nodes add" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz wf">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out/myIdeSolution" />
     <go_parameters value="-tags dev" />
-    <parameters value="wf nodes add workflow-1 node2 --name=&quot;Node Two&quot; --description=&quot;My Second Node&quot; --sf=com.genaiz/smart-function-1:0.0.1 --sf.version=0.0.2" />
+    <parameters value="wf nodes add workflow-1 node2 --name=&quot;Node Two&quot; --description=&quot;My Second Node&quot; --sf=com.genaiz.test/smart-function-1:0.0.1 --sf.version=0.0.2" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

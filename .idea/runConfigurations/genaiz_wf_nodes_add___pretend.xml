@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz wf nodes add --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz wf nodes">
+  <configuration default="false" name="genaiz wf nodes add --pretend" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz wf">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out/myBashSolution" />
     <go_parameters value="-tags dev" />
-    <parameters value="wf nodes add workflow-1 node1 --name=&quot;Node One&quot; --sf.handle=&quot;smart-function-1&quot; --sf.oem=&quot;genaiz.com&quot; --sf.version=0.0.1 --sf.seq=2 --pretend" />
+    <parameters value="wf nodes add workflow-1 node1 --name=&quot;Node One&quot; --sf.handle=&quot;smart-function-1&quot; --sf.oem=&quot;genaiz.com.test&quot; --sf.version=0.0.1 --sf.seq=2 --pretend" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

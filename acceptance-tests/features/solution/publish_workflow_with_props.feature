@@ -6,7 +6,7 @@ Feature: workflow publish with node properties
   Scenario: create workflow solution
     Given the following parameters
       | folder      | oem            | handle     | name        | version | workflowDesc     | workflowHandle | workflowName     |
-      | my-solution | com.genaiz.dev | solution-1 | My Solution | 0.1.1   | default workflow | default        | Default Workflow |
+      | my-solution | com.genaiz.test | solution-1 | My Solution | 0.1.1   | default workflow | default        | Default Workflow |
     When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --name='<name>' --version=<version>
     Then I should have a solution under "<folder>" named "<name>" with oem "<oem>", handle "<handle>", description "<name>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDesc>"
@@ -15,7 +15,7 @@ Feature: workflow publish with node properties
     Given the scenario "create workflow solution" ran with condition "service_completed_successfully"
     And the following parameters
       | solution    | folder      | recipe       | oem            | type     | version |
-      | my-solution | my-function | bash-example | com.genaiz.dev | function | 0.1.1   |
+      | my-solution | my-function | bash-example | com.genaiz.test | function | 0.1.1   |
     And the workdir changes to "<solution>"
     When I run the command "sf create <folder> --recipe=<recipe>"
     Then I should have a function under "<folder>" named "<folder>" with handle "<folder>", oem "<oem>", version "<version>" and type "<type>"
@@ -33,7 +33,7 @@ Feature: workflow publish with node properties
     Given the scenario "add property to function" ran with condition "service_completed_successfully"
     And the following parameters
       | solution    | workflowHandle | function    | handle           | functionOem    | functionVersion |
-      | my-solution | default        | my-function | my-function-node | com.genaiz.dev | 0.1.1           |
+      | my-solution | default        | my-function | my-function-node | com.genaiz.test | 0.1.1           |
     And the workdir changes to "<solution>"
     When I run the command "wf nodes add <workflowHandle> <function>"
     Then I should have a workflow node under "<solution>" with handle "<handle>", name "<name>" and smart function "<functionOem>/<function>:<functionVersion>"
@@ -51,7 +51,7 @@ Feature: workflow publish with node properties
     Given the scenario "add property to workflow node" ran with condition "service_completed_successfully"
     And the following parameters
       | solution    | folder      | handle      | oem            |
-      | my-solution | my-function | my-function | com.genaiz.dev |
+      | my-solution | my-function | my-function | com.genaiz.test |
     And the workdir changes to "<solution>/<folder>"
     When I run the command "sf build"
     Then I should have a docker image tagged "<oem>/<handle>:latest"
