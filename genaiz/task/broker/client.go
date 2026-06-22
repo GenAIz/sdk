@@ -503,7 +503,7 @@ func (c *client) Logout(sessionId string) error {
 			}).
 			Post(url)
 
-		if resp != nil && !resp.IsSuccess() {
+		if resp != nil && !resp.IsStatusSuccess() {
 			if resp.Status() != "" {
 				err = errors.New(resp.Status())
 			} else {
@@ -892,7 +892,7 @@ func (c *client) sessionOrError(resp responseBridge, username string) (*AuthSess
 	var result *AuthSession
 	var err error
 
-	if resp.IsSuccess() {
+	if resp.IsStatusSuccess() {
 		var cookieValue = c.authFromCookie(defaultCookieName, resp.Cookies())
 
 		if cookieValue == "" {
@@ -1033,7 +1033,7 @@ func newClientWithBridge(addr string, expiry int, bridge func() requestBridge) C
 
 func resultOrError[T any](response responseBridge, transformer func(body any) *T) (*T, error) {
 	if response != nil {
-		if response.IsSuccess() {
+		if response.IsStatusSuccess() {
 			return transformer(response.Result()), nil
 		} else if response.StatusCode() == 400 {
 			var bytes = response.Bytes()
