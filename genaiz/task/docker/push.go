@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/spf13/cast"
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/ioz"
@@ -41,6 +42,16 @@ type PushStatusAux struct {
 	Size   int64  `json:"Size"`
 }
 
+func NewPushStatuAux(plain string) *PushStatusAux {
+	var parts = strings.Split(plain, " ")
+
+	return &PushStatusAux{
+		Tag:    strings.ReplaceAll(parts[0], ":", ""),
+		Digest: parts[2],
+		Size:   cast.ToInt64(parts[4]),
+	}
+}
+
 type PushStatusProgressDetail struct {
 	Current int64 `json:"current"`
 	Total   int64 `json:"total"`
@@ -68,9 +79,7 @@ func handlePushContext(params *PushParams, state *task.State) error {
 		return errorNoBuild
 	}
 
-	if state.Internal == nil {
-		return errorNoProvision
-	} else {
+	if state.Internal != nil {
 		var current = state.Internal.(*shared.Identity)
 
 		if current.Auth == "" {
@@ -86,9 +95,11 @@ func handlePushContext(params *PushParams, state *task.State) error {
 			state.Logger.Debugf("Function [%s] can not be pushed at this time", current.Path)
 			return errorConflictPush
 		}
+
+		return nil
 	}
 
-	return nil
+	return errorNoProvision
 }
 
 func handlePushComplete(params *PushParams, state *task.State) error {
@@ -116,7 +127,15 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 					var output PushStatus
 
 					if err = json.Unmarshal(data, &output); err == nil {
-						if !strings.Contains(output.Status, remote.Version) {
+						if strings.Contains(output.Status, remote.Version) {
+							// Quirks-mode where a request is producing push result as a plain string in the status field
+							if strings.Contains(output.Status, "digest") {
+								state.Logger.Debugf("Quirks status payload: [%s]", output.Status)
+								return NewPushStatuAux(output.Status), nil
+							}
+
+							state.Logger.Warningf("Quirks status did not provide a digest")
+						} else {
 							if output.ProgressDetail != nil && output.Id != "" {
 								state.Logger.Debugf("%s: %s [%d:%d] %s", output.Id, output.Status,
 									output.ProgressDetail.Current, output.ProgressDetail.Total, output.Progress)
@@ -177,7 +196,7 @@ func handlePushPretend(params *PushParams, state *task.State) error {
 	if state.Internal != nil {
 		var remote = state.Internal.(*shared.Identity)
 
-		state.Logger.Debugf("Pretending to tag docker image [%s]", remote.Path)
+		state.Logger.Debugf("Pretending to tag docker image [%s]", params.DockerRepository)
 		fmt.Printf("docker tag %s %s\n", remote.Hash, remote.Path)
 		state.Logger.Debugf("Pretending to push docker image [%s]", remote.Hash)
 		fmt.Printf("docker push %s\n", remote.Path)
