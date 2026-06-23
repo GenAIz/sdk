@@ -3,7 +3,7 @@
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out" />
     <go_parameters value="-tags dev" />
-    <parameters value="sn create myIdeSolution --name=&quot;Ide Solution&quot; --handle=solution-1 --description=&quot;IDE Solution test&quot; --oem=genaiz.com --dry" />
+    <parameters value="sn create myIdeSolution --name=&quot;Ide Solution&quot; --handle=solution-1 --description=&quot;IDE Solution test&quot; --oem=genaiz.com.test --dry" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

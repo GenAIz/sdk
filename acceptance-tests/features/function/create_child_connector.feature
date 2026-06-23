@@ -6,7 +6,7 @@ Feature: connector create for a parent solution
   Scenario: create parent solution
     Given the following parameters
       | folder          | oem            | handle     | description          | name        | version | workflowDesc     | workflowHandle | workflowName     |
-      | parent-solution | com.genaiz.dev | solution-1 | solution description | My Solution | 0.1.1   | default workflow | default        | Default Workflow |
+      | parent-solution | com.genaiz.test | solution-1 | solution description | My Solution | 0.1.1   | default workflow | default        | Default Workflow |
     When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --description='<description>' --name='<name>' --version=<version>""
     Then I should have a solution under "<folder>" named "<name>" with oem "<oem>", handle "<handle>", description "<description>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDesc>"
@@ -15,7 +15,7 @@ Feature: connector create for a parent solution
     Given the scenario "create parent solution" ran with condition "service_completed_successfully"
     And the following parameters
       | solutionFolder  | folder         | oem            | version | type     | dockerFile | dockerIgnore  |
-      | parent-solution | child-function | com.genaiz.dev | 0.1.1   | function | Dockerfile | .dockerignore |
+      | parent-solution | child-function | com.genaiz.test | 0.1.1   | function | Dockerfile | .dockerignore |
     When I run the command "sf create <folder> --solution-path=<solutionFolder>"
     Then I should have a function under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", version "<version>" and type "<type>"
     And I should have a file "<dockerFile>" under "<folder>"
@@ -25,7 +25,7 @@ Feature: connector create for a parent solution
     Given the scenario "create child function" ran with condition "service_completed_successfully"
     And the following parameters
       | folder         | type      | oem            | version |
-      | child-function | connector | com.genaiz.dev | 0.1.1   |
+      | child-function | connector | com.genaiz.test | 0.1.1   |
     And the workdir changes to "<folder>"
     When I run the command "sf init --type=connector"
     Then I should have a function under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", version "<version>" and type "<type>"
@@ -33,7 +33,7 @@ Feature: connector create for a parent solution
   Scenario: create data link for child function
     Given the following parameters
       | configFile                       | handle     | oem            | version |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.1   |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 1.0.1   |
     And the user genaiz config folder is under <path>
     When I run the command "dk create <handle> --oem=<oem> --version=<version>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
@@ -42,7 +42,7 @@ Feature: connector create for a parent solution
     Given the scenario "create data link for child function" ran with condition "service_completed_successfully"
     And the following parameters
       | configFile                       | handle     | oem            | version | key        | type |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.1   | SECRET_KEY | int  |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 1.0.1   | SECRET_KEY | int  |
     When I run the command "dk prop add <oem>/<handle> <key> --version=<version> --type=<type> --secret"
     Then I should have a "<type>" secret property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>"
 
@@ -60,7 +60,7 @@ Feature: connector create for a parent solution
     And the scenario "add data link secret property" ran with condition "service_completed_successfully"
     And the following parameters
       | handle     | oem            | version |
-      | datalink-1 | com.genaiz.dev | 1.0.1   |
+      | datalink-1 | com.genaiz.test | 1.0.1   |
     When I run the command "dk publish <oem>/<handle>:<version>"
     Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<version>"
 
@@ -68,7 +68,7 @@ Feature: connector create for a parent solution
     Given the scenario "publish data link" ran with condition "service_completed_successfully"
     And the following parameters
       | folder         | handle     | oem            | version | connectorVersion | type      |
-      | child-function | datalink-1 | com.genaiz.dev | 1.0.0   | 0.1.1            | connector |
+      | child-function | datalink-1 | com.genaiz.test | 1.0.0   | 0.1.1            | connector |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle>:<version>"
     Then I should have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"

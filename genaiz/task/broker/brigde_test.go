@@ -72,7 +72,7 @@ func TestRestyBridge_Form(t *testing.T) {
 	}
 
 	testBridge.Form()
-	assert.Equal(t, "application/x-www-form-urlencoded", testBridge.request.ExpectResponseContentType)
+	assert.Equal(t, "application/x-www-form-urlencoded", testBridge.request.ResponseExpectContentType)
 }
 
 func TestRestyBridge_FormData(t *testing.T) {
@@ -97,7 +97,7 @@ func TestRestyBridge_Json(t *testing.T) {
 	}
 
 	testBridge.Json()
-	assert.Equal(t, "application/json", testBridge.request.ExpectResponseContentType)
+	assert.Equal(t, "application/json", testBridge.request.ResponseExpectContentType)
 }
 
 func TestRestyBridge_Post(t *testing.T) {

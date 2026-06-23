@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz wf links rm --dry" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="gneaiz wf links">
+  <configuration default="false" name="genaiz wf links rm --dry" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz wf">
     <module name="sdk" />
     <working_directory value="$PROJECT_DIR$/out" />
     <go_parameters value="-tags dev" />

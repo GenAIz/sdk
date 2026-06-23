@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="genaiz wf delete --dry" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz wf">
+  <configuration default="false" name="genaiz ac activate __complete" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz ac">
     <module name="sdk" />
-    <working_directory value="$PROJECT_DIR$/out/myBashSolution" />
+    <working_directory value="$PROJECT_DIR$/out" />
     <go_parameters value="-tags dev" />
-    <parameters value="wf delete workflow-1 --dry" />
+    <parameters value="__complete ac activate xL" />
     <kind value="PACKAGE" />
     <package value="genaiz.com/genaiz" />
     <directory value="$PROJECT_DIR$" />

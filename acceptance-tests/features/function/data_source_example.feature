@@ -6,7 +6,7 @@ Feature: data sources for the bash example
   Scenario: create bash function
     Given the following parameters
       | recipe       | handle           | oem            | type     | version |
-      | bash-example | my-bash-function | com.genaiz.dev | function | 1.1.1   |
+      | bash-example | my-bash-function | com.genaiz.test | function | 1.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --version=<version>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
 
@@ -22,7 +22,7 @@ Feature: data sources for the bash example
   Scenario: create bash connector
     Given the following parameters
       | recipe       | handle            | oem            | type      | version |
-      | bash-example | my-bash-connector | com.genaiz.dev | connector | 1.1.1   |
+      | bash-example | my-bash-connector | com.genaiz.test | connector | 1.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --version=<version> --type=<type>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
 
@@ -39,7 +39,7 @@ Feature: data sources for the bash example
     Given the scenario "create bash connector" ran with condition "service_completed_successfully"
     And the following parameters
       | folder            | handle     | oem            | version |
-      | my-bash-connector | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | my-bash-connector | datalink-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "dk create <handle> --oem=<oem>"
     Then I should have a datalink under "<folder>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
@@ -48,7 +48,7 @@ Feature: data sources for the bash example
     Given the scenario "create data link default version" ran with condition "service_completed_successfully"
     And the following parameters
       | folder            | handle     | oem            | version | name       |
-      | my-bash-connector | datalink-2 | com.genaiz.dev | 2.0.0   | additional |
+      | my-bash-connector | datalink-2 | com.genaiz.test | 2.0.0   | additional |
     When I run the command "dk create <handle> <folder> --oem=<oem> --version=<version> --name=<name>"
     Then I should have a datalink under "<folder>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
 
@@ -74,7 +74,7 @@ Feature: data sources for the bash example
     Given the scenario "create bash connector" ran with condition "service_completed_successfully"
     And the following parameters
       | folder            | handle     | oem            | version |
-      | my-bash-connector | datalink-2 | com.genaiz.dev | ..1     |
+      | my-bash-connector | datalink-2 | com.genaiz.test | ..1     |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle>:<version>"
     Then I should have an error for field "function.publish.datasourceadd.version"
@@ -83,7 +83,7 @@ Feature: data sources for the bash example
     Given the scenario "create bash connector" ran with condition "service_completed_successfully"
     And the following parameters
       | folder            | handle     | oem            | version | available |
-      | my-bash-connector | datalink-2 | com.genaiz.dev | 1.0.0   | 2.0.0     |
+      | my-bash-connector | datalink-2 | com.genaiz.test | 1.0.0   | 2.0.0     |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle> --version=<version>"
     Then I should have a data source unavailable error with version "<available>" listed as available
@@ -92,7 +92,7 @@ Feature: data sources for the bash example
     Given the scenario "create data link additional" ran with condition "service_completed_successfully"
     And the following parameters
       | folder            | handle     | oem            | version |
-      | my-bash-connector | datalink-2 | com.genaiz.dev | 2.0.0   |
+      | my-bash-connector | datalink-2 | com.genaiz.test | 2.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle>:<version>"
     Then I should have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"
@@ -101,7 +101,7 @@ Feature: data sources for the bash example
     Given the scenario "add data source additional" ran with condition "service_completed_successfully"
     And the following parameters
       | folder            | handle     | oem            | version |
-      | my-bash-connector | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | my-bash-connector | datalink-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <handle>:<version> --oem=<oem>"
     Then I should have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"
@@ -110,7 +110,7 @@ Feature: data sources for the bash example
     Given the scenario "add data source one" ran with condition "service_completed_successfully"
     And the following parameters
       | folder            | handle     | oem            | version |
-      | my-bash-connector | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | my-bash-connector | datalink-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf data source rm <handle>:<version> --oem=<oem>"
     Then I should not have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"

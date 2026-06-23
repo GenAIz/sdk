@@ -6,7 +6,7 @@ Feature: data ports for the bash example
   Scenario: create bash example
     Given the following parameters
       | recipe       | handle          | oem            | type     | version |
-      | bash-example | my-bash-example | com.genaiz.dev | function | 1.1.1   |
+      | bash-example | my-bash-example | com.genaiz.test | function | 1.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --version=<version>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
 

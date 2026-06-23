@@ -103,7 +103,7 @@ func (s stubResponse) Cookies() []*http.Cookie {
 	return s.cookies
 }
 
-func (s stubResponse) IsSuccess() bool {
+func (s stubResponse) IsStatusSuccess() bool {
 	return s.success
 }
 
@@ -1508,7 +1508,7 @@ func Test_resultOrError_BadRequest(t *testing.T) {
 	var emptyProvider = func(body any) *provisionData { return nil }
 	var payload, err = resultOrError(&resty.Response{
 		Request: &resty.Request{
-			DoNotParseResponse: false,
+			IsResponseDoNotParse: false,
 		},
 		RawResponse: &http.Response{
 			StatusCode: 400,
@@ -1525,7 +1525,7 @@ func Test_resultOrError_BadRequestString(t *testing.T) {
 	var payload, err = resultOrError(&resty.Response{
 		Body: io.NopCloser(strings.NewReader(expectedResponse)),
 		Request: &resty.Request{
-			DoNotParseResponse: false,
+			IsResponseDoNotParse: false,
 		},
 		RawResponse: &http.Response{
 			StatusCode: 400,
@@ -1544,7 +1544,7 @@ func Test_resultOrError_BadRequestJson(t *testing.T) {
 	var payload, err = resultOrError(&resty.Response{
 		Body: io.NopCloser(bytes.NewReader(data)),
 		Request: &resty.Request{
-			DoNotParseResponse: false,
+			IsResponseDoNotParse: false,
 		},
 		RawResponse: &http.Response{
 			StatusCode: 400,

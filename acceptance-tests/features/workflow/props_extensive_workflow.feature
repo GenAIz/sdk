@@ -6,7 +6,7 @@ Feature: workflow node properties for an extensive workflow
   Scenario: create basic solution
     Given the following parameters
       | folder      | oem            | handle     | version | workflowHandle | workflowName     | workflowDescription |
-      | my-solution | com.genaiz.dev | solution-1 | 1.0.0   | default        | Default Workflow | default workflow    |
+      | my-solution | com.genaiz.test | solution-1 | 1.0.0   | default        | Default Workflow | default workflow    |
     When I run the command "sn create <folder> --oem=<oem> --handle=<handle>"
     Then I should have a solution under "<folder>" named "<handle>" with oem "<oem>", handle "<handle>", description "<handle>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDescription>"

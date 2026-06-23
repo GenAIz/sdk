@@ -5,8 +5,8 @@ Feature: data link publish
 
   Scenario: create data link
     Given the following parameters
-      | configFile                       | handle     | oem            | version |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 0.2.0   |
+      | configFile                       | handle     | oem             | version |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 0.2.0   |
     And the user genaiz config folder is under <path>
     When I run the command "dk create <handle> --oem=<oem> --version=<version>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
@@ -14,16 +14,16 @@ Feature: data link publish
   Scenario: add data link int property
     Given the scenario "create data link" ran with condition "service_completed_successfully"
     And the following parameters
-      | configFile                       | handle     | oem            | version | key      | type | defaultValue |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 0.2.0   | TEST_KEY | int  | 13           |
+      | configFile                       | handle     | oem             | version | key      | type | defaultValue |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 0.2.0   | TEST_KEY | int  | 13           |
     When I run the command "dk prop add <oem>/<handle>:<version> <key> --type=<type> --default-value=<defaultValue>"
     Then I should have a "<type>" property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>" and default value "<defaultValue>"
 
   Scenario: add data link secret property
     Given the scenario "create data link" ran with condition "service_completed_successfully"
     And the following parameters
-      | configFile                       | handle     | oem            | version | key        |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 0.2.0   | SECRET_KEY |
+      | configFile                       | handle     | oem             | version | key        |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 0.2.0   | SECRET_KEY |
     When I run the command "dk prop add <oem>/<handle>:<version> <key> --secret"
     Then I should have a "<type>" secret property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>"
 
@@ -39,7 +39,7 @@ Feature: data link publish
   Scenario: publish data link
     Given the scenario "login data link" ran with condition "service_completed_successfully"
     And the following parameters
-      | handle     | oem            | version |
-      | datalink-1 | com.genaiz.dev | 0.2.0   |
+      | handle     | oem             | version |
+      | datalink-1 | com.genaiz.test | 0.2.0   |
     When I run the command "dk publish <oem>/<handle> --version=<version>"
     Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<version>"

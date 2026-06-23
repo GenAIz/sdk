@@ -10,7 +10,7 @@ Feature: function test with properties of a bash connector datalink
   Scenario: create bash example
     Given the following parameters
       | path        | oem            | version | type      |
-      | my-function | com.genaiz.dev | 1.0.0   | connector |
+      | my-function | com.genaiz.test | 1.0.0   | connector |
     When I run the command "sf create <path> --oem=<oem> --recipe=bash-example --type=<type>"
     Then I should have a function under "<handle>" named "<name>" with oem "<oem>", version "<version>" and type "<type>"
 
@@ -27,7 +27,7 @@ Feature: function test with properties of a bash connector datalink
     Given the scenario "login bash example" ran with condition "service_completed_successfully"
     And the following parameters
       | configFile                       | handle     | oem            | version |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 1.0.0   |
     And the user genaiz config folder is under <path>
     When I run the command "dk create <handle> --oem=<oem>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
@@ -36,7 +36,7 @@ Feature: function test with properties of a bash connector datalink
     Given the scenario "create data link for bash example" ran with condition "service_completed_successfully"
     And the following parameters
       | configFile                       | handle     | oem            | version | key    | type | value |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   | DL_KEY | INT  | 37    |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 1.0.0   | DL_KEY | INT  | 37    |
     When I run the command "dk prop add <oem>/<handle>:<version> <key> --type=<type> --default-value=<value>"
     Then I should have a "<type>" property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>" and default value "<value>"
 
@@ -44,7 +44,7 @@ Feature: function test with properties of a bash connector datalink
     Given the scenario "add data link property" ran with condition "service_completed_successfully"
     And the following parameters
       | configFile                       | handle     | oem            | version | key        | type   |
-      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.dev | 1.0.0   | SECRET_KEY | STRING |
+      | $HOME/.config/genaiz/Genaiz.yaml | datalink-1 | com.genaiz.test | 1.0.0   | SECRET_KEY | STRING |
     When I run the command "dk prop add <oem>/<handle>:<version> <key> --secret"
     Then I should have a "<type>" secret property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>"
 
@@ -52,7 +52,7 @@ Feature: function test with properties of a bash connector datalink
     Given the scenario "add data link secret property" ran with condition "service_completed_successfully"
     And the following parameters
       | handle     | oem            | version |
-      | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | datalink-1 | com.genaiz.test | 1.0.0   |
     When I run the command "dk publish <oem>/<handle>:<version>"
     Then I should have a datalink published to the orchestrator
 
@@ -60,7 +60,7 @@ Feature: function test with properties of a bash connector datalink
     Given the scenario "publish data link for bash example" ran with condition "service_completed_successfully"
     And the following parameters
       | folder      | handle     | oem            | version |
-      | my-function | datalink-1 | com.genaiz.dev | 1.0.0   |
+      | my-function | datalink-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle>:<version>"
     Then I should have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"

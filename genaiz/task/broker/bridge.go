@@ -57,7 +57,7 @@ func (r *restyBridge) Get(url string) (responseBridge, error) {
 }
 
 func (r *restyBridge) Form() requestBridge {
-	r.request.SetExpectResponseContentType("application/x-www-form-urlencoded")
+	r.request.SetResponseExpectContentType("application/x-www-form-urlencoded")
 	return r
 }
 
@@ -67,7 +67,7 @@ func (r *restyBridge) FormData(params map[string]string) requestBridge {
 }
 
 func (r *restyBridge) Json() requestBridge {
-	r.request.SetExpectResponseContentType("application/json")
+	r.request.SetResponseExpectContentType("application/json")
 	return r
 }
 
@@ -100,7 +100,7 @@ type responseBridge interface {
 
 	Cookies() []*http.Cookie
 
-	IsSuccess() bool
+	IsStatusSuccess() bool
 
 	Result() any
 
