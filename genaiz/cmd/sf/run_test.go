@@ -21,6 +21,7 @@ import (
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
+	"genaiz.com/genaiz/task/shared"
 )
 
 func TestRunExecutor_Display(t *testing.T) {
@@ -315,6 +316,7 @@ func TestRunExecutor_Pretend_RebuildImage(t *testing.T) {
 
 func TestRunExecutor_Proceed(t *testing.T) {
 	var calledBuild, calledRun bool
+	var capturedDataLinkParams broker.DataLinkParams
 	var testDir = t.TempDir()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
@@ -333,6 +335,7 @@ func TestRunExecutor_Proceed(t *testing.T) {
 		},
 		SyncBridge: dk.NewSyncBridgeBuilder().
 			WithDataLinksWriterFactory(newDataLinksWriterTestFactory([]broker.DataLink{})).
+			WithCollectLinkTaskFactory(newCollectLinkCompleteCapture(&capturedDataLinkParams)).
 			Build(),
 		RunOptions: newRunTestOptions(),
 
@@ -350,6 +353,8 @@ func TestRunExecutor_Proceed(t *testing.T) {
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
 		assert.True(t, calledRun)
+		assert.Empty(t, capturedDataLinkParams.DataLink)
+
 	} else {
 		assert.NoError(t, err)
 	}
@@ -399,6 +404,7 @@ func TestRunExecutor_Proceed_NoSync(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithUserPath(testDir).
 		Build()
 	var testCli = &Cli{
 		optionDockerContext: cli.Options.Docker.ContextPath().BuildStringOption(),
@@ -425,23 +431,34 @@ func TestRunExecutor_Proceed_NoSync(t *testing.T) {
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 		runTaskFactory:   newRunTaskCompleteStub(&calledRun),
 	}
+	var fd *os.File
+	var err error
 
-	if fd, err := os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
-		defer filez.CloseSilently(fd)
+	if fd, err = os.Create(filepath.Join(testDir, "genaizDockerfile")); err == nil {
+		var userConfig = filepath.Join(testDir, ".config", "genaiz")
 
-		testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
-		testViper.Set(testCli.optionDockerFile.Key, fd.Name())
-		testViper.Set(testExecutor.optionNoPropSync.Key, "True")
-		testViper.Set(testExecutor.innerStores.Key, []string{fmt.Sprintf("%s/%s:%s",
-			testDataLink.Oem, testDataLink.Handle, testDataLink.Version)})
-		testLedger.InitLogging()
-		testExecutor.Proceed()
-		assert.False(t, calledBuild)
-		assert.True(t, calledRun)
-		assert.Equal(t, testDataLink, capturedDataLinkParams.DataLink)
-	} else {
-		assert.NoError(t, err)
+		filez.CloseSilently(fd)
+
+		if err = os.MkdirAll(userConfig, 0750); err == nil {
+			if fd, err = os.Create(filepath.Join(userConfig, testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
+				defer filez.CloseSilently(fd)
+
+				testViper.Set(testCli.optionDockerRepo.Key, "namespace/repo")
+				testViper.Set(testCli.optionDockerFile.Key, fd.Name())
+				testViper.Set(testExecutor.optionNoPropSync.Key, "True")
+				testViper.Set(testExecutor.innerStores.Key, []string{fmt.Sprintf("%s/%s:%s",
+					testDataLink.Oem, testDataLink.Handle, testDataLink.Version)})
+				testLedger.InitLogging()
+				testExecutor.Proceed()
+				assert.False(t, calledBuild)
+				assert.True(t, calledRun)
+				assert.Equal(t, testDataLink, capturedDataLinkParams.DataLink)
+				return
+			}
+		}
 	}
+
+	assert.Fail(t, err.Error())
 }
 
 func TestRunExecutor_Proceed_SyncSpecs(t *testing.T) {
