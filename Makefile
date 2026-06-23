@@ -6,16 +6,16 @@ help:
 	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
 
 .PHONY: all
-## all - Invokes all on genaiz, genaiz-it, genaiz-oauth and genaiz-lib
-all: genaiz-lib/all genaiz-oauth/all genaiz/all genaiz-it/all
+## all - Invokes all on genaiz, genaiz-it, genaiz-oauth, omitting genaiz-it as experimental
+all: genaiz-lib/all genaiz-oauth/all genaiz/all
 
 .PHONY: docker
-## docker - Invokes docker builds on genaiz, genaiz-it and genaiz-oauth
-docker: genaiz/docker genaiz-it/docker genaiz-oauth/docker
+## docker - Invokes docker builds on genaiz, genaiz-oauth, omitting genaiz-it as experimental
+docker: genaiz/docker genaiz-oauth/docker
 
 .PHONY: install
-## install - Invokes install on genaiz, genaiz-it and genaiz-oauth
-install: genaiz/install genaiz-it/install genaiz-oauth/install
+## install - Invokes install on genaiz, genaiz-oauth, omitting genaiz-it as experimental
+install: genaiz/install genaiz-oauth/install
 
 .PHONY:
 ## genaiz/dev - Installs development packaged binaries with supplementary trace tooling

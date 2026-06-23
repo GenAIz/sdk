@@ -126,6 +126,8 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 				var probe = ioz.NewProber[PushStatusAux](func(data []byte) (*PushStatusAux, error) {
 					var output PushStatus
 
+					state.Logger.Tracef("<- %s", string(data))
+
 					if err = json.Unmarshal(data, &output); err == nil {
 						if strings.Contains(output.Status, remote.Version) {
 							// Quirks-mode where a request is producing push result as a plain string in the status field

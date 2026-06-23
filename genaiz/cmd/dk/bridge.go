@@ -1,12 +1,17 @@
 package dk
 
 import (
+	"errors"
 	"fmt"
 
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
+)
+
+var (
+	errorDataLinkNotSynchronized = errors.New("datalinks specified were not synchronized and not found locally")
 )
 
 type CollectLinkTaskFactory func(broker.DataLinkWriter) *task.Task[broker.DataLinkParams]
@@ -53,7 +58,7 @@ func (sb SyncBridge) MakeSyncWorkers(datalinks []string, ledger *config.Ledger, 
 		if ledger.GetBool(noSyncOption) {
 			if err != nil {
 				// Can not use local repo if it doesn't exist
-				return nil, err
+				return nil, errorDataLinkNotSynchronized
 			}
 
 			workerFactory = func(params *broker.DataLinkParams) task.Worker {
