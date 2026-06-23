@@ -153,6 +153,33 @@ func Test_handlePushComplete_pushError(t *testing.T) {
 	assert.Equal(t, expectedPath, stubClient.imagePushPath)
 }
 
+func Test_handlePushComplete_quirkStatus(t *testing.T) {
+	var expectedAuth = "auth"
+	var expectedOutput = "outputId"
+	var expectedPath = "remotePath"
+	var expectedHash = "hashString"
+	var testParams = &PushParams{}
+	var testState = &task.State{
+		Internal: &shared.Identity{
+			Auth: expectedAuth,
+			Path: expectedPath,
+		},
+		Logger: logrus.New(),
+		Output: expectedOutput,
+	}
+	var stubClient = &stubDockerClient{
+		imagePushReader: io.NopCloser(strings.NewReader("{\"status\":\"1.0.0-rc-0: digest: " + expectedHash + " size: 37\"}")),
+	}
+
+	defer installDockerClient(stubClient)()
+	assert.NoError(t, handlePushComplete(testParams, testState))
+	assert.Equal(t, expectedOutput, testState.Output)
+	assert.Equal(t, expectedOutput, stubClient.imageTagId)
+	assert.Equal(t, expectedPath, stubClient.imageTagPath)
+	assert.NotEmpty(t, stubClient.imagePushOptions.RegistryAuth)
+	assert.Equal(t, expectedPath, stubClient.imagePushPath)
+}
+
 func Test_handlePushComplete_tagError(t *testing.T) {
 	var expectedOutput = "outputId"
 	var expectedPath = "remotePath"
@@ -289,6 +316,11 @@ func Test_handlePushPretend(t *testing.T) {
 	})
 	var expectedPath = "path"
 	var expectedHash = "hash"
+	var testParams = &PushParams{
+		BuildParams: &BuildParams{
+			DockerRepository: "testRepo",
+		},
+	}
 	var testState = &task.State{
 		Internal: &shared.Identity{
 			Hash: expectedHash,
@@ -298,7 +330,7 @@ func Test_handlePushPretend(t *testing.T) {
 	}
 
 	defer patch.Unpatch()
-	assert.NoError(t, handlePushPretend(&PushParams{}, testState))
+	assert.NoError(t, handlePushPretend(testParams, testState))
 	assert.True(t, slices.ContainsFunc(lines, func(s string) bool {
 		return strings.Contains(s, expectedHash)
 	}))
