@@ -1,0 +1,49 @@
+name: genaiz_release.yml
+
+on:
+  workflow_call:
+    inputs:
+      overwrite:
+        type: boolean
+        description: If enabled, the version tag will be overwritten on the tree
+        default: false
+
+jobs:
+  genaiz_package:
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        go-version: [ '1.26.4' ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Fetch all tags
+        run: git fetch --tags
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: false
+      - name: Genaiz Version
+        id: genaiz_version
+        run: |
+          cd genaiz
+          go get .
+          make dist
+          echo "VERSION=$(./dist/genaiz --version |awk '{print $3}')" >> $GITHUB_OUTPUT
+      - name: Mutually exclude duplicated tags
+        if: ${{ !inputs.overwrite }}
+        run: |
+          (git --no-pager tag -l 'v${{steps.genaiz_version.outputs.VERSION}}' | head -1) && \
+            exit 'Version ${{steps.genaiz_version.outputs.VERSION}} is already tagged'
+      - name: Install GitHub CLI
+        uses: actions4gh/setup-gh@v1
+        with:
+          gh-version: latest
+      - name: Create release
+        run: gh release create 'v${{steps.genaiz.version.outputs.Version}}' \
+          --fail-on-no-commits --notes-from-tag \
+          './genaiz/dist/*.tar.gz#GenAIz SDK v${{steps.genaiz.version.outputs.Version}}'
