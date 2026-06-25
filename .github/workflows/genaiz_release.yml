@@ -7,6 +7,9 @@ on:
         type: boolean
         description: If enabled, the version tag will be overwritten on the tree
         default: false
+  push:
+    branches:
+      - 32-github-publishing-for-the-genaiz-distribution-basic-curl
 
 jobs:
   genaiz_package:
@@ -45,8 +48,15 @@ jobs:
         run: |
           git tag -d 'v${{steps.genaiz_dist.outputs.VERSION}}'
       - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo $PWD
-          ls -al ./genaiz/dist/
-          gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}' --fail-on-no-commits \
-            './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}'
+          gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}' --fail-on-no-commits
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload \
+            './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}' \
+            './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256' \
+            --clobber

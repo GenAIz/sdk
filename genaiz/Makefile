@@ -27,9 +27,9 @@ dist:
 	@echo "Making distribution tarball"
 	mkdir dist
 	go build -tags prod -o dist/genaiz
-	cd dist && \
-		sha256sum -b genaiz > genaiz.sha256 && \
-		tar cvfz genaiz-"$$(./genaiz --version |awk '{print $$3}')".tar.gz genaiz genaiz.sha256
+	cd dist \
+		&& tar cvfz genaiz-"$$(./genaiz --version |awk '{print $$3}')".tar.gz genaiz \
+		&& sha256sum -b *.tar.gz > genaiz-"$$(./genaiz --version |awk '{print $$3}')".tar.gz.sha256
 
 .PHONY: docker
 ## docker - Produces a docker image following the buildDocker.sh script
