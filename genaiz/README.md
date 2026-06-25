@@ -130,6 +130,15 @@ containers configured with any of the listed images.
 genaiz sf list --help
 ```
 
+#### prop
+
+The prop command allows management of property specifications for the Smart Function. Property specifications indicate
+to runtime environments which environment variable the function expects.
+
+```shell
+genaiz sf prop --help
+```
+
 #### publish
 
 The command initiates a session with the GenAIz broker retrieving authorization tokens to publish a Smart Function image

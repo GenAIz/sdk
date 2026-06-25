@@ -1,0 +1,48 @@
+name: unit_tests.yaml
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'genaiz/**'
+
+jobs:
+  genaiz_unit_tests:
+    runs-on: ops
+    env:
+      GENAIZ_VERSION: 0
+    strategy:
+      matrix:
+        go-version: ['1.26.4']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: false
+      - name: Genaiz Version
+        id: genaiz_version
+        run: |
+          cd genaiz
+          go get .
+          make build
+          echo "VERSION=$(./genaiz --version |awk '{print $3}')" >> $GITHUB_OUTPUT
+      - name: Run tests
+        run: |
+          cd genaiz
+          go install github.com/jstemmer/go-junit-report@latest
+          go test -gcflags=-l -tags prod -v ./... | go-junit-report -set-exit-code > report.xml
+      - name: Upload tests results
+        uses: actions/upload-artifact@v7
+        with:
+          name: report-${{steps.genaiz_version.outputs.VERSION}}.xml
+          path: genaiz/report.xml
+      - name: Test Summary
+        uses: test-summary/action@v2.6
+        with:
+          paths: |
+            genaiz/report.xml
+        if: always()
