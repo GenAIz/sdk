@@ -53,7 +53,7 @@ jobs:
         run: |
           gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}' \
             --title 'v${{steps.genaiz_dist.outputs.VERSION}}' \ 
-            --fail-on-no-commits
+            --fail-on-no-commits || true
       - name: Upload assets
         env:
           GH_TOKEN: ${{ github.token }}
