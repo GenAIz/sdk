@@ -1,0 +1,52 @@
+name: genaiz_release.yml
+
+on:
+  workflow_dispatch:
+    inputs:
+      overwrite:
+        type: boolean
+        description: If enabled, the version tag will be overwritten on the tree
+        default: false
+
+jobs:
+  genaiz_package:
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        go-version: [ '1.26.4' ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Fetch all tags
+        run: git fetch --tags
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: false
+      - name: Genaiz Dist
+        id: genaiz_dist
+        run: |
+          cd genaiz
+          go get .
+          make dist
+          echo "VERSION=$(./dist/genaiz --version |awk '{print $3}')" >> $GITHUB_OUTPUT
+      - name: Mutually exclude duplicated tags
+        if: ${{ !inputs.overwrite }}
+        run: |
+          existing_tag="$(git --no-pager tag -l 'v${{steps.genaiz_dist.outputs.VERSION}}' | head -1)" && \
+            [ -z "$existing_tag" ] || \
+              { echo 'Version ${{steps.genaiz_dist.outputs.VERSION}} is already tagged' >&2; exit 1; }
+      - name: Remove existing tag on overwrite
+        if: ${{ inputs.overwrite }}
+        run: |
+          git tag -d 'v${{steps.genaiz_dist.outputs.VERSION}}'
+      - name: Create release
+        run: |
+          echo $PWD
+          ls -al ./genaiz/dist/
+          gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}' --fail-on-no-commits \
+            './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}'
