@@ -139,6 +139,15 @@ to runtime environments which environment variable the function expects.
 genaiz sf prop --help
 ```
 
+#### proxy
+
+The proxy command can be used to add outbound connection proxies to allow the Smart Function to connect to addresses
+outside its runtime environment.
+
+```shell
+genaiz sf proxy --help
+```
+
 #### publish
 
 The command initiates a session with the GenAIz broker retrieving authorization tokens to publish a Smart Function image
