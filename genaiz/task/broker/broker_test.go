@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -177,6 +176,16 @@ func TestFunction_FindDataPortByHandle(t *testing.T) {
 	}
 	actual := testFunction.FindDataPortByHandle(testHandle)
 	assert.Equal(t, expectedDataPort, actual)
+}
+
+func TestFunction_GetFullVersion(t *testing.T) {
+	var testFunction = &Function{
+		Version: "version",
+	}
+
+	assert.Equal(t, testFunction.Version, testFunction.GetFullVersion())
+	testFunction.Seq = new(37)
+	assert.Equal(t, fmt.Sprintf("%s-rc-%d", testFunction.Version, *testFunction.Seq), testFunction.GetFullVersion())
 }
 
 func TestFunction_asIdentity(t *testing.T) {
@@ -484,7 +493,7 @@ func TestSolution_GetFqdn(t *testing.T) {
 	var expectedFqdn = fmt.Sprintf("%s/%s", testSolution.Oem, testSolution.Handle)
 
 	assert.Equal(t, expectedFqdn, testSolution.GetFqdn())
-	testSolution.Fqdn = lang.Ref("expectedFqdn")
+	testSolution.Fqdn = new("expectedFqdn")
 	assert.Equal(t, *testSolution.Fqdn, testSolution.GetFqdn())
 }
 
@@ -494,9 +503,9 @@ func TestSolution_GetVersion(t *testing.T) {
 	}
 
 	assert.Equal(t, testSolution.Version, testSolution.GetVersion())
-	testSolution.Seq = lang.Ref(1)
+	testSolution.Seq = new(1)
 	assert.Equal(t, fmt.Sprintf("%s-rc-%d", testSolution.Version, *testSolution.Seq), testSolution.GetVersion())
-	testSolution.Flags = lang.Ref(SolutionFlags.Active | SolutionFlags.Released)
+	testSolution.Flags = new(SolutionFlags.Active | SolutionFlags.Released)
 	assert.Equal(t, testSolution.Version, testSolution.GetVersion())
 }
 
@@ -504,9 +513,9 @@ func TestSolution_IsActive(t *testing.T) {
 	var testSolution = &Solution{}
 
 	assert.False(t, testSolution.IsActive())
-	testSolution.Flags = lang.Ref(SolutionFlags.Active)
+	testSolution.Flags = new(SolutionFlags.Active)
 	assert.True(t, testSolution.IsActive())
-	testSolution.Flags = lang.Ref(SolutionFlags.Released | *testSolution.Flags)
+	testSolution.Flags = new(SolutionFlags.Released | *testSolution.Flags)
 	assert.True(t, testSolution.IsActive())
 }
 
@@ -516,12 +525,12 @@ func TestSolution_IsAfter(t *testing.T) {
 	var testSolution1 = &Solution{
 		Oem:    branchOem,
 		Handle: branchHandle,
-		Seq:    lang.Ref(37),
+		Seq:    new(37),
 	}
 	var testSolution2 = &Solution{
 		Oem:    branchOem,
 		Handle: branchHandle,
-		Seq:    lang.Ref(1337),
+		Seq:    new(1337),
 	}
 
 	assert.False(t, testSolution1.IsAfter(*testSolution2))
@@ -564,7 +573,7 @@ func TestSolution_IsAfter_Partial(t *testing.T) {
 	var testSolution1 = &Solution{
 		Oem:    branchOem,
 		Handle: branchHandle,
-		Seq:    lang.Ref(37),
+		Seq:    new(37),
 	}
 	var testSolution2 = &Solution{
 		Oem:    branchOem,
@@ -641,9 +650,9 @@ func TestSolution_MergeWorkflows(t *testing.T) {
 func TestSolution_asIdentity(t *testing.T) {
 	var actual *shared.Identity
 	var solution = Solution{
-		Id:      lang.Ref(int64(37)),
-		Digest:  lang.Ref("digest"),
-		Fqdn:    lang.Ref("path"),
+		Id:      new(int64(37)),
+		Digest:  new("digest"),
+		Fqdn:    new("path"),
 		Version: "version",
 	}
 
@@ -940,9 +949,9 @@ func TestWorkspace_IsActive(t *testing.T) {
 	var testWorkspace = &Workspace{}
 
 	assert.False(t, testWorkspace.IsActive())
-	testWorkspace.Flags = lang.Ref(WorkspaceFlags.RcEnabled)
+	testWorkspace.Flags = new(WorkspaceFlags.RcEnabled)
 	assert.False(t, testWorkspace.IsActive())
-	testWorkspace.Flags = lang.Ref(WorkspaceFlags.Active | WorkspaceFlags.RcEnabled)
+	testWorkspace.Flags = new(WorkspaceFlags.Active | WorkspaceFlags.RcEnabled)
 	assert.True(t, testWorkspace.IsActive())
 }
 
@@ -952,9 +961,9 @@ func TestWorkspace_IsRcEnabled(t *testing.T) {
 	assert.False(t, testWorkspace.IsRcEnabled())
 	testWorkspace.RcEnabled = true
 	assert.True(t, testWorkspace.IsRcEnabled())
-	testWorkspace.Flags = lang.Ref(WorkspaceFlags.Active)
+	testWorkspace.Flags = new(WorkspaceFlags.Active)
 	assert.False(t, testWorkspace.IsRcEnabled())
-	testWorkspace.Flags = lang.Ref(WorkspaceFlags.Active | WorkspaceFlags.RcEnabled)
+	testWorkspace.Flags = new(WorkspaceFlags.Active | WorkspaceFlags.RcEnabled)
 	assert.True(t, testWorkspace.IsRcEnabled())
 }
 
@@ -963,7 +972,7 @@ func TestWorkspace_MarshalJSON(t *testing.T) {
 		Name:        "expectedName",
 		Description: "expectedDesc",
 		Visibility:  "expectedlyVisible",
-		Flags:       lang.Ref(37),
+		Flags:       new(37),
 	}
 
 	bytes, err := testWorkspace.MarshalJSON()

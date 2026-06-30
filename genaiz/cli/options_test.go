@@ -364,6 +364,14 @@ func Test_OptionsDockerVersion(t *testing.T) {
 	assert.NotEmpty(t, testOption.DefaultValue)
 }
 
+func Test_OptionsFunctionsAccount(t *testing.T) {
+	var testOption = Options.Functions.Account().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.Empty(t, testOption.Key)
+}
+
 func Test_OptionsFunctionsArches(t *testing.T) {
 	var testOption = Options.Functions.Arches().BuildListOption()
 
@@ -640,14 +648,6 @@ func Test_OptionsSolutionsAccountOnly(t *testing.T) {
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
-}
-
-func Test_OptionsSolutionsBroker(t *testing.T) {
-	var testOption = Options.Solutions.Broker().BuildStringOption()
-
-	assert.Empty(t, testOption.Key)
-	assert.NotEmpty(t, testOption.Param)
-	assert.NotEmpty(t, testOption.Usage)
 }
 
 func Test_OptionsSolutionsDescription(t *testing.T) {

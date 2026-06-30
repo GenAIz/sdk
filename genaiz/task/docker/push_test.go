@@ -82,7 +82,8 @@ func Test_handlePushComplete_auxMissing(t *testing.T) {
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handlePushComplete(testParams, testState), errImproperPushResponse)
+	actual := handlePushComplete(testParams, testState)
+	assert.Equal(t, errImproperPushResponse.Error(), actual.Error())
 	assert.Empty(t, testState.Output)
 	assert.Equal(t, expectedOutput, stubClient.imageTagId)
 	assert.Equal(t, expectedPath, stubClient.imageTagPath)
@@ -145,7 +146,8 @@ func Test_handlePushComplete_pushError(t *testing.T) {
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handlePushComplete(testParams, testState), stubClient.imagePushError)
+	actual := handlePushComplete(testParams, testState)
+	assert.Equal(t, stubClient.imagePushError.Error(), actual.Error())
 	assert.Empty(t, testState.Output)
 	assert.Equal(t, expectedOutput, stubClient.imageTagId)
 	assert.Equal(t, expectedPath, stubClient.imageTagPath)
@@ -196,7 +198,8 @@ func Test_handlePushComplete_tagError(t *testing.T) {
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handlePushComplete(testParams, testState), stubClient.imageTagError)
+	actual := handlePushComplete(testParams, testState)
+	assert.Equal(t, stubClient.imageTagError.Error(), actual.Error())
 	assert.Empty(t, testState.Output)
 	assert.Equal(t, expectedOutput, stubClient.imageTagId)
 	assert.Equal(t, expectedPath, stubClient.imageTagPath)

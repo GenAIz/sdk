@@ -87,6 +87,10 @@ type Client interface {
 
 	GetExpiry() int
 
+	GetFunction(int64) (*Function, error)
+
+	GetFunctionUrl() string
+
 	GetHostAddr() string
 
 	GetTimeout() int
@@ -315,6 +319,46 @@ func (c *client) GetAuthToken() string {
 
 func (c *client) GetExpiry() int {
 	return c.Expiry
+}
+
+func (c *client) GetFunction(id int64) (*Function, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathFunction, "get"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *Function
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[Function]{}).
+				QueryParams(map[string]string{
+					"id": cast.ToString(id),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *Function {
+					var payload = resp.Result().(*clientPayload[Function])
+
+					return &payload.Data
+				}); err == nil {
+					return result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) GetFunctionUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "get")
 }
 
 func (c *client) GetHostAddr() string {

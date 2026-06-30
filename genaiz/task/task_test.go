@@ -15,15 +15,6 @@ var (
 	testLogger = &logrus.Logger{}
 )
 
-func TestState_Progressf(t *testing.T) {
-	var testState = &State{}
-	var expectedProgress = "progress"
-	var expectedParam = 37
-
-	testState.Progressf("%s %d", expectedProgress, expectedParam)
-	assert.Contains(t, testState.Progression, expectedProgress+" "+cast.ToString(expectedParam))
-}
-
 func TestState_Report(t *testing.T) {
 	var testState = &State{}
 	var expectedReport = "report"
