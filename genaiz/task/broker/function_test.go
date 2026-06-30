@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz/task"
@@ -17,11 +19,19 @@ import (
 
 type stubFunctionClient struct {
 	client
+	getFunction       *Function
+	getFunctionError  error
+	getFunctionId     int64
 	provisionError    error
 	provisionIdentity *shared.Identity
 	provisionExtras   map[string]any
 	publishError      error
 	publishFunction   *Function
+}
+
+func (sfc *stubFunctionClient) GetFunction(id int64) (*Function, error) {
+	sfc.getFunctionId = id
+	return sfc.getFunction, sfc.getFunctionError
 }
 
 func (sfc *stubFunctionClient) ProvisionFunction(function *Function, extras map[string]any) (*shared.Identity, error) {
@@ -50,15 +60,36 @@ func (sfc *stubFunctionClient) PublishFunction(*shared.Identity) (*Function, err
 	return nil, nil
 }
 
+func TestProvisionParams_ToGetParams(t *testing.T) {
+	var testParams = &ProvisionParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		GetParams: GetParams{
+			Oem:     "oem",
+			Handle:  "handle",
+			Version: "version",
+		},
+	}
+	var testGetParams = testParams.ToGetParams()
+
+	assert.Equal(t, testParams.HostAddr, testGetParams.HostAddr)
+	assert.Equal(t, testParams.Oem, testGetParams.Oem)
+	assert.Equal(t, testParams.Handle, testGetParams.Handle)
+	assert.Equal(t, testParams.Version, testGetParams.Version)
+}
+
 func TestProvisionParams_asFunction(t *testing.T) {
 	var testParams = &ProvisionParams{
+		GetParams: GetParams{
+			Oem:     "oem",
+			Handle:  "handle",
+			Version: "version",
+		},
 		Arches:      []string{"arch1", "arch2"},
 		Description: "desc",
-		Handle:      "handle",
 		Name:        "name",
-		Oem:         "oem",
 		Type:        "type",
-		Version:     "version",
 	}
 	var testFunc = testParams.asFunction()
 
@@ -90,6 +121,24 @@ func TestProvisionParams_validate_FunctionSources(t *testing.T) {
 	assert.Error(t, testParams.validate())
 }
 
+func TestNewFunctionGetTask(t *testing.T) {
+	var testTask = NewFunctionGetTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnPrepare)
+	assert.NotEmpty(t, testTask.OnComplete)
+	assert.NotEmpty(t, testTask.OnPretend)
+}
+
+func TestNewFunctionIdTask(t *testing.T) {
+	var testTask = NewFunctionIdTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnPrepare)
+	assert.NotEmpty(t, testTask.OnComplete)
+	assert.NotEmpty(t, testTask.OnPretend)
+}
+
 func TestNewFunctionProvisionTask(t *testing.T) {
 	var testTask = NewFunctionProvisionTask()
 
@@ -109,11 +158,250 @@ func TestNewFunctionPublishTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnPretend)
 }
 
+func Test_handleFunctionGetComplete(t *testing.T) {
+	var expectedFunction = &Function{Id: 37}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &GetParams{
+		Broker: Broker{
+			AuthFile: filepath.Join(t.TempDir(), "file"),
+			HostAddr: "hostAddr",
+		},
+		Id: new(expectedFunction.Id),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubFunctionClient{
+			getFunction: expectedFunction,
+		}, nil
+	}
+
+	assert.NoError(t, handleFunctionGetComplete(testParams, testState))
+	assert.Equal(t, expectedFunction, testState.Internal)
+}
+
+func Test_handleFunctionGetComplete_GetFunctionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &GetParams{
+		Broker: Broker{
+			AuthFile: filepath.Join(t.TempDir(), "file"),
+			HostAddr: "hostAddr",
+		},
+		Id: new(37),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubFunctionClient{
+			getFunctionError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleFunctionGetComplete(testParams, testState), expectedError)
+}
+
+func Test_handleFunctionGetComplete_NoId(t *testing.T) {
+	var testParams = &GetParams{
+		Broker: Broker{
+			AuthFile: filepath.Join(t.TempDir(), "file"),
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubFunctionClient{}, nil
+	}
+
+	assert.ErrorIs(t, handleFunctionGetComplete(testParams, &task.State{}), errorInvalidFunctionGet)
+}
+
+func Test_handleFunctionGetComplete_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testParams = &GetParams{
+		Broker: Broker{
+			AuthFile: filepath.Join(t.TempDir(), "file"),
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleFunctionGetComplete(testParams, &task.State{}), expectedError)
+}
+
+func Test_handleFunctionGetContext(t *testing.T) {
+	var testParams = &GetParams{Id: new(37)}
+
+	assert.NoError(t, handleFunctionGetContext(testParams, &task.State{}))
+}
+
+func Test_handleFunctionGetContext_CheckOutput(t *testing.T) {
+	var testState = &task.State{Output: "check"}
+
+	assert.NoError(t, handleFunctionGetContext(&GetParams{}, testState))
+}
+
+func Test_handleFunctionGetContext_NoIdNoFqdn(t *testing.T) {
+	assert.ErrorIs(t, handleFunctionGetContext(&GetParams{}, &task.State{}), errorInvalidFunctionGet)
+}
+
+func Test_handleFunctionGetContext_WithFqdn(t *testing.T) {
+	var testParams = &GetParams{
+		Oem:     "testOem",
+		Handle:  "testHandle",
+		Version: "testVersion",
+	}
+
+	assert.ErrorIs(t, handleFunctionGetContext(testParams, &task.State{}), errorUnsupportedFunctionGet)
+}
+
+func Test_handleFunctionGetPretend(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &GetParams{
+		Broker: Broker{
+			AuthFile: filepath.Join(t.TempDir(), "file"),
+			HostAddr: "hostAddr",
+		},
+		Id: new(37),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubFunctionClient{}, nil
+	}
+
+	assert.NoError(t, handleFunctionGetPretend(testParams, testState))
+}
+
+func Test_handleFunctionGetPretend_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testParams = &GetParams{
+		Broker: Broker{
+			AuthFile: filepath.Join(t.TempDir(), "file"),
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleFunctionGetPretend(testParams, &task.State{}), expectedError)
+}
+
+func Test_handleFunctionGetPretend_StateError(t *testing.T) {
+	var testState = &task.State{
+		Error: errors.New("expected"),
+	}
+	var testParams = &GetParams{
+		Broker: Broker{
+			AuthFile: filepath.Join(t.TempDir(), "file"),
+			HostAddr: "hostAddr",
+		},
+	}
+
+	assert.ErrorIs(t, handleFunctionGetPretend(testParams, testState), testState.Error)
+}
+
+func Test_handleFunctionIdContext(t *testing.T) {
+	var testLogger, hook = test.NewNullLogger()
+	var testParams = &GetParams{
+		Oem:     "testOem",
+		Handle:  "testHandle",
+		Version: "testVersion",
+	}
+	var testState = &task.State{
+		Logger:   testLogger,
+		Internal: &Function{},
+	}
+
+	testLogger.Level = logrus.DebugLevel
+	assert.NoError(t, handleFunctionIdContext(testParams, testState))
+	assert.Equal(t, 1, len(hook.Entries))
+	assert.Contains(t, hook.Entries[0].Message, testParams.Oem)
+	assert.Contains(t, hook.Entries[0].Message, testParams.Handle)
+	assert.Contains(t, hook.Entries[0].Message, testParams.Version)
+}
+
+func Test_handleFunctionIdContext_NoInternal(t *testing.T) {
+	var testLogger, hook = test.NewNullLogger()
+	var testParams = &GetParams{
+		Oem:     "testOem",
+		Handle:  "testHandle",
+		Version: "testVersion",
+	}
+	var testState = &task.State{
+		Logger: testLogger,
+	}
+
+	assert.ErrorIs(t, handleFunctionIdContext(testParams, testState), errorMissConfiguredGet)
+	assert.Empty(t, hook.Entries)
+}
+
+func Test_handleFunctionIdPretend(t *testing.T) {
+	assert.Nil(t, handleFunctionIdPretend(&GetParams{}, &task.State{}))
+}
+
+func Test_handleFunctionIdUpdate(t *testing.T) {
+	var expectedFunction = &Function{Id: 37}
+	var testParams = &GetParams{}
+	var testState = &task.State{
+		Internal: expectedFunction,
+	}
+
+	assert.NoError(t, handleFunctionIdUpdate(testParams, testState))
+
+	if testParams.Id != nil {
+		assert.Equal(t, expectedFunction.Id, *testParams.Id)
+	} else {
+		assert.Fail(t, "expected testParams.Id")
+	}
+}
+
+func Test_handleFunctionIdUpdate_NotAFunction(t *testing.T) {
+	var testParams = &GetParams{}
+
+	assert.ErrorIs(t, handleFunctionIdUpdate(testParams, &task.State{}), errorMissConfiguredGet)
+	assert.Nil(t, testParams.Id)
+}
+
 func Test_handleFunctionProvisionContext(t *testing.T) {
 	var testLogger = logrus.New()
 	var testParams = &ProvisionParams{
-		Oem:    "oem",
-		Handle: "handle",
+		GetParams: GetParams{
+			Oem:    "oem",
+			Handle: "handle",
+		},
 	}
 
 	assert.ErrorIs(t, handleFunctionProvisionContext(testParams, &task.State{Logger: testLogger}), errorNoBuildToProvision)
@@ -131,10 +419,12 @@ func Test_handleFunctionProvisionContext_InvalidFunctionStores(t *testing.T) {
 		},
 	}
 	var testParams = &ProvisionParams{
+		GetParams: GetParams{
+			Oem:    "oem",
+			Handle: "handle",
+		},
 		Type:       shared.FunctionTypeFunction,
 		DataStores: []string{"store"},
-		Oem:        "oem",
-		Handle:     "handle",
 	}
 
 	assert.Error(t, handleFunctionProvisionContext(testParams, testState))
@@ -146,12 +436,14 @@ func Test_handleFunctionProvisionComplete(t *testing.T) {
 		Internal: &shared.Identity{},
 	}
 	var testParams = &ProvisionParams{
+		GetParams: GetParams{
+			Oem:    "testOem",
+			Handle: "testHandle",
+		},
 		Broker: Broker{
 			AuthFile: "file",
 			HostAddr: "hostAddr",
 		},
-		Oem:    "testOem",
-		Handle: "testHandle",
 	}
 	var testIdentity = &shared.Identity{Id: "id"}
 	var restoredFactory = clientFactory.Get
@@ -168,7 +460,7 @@ func Test_handleFunctionProvisionComplete(t *testing.T) {
 	assert.NoError(t, handleFunctionProvisionComplete(testParams, testState))
 	assert.Empty(t, testState.Internal.(*shared.Identity).Hash)
 	assert.Equal(t, testIdentity.Id, testState.Internal.(*shared.Identity).Id)
-	assert.NotEmpty(t, testState.Progression)
+	assert.NotEmpty(t, testState.Reports)
 }
 
 func Test_handleFunctionProvisionComplete_ConflictingHashes(t *testing.T) {
@@ -180,12 +472,14 @@ func Test_handleFunctionProvisionComplete_ConflictingHashes(t *testing.T) {
 		},
 	}
 	var testParams = &ProvisionParams{
+		GetParams: GetParams{
+			Oem:    "testOem",
+			Handle: "testHandle",
+		},
 		Broker: Broker{
 			AuthFile: "file",
 			HostAddr: "hostAddr",
 		},
-		Oem:    "testOem",
-		Handle: "testHandle",
 	}
 	var testIdentity = &shared.Identity{Id: "id", Hash: "identityHash"}
 	var restoredFactory = clientFactory.Get
@@ -213,12 +507,14 @@ func Test_handleFunctionProvisionComplete_CurrentHash(t *testing.T) {
 		},
 	}
 	var testParams = &ProvisionParams{
+		GetParams: GetParams{
+			Oem:    "testOem",
+			Handle: "testHandle",
+		},
 		Broker: Broker{
 			AuthFile: "file",
 			HostAddr: "hostAddr",
 		},
-		Oem:    "testOem",
-		Handle: "testHandle",
 	}
 	var testIdentity = &shared.Identity{Id: "id"}
 	var restoredFactory = clientFactory.Get
@@ -289,17 +585,19 @@ func Test_handleFunctionProvisionPretend(t *testing.T) {
 		Internal: &shared.Identity{},
 	}
 	var testParams = &ProvisionParams{
+		GetParams: GetParams{
+			Oem:     "testOem",
+			Handle:  "testHandle",
+			Version: "testVersion",
+		},
 		Broker: Broker{
 			AuthFile: "file",
 			HostAddr: "hostAddr",
 		},
 		Arches:      []string{"arch1"},
 		Description: "testDescription",
-		Handle:      "testHandle",
 		Name:        "testName",
-		Oem:         "testOem",
 		Type:        "testType",
-		Version:     "testVersion",
 	}
 	var restoredFactory = clientFactory.Get
 	var stdoutRestore = os.Stdout
@@ -450,7 +748,7 @@ func Test_handleFunctionPublishComplete(t *testing.T) {
 	assert.Contains(t, testState.Reports[0], expectedFunction.Oem)
 	assert.Contains(t, testState.Reports[0], expectedFunction.Handle)
 	assert.Contains(t, testState.Reports[0], expectedFunction.Version)
-	assert.Empty(t, testState.Internal)
+	assert.Equal(t, expectedFunction, testState.Internal)
 	assert.Empty(t, testState.Output)
 }
 
@@ -539,7 +837,45 @@ func Test_handleFunctionPublishIncomplete(t *testing.T) {
 
 func Test_handleFunctionPublishIncomplete_Duplicate(t *testing.T) {
 	var expectedPath = "path"
-	var testParams = &PublishParams{}
+	var expectedFunction = &Function{Id: 37}
+	var testParams = &PublishParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
+	var testState = &task.State{
+		Error: errorDuplicatePublishing,
+		Internal: &shared.Identity{
+			Path: expectedPath,
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() { clientFactory.Get = restoredFactory }()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubFunctionClient{
+			getFunction: expectedFunction,
+		}, nil
+	}
+
+	assert.NoError(t, handleFunctionPublishIncomplete(testParams, testState), ErrorNoSession)
+	assert.True(t, testState.Abort)
+	assert.Equal(t, 1, len(testState.Reports))
+	assert.Contains(t, testState.Reports[0], expectedPath)
+	assert.True(t, testState.Completed)
+	assert.Equal(t, expectedFunction, testState.Internal)
+	assert.Nil(t, testState.Error)
+}
+
+func Test_handleFunctionPublishIncomplete_Duplicate_NoSession(t *testing.T) {
+	var expectedPath = "path"
+	var testParams = &PublishParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
 	var testState = &task.State{
 		Error: errorDuplicatePublishing,
 		Internal: &shared.Identity{
@@ -547,7 +883,7 @@ func Test_handleFunctionPublishIncomplete_Duplicate(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, handleFunctionPublishIncomplete(testParams, testState))
+	assert.ErrorIs(t, handleFunctionPublishIncomplete(testParams, testState), ErrorNoSession)
 	assert.True(t, testState.Abort)
 	assert.Equal(t, 1, len(testState.Reports))
 	assert.Contains(t, testState.Reports[0], expectedPath)

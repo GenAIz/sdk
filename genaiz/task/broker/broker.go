@@ -296,27 +296,27 @@ type Error struct {
 }
 
 type Function struct {
-	Id              int // Id is assigned by a publishing Broker and refers to the Smart Function release cycle
-	Arches          []string
-	DataSources     []string
-	DataStores      []string
-	Description     string
-	Flags           int
-	Fqdn            string
-	Handle          string
-	Img             string
-	InputPorts      []DataPort
-	Digest          string
-	ImgDigest       string
-	Name            string
-	Oem             string
-	OutboundProxies []Proxy
-	OutputPorts     []DataPort
-	PropSpecs       []PropSpec
-	ResultValues    []string
-	Seq             int
-	Type            string
-	Version         string
+	Id              int        `json:"id,omitempty"`
+	Flags           int        `json:"flags,omitempty"`
+	Seq             *int       `json:"seq,omitempty"`
+	Name            string     `json:"name,omitempty"`
+	Description     string     `json:"description,omitempty"`
+	Oem             string     `json:"oem"`
+	Handle          string     `json:"handle"`
+	Fqdn            string     `json:"fqdn,omitempty"`
+	Img             string     `json:"img,omitempty"`
+	Version         string     `json:"version"`
+	Digest          string     `json:"digest,omitempty"`
+	Arches          []string   `json:"-"`
+	Type            string     `json:"type"`
+	InputPorts      []DataPort `json:"inputPorts,omitempty"`
+	OutputPorts     []DataPort `json:"outputPorts,omitempty"`
+	PropSpecs       []PropSpec `json:"propSpecs,omitempty"`
+	ResultValues    []string   `json:"resultValues,omitempty"`
+	DataSources     []string   `json:"dataSources,omitempty"`
+	DataStores      []string   `json:"dataStores,omitempty"`
+	OutboundProxies []Proxy    `json:"outboundProxies,omitempty"`
+	ImgDigest       string     `json:"imgDigest,omitempty"`
 }
 
 func (f Function) FindDataPortByHandle(handle string) *DataPort {
@@ -334,13 +334,25 @@ func (f Function) FindDataPortByHandle(handle string) *DataPort {
 	return nil
 }
 
+func (f Function) GetFullVersion() string {
+	var result string
+
+	if f.Seq == nil {
+		result = f.Version
+	} else {
+		result = fmt.Sprintf("%s-rc-%d", f.Version, *f.Seq)
+	}
+
+	return result
+}
+
 func (f Function) asIdentity() *shared.Identity {
 	return &shared.Identity{
 		Id:      strconv.Itoa(f.Id),
 		Flags:   f.Flags,
 		Hash:    f.Digest,
 		Path:    f.Img,
-		Version: f.Version,
+		Version: f.GetFullVersion(),
 	}
 }
 

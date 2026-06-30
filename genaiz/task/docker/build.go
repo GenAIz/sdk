@@ -531,6 +531,7 @@ func handleInspectContext(params *BuildParams, state *task.State) error {
 
 		if err = handleBuildContext(params, state); err != nil {
 			if errors.Is(err, ErrorLatestBuild) {
+				state.Internal = nil
 				return nil
 			}
 		}

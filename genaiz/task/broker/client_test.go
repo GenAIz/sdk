@@ -18,7 +18,6 @@ import (
 	"resty.dev/v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/version/env"
 )
 
@@ -330,6 +329,68 @@ func TestClient_FindDataLink_UrlError(t *testing.T) {
 	assert.ErrorIs(t, err, testBridge.err)
 }
 
+func TestClient_GetFunction(t *testing.T) {
+	var expectedToken = "token"
+	var expectedFunction = &Function{Id: 37}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[Function]{
+				Data: *expectedFunction,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.GetFunction(int64(expectedFunction.Id))
+	assert.NoError(t, err)
+	assert.Equal(t, expectedFunction, actual)
+}
+
+func TestClient_GetFunction_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.GetFunction(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_GetFunction_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.GetFunction(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_GetFunction_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.GetFunction(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_GetFunction_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.GetFunction(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
 func TestClient_ListDataLinks(t *testing.T) {
 	var expectedToken = "token"
 	var expectedDataLinks = []DataLink{
@@ -407,7 +468,7 @@ func TestClient_ListDataLinksUrl(t *testing.T) {
 func TestClient_ListSolutions(t *testing.T) {
 	var expectedToken = "token"
 	var expectedSolution = &Solution{
-		Id:   lang.Ref(int64(37)),
+		Id:   new(int64(37)),
 		Name: "name",
 	}
 	var testBridge = &stubBridge{
@@ -1159,9 +1220,9 @@ func TestClient_PublishSolution(t *testing.T) {
 				Data: solutionSlices{
 					Solution: Solution{
 						Version: testSolution.Version,
-						Id:      lang.Ref(expectedId),
-						Digest:  lang.Ref(expectedDigest),
-						Fqdn:    lang.Ref(expectedPath),
+						Id:      new(expectedId),
+						Digest:  new(expectedDigest),
+						Fqdn:    new(expectedPath),
 					},
 				},
 			},
@@ -1475,7 +1536,7 @@ func Test_jsonExpand(t *testing.T) {
 		var actual map[string]any
 
 		if actual, err = jsonExpand(tBytes, testExtras); err == nil {
-			assert.Equal(t, testFunction.Name, actual["Name"])
+			assert.Equal(t, testFunction.Name, actual["name"])
 			assert.Equal(t, testExtras["supplement_int"], actual["supplement_int"])
 			assert.Equal(t, testExtras["supplement_list"], actual["supplement_list"])
 			assert.Equal(t, testExtras["supplement_obj"], actual["supplement_obj"])

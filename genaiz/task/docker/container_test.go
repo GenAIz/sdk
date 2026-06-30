@@ -324,7 +324,7 @@ func Test_handleContainerAttach_KillPanic(t *testing.T) {
 
 	go func() {
 		for {
-			if stubClient.containerAttachId != "" {
+			if stubClient.containerAttachId != "" && !gate {
 				stubSignals <- syscall.SIGINT
 				gate = true
 				break

@@ -209,6 +209,7 @@ type Document struct {
 				Name            Keys
 			}
 			Arches          Keys
+			Account         Keys
 			DataSources     Keys
 			DataStores      Keys
 			Description     Keys
@@ -221,6 +222,7 @@ type Document struct {
 			Oem             Keys
 			OutboundProxies Keys
 			OutputPorts     Keys
+			Printer         Keys
 			PropSpecs       Keys
 			Rebuild         Keys
 			ResultValues    Keys
@@ -295,7 +297,7 @@ type Document struct {
 			Level  Keys
 		}
 		Publish struct {
-			Broker      Keys
+			Account     Keys
 			ConfigType  Keys
 			Description Keys
 			Handle      Keys
@@ -562,6 +564,7 @@ func init() {
 	Genaiz.Function.Init.Type = newKeys("Function.Init.Type", "SF_INIT_TYPE", "Sf.Init.Type")
 	Genaiz.Function.Init.Version = newKeys("Function.Init.Version", "SF_INIT_VERSION", "Sf.Init.Version")
 
+	Genaiz.Function.Publish.Account = newKeys("Function.Publish.Account", "SF_PUBLISH_ACCOUNT", "Sf.Publish.Account")
 	Genaiz.Function.Publish.Arches = newKeys("Function.Publish.Arches", "SF_PUBLISH_ARCHES", "Sf.Publish.Arches")
 	Genaiz.Function.Publish.DataSources = newKeys("Function.Publish.DataSources", "SF_PUBLISH_DATA_SOURCES", "Sf.Publish.DataSources")
 	Genaiz.Function.Publish.DataStores = newKeys("Function.Publish.DataStores", "SF_PUBLISH_DATA_STORES", "Sf.Publish.DataStores")
@@ -575,6 +578,7 @@ func init() {
 	Genaiz.Function.Publish.Oem = newKeys("Function.Publish.Oem", "SF_PUBLISH_OEM", "Sf.Publish.Oem")
 	Genaiz.Function.Publish.OutputPorts = newKeys("Function.Publish.OutputPorts", "", "Sf.Publish.OutputPorts")
 	Genaiz.Function.Publish.OutboundProxies = newKeys("Function.Publish.OutboundProxies", "", "Sf.Publish.OutboundProxies")
+	Genaiz.Function.Publish.Printer = newKeys("Function.List.Printer", "SF_PUBLISH_PRINTER", "Sf.Publish.Printer")
 	Genaiz.Function.Publish.PropSpecs = newKeys("Function.Publish.PropSpecs", "", "Sf.Publish.PropSpecs")
 	Genaiz.Function.Publish.Rebuild = newKeys("Function.Publish.Rebuild", "SF_PUBLISH_REBUILD", "Sf.Publish.Rebuild")
 	Genaiz.Function.Publish.ResultValues = newKeys("Function.Publish.ResultValues", "SF_PUBLISH_RESULT_VALUES", "Sf.Publish.ResultValues")
@@ -676,7 +680,7 @@ func init() {
 	Genaiz.Solution.Log.Format = newKeys("Solution.Log.Format", "SN_LOG_FORMAT", "Sn.Log.Format")
 	Genaiz.Solution.Log.Level = newKeys("Solution.Log.Level", "SN_LOG_LEVEL", "Sn.Log.Level")
 
-	Genaiz.Solution.Publish.Broker = newKeys("Solution.Publish.Broker", "SN_PUBLISH_BROKER", "Sn.Publish.Broker")
+	Genaiz.Solution.Publish.Account = newKeys("Solution.Publish.Account", "SN_PUBLISH_ACCOUNT", "Sn.Publish.Account")
 	Genaiz.Solution.Publish.ConfigType = newKeys("Solution.Publish.ConfigType", "SN_PUBLISH_CONFIG_TYPE", "Sn.Publish.ConfigType")
 	Genaiz.Solution.Publish.Description = newKeys("Solution.Publish.Description", "SN_PUBLISH_DESCRIPTION", "Sn.Publish.Description")
 	Genaiz.Solution.Publish.Handle = newKeys("Solution.Publish.Handle", "SN_PUBLISH_HANDLE", "Sn.Publish.Handle")

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -149,13 +148,7 @@ func (pe *PublishExecutor) Pretend() {
 func (pe *PublishExecutor) Proceed() {
 	var err = pe.collectAndCall(func(snParams *broker.SolutionPublishParams, fnParams []FunctionParams) {
 		var workers []task.Worker
-		var plan *task.Plan
-
-		if pe.Ledger.Logger.Level >= logrus.DebugLevel {
-			plan = task.NewPlan("Publish", pe.Ledger.Logger)
-		} else {
-			plan = task.NewPlanWithProgress("Publish", pe.Ledger.Logger)
-		}
+		var plan = task.NewPlan("Publish", pe.Ledger.Logger)
 
 		for _, fp := range fnParams {
 			workers = append(workers, task.NewWorker(fp.buildParams, pe.inspectTaskFactory()))
@@ -264,6 +257,11 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 	ledger.Register(pe.cmd, options.allDefiners()...)
 	ledger.InitDefaults()
 	return &broker.ProvisionParams{
+		GetParams: broker.GetParams{
+			Oem:     ledger.GetString(options.optionOem),
+			Handle:  ledger.GetString(options.optionHandle),
+			Version: ledger.GetString(options.optionVersion),
+		},
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
 			HostAddr: pe.Ledger.GetString(pe.optionBroker),
@@ -273,15 +271,12 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 		DataSources:     ledger.GetList(options.innerDataSources),
 		DataStores:      ledger.GetList(options.innerDataStores),
 		Description:     ledger.GetString(options.optionDescription),
-		Handle:          ledger.GetString(options.optionHandle),
 		InputPorts:      inputPorts,
 		Name:            ledger.GetString(options.optionName),
-		Oem:             ledger.GetString(options.optionOem),
 		OutboundProxies: outboundProxies,
 		OutputPorts:     outputPorts,
 		PropSpecs:       propSpecs,
 		Type:            ledger.GetString(options.optionType),
-		Version:         ledger.GetString(options.optionVersion),
 	}
 }
 
@@ -485,8 +480,8 @@ func NewPublishOptions() *PublishOptions {
 		BuildStringOption()
 
 	return &PublishOptions{
-		optionBroker: cli.Options.Solutions.Broker().
-			WithKeys(&schema.Genaiz.Solution.Publish.Broker).
+		optionBroker: cli.Options.Solutions.Account().
+			WithKeys(&schema.Genaiz.Solution.Publish.Account).
 			BuildStringOption(),
 		optionConfigType: cli.Options.Configs.Type().
 			WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).

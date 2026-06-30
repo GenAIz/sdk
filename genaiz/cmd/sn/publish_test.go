@@ -91,29 +91,7 @@ func TestPublishExecutor_Display(t *testing.T) {
 			Ledger:     testLedger,
 			folderPath: testDir,
 		},
-		PublishOptions: &PublishOptions{
-			optionBroker: cli.Options.Solutions.Broker().
-				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
-				BuildStringOption(),
-			optionConfigType: cli.Options.Configs.Type().
-				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
-				BuildStringOption(),
-			optionDescription: cli.Options.Solutions.Description().
-				WithKeys(&schema.Genaiz.Solution.Publish.Description).
-				BuildStringOption(),
-			optionHandle: cli.Options.Solutions.Handle().
-				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
-				BuildStringOption(),
-			optionName: cli.Options.Solutions.Name().
-				WithKeys(&schema.Genaiz.Solution.Publish.Name).
-				BuildStringOption(),
-			optionOem: cli.Options.Solutions.Oem().
-				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
-				BuildStringOption(),
-			optionVersion: cli.Options.Solutions.Version().
-				WithKeys(&schema.Genaiz.Solution.Publish.Version).
-				BuildStringOption(),
-		},
+		PublishOptions: newTestPublishOptions(),
 		solutionReader: config.NewSolutionReader(testLedger),
 	}
 	var err error
@@ -179,29 +157,7 @@ func TestPublishExecutor_Display_EmptySolution(t *testing.T) {
 			Ledger:     testLedger,
 			folderPath: testDir,
 		},
-		PublishOptions: &PublishOptions{
-			optionBroker: cli.Options.Solutions.Broker().
-				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
-				BuildStringOption(),
-			optionConfigType: cli.Options.Configs.Type().
-				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
-				BuildStringOption(),
-			optionDescription: cli.Options.Solutions.Description().
-				WithKeys(&schema.Genaiz.Solution.Publish.Description).
-				BuildStringOption(),
-			optionHandle: cli.Options.Solutions.Handle().
-				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
-				BuildStringOption(),
-			optionName: cli.Options.Solutions.Name().
-				WithKeys(&schema.Genaiz.Solution.Publish.Name).
-				BuildStringOption(),
-			optionOem: cli.Options.Solutions.Oem().
-				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
-				BuildStringOption(),
-			optionVersion: cli.Options.Solutions.Version().
-				WithKeys(&schema.Genaiz.Solution.Publish.Version).
-				BuildStringOption(),
-		},
+		PublishOptions: newTestPublishOptions(),
 		solutionReader: config.NewSolutionReader(testLedger),
 	}
 
@@ -286,29 +242,7 @@ func TestPublishExecutor_Pretend(t *testing.T) {
 			Ledger:     testLedger,
 			folderPath: testDir,
 		},
-		PublishOptions: &PublishOptions{
-			optionBroker: cli.Options.Solutions.Broker().
-				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
-				BuildStringOption(),
-			optionConfigType: cli.Options.Configs.Type().
-				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
-				BuildStringOption(),
-			optionDescription: cli.Options.Solutions.Description().
-				WithKeys(&schema.Genaiz.Solution.Publish.Description).
-				BuildStringOption(),
-			optionHandle: cli.Options.Solutions.Handle().
-				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
-				BuildStringOption(),
-			optionName: cli.Options.Solutions.Name().
-				WithKeys(&schema.Genaiz.Solution.Publish.Name).
-				BuildStringOption(),
-			optionOem: cli.Options.Solutions.Oem().
-				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
-				BuildStringOption(),
-			optionVersion: cli.Options.Solutions.Version().
-				WithKeys(&schema.Genaiz.Solution.Publish.Version).
-				BuildStringOption(),
-		},
+		PublishOptions:             newTestPublishOptions(),
 		cmd:                        &cobra.Command{},
 		solutionReader:             config.NewSolutionReader(testLedger),
 		inspectTaskFactory:         newTaskPretendStub(&calledInspect, &docker.BuildParams{}),
@@ -419,29 +353,7 @@ func TestPublishExecutor_Proceed(t *testing.T) {
 			Ledger:     testLedger,
 			folderPath: testDir,
 		},
-		PublishOptions: &PublishOptions{
-			optionBroker: cli.Options.Solutions.Broker().
-				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
-				BuildStringOption(),
-			optionConfigType: cli.Options.Configs.Type().
-				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
-				BuildStringOption(),
-			optionDescription: cli.Options.Solutions.Description().
-				WithKeys(&schema.Genaiz.Solution.Publish.Description).
-				BuildStringOption(),
-			optionHandle: cli.Options.Solutions.Handle().
-				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
-				BuildStringOption(),
-			optionName: cli.Options.Solutions.Name().
-				WithKeys(&schema.Genaiz.Solution.Publish.Name).
-				BuildStringOption(),
-			optionOem: cli.Options.Solutions.Oem().
-				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
-				BuildStringOption(),
-			optionVersion: cli.Options.Solutions.Version().
-				WithKeys(&schema.Genaiz.Solution.Publish.Version).
-				BuildStringOption(),
-		},
+		PublishOptions:             newTestPublishOptions(),
 		cmd:                        &cobra.Command{},
 		solutionReader:             config.NewSolutionReader(testLedger),
 		inspectTaskFactory:         newTaskProceedStub(&calledInspect, &docker.BuildParams{}),
@@ -495,29 +407,7 @@ func TestPublishExecutor_Proceed_Debug(t *testing.T) {
 			Ledger:     testLedger,
 			folderPath: testDir,
 		},
-		PublishOptions: &PublishOptions{
-			optionBroker: cli.Options.Solutions.Broker().
-				WithKeys(&schema.Genaiz.Solution.Publish.Broker).
-				BuildStringOption(),
-			optionConfigType: cli.Options.Configs.Type().
-				WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
-				BuildStringOption(),
-			optionDescription: cli.Options.Solutions.Description().
-				WithKeys(&schema.Genaiz.Solution.Publish.Description).
-				BuildStringOption(),
-			optionHandle: cli.Options.Solutions.Handle().
-				WithKeys(&schema.Genaiz.Solution.Publish.Handle).
-				BuildStringOption(),
-			optionName: cli.Options.Solutions.Name().
-				WithKeys(&schema.Genaiz.Solution.Publish.Name).
-				BuildStringOption(),
-			optionOem: cli.Options.Solutions.Oem().
-				WithKeys(&schema.Genaiz.Solution.Publish.Oem).
-				BuildStringOption(),
-			optionVersion: cli.Options.Solutions.Version().
-				WithKeys(&schema.Genaiz.Solution.Publish.Version).
-				BuildStringOption(),
-		},
+		PublishOptions:             newTestPublishOptions(),
 		cmd:                        &cobra.Command{},
 		solutionReader:             config.NewSolutionReader(testLedger),
 		inspectTaskFactory:         newTaskProceedStub(&calledInspect, &docker.BuildParams{}),
@@ -760,5 +650,31 @@ func newTaskProceedStub[T any](flag *bool, paramType *T) func() *task.Task[T] {
 				return nil
 			},
 		}
+	}
+}
+
+func newTestPublishOptions() *PublishOptions {
+	return &PublishOptions{
+		optionBroker: cli.Options.Solutions.Account().
+			WithKeys(&schema.Genaiz.Solution.Publish.Account).
+			BuildStringOption(),
+		optionConfigType: cli.Options.Configs.Type().
+			WithKeys(&schema.Genaiz.Solution.Publish.ConfigType).
+			BuildStringOption(),
+		optionDescription: cli.Options.Solutions.Description().
+			WithKeys(&schema.Genaiz.Solution.Publish.Description).
+			BuildStringOption(),
+		optionHandle: cli.Options.Solutions.Handle().
+			WithKeys(&schema.Genaiz.Solution.Publish.Handle).
+			BuildStringOption(),
+		optionName: cli.Options.Solutions.Name().
+			WithKeys(&schema.Genaiz.Solution.Publish.Name).
+			BuildStringOption(),
+		optionOem: cli.Options.Solutions.Oem().
+			WithKeys(&schema.Genaiz.Solution.Publish.Oem).
+			BuildStringOption(),
+		optionVersion: cli.Options.Solutions.Version().
+			WithKeys(&schema.Genaiz.Solution.Publish.Version).
+			BuildStringOption(),
 	}
 }

@@ -22,6 +22,7 @@ func HandleExit(msg interface{}) {
 }
 
 // Ref makes a pointer to a value, no comment...
+// Deprecated: Since GO 1.26, This can be achieved with the new() builtin function
 func Ref[T any](value T) *T {
 	return &value
 }

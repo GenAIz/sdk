@@ -20,30 +20,23 @@ type Planner interface {
 }
 
 type PlanBuilder struct {
-	logger     *logrus.Logger
-	onFailure  func(interface{})
-	onProgress func(interface{})
-	onReturn   func(interface{})
-	onSuccess  func(interface{})
+	logger    *logrus.Logger
+	onFailure func(interface{})
+	onReturn  func(interface{})
+	onSuccess func(interface{})
 }
 
 func (pb *PlanBuilder) Build() *Plan {
 	return &Plan{
-		Logger:     pb.logger,
-		OnFailure:  pb.onFailure,
-		OnProgress: pb.onProgress,
-		OnReturn:   pb.onReturn,
-		OnSuccess:  pb.onSuccess,
+		Logger:    pb.logger,
+		OnFailure: pb.onFailure,
+		OnReturn:  pb.onReturn,
+		OnSuccess: pb.onSuccess,
 	}
 }
 
 func (pb *PlanBuilder) WithFailures(onFailure func(interface{})) *PlanBuilder {
 	pb.onFailure = onFailure
-	return pb
-}
-
-func (pb *PlanBuilder) WithProgress(onProgress func(interface{})) *PlanBuilder {
-	pb.onProgress = onProgress
 	return pb
 }
 
@@ -63,7 +56,6 @@ type Plan struct {
 	OnReturn          func(interface{}) // OnReturn is a function called with the content of State.Internal, this is made for non-tail calls where the return is needed by the callee
 	OnSuccess         func(interface{}) // OnSuccess is a function called with the content of State.Output
 	OnFailure         func(interface{}) // OnFailure is a function called with the content of State.Error
-	OnProgress        func(interface{}) // OnProgress is a function called by State.Progress to process progress data from the task
 	ContinueOnFailure bool              // ContinueOnFailure will keep calling sequence workers even when a failure is reported
 	PrintReportsOnly  bool              // PrintReportsOnly relies on State.Report for displaying the result of a Plan
 }
@@ -79,11 +71,6 @@ func (p Plan) Sequence(workers ...Worker) {
 	for _, work := range workers {
 		if result = work(result); (result.Error != nil && !p.ContinueOnFailure) || result.Abort {
 			break
-		}
-
-		if p.OnProgress != nil && len(result.Progression) > 0 {
-			p.OnProgress(result.Progression)
-			result.Progression = []string{}
 		}
 	}
 
@@ -141,15 +128,6 @@ func NewPlanBuilder(logger *logrus.Logger) *PlanBuilder {
 	return &PlanBuilder{
 		logger: logger,
 	}
-}
-
-// NewPlanWithProgress returns a plan with a Plan.OnProgress handler for printing intermediary user feedback
-func NewPlanWithProgress(planName string, logger *logrus.Logger) *Plan {
-	return NewPlanBuilder(logger).
-		WithFailures(newFailureWriter(planName, logger)).
-		WithProgress(progressWriter).
-		WithSuccess(successWriter).
-		Build()
 }
 
 // NewPretender encapsulates the type of params handled by the task to make it easier to sequence task pretends requiring different parameter types
@@ -210,10 +188,6 @@ func newFailureWriter(planName string, logger *logrus.Logger) func(interface{}) 
 		logger.Errorf("%s failed with error: %s", planName, msg)
 		lang.HandleExit(msg)
 	}
-}
-
-func progressWriter(i interface{}) {
-	successWriter(i)
 }
 
 func successString(msg string) {

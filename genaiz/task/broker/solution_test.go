@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/filez"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -182,8 +181,10 @@ func TestSolutionPublishParams_HasProvision(t *testing.T) {
 	var testParams = &SolutionPublishParams{
 		Provisions: []ProvisionParams{
 			{
-				Handle: expectedHandle,
-				Oem:    expectedOem,
+				GetParams: GetParams{
+					Oem:    expectedOem,
+					Handle: expectedHandle,
+				},
 			},
 		},
 	}
@@ -297,7 +298,7 @@ func Test_handleSolutionCreateConfig(t *testing.T) {
 	var mockWriter = &mockSolutionWriter{}
 	var testParams = &SolutionParams{
 		ConfigParams: shared.ConfigParams{
-			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigType:   new(shared.ConfigTypeJson),
 			ConfigFolder: "folder",
 			ConfigName:   "name",
 		},
@@ -345,7 +346,7 @@ func Test_handleSolutionCreateContext(t *testing.T) {
 	var testParams = &SolutionParams{
 		ConfigParams: shared.ConfigParams{
 			ConfigName: "test",
-			ConfigType: lang.Ref(shared.ConfigTypeYaml),
+			ConfigType: new(shared.ConfigTypeYaml),
 		},
 	}
 	var testState = &task.State{
@@ -436,7 +437,7 @@ func Test_handleSolutionListContext_LocalAccountOnlyConflict(t *testing.T) {
 		AccountOnly: true,
 		Local: []Solution{
 			{
-				Id: lang.Ref(int64(37)),
+				Id: new(int64(37)),
 			},
 		},
 	}
@@ -481,7 +482,7 @@ func Test_handleSolutionListComplete(t *testing.T) {
 	var restoredFactory = clientFactory.Active
 	var expectedSolutions = []Solution{
 		{
-			Id: lang.Ref(int64(37)),
+			Id: new(int64(37)),
 		},
 	}
 	var testParams = &SolutionListParams{Oem: "oem"}
@@ -655,8 +656,10 @@ func Test_handleSolutionPublishContext(t *testing.T) {
 	var testParams = &SolutionPublishParams{
 		Provisions: []ProvisionParams{
 			{
-				Oem:    expectedOem,
-				Handle: expectedHandle,
+				GetParams: GetParams{
+					Oem:    expectedOem,
+					Handle: expectedHandle,
+				},
 			},
 		},
 		Solution: &Solution{
@@ -826,35 +829,35 @@ func Test_handleSolutionPublishPretend_StateError(t *testing.T) {
 
 func Test_handleSolutionReduceComplete(t *testing.T) {
 	var expectedReleased = &Solution{
-		Id:      lang.Ref(int64(37)),
-		Fqdn:    lang.Ref("releasedFqdn"),
+		Id:      new(int64(37)),
+		Fqdn:    new("releasedFqdn"),
 		Version: "1.3.37",
-		Flags:   lang.Ref(SolutionFlags.Active | SolutionFlags.Released),
+		Flags:   new(SolutionFlags.Active | SolutionFlags.Released),
 	}
 	var expectedCandidate = &Solution{
-		Id:      lang.Ref(int64(42)),
-		Fqdn:    lang.Ref("candidateFqdn"),
+		Id:      new(int64(42)),
+		Fqdn:    new("candidateFqdn"),
 		Version: "1.0.0",
-		Seq:     lang.Ref(1),
-		Flags:   lang.Ref(SolutionFlags.Active),
+		Seq:     new(1),
+		Flags:   new(SolutionFlags.Active),
 	}
 	var testSolutions = []Solution{
 		*expectedReleased,
 		{
-			Id:      lang.Ref(int64(372)),
-			Fqdn:    lang.Ref("releasedFqdn"),
+			Id:      new(int64(372)),
+			Fqdn:    new("releasedFqdn"),
 			Version: "1.3.37",
 			// Makes no sense, but if it happens it should be reduced
-			Seq:   lang.Ref(16),
-			Flags: lang.Ref(SolutionFlags.Active),
+			Seq:   new(16),
+			Flags: new(SolutionFlags.Active),
 		},
 		*expectedCandidate,
 		{
-			Id:      lang.Ref(int64(42)),
-			Fqdn:    lang.Ref("candidateFqdn"),
+			Id:      new(int64(42)),
+			Fqdn:    new("candidateFqdn"),
 			Version: "1.0.0",
-			Seq:     lang.Ref(0),
-			Flags:   lang.Ref(SolutionFlags.Active),
+			Seq:     new(0),
+			Flags:   new(SolutionFlags.Active),
 		},
 	}
 	var testState = &task.State{
@@ -908,7 +911,7 @@ func Test_handleSolutionReduceContext(t *testing.T) {
 	var testParams = &SolutionListParams{
 		Local: []Solution{
 			{
-				Id: lang.Ref(int64(37)),
+				Id: new(int64(37)),
 			},
 		},
 	}
@@ -1042,7 +1045,7 @@ func Test_handleWorkflowCreateContext(t *testing.T) {
 	var testParams = &WorkflowParams{
 		ConfigParams: shared.ConfigParams{
 			ConfigName: "test",
-			ConfigType: lang.Ref(shared.ConfigTypeYaml),
+			ConfigType: new(shared.ConfigTypeYaml),
 		},
 	}
 	var testState = &task.State{
@@ -1125,7 +1128,7 @@ func Test_handleWorkflowDeleteContext(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "test",
-			ConfigType:   lang.Ref(shared.ConfigTypeYaml),
+			ConfigType:   new(shared.ConfigTypeYaml),
 		},
 	}
 	var testState = &task.State{
@@ -1152,7 +1155,7 @@ func Test_handleWorkflowDeleteContext_NoConfigType(t *testing.T) {
 func Test_handleWorkflowDeleteContext_NoExistingFile(t *testing.T) {
 	var testParams = &WorkflowParams{
 		ConfigParams: shared.ConfigParams{
-			ConfigType: lang.Ref(shared.ConfigTypeYaml),
+			ConfigType: new(shared.ConfigTypeYaml),
 			ConfigName: "test",
 		},
 	}

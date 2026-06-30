@@ -119,7 +119,6 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 
 		if err = dockerClient.ImageTag(params.Context, state.Output, remote.Path); err == nil {
 			state.Logger.Debugf("Pushing smart function id [%s]", remote.Id)
-			state.Progress("Pushing smart function...")
 
 			if rd, err = dockerClient.ImagePush(params.Context, remote.Path, pushOptions); err == nil {
 				var aux *PushStatusAux
@@ -171,7 +170,7 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 		}
 
 		state.Output = ""
-		return err
+		return task.NewFailure(err)
 	}
 
 	return errorNoProvision

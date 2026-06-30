@@ -3,13 +3,13 @@ package sf
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
@@ -17,6 +17,10 @@ import (
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
+
+type GetTaskFactory func() *task.Task[broker.GetParams]
+
+type IdTaskFactory func() *task.Task[broker.GetParams]
 
 type InspectTaskFactory func() *task.Task[docker.BuildParams]
 
@@ -39,7 +43,11 @@ type PublishExecutor struct {
 	innerPropSpecs       *config.Option
 	innerResultValues    *config.ListOption
 
+	printerParams cli.PrinterParametric
+
 	buildTaskFactory     BuildTaskFactory
+	getTaskFactory       GetTaskFactory
+	idTaskFactory        IdTaskFactory
 	initTaskFactory      InitTaskFactory
 	inspectTaskFactory   InspectTaskFactory
 	provisionTaskFactory ProvisionTaskFactory
@@ -49,8 +57,8 @@ type PublishExecutor struct {
 
 func (pe *PublishExecutor) Display() {
 	pe.Ledger.DisplayOptions(
+		&pe.optionAccount.Option,
 		&pe.optionArches.Option,
-		&pe.optionBroker.Option,
 		&pe.optionHandle.Option,
 		&pe.optionName.Option,
 		&pe.optionRebuild.Option,
@@ -96,16 +104,12 @@ func (pe *PublishExecutor) Proceed() {
 	var noUpdate = pe.Ledger.GetBool(pe.optionNoUpdate)
 	var buildParams = makeBuildParams(&pe.BaseExecutor)
 	var provisionParams = pe.makeProvisionParams()
+	var getParams = provisionParams.ToGetParams()
 	var publishParams = pe.makePublishParams(provisionParams)
 	var pushParams = pe.makePushParams()
+	var plan = task.NewPlan("Publish", pe.Ledger.Logger)
 	var workers []task.Worker
-	var plan *task.Plan
-
-	if pe.Ledger.Logger.Level >= logrus.DebugLevel {
-		plan = task.NewPlan("Publish", pe.Ledger.Logger)
-	} else {
-		plan = task.NewPlanWithProgress("Publish", pe.Ledger.Logger)
-	}
+	var err error
 
 	if rebuild {
 		workers = append(workers, task.NewWorker(buildParams, pe.buildTaskFactory()))
@@ -116,6 +120,7 @@ func (pe *PublishExecutor) Proceed() {
 		task.NewWorker(provisionParams, pe.provisionTaskFactory()),
 		task.NewWorker(pushParams, pe.pushTaskFactory()),
 		task.NewWorker(publishParams, pe.publishTaskFactory()),
+		task.NewWorker(getParams, pe.idTaskFactory()),
 	)
 
 	if !noUpdate {
@@ -125,8 +130,29 @@ func (pe *PublishExecutor) Proceed() {
 		workers = append(workers, task.NewWorker(initParams, pe.initTaskFactory(writer)))
 	}
 
-	plan.PrintReportsOnly = true
-	plan.Sequence(workers...)
+	workers = append(workers, task.NewWorker(getParams, pe.getTaskFactory()))
+
+	if pe.Ledger.GetBool(pe.optionJsonPrinter) {
+		var printer = pe.printerParams.Printer()
+		var function *broker.Function
+		var failure interface{}
+
+		plan.OnReturn = func(i interface{}) { function = i.(*broker.Function) }
+		plan.OnFailure = func(i interface{}) { failure = i }
+		plan.OnSuccess = nil
+		plan.Sequence(workers...)
+
+		if failure == nil {
+			err = printer.Print(function)
+		} else {
+			err = printer.Error(failure)
+		}
+	} else {
+		plan.PrintReportsOnly = true
+		plan.Sequence(workers...)
+	}
+
+	lang.HandleExit(err)
 }
 
 func (pe *PublishExecutor) makeProvisionExtras() map[string]any {
@@ -148,25 +174,27 @@ func (pe *PublishExecutor) makeProvisionParams() *broker.ProvisionParams {
 	var extraMap = pe.makeProvisionExtras()
 
 	return &broker.ProvisionParams{
+		GetParams: broker.GetParams{
+			Oem:     pe.Ledger.GetString(pe.optionOem),
+			Handle:  pe.Ledger.GetString(pe.optionHandle),
+			Version: pe.Ledger.GetString(pe.optionVersion),
+		},
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.Ledger.GetString(pe.optionBroker),
+			HostAddr: pe.Ledger.GetString(pe.optionAccount),
 		},
 		Arches:          pe.Ledger.GetList(pe.optionArches),
 		Extras:          extraMap,
 		DataSources:     pe.Ledger.GetList(pe.innerDataSources),
 		DataStores:      pe.Ledger.GetList(pe.innerDataStores),
 		Description:     nameDesc,
-		Handle:          pe.Ledger.GetString(pe.optionHandle),
 		InputPorts:      inputPorts,
 		Name:            nameDesc,
-		Oem:             pe.Ledger.GetString(pe.optionOem),
 		OutboundProxies: outboundProxies,
 		OutputPorts:     outputPorts,
 		PropSpecs:       propSpecs,
 		ResultValues:    pe.Ledger.GetList(pe.innerResultValues),
 		Type:            pe.Ledger.GetString(pe.optionType),
-		Version:         pe.Ledger.GetString(pe.optionVersion),
 	}
 }
 
@@ -205,7 +233,7 @@ func (pe *PublishExecutor) makePublishParams(provisionParams *broker.ProvisionPa
 	return &broker.PublishParams{
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.Ledger.GetString(pe.optionBroker),
+			HostAddr: pe.Ledger.GetString(pe.optionAccount),
 		},
 		Handle: provisionParams.Handle,
 		Oem:    provisionParams.Oem,
@@ -221,46 +249,49 @@ func (pe *PublishExecutor) makePushParams() *docker.PushParams {
 }
 
 type PublishOptions struct {
-	optionArches   *config.ListOption
-	optionBroker   *config.StringOption
-	optionHandle   *config.StringOption
-	optionName     *config.StringOption
-	optionRebuild  *config.BoolOption
-	optionNoUpdate *config.BoolOption
-	optionOem      *config.StringOption
-	optionType     *config.StringOption
-	optionVersion  *config.StringOption
+	optionAccount     *config.StringOption
+	optionArches      *config.ListOption
+	optionHandle      *config.StringOption
+	optionJsonPrinter *config.BoolOption
+	optionName        *config.StringOption
+	optionNoUpdate    *config.BoolOption
+	optionOem         *config.StringOption
+	optionRebuild     *config.BoolOption
+	optionType        *config.StringOption
+	optionVersion     *config.StringOption
 }
 
 func (po *PublishOptions) allDefiners() []config.Definer {
 	return []config.Definer{
+		po.optionAccount,
 		po.optionArches,
-		po.optionBroker,
 		po.optionHandle,
+		po.optionJsonPrinter,
 		po.optionName,
-		po.optionRebuild,
 		po.optionNoUpdate,
 		po.optionOem,
+		po.optionRebuild,
 		po.optionType,
 		po.optionVersion,
 	}
 }
 
-func NewPublish(ledger *config.Ledger, cli *Cli) *cobra.Command {
-	var options = NewPublishOptions(cli)
-	var publish = &cobra.Command{
+func NewPublish(ledger *config.Ledger, sfCli *Cli) *cobra.Command {
+	var options = NewPublishOptions(sfCli)
+	var publishCmd = &cobra.Command{
 		Use:     "publish",
 		Short:   "Publishes a Smart Function metadata and image to a Broker",
 		Long:    "Publishes a Smart Function metadata and image to a Broker, by provisioning its information and then pushing it the Broker's registry",
-		Example: "genaiz sf publish --broker=www.genaiz.com --handle=my-function --oem=com.genaiz --version=0.1-dev",
+		Example: "genaiz sf publish --account=www.genaiz.com --handle=my-function --oem=com.genaiz --version=0.1-dev",
 		Args:    cobra.MaximumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Exec(ledger, NewPublishExecutor(cmd.Context(), ledger, cli, options))
+			sfCli.Exec(ledger, NewPublishExecutor(cmd.Context(), ledger, sfCli, options))
 		},
 	}
 
-	ledger.Register(publish, options.allDefiners()...)
-	return publish
+	ledger.Register(publishCmd, options.allDefiners()...)
+	cli.AutoBridge.Accounts().Option(publishCmd, ledger, options.optionAccount)
+	return publishCmd
 }
 
 func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, options *PublishOptions) *PublishExecutor {
@@ -297,7 +328,11 @@ func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, 
 			WithKeys(&schema.Genaiz.Function.Publish.ResultValues).
 			BuildListOption(),
 
+		printerParams: cli.NewPrinterParam(ledger, options.optionJsonPrinter),
+
 		buildTaskFactory:     docker.NewBuildTask,
+		getTaskFactory:       broker.NewFunctionGetTask,
+		idTaskFactory:        broker.NewFunctionIdTask,
 		initTaskFactory:      layout.NewInitTask,
 		inspectTaskFactory:   docker.NewInspectTask,
 		provisionTaskFactory: broker.NewFunctionProvisionTask,
@@ -320,13 +355,16 @@ func NewPublishOptions(sfCli *Cli) *PublishOptions {
 		BuildStringOption()
 
 	return &PublishOptions{
+		optionAccount: cli.Options.Functions.Account().
+			WithKeys(&schema.Genaiz.Function.Publish.Account).
+			BuildStringOption(),
 		optionArches: cli.Options.Functions.Arches().
 			WithKeys(&schema.Genaiz.Function.Publish.Arches).
 			BuildListOption(),
-		optionBroker: cli.Options.Solutions.Broker().
-			WithKeys(&schema.Genaiz.Solution.Publish.Broker).
-			BuildStringOption(),
 		optionHandle: handleOpt,
+		optionJsonPrinter: cli.Options.Printer.JsonPrinter().
+			WithKeys(&schema.Genaiz.Function.Publish.Printer).
+			BuildBoolOption(),
 		optionName: cli.Options.Functions.Name().
 			WithKeys(&schema.Genaiz.Function.Publish.Name).
 			WithUsage("defaults to the handle value if not provided").

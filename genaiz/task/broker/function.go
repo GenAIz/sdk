@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cast"
+
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
 
 var (
-	errorDuplicatePublishing = errors.New("the smart function was already published")
-	errorNoBuildToProvision  = errors.New("could not find an image to provision, call build first")
-	errorNoProvision         = errors.New("can not publish non-provisioned functions")
-	errorNoRepoIdentity      = errors.New("could not identify repository hash")
-	errorNoRepoProvisioning  = errors.New("can not publish without provisioning rights")
+	errorDuplicatePublishing    = task.NewError("the smart function was already published")
+	errorInvalidFunctionGet     = task.NewError("can not retrieve function without an id")
+	errorMissConfiguredGet      = task.NewError("miss-configured task, internally expecting Function")
+	errorNoBuildToProvision     = task.NewError("could not find an image to provision, call build first")
+	errorNoProvision            = task.NewError("can not publish non-provisioned functions")
+	errorNoRepoIdentity         = task.NewError("could not identify repository hash")
+	errorNoRepoProvisioning     = task.NewError("can not publish without provisioning rights")
+	errorUnsupportedFunctionGet = task.NewError("can not retrieve function with fqdn coordinates")
 
 	errorInvalidDataSourceType = func(t string) error {
 		return fmt.Errorf("type [%s] can not specify data sources", t)
@@ -25,31 +30,38 @@ var (
 	}
 )
 
+type GetParams struct {
+	Broker
+	Id      *int
+	Oem     string
+	Handle  string
+	Version string
+}
+
 type ProvisionParams struct {
+	GetParams
 	Broker
 	Arches          []string
 	DataSources     []string
 	DataStores      []string
 	Description     string
 	Extras          map[string]any
-	Handle          string
 	InputPorts      []DataPort
 	Name            string
-	Oem             string
 	OutputPorts     []DataPort
 	OutboundProxies []Proxy
 	PropSpecs       []PropSpec
 	ResultValues    []string
 	Type            string
-	Version         string
 }
 
-func (pp ProvisionParams) getExtras() map[string]any {
-	if pp.Extras == nil {
-		pp.Extras = make(map[string]any)
+func (pp ProvisionParams) ToGetParams() *GetParams {
+	return &GetParams{
+		Broker:  pp.Broker,
+		Oem:     pp.Oem,
+		Handle:  pp.Handle,
+		Version: pp.Version,
 	}
-
-	return pp.Extras
 }
 
 func (pp ProvisionParams) asFunction() *Function {
@@ -69,6 +81,14 @@ func (pp ProvisionParams) asFunction() *Function {
 		Type:            strings.ToUpper(pp.Type),
 		Version:         pp.Version,
 	}
+}
+
+func (pp ProvisionParams) getExtras() map[string]any {
+	if pp.Extras == nil {
+		pp.Extras = make(map[string]any)
+	}
+
+	return pp.Extras
 }
 
 func (pp ProvisionParams) validate() error {
@@ -92,6 +112,24 @@ type PublishParams struct {
 	SkipUnknown bool
 }
 
+func NewFunctionGetTask() *task.Task[GetParams] {
+	return &task.Task[GetParams]{
+		Name:       "function-get",
+		OnPrepare:  handleFunctionGetContext,
+		OnComplete: handleFunctionGetComplete,
+		OnPretend:  handleFunctionGetPretend,
+	}
+}
+
+func NewFunctionIdTask() *task.Task[GetParams] {
+	return &task.Task[GetParams]{
+		Name:       "function-get-id",
+		OnPrepare:  handleFunctionIdContext,
+		OnComplete: handleFunctionIdUpdate,
+		OnPretend:  handleFunctionIdPretend,
+	}
+}
+
 func NewFunctionProvisionTask() *task.Task[ProvisionParams] {
 	return &task.Task[ProvisionParams]{
 		Name:       "function-provision",
@@ -109,6 +147,92 @@ func NewFunctionPublishTask() *task.Task[PublishParams] {
 		OnIncomplete: handleFunctionPublishIncomplete,
 		OnPretend:    handleFunctionPublishPretend,
 	}
+}
+
+func handleFunctionGetComplete(params *GetParams, state *task.State) error {
+	var brokerClient Client
+	var err error
+
+	if brokerClient, err = params.GetClient(); err == nil {
+		if params.Id != nil {
+			var fn *Function
+
+			state.Logger.Debugf("Get Function on id [%d]", params.Id)
+
+			if fn, err = brokerClient.GetFunction(int64(*params.Id)); err == nil {
+				state.Internal = fn
+				state.Output = ""
+				return nil
+			}
+
+			return err
+		}
+
+		return errorInvalidFunctionGet
+	}
+
+	return err
+}
+
+func handleFunctionGetContext(params *GetParams, state *task.State) error {
+	if state.Output == "" {
+		if params.Id == nil {
+			if params.Oem != "" || params.Handle != "" || params.Version != "" {
+				return errorUnsupportedFunctionGet
+			}
+
+			return errorInvalidFunctionGet
+		}
+	}
+
+	return nil
+}
+
+func handleFunctionGetPretend(params *GetParams, state *task.State) error {
+	if state.Error == nil {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			state.Logger.Debugf("Pretending to get function [%d]", *params.Id)
+			fmt.Printf("curl -X GET -H \"Accept: application/json\" \\\n")
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+			fmt.Printf("%s?id=%d\n", brokerClient.GetFunctionUrl(), *params.Id)
+			return nil
+		}
+
+		return err
+	}
+
+	return state.Error
+}
+
+func handleFunctionIdContext(params *GetParams, state *task.State) error {
+	state.Logger.Debugf("Expecting id from function [%s/%s:%s]", params.Oem, params.Handle, params.Version)
+
+	if state.Internal == nil {
+		return errorMissConfiguredGet
+	}
+
+	return nil
+}
+
+func handleFunctionIdPretend(params *GetParams, state *task.State) error {
+	// no-op: keep this to enable pretend on plans with this task
+	_ = params
+	_ = state
+	return nil
+}
+
+func handleFunctionIdUpdate(params *GetParams, state *task.State) error {
+	var internal, ok = state.Internal.(*Function)
+
+	if ok {
+		params.Id = &internal.Id
+		return nil
+	}
+
+	return errorMissConfiguredGet
 }
 
 func handleFunctionProvisionContext(params *ProvisionParams, state *task.State) error {
@@ -161,7 +285,7 @@ func handleFunctionProvisionComplete(params *ProvisionParams, state *task.State)
 				identity.Hash = current.Hash
 			}
 
-			state.Progressf("Provisioned function [%s/%s]...", params.Oem, params.Handle)
+			state.Reportf("Provisioned function [%s/%s:%s]...", params.Oem, params.Handle, identity.Version)
 			state.Internal = identity
 			return nil
 		}
@@ -239,13 +363,15 @@ func handleFunctionPublishComplete(params *PublishParams, state *task.State) err
 
 				if fn, err = brokerClient.PublishFunction(current); err == nil {
 					state.Report(fmt.Sprintf("Published smart function %s/%s, version %s to %s",
-						fn.Oem, fn.Handle, fn.Version, brokerClient.GetHostAddr()))
+						fn.Oem, fn.Handle, fn.GetFullVersion(), brokerClient.GetHostAddr()))
+					state.Internal = fn
+					state.Output = ""
+					return nil
 				}
-
-				state.Internal = nil
-				state.Output = ""
 			}
 
+			state.Internal = nil
+			state.Output = ""
 			return err
 		}
 	}
@@ -254,6 +380,8 @@ func handleFunctionPublishComplete(params *PublishParams, state *task.State) err
 }
 
 func handleFunctionPublishIncomplete(params *PublishParams, state *task.State) error {
+	var err error
+
 	state.Completed = true
 
 	if params.SkipUnknown {
@@ -270,12 +398,24 @@ func handleFunctionPublishIncomplete(params *PublishParams, state *task.State) e
 		state.Output = ""
 	} else if errors.Is(state.Error, errorDuplicatePublishing) {
 		var current = state.Internal.(*shared.Identity)
+		var brokerClient Client
 
 		state.Report(fmt.Sprintf("Smart Function was found under path %s", current.Path))
 		state.Abort = true
-		state.Error = nil
 		state.Internal = nil
 		state.Output = ""
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var fn *Function
+
+			if fn, err = brokerClient.GetFunction(cast.ToInt64(current.Id)); err == nil {
+				state.Error = nil
+				state.Internal = fn
+				return nil
+			}
+		}
+
+		return err
 	}
 
 	return state.Error
