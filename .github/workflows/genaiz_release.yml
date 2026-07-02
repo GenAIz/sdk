@@ -44,8 +44,6 @@ jobs:
         if: ${{ inputs.overwrite }}
         run: |
           git tag -d 'v${{steps.genaiz_dist.outputs.VERSION}}'
-      - name: Setup GH CLI
-        uses: actions4gh/setup-gh@v1
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
