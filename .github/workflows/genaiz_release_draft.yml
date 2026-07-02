@@ -1,4 +1,4 @@
-name: genaiz_release.yml
+name: genaiz_release_draft.yml
 
 on:
   workflow_dispatch:
@@ -11,6 +11,10 @@ on:
 jobs:
   genaiz_package:
     runs-on: ops
+
+    permissions:
+      contents: write
+
     strategy:
       matrix:
         go-version: [ '1.26.4' ]
@@ -44,20 +48,19 @@ jobs:
         if: ${{ inputs.overwrite }}
         run: |
           git tag -d 'v${{steps.genaiz_dist.outputs.VERSION}}'
-      - name: Setup GH CLI
-        uses: actions4gh/setup-gh@v1
-      - name: Create release
+      - name: Create draft release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}' \
+          gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             --title='v${{steps.genaiz_dist.outputs.VERSION}}' \
+            --draft=true \
             --fail-on-no-commits
       - name: Upload assets
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}' \
+          gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}' \
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256' \
             --clobber
