@@ -1,4 +1,4 @@
-name: genaiz_release.yml
+name: genaiz_release_draft.yml
 
 on:
   workflow_dispatch:
@@ -52,7 +52,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}' \
+          gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             --title='v${{steps.genaiz_dist.outputs.VERSION}}' \
             --draft=true \
             --fail-on-no-commits
@@ -60,12 +60,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}' \
+          gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}' \
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256' \
             --clobber
-      - name: Publish release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release edit 'v${{steps.genaiz_dist.outputs.VERSION}}' --draft=false
