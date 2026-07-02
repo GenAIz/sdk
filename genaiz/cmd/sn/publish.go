@@ -13,6 +13,7 @@ import (
 	"genaiz.com/genaiz/cmd/sf"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
+	"genaiz.com/genaiz/mgmt"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
@@ -64,6 +65,7 @@ type PublishExecutor struct {
 	*PublishOptions
 
 	cmd            *cobra.Command
+	printerParams  cli.PrinterParametric
 	solutionReader *config.SolutionReader
 
 	inspectTaskFactory         sf.BuildTaskFactory
@@ -126,7 +128,7 @@ func (pe *PublishExecutor) Display() {
 }
 
 func (pe *PublishExecutor) Pretend() {
-	var err = pe.collectAndCall(func(snParams *broker.SolutionPublishParams, fnParams []FunctionParams) {
+	var err = pe.collectAndCall(func(snParams *broker.SolutionPublishParams, fnParams []FunctionParams) error {
 		var plan = task.NewPlan("Publish", pe.Ledger.Logger)
 		var pretenders []task.Worker
 
@@ -140,13 +142,14 @@ func (pe *PublishExecutor) Pretend() {
 		pretenders = append(pretenders, task.NewPretender(snParams, pe.solutionPublishTaskFactory()))
 		plan.ContinueOnFailure = true
 		plan.Sequence(pretenders...)
+		return nil
 	})
 
 	lang.HandleExit(err)
 }
 
 func (pe *PublishExecutor) Proceed() {
-	var err = pe.collectAndCall(func(snParams *broker.SolutionPublishParams, fnParams []FunctionParams) {
+	var err = pe.collectAndCall(func(snParams *broker.SolutionPublishParams, fnParams []FunctionParams) error {
 		var workers []task.Worker
 		var plan = task.NewPlan("Publish", pe.Ledger.Logger)
 
@@ -158,14 +161,33 @@ func (pe *PublishExecutor) Proceed() {
 		}
 
 		workers = append(workers, task.NewWorker(snParams, pe.solutionPublishTaskFactory()))
+
+		if pe.Ledger.GetBool(pe.optionJsonPrinter) {
+			var printer = pe.printerParams.Printer()
+			var solution *broker.Solution
+			var failure interface{}
+
+			plan.OnReturn = func(i interface{}) { solution = i.(*broker.Solution) }
+			plan.OnFailure = func(i interface{}) { failure = i }
+			plan.OnSuccess = nil
+			plan.Sequence(workers...)
+
+			if failure == nil {
+				return printer.Print(mgmt.ToUserSolution(solution))
+			}
+
+			return printer.Error(failure)
+		}
+
 		plan.PrintReportsOnly = true
 		plan.Sequence(workers...)
+		return nil
 	})
 
 	lang.HandleExit(err)
 }
 
-func (pe *PublishExecutor) collectAndCall(fn func(*broker.SolutionPublishParams, []FunctionParams)) error {
+func (pe *PublishExecutor) collectAndCall(fn func(*broker.SolutionPublishParams, []FunctionParams) error) error {
 	var configParams *shared.ConfigParams
 	var err error
 
@@ -192,8 +214,7 @@ func (pe *PublishExecutor) collectAndCall(fn func(*broker.SolutionPublishParams,
 
 					fnParams = pe.filterPublishedFunctions(solution, fnParams)
 					snParams = pe.makeSolutionPublishParams(solution, fnParams)
-					fn(snParams, fnParams)
-					return nil
+					return fn(snParams, fnParams)
 				}
 			} else {
 				return fmt.Errorf("no solution could be read from [%s]", reader.GetSolutionFile())
@@ -264,7 +285,7 @@ func (pe *PublishExecutor) makeFunctionProvisionParams(vp *viper.Viper, solution
 		},
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.Ledger.GetString(pe.optionBroker),
+			HostAddr: pe.Ledger.GetString(pe.optionAccount),
 		},
 		Arches:          ledger.GetList(options.optionArches),
 		Extras:          pe.makeProvisionExtras(ledger, options.innerExtras),
@@ -284,7 +305,7 @@ func (pe *PublishExecutor) makeFunctionPublishParams(provisionParams *broker.Pro
 	return &broker.PublishParams{
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.Ledger.GetString(pe.optionBroker),
+			HostAddr: pe.Ledger.GetString(pe.optionAccount),
 		},
 		Handle:      provisionParams.Handle,
 		Oem:         provisionParams.Oem,
@@ -326,7 +347,7 @@ func (pe *PublishExecutor) makeSolutionPublishParams(solution *broker.Solution, 
 	return &broker.SolutionPublishParams{
 		Broker: broker.Broker{
 			AuthFile: pe.Ledger.AuthFile,
-			HostAddr: pe.Ledger.GetString(pe.optionBroker),
+			HostAddr: pe.Ledger.GetString(pe.optionAccount),
 		},
 		Solution: &broker.Solution{
 			Description: pe.Ledger.GetString(pe.optionDescription),
@@ -341,10 +362,11 @@ func (pe *PublishExecutor) makeSolutionPublishParams(solution *broker.Solution, 
 }
 
 type PublishOptions struct {
-	optionBroker      *config.StringOption
+	optionAccount     *config.StringOption
 	optionConfigType  *config.StringOption
 	optionDescription *config.StringOption
 	optionHandle      *config.StringOption
+	optionJsonPrinter *config.BoolOption
 	optionName        *config.StringOption
 	optionOem         *config.StringOption
 	optionVersion     *config.StringOption
@@ -352,10 +374,11 @@ type PublishOptions struct {
 
 func (po PublishOptions) allDefiners() []config.Definer {
 	return []config.Definer{
-		po.optionBroker,
+		po.optionAccount,
 		po.optionConfigType,
 		po.optionDescription,
 		po.optionHandle,
+		po.optionJsonPrinter,
 		po.optionName,
 		po.optionOem,
 		po.optionVersion,
@@ -369,7 +392,7 @@ func NewPublish(ledger *config.Ledger, snCli *Cli) *cobra.Command {
 		Use:     "publish",
 		Short:   "Publishes a solution",
 		Long:    "Publishes a solution and all smart functions found under the solution path or the current working directory if not specified",
-		Example: "genaiz sn publish --broker=www.genaiz.com --version=0.1.1",
+		Example: "genaiz sn publish --account=dev.genaiz.com --version=0.1.1",
 		Args:    cobra.MaximumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			if path, err := os.Getwd(); err == nil {
@@ -382,15 +405,16 @@ func NewPublish(ledger *config.Ledger, snCli *Cli) *cobra.Command {
 	}
 
 	ledger.Register(publishCmd, publishOptions.allDefiners()...)
+	cli.AutoBridge.Accounts().Option(publishCmd, ledger, publishOptions.optionAccount)
 	return publishCmd
 }
 
-func NewPublishExecutor(cmd *cobra.Command, ledger *config.Ledger, cli *Cli,
+func NewPublishExecutor(cmd *cobra.Command, ledger *config.Ledger, snCli *Cli,
 	options *PublishOptions, reader *config.SolutionReader, folderPath string) *PublishExecutor {
 
 	return &PublishExecutor{
 		BaseExecutor: BaseExecutor{
-			Cli:        cli,
+			Cli:        snCli,
 			Ledger:     ledger,
 			Context:    cmd.Context(),
 			folderPath: folderPath,
@@ -398,6 +422,7 @@ func NewPublishExecutor(cmd *cobra.Command, ledger *config.Ledger, cli *Cli,
 		PublishOptions: options,
 
 		cmd:            cmd,
+		printerParams:  cli.NewPrinterParam(ledger, options.optionJsonPrinter),
 		solutionReader: reader,
 
 		inspectTaskFactory:         docker.NewInspectTask,
@@ -480,7 +505,7 @@ func NewPublishOptions() *PublishOptions {
 		BuildStringOption()
 
 	return &PublishOptions{
-		optionBroker: cli.Options.Solutions.Account().
+		optionAccount: cli.Options.Solutions.Account().
 			WithKeys(&schema.Genaiz.Solution.Publish.Account).
 			BuildStringOption(),
 		optionConfigType: cli.Options.Configs.Type().
@@ -493,7 +518,10 @@ func NewPublishOptions() *PublishOptions {
 				return ledger.GetString(nameOption)
 			}).
 			BuildStringOption(),
-		optionHandle:  handleOption,
+		optionHandle: handleOption,
+		optionJsonPrinter: cli.Options.Printer.JsonPrinter().
+			WithKeys(&schema.Genaiz.Solution.Publish.Printer).
+			BuildBoolOption(),
 		optionName:    nameOption,
 		optionOem:     oemOption,
 		optionVersion: versionOption,

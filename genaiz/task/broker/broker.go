@@ -10,7 +10,6 @@ import (
 
 	"github.com/spf13/cast"
 
-	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/lang/enumz"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -621,18 +620,18 @@ type Session struct {
 type Solution struct {
 	// Keep the ordering for the marshaler
 	Id          *int64     `json:"id,omitempty"`
-	Digest      *string    `json:"digest,omitempty"`
-	Handle      string     `json:"handle"`
-	Name        string     `json:"name"`
-	Description string     `json:"description,omitempty"`
-	Fqdn        *string    `json:"fqdn,omitempty"`
-	Oem         string     `json:"oem"`
-	Seq         *int       `json:"seq,omitempty"`
-	Version     string     `json:"version"`
-	Workflows   []Workflow `json:"workflows,omitempty"`
-	Flags       *int       `json:"flags,omitempty"`
 	Created     *int64     `json:"nco,omitempty"`
 	Modified    *int64     `json:"nms,omitempty"`
+	Flags       *int       `json:"flags,omitempty"`
+	Seq         *int       `json:"seq,omitempty"`
+	Name        string     `json:"name"`
+	Description string     `json:"description,omitempty"`
+	Oem         string     `json:"oem"`
+	Handle      string     `json:"handle"`
+	Fqdn        *string    `json:"fqdn,omitempty"`
+	Version     string     `json:"version"`
+	Digest      *string    `json:"digest,omitempty"`
+	Workflows   []Workflow `json:"workflows,omitempty"`
 }
 
 func (s Solution) FindWorkflowByHandle(handle string) (*Workflow, error) {
@@ -727,21 +726,6 @@ func (s Solution) Merge(update Solution) *Solution {
 	result.Handle = s.Handle
 	result.Oem = s.Oem
 	return result
-}
-
-func (s Solution) asIdentity() *shared.Identity {
-	var id string
-
-	if s.Id != nil {
-		id = strconv.FormatInt(*s.Id, 10)
-	}
-
-	return &shared.Identity{
-		Id:      id,
-		Hash:    stringz.NilToEmpty(s.Digest),
-		Path:    stringz.NilToEmpty(s.Fqdn),
-		Version: s.Version,
-	}
 }
 
 type solutionFlags struct {

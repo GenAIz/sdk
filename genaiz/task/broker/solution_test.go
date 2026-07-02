@@ -136,7 +136,7 @@ type stubSolutionClient struct {
 	listError       error
 	listSolutions   []Solution
 	publishError    error
-	publishIdentity *shared.Identity
+	publishSolution *Solution
 }
 
 func (ssc stubSolutionClient) GetHostAddr() string {
@@ -147,13 +147,13 @@ func (ssc stubSolutionClient) ListSolutions(string) ([]Solution, error) {
 	return ssc.listSolutions, ssc.listError
 }
 
-func (ssc stubSolutionClient) PublishSolution(*Solution) (*shared.Identity, error) {
+func (ssc stubSolutionClient) PublishSolution(*Solution) (*Solution, error) {
 	if ssc.publishError != nil {
 		return nil, ssc.publishError
 	}
 
-	if ssc.publishIdentity != nil {
-		return ssc.publishIdentity, nil
+	if ssc.publishSolution != nil {
+		return ssc.publishSolution, nil
 	}
 
 	return nil, nil
@@ -595,8 +595,8 @@ func Test_handleSolutionPublishComplete(t *testing.T) {
 	clientFactory.Active = func(authFile string) (Client, error) {
 		return &stubSolutionClient{
 			brokerAddr: expectedAddr,
-			publishIdentity: &shared.Identity{
-				Path:    expectedPath,
+			publishSolution: &Solution{
+				Fqdn:    &expectedPath,
 				Version: "version",
 			},
 		}, nil

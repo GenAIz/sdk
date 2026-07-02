@@ -116,6 +116,35 @@ func (us UserSolution) MarshalSlice() ([]string, error) {
 	}, nil
 }
 
+func ToUserSolution(sol *broker.Solution) *UserSolution {
+	var result = &UserSolution{
+		Oem:         sol.Oem,
+		Handle:      sol.Handle,
+		Version:     sol.GetVersion(),
+		Fqdn:        sol.GetFqdn(),
+		Digest:      stringz.NilToEmpty(sol.Digest),
+		Name:        sol.Name,
+		Description: sol.Description,
+		Local:       sol.Digest == nil,
+		Released:    sol.IsReleased(),
+		Flags:       sol.Flags,
+	}
+
+	if sol.Id != nil {
+		result.Id = *sol.Id
+	}
+
+	if sol.Created != nil {
+		result.Created = *sol.Created
+	}
+
+	if sol.Modified != nil {
+		result.Modified = *sol.Modified
+	}
+
+	return result
+}
+
 type userSolutionsFacade struct {
 	baseLoggingFacade
 	params *broker.SolutionListParams
@@ -175,32 +204,9 @@ func (usp userSolutionsProvider) Get() ([]UserSolution, task.Error) {
 		var result = make([]UserSolution, 0)
 
 		for _, sol := range solutions {
-			var solution = &UserSolution{
-				Oem:         sol.Oem,
-				Handle:      sol.Handle,
-				Version:     sol.GetVersion(),
-				Fqdn:        sol.GetFqdn(),
-				Digest:      stringz.NilToEmpty(sol.Digest),
-				Name:        sol.Name,
-				Description: sol.Description,
-				Local:       sol.Digest == nil,
-				Released:    sol.IsReleased(),
-				Flags:       sol.Flags,
-			}
+			var solution = ToUserSolution(&sol)
 
 			if solution.Match(usp.filter) {
-				if sol.Id != nil {
-					solution.Id = *sol.Id
-				}
-
-				if sol.Created != nil {
-					solution.Created = *sol.Created
-				}
-
-				if sol.Modified != nil {
-					solution.Modified = *sol.Modified
-				}
-
 				result = append(result, *solution)
 			}
 		}

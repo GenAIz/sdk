@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cast"
 
+	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
@@ -291,12 +292,15 @@ func handleSolutionPublishComplete(params *SolutionPublishParams, state *task.St
 
 	if brokerClient, err = params.GetClient(); err == nil {
 		var solution = params.Solution
-		var identity *shared.Identity
+		var remote *Solution
 
-		state.Logger.Infof("Publishing solution [%s], version [%s]", params.Handle, params.Version)
+		state.Logger.Debugf("Publishing solution [%s], version [%s]", params.Handle, params.Version)
 
-		if identity, err = brokerClient.PublishSolution(solution); err == nil {
-			state.Report(fmt.Sprintf("Published solution %s, version %s to %s", identity.Path, identity.Version, brokerClient.GetHostAddr()))
+		if remote, err = brokerClient.PublishSolution(solution); err == nil {
+			var fqdn = stringz.NilToEmpty(remote.Fqdn)
+
+			state.Report(fmt.Sprintf("Published solution %s, version %s to %s", fqdn, remote.GetVersion(), brokerClient.GetHostAddr()))
+			state.Internal = remote
 			return nil
 		}
 

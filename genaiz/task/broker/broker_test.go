@@ -647,22 +647,6 @@ func TestSolution_MergeWorkflows(t *testing.T) {
 	assert.Equal(t, mergedWorkflow, actual.Workflows[1].Handle)
 }
 
-func TestSolution_asIdentity(t *testing.T) {
-	var actual *shared.Identity
-	var solution = Solution{
-		Id:      new(int64(37)),
-		Digest:  new("digest"),
-		Fqdn:    new("path"),
-		Version: "version",
-	}
-
-	actual = solution.asIdentity()
-	assert.Equal(t, *solution.Id, cast.ToInt64(actual.Id))
-	assert.Equal(t, *solution.Digest, actual.Hash)
-	assert.Equal(t, *solution.Fqdn, actual.Path)
-	assert.Equal(t, solution.Version, actual.Version)
-}
-
 func TestWorkflow_ContainsNode(t *testing.T) {
 	var expectedHandle = "nodeHandle"
 	var testWorkflow = &Workflow{

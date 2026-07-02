@@ -303,6 +303,7 @@ type Document struct {
 			Handle      Keys
 			Name        Keys
 			Oem         Keys
+			Printer     Keys
 			Version     Keys
 		}
 	}
@@ -686,6 +687,7 @@ func init() {
 	Genaiz.Solution.Publish.Handle = newKeys("Solution.Publish.Handle", "SN_PUBLISH_HANDLE", "Sn.Publish.Handle")
 	Genaiz.Solution.Publish.Name = newKeys("Solution.Publish.Name", "SN_PUBLISH_NAME", "Sn.Publish.Name")
 	Genaiz.Solution.Publish.Oem = newKeys("Solution.Publish.Oem", "SN_PUBLISH_OEM", "Sn.Publish.Oem")
+	Genaiz.Solution.Publish.Printer = newKeys("Solution.Publish.Printer", "SN_PUBLISH_PRINTER", "Sn.Publish.Printer")
 	Genaiz.Solution.Publish.Version = newKeys("Solution.Publish.Version", "SN_PUBLISH_VERSION", "Sn.Publish.Version")
 
 	Genaiz.Workflow.Create.ConfigType = newKeys("Workflow.Create.ConfigType", "WF_CREATE_CONFIG_TYPE", "Wf.Create.ConfigType")
