@@ -54,7 +54,7 @@ jobs:
         run: |
           gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}' \
             --title='v${{steps.genaiz_dist.outputs.VERSION}}' \
-            --draft=true
+            --draft=true \
             --fail-on-no-commits
       - name: Upload assets
         env:
