@@ -48,12 +48,13 @@ jobs:
         if: ${{ inputs.overwrite }}
         run: |
           git tag -d 'v${{steps.genaiz_dist.outputs.VERSION}}'
-      - name: Create release
+      - name: Create draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}' \
             --title='v${{steps.genaiz_dist.outputs.VERSION}}' \
+            --draft=true
             --fail-on-no-commits
       - name: Upload assets
         env:
@@ -63,3 +64,8 @@ jobs:
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}' \
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256' \
             --clobber
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit 'v${{steps.genaiz_dist.outputs.VERSION}}' --draft=false

@@ -1,4 +1,4 @@
-name: unit_tests.yaml
+name: genaiz_unit_tests.yml
 on:
   pull_request:
     branches:
