@@ -137,7 +137,7 @@ type Client interface {
 
 	PublishFunctionUrl() string
 
-	PublishSolution(*Solution) (*shared.Identity, error)
+	PublishSolution(*Solution) (*Solution, error)
 
 	PublishSolutionUrl() string
 
@@ -821,7 +821,7 @@ func (c *client) PublishFunctionUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "publish")
 }
 
-func (c *client) PublishSolution(solution *Solution) (*shared.Identity, error) {
+func (c *client) PublishSolution(solution *Solution) (*Solution, error) {
 	if c.AuthToken != "" {
 		var url string
 		var err error
@@ -840,11 +840,11 @@ func (c *client) PublishSolution(solution *Solution) (*shared.Identity, error) {
 				}).
 				Post(url)
 
-			return resultOrError(resp, func(body any) *shared.Identity {
+			return resultOrError(resp, func(body any) *Solution {
 				var payload = resp.Result().(*clientPayload[solutionSlices])
 				var graph = &payload.Data
 
-				return graph.Solution.asIdentity()
+				return &graph.Solution
 			})
 		}
 

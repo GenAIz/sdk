@@ -1198,7 +1198,7 @@ func TestClient_PublishFunctionUrl(t *testing.T) {
 func TestClient_PublishSolution(t *testing.T) {
 	var expectedDigest = "digest"
 	var expectedId = int64(37)
-	var expectedPath = "path"
+	var expectedFqdn = "fqdn"
 	var expectedToken = "token"
 	var expectedWorkflowHandle = "WorkflowHandle"
 	var testSolution = &Solution{
@@ -1222,7 +1222,7 @@ func TestClient_PublishSolution(t *testing.T) {
 						Version: testSolution.Version,
 						Id:      new(expectedId),
 						Digest:  new(expectedDigest),
-						Fqdn:    new(expectedPath),
+						Fqdn:    new(expectedFqdn),
 					},
 				},
 			},
@@ -1243,8 +1243,8 @@ func TestClient_PublishSolution(t *testing.T) {
 	assert.Equal(t, testSolution.Version, serialized.Version)
 	assert.Equal(t, expectedWorkflowHandle, serialized.Workflows[0].Handle)
 	assert.Equal(t, expectedId, cast.ToInt64(actual.Id))
-	assert.Equal(t, expectedDigest, actual.Hash)
-	assert.Equal(t, expectedPath, actual.Path)
+	assert.Equal(t, expectedDigest, *actual.Digest)
+	assert.Equal(t, expectedFqdn, *actual.Fqdn)
 	assert.Equal(t, testSolution.Version, actual.Version)
 }
 

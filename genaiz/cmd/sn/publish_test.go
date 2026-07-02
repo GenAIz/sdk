@@ -2,6 +2,7 @@ package sn
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -478,6 +479,126 @@ func TestPublishExecutor_Proceed_FileNotFound(t *testing.T) {
 	assert.EqualValues(t, 1, patch.CalledWith)
 }
 
+func TestPublishExecutor_Proceed_JsonPrinter(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var calledInspect, calledProvision, calledPublish, calledPush bool
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCliPrinter = &stubCliPrinter{}
+	var testExecutor = &PublishExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger:     testLedger,
+			folderPath: testDir,
+		},
+		PublishOptions: newTestPublishOptions(),
+		cmd:            &cobra.Command{},
+		printerParams: &stubCliPrinterParametric{
+			cliPrinter: testCliPrinter,
+		},
+		solutionReader: config.NewSolutionReader(testLedger),
+
+		inspectTaskFactory:         newTaskProceedStub(&calledInspect, &docker.BuildParams{}),
+		provisionTaskFactory:       newTaskProceedStub(&calledProvision, &broker.ProvisionParams{}),
+		publishTaskFactory:         newTaskProceedStub(&calledPublish, &broker.PublishParams{}),
+		pushTaskFactory:            newTaskProceedStub(&calledPush, &docker.PushParams{}),
+		solutionPublishTaskFactory: newTaskPublishComplete(&broker.Solution{Id: new(int64(37))}, nil),
+	}
+
+	defer patch.Unpatch()
+
+	if fd, err := os.Create(filepath.Join(testDir, testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
+		defer filez.CloseSilently(fd)
+		var data []byte
+		var fnd1 *os.File
+
+		data, err = yaml.Marshal(testSolution)
+		panicz.PanicIfError(err)
+		_, err = fd.Write(data)
+		panicz.PanicIfError(err)
+
+		panicz.PanicIfError(os.MkdirAll(filepath.Join(testDir, "function1"), 0750))
+		fnd1, err = os.Create(filepath.Join(testDir, "function1", testLedger.ConfigName+"."+shared.ConfigTypeYaml))
+		panicz.PanicIfError(err)
+		defer filez.CloseSilently(fnd1)
+		data, err = yaml.Marshal(testFunction)
+		panicz.PanicIfError(err)
+		_, err = fnd1.Write(data)
+		panicz.PanicIfError(err)
+
+		testViper.Set(testExecutor.optionConfigType.Key, shared.ConfigTypeYaml)
+		testViper.Set(testExecutor.optionJsonPrinter.Key, true)
+		testLedger.Logger = logrus.New()
+		testExecutor.Proceed()
+		assert.True(t, calledInspect)
+		assert.True(t, calledProvision)
+		assert.True(t, calledPush)
+		assert.True(t, calledPublish)
+		assert.False(t, patch.Called)
+	}
+}
+
+func TestPublishExecutor_Proceed_JsonPrinterError(t *testing.T) {
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var calledInspect, calledProvision, calledPublish, calledPush bool
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testCliPrinter = &stubCliPrinter{
+		errorError: errors.New("expected"),
+	}
+	var testExecutor = &PublishExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger:     testLedger,
+			folderPath: testDir,
+		},
+		PublishOptions: newTestPublishOptions(),
+		cmd:            &cobra.Command{},
+		printerParams: &stubCliPrinterParametric{
+			cliPrinter: testCliPrinter,
+		},
+		solutionReader: config.NewSolutionReader(testLedger),
+
+		inspectTaskFactory:         newTaskProceedStub(&calledInspect, &docker.BuildParams{}),
+		provisionTaskFactory:       newTaskProceedStub(&calledProvision, &broker.ProvisionParams{}),
+		publishTaskFactory:         newTaskProceedStub(&calledPublish, &broker.PublishParams{}),
+		pushTaskFactory:            newTaskProceedStub(&calledPush, &docker.PushParams{}),
+		solutionPublishTaskFactory: newTaskPublishComplete(nil, testCliPrinter.errorError),
+	}
+
+	defer patch.Unpatch()
+
+	if fd, err := os.Create(filepath.Join(testDir, testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
+		defer filez.CloseSilently(fd)
+		var data []byte
+		var fnd1 *os.File
+
+		data, err = yaml.Marshal(testSolution)
+		panicz.PanicIfError(err)
+		_, err = fd.Write(data)
+		panicz.PanicIfError(err)
+
+		panicz.PanicIfError(os.MkdirAll(filepath.Join(testDir, "function1"), 0750))
+		fnd1, err = os.Create(filepath.Join(testDir, "function1", testLedger.ConfigName+"."+shared.ConfigTypeYaml))
+		panicz.PanicIfError(err)
+		defer filez.CloseSilently(fnd1)
+		data, err = yaml.Marshal(testFunction)
+		panicz.PanicIfError(err)
+		_, err = fnd1.Write(data)
+		panicz.PanicIfError(err)
+
+		testViper.Set(testExecutor.optionConfigType.Key, shared.ConfigTypeYaml)
+		testViper.Set(testExecutor.optionJsonPrinter.Key, true)
+		testLedger.Logger = logrus.New()
+		testExecutor.Proceed()
+		assert.True(t, calledInspect)
+		assert.True(t, calledProvision)
+		assert.True(t, calledPush)
+		assert.True(t, calledPublish)
+		assert.True(t, patch.Called)
+	}
+}
+
 func TestPublishExecutor_Proceed_SolutionNotFound(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var calledSolutionPublish bool
@@ -653,9 +774,23 @@ func newTaskProceedStub[T any](flag *bool, paramType *T) func() *task.Task[T] {
 	}
 }
 
+func newTaskPublishComplete(solution *broker.Solution, expectedError error) SolutionPublishTaskFactory {
+	return func() *task.Task[broker.SolutionPublishParams] {
+		return &task.Task[broker.SolutionPublishParams]{
+			OnPrepare: func(params *broker.SolutionPublishParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *broker.SolutionPublishParams, state *task.State) error {
+				state.Internal = solution
+				return expectedError
+			},
+		}
+	}
+}
+
 func newTestPublishOptions() *PublishOptions {
 	return &PublishOptions{
-		optionBroker: cli.Options.Solutions.Account().
+		optionAccount: cli.Options.Solutions.Account().
 			WithKeys(&schema.Genaiz.Solution.Publish.Account).
 			BuildStringOption(),
 		optionConfigType: cli.Options.Configs.Type().
@@ -667,6 +802,9 @@ func newTestPublishOptions() *PublishOptions {
 		optionHandle: cli.Options.Solutions.Handle().
 			WithKeys(&schema.Genaiz.Solution.Publish.Handle).
 			BuildStringOption(),
+		optionJsonPrinter: cli.Options.Printer.JsonPrinter().
+			WithKeys(&schema.Genaiz.Solution.Publish.Printer).
+			BuildBoolOption(),
 		optionName: cli.Options.Solutions.Name().
 			WithKeys(&schema.Genaiz.Solution.Publish.Name).
 			BuildStringOption(),
