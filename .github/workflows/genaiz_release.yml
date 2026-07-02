@@ -11,6 +11,10 @@ on:
 jobs:
   genaiz_package:
     runs-on: ops
+
+    permissions:
+      contents: write
+
     strategy:
       matrix:
         go-version: [ '1.26.4' ]
