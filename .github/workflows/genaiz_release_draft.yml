@@ -71,20 +71,20 @@ jobs:
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}' \
             --json browser_download_url \
             --jq '.[0].browser_download_url' > /tmp/url_output.txt
-          echo "url=$(cat /tmp/url_output.txt)" >> $GITHUB_OUTPUT
+          echo "URL=$(cat /tmp/url_output.txt)" >> $GITHUB_OUTPUT
           gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256' \
             --json browser_download_url \
             --jq '.[0].browser_download_url' > /tmp/hash_output.txt
-          echo "hash=$(cat /tmp/hash_output.txt)" >> $GITHUB_OUTPUT
+          echo "HASH=$(cat /tmp/hash_output.txt)" >> $GITHUB_OUTPUT
       - name: Create distribution ticket
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BODY: |
             As a release manager, I need to validate release v${{steps.genaiz_dist.outputs.VERSION}} before sealing it as an immutable release
             
-            Release package: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz](${{upload_assets.url}})
-            Package checksum: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256](${{upload_assets.hash}})
+            Release package: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz](${{steps.upload_assets.outputs.URL}})
+            Package checksum: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256](${{steps.upload_assets.outputs.HASH}})
             
             Acceptance:
             - Rename the release to v${{steps.genaiz_dist.outputs.VERSION}}
