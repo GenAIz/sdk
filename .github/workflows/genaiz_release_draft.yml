@@ -75,10 +75,10 @@ jobs:
             "./genaiz/dist/$PACKAGE_NAME.sha256" \
             --clobber
           BIN_URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
-            --json assets --jq '.assets[] | select(.name=="$PACKAGE_NAME") | .browser_download_url')
+            --json assets --jq '.assets[] | select(.name=="$PACKAGE_NAME") | .url')
           echo "BIN_URL=$BIN_URL" >> $GITHUB_OUTPUT
           HASH_URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
-            --json assets --jq '.assets[] | select(.name=="$PACKAGE_NAME.sha256") | .browser_download_url')
+            --json assets --jq '.assets[] | select(.name=="$PACKAGE_NAME.sha256") | .url')
           echo "HASH_URL=$HASH_URL" >> $GITHUB_OUTPUT
           DRAFT_URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             --json url --jq '.url')
@@ -100,4 +100,5 @@ jobs:
           gh issue create \
             --title "Validate release v${{steps.genaiz_dist.outputs.VERSION}}" \
             --type "Epic" \
+            --project "SDK" \
             --body "$BODY"
