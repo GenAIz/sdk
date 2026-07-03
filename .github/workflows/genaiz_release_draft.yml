@@ -14,6 +14,8 @@ jobs:
 
     permissions:
       contents: write
+      issues: write
+      repository-projects: read
 
     strategy:
       matrix:
@@ -54,13 +56,49 @@ jobs:
         run: |
           gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             --title='v${{steps.genaiz_dist.outputs.VERSION}}' \
+            --notes='This is a draft' \
             --draft=true \
             --fail-on-no-commits
+      - name: Create release tag
+        run: |
+          git config user.name genaiz_release_draft[bot]
+          git config user.email genaiz_release_draft[bot]@users.noreply.github.com
+          git tag v${{steps.genaiz_dist.outputs.VERSION}}
+          git push origin v${{steps.genaiz_dist.outputs.VERSION}}
       - name: Upload assets
+        id: upload_assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_NAME: genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz
         run: |
           gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
-            './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}' \
-            './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256' \
+            "./genaiz/dist/$PACKAGE_NAME#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}" \
+            "./genaiz/dist/$PACKAGE_NAME.sha256" \
             --clobber
+          BIN_URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
+            --json assets --jq '.assets[0] | .url')
+          echo "BIN_URL=$BIN_URL" >> $GITHUB_OUTPUT
+          HASH_URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
+            --json assets --jq '.assets[1] | .url')
+          echo "HASH_URL=$HASH_URL" >> $GITHUB_OUTPUT
+          DRAFT_URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
+            --json url --jq '.url')
+          echo "DRAFT_URL=$DRAFT_URL" >> $GITHUB_OUTPUT
+      - name: Create distribution ticket
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: |
+            As a release manager, I need to validate release [v${{steps.genaiz_dist.outputs.VERSION}}](${{steps.upload_assets.outputs.DRAFT_URL}}) before sealing it as an immutable release
+            
+            Release package: [genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz](${{steps.upload_assets.outputs.BIN_URL}})
+            Package checksum: [genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256](${{steps.upload_assets.outputs.HASH_URL}})
+            
+            Acceptance:
+            - We need a test plan with issues listed under this Epic
+            - Rename the release to v${{steps.genaiz_dist.outputs.VERSION}}
+            - Remove draft to seal the tag. (This will burn the tag!!! Careful)
+        run: |
+          gh issue create \
+            --title "Validate release v${{steps.genaiz_dist.outputs.VERSION}}" \
+            --type "Epic" \
+            --body "$BODY"
