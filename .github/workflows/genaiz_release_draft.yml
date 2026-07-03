@@ -66,16 +66,17 @@ jobs:
         id: upload_assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_NAME: genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz
         run: |
           gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
-            './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}' \
-            --json browser_download_url \
-            --jq '.[0].browser_download_url' > /tmp/url_output.txt
+            "./genaiz/dist/$PACKAGE_NAME#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}" \
+            "./genaiz/dist/$PACKAGE_NAME.sha256" \
+            --clobber
+          URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
+            --json assets --jq '.assets[] | select(.name=="$PACKAGE_NAME") | .browser_download_url')
           echo "URL=$(cat /tmp/url_output.txt)" >> $GITHUB_OUTPUT
-          gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
-            './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256' \
-            --json browser_download_url \
-            --jq '.[0].browser_download_url' > /tmp/hash_output.txt
+          HASH=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
+            --json assets --jq '.assets[] | select(.name=="$PACKAGE_NAME.sha256") | .browser_download_url')
           echo "HASH=$(cat /tmp/hash_output.txt)" >> $GITHUB_OUTPUT
       - name: Create distribution ticket
         env:
