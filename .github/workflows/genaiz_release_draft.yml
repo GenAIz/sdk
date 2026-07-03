@@ -99,5 +99,5 @@ jobs:
         run: |
           gh issue create \
             --title "Validate release v${{steps.genaiz_dist.outputs.VERSION}}" \
-            --type "Epic"
+            --type "Epic" \
             --body "$BODY"
