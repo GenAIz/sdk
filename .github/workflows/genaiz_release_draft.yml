@@ -55,6 +55,7 @@ jobs:
         run: |
           gh release create 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             --title='v${{steps.genaiz_dist.outputs.VERSION}}' \
+            --notes='This is a draft' \
             --draft=true \
             --fail-on-no-commits
       - name: Create release tag
@@ -73,26 +74,30 @@ jobs:
             "./genaiz/dist/$PACKAGE_NAME#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}" \
             "./genaiz/dist/$PACKAGE_NAME.sha256" \
             --clobber
-          URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
+          BIN_URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             --json assets --jq '.assets[] | select(.name=="$PACKAGE_NAME") | .browser_download_url')
-          echo "URL=$(cat /tmp/url_output.txt)" >> $GITHUB_OUTPUT
-          HASH=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
+          echo "BIN_URL=$BIN_URL" >> $GITHUB_OUTPUT
+          HASH_URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             --json assets --jq '.assets[] | select(.name=="$PACKAGE_NAME.sha256") | .browser_download_url')
-          echo "HASH=$(cat /tmp/hash_output.txt)" >> $GITHUB_OUTPUT
+          echo "HASH_URL=$HASH_URL" >> $GITHUB_OUTPUT
+          DRAFT_URL=$(gh release view 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
+            --json url --jq '.url')
+          echo "DRAFT_URL=$DRAFT_URL" >> $GITHUB_OUTPUT
       - name: Create distribution ticket
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BODY: |
-            As a release manager, I need to validate release v${{steps.genaiz_dist.outputs.VERSION}} before sealing it as an immutable release
+            As a release manager, I need to validate release [v${{steps.genaiz_dist.outputs.VERSION}}](${{steps.upload_assets.outputs.DRAFT_URL}}) before sealing it as an immutable release
             
-            Release package: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz](${{steps.upload_assets.outputs.URL}})
-            Package checksum: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256](${{steps.upload_assets.outputs.HASH}})
+            Release package: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz](${{steps.upload_assets.outputs.BIN_URL}})
+            Package checksum: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256](${{steps.upload_assets.outputs.HASH_URL}})
             
             Acceptance:
+            - We need a test plan with issues listed under this Epic
             - Rename the release to v${{steps.genaiz_dist.outputs.VERSION}}
             - Remove draft to seal the tag. (This will burn the tag!!! Careful)
         run: |
           gh issue create \
             --title "Validate release v${{steps.genaiz_dist.outputs.VERSION}}" \
+            --type "Epic"
             --body "$BODY"
-
