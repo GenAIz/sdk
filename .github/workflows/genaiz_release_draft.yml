@@ -56,11 +56,41 @@ jobs:
             --title='v${{steps.genaiz_dist.outputs.VERSION}}' \
             --draft=true \
             --fail-on-no-commits
+      - name: Create release tag
+        run: |
+          git config user.name genaiz_release_draft[bot]
+          git config user.email genaiz_release_draft[bot]@users.noreply.github.com
+          git tag v${{steps.genaiz_dist.outputs.VERSION}}
+          git push origin v${{steps.genaiz_dist.outputs.VERSION}}
       - name: Upload assets
+        id: upload_assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz#GenAIz SDK v${{steps.genaiz_dist.outputs.VERSION}}' \
+            --json browser_download_url \
+            --jq '.[0].browser_download_url' > /tmp/url_output.txt
+          echo "url=$(cat /tmp/url_output.txt)" >> $GITHUB_OUTPUT
+          gh release upload 'v${{steps.genaiz_dist.outputs.VERSION}}-Draft' \
             './genaiz/dist/genaiz-${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256' \
-            --clobber
+            --json browser_download_url \
+            --jq '.[0].browser_download_url' > /tmp/hash_output.txt
+          echo "hash=$(cat /tmp/hash_output.txt)" >> $GITHUB_OUTPUT
+      - name: Create distribution ticket
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: |
+            As a release manager, I need to validate release v${{steps.genaiz_dist.outputs.VERSION}} before sealing it as an immutable release
+            
+            Release package: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz](${{upload_assets.url}})
+            Package checksum: [${{steps.genaiz_dist.outputs.VERSION}}.tar.gz.sha256](${{upload_assets.hash}})
+            
+            Acceptance:
+            - Rename the release to v${{steps.genaiz_dist.outputs.VERSION}}
+            - Remove draft to seal the tag. (This will burn the tag!!! Careful)
+        run: |
+          gh issue create \
+            --title "Validate release v${{steps.genaiz_dist.outputs.VERSION}}" \
+            --body "$BODY"
+
