@@ -101,5 +101,4 @@ jobs:
           gh issue create \
             --title "Validate release v${{steps.genaiz_dist.outputs.VERSION}}" \
             --type "Epic" \
-            --project "SDK" \
             --body "$BODY"
