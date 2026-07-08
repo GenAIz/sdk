@@ -141,7 +141,7 @@ func TestDataLinksReader_GetLatest(t *testing.T) {
 func TestDataLinksReader_Read(t *testing.T) {
 	var testInput = filepath.Join(t.TempDir(), "Genaiz.yaml")
 	var testLedger = NewBuilder().WithViper(viper.New()).Build()
-	var testReader = &DataLinksReader{}
+	var testReader = NewDataLinkReader()
 	var fd *os.File
 	var err error
 

@@ -3,6 +3,8 @@
 ## Test Cases
 
 * [Create data link](../../features/datalink/create_data_link.feature)
+* [List account data links](../../features/datalink/list_account_data_links.feature)
+* [List local filtered data links](../../features/datalink/list_local_filtered_data_links.feature)
 * [Prop data link](../../features/datalink/prop_data_link.feature)
 * [Proxy data link](../../features/datalink/proxy_data_link.feature)
 * [Publish data link](../../features/datalink/publish_data_link.feature)
@@ -11,6 +13,7 @@
 ## Commands
 
 * [create](create.md)
+* [list](list.md)
 * [prop](prop.md)
 * [proxy](proxy.md)
 * [publish](publish.md)

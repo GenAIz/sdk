@@ -9,6 +9,10 @@ import (
 	"genaiz.com/genaiz-lib/mock"
 )
 
+type stubRef struct {
+	A string
+}
+
 func TestAssists(t *testing.T) {
 	var testOut string
 	var expectedFunction = func(a string, b string, c string) error {
@@ -36,6 +40,14 @@ func TestRef(t *testing.T) {
 	var expectedString = "test"
 
 	assert.Equal(t, expectedString, *Ref(expectedString))
+}
+
+func TestRefs(t *testing.T) {
+	var testRef = stubRef{}
+	var testRefs = []stubRef{testRef}
+
+	actual := Refs(testRefs)
+	assert.Equal(t, testRef, *actual[0])
 }
 
 func TestSupplier(t *testing.T) {

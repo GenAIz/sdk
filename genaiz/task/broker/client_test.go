@@ -239,7 +239,7 @@ func TestClient_ExportDataLink_UnknownHost(t *testing.T) {
 
 func TestClient_ExportDataLink_UnknownLink(t *testing.T) {
 	var expectedToken = "token"
-	var expectedDataLink = &DataLink{Id: int64(0)}
+	var expectedDataLink = &DataLink{Id: new(int64(0))}
 	var testBridge = &stubBridge{
 		response: stubResponse{
 			success: true,
@@ -269,7 +269,7 @@ func TestClient_ExportDataLink_UrlError(t *testing.T) {
 
 func TestClient_FindDataLink(t *testing.T) {
 	var expectedToken = "token"
-	var expectedDataLink = &DataLink{Id: int64(37)}
+	var expectedDataLink = &DataLink{Id: new(int64(37))}
 	var testBridge = &stubBridge{
 		response: stubResponse{
 			success: true,
@@ -395,7 +395,7 @@ func TestClient_ListDataLinks(t *testing.T) {
 	var expectedToken = "token"
 	var expectedDataLinks = []DataLink{
 		{
-			Id: int64(37),
+			Id: new(int64(37)),
 		},
 	}
 	var testBridge = &stubBridge{

@@ -76,18 +76,20 @@ func (b Broker) GetClient() (Client, error) {
 }
 
 type DataLink struct {
-	Id              int64      `json:"id,omitempty"`
-	Flags           int        `json:"flags,omitempty"`
-	Seq             int        `json:"seq,omitempty"`
+	Id              *int64     `json:"id,omitempty"`
+	Created         *int64     `json:"nco,omitempty"`
+	Modified        *int64     `json:"nms,omitempty"`
+	Flags           *int       `json:"flags,omitempty"`
+	Seq             *int       `json:"seq,omitempty"`
 	Name            string     `json:"name"`
 	Description     string     `json:"description"`
 	Oem             string     `json:"oem"`
 	Handle          string     `json:"handle"`
-	Fqdn            string     `json:"fqdn,omitempty"`
+	Fqdn            *string    `json:"fqdn,omitempty"`
 	Version         string     `json:"version"`
-	OutboundProxies []Proxy    `json:"outboundProxies,omitempty"`
 	PropSpecs       []PropSpec `json:"propSpecs,omitempty"`
 	SecretSpecs     []PropSpec `json:"secretSpecs,omitempty"`
+	OutboundProxies []Proxy    `json:"outboundProxies,omitempty"`
 }
 
 func (dl *DataLink) FindPropSpec(key string) *PropSpec {
@@ -120,13 +122,62 @@ func (dl *DataLink) FindSecretSpec(key string) *PropSpec {
 	return nil
 }
 
+func (dl *DataLink) GetBranch() string {
+	return fmt.Sprintf("%s:%s", dl.GetFqdn(), dl.Version)
+}
+
+func (dl *DataLink) GetFqdn() string {
+	if dl.Fqdn != nil {
+		return *dl.Fqdn
+	}
+
+	return fmt.Sprintf("%s/%s", dl.Oem, dl.Handle)
+}
+
+func (dl *DataLink) GetVersion() string {
+	if dl.Seq != nil && !dl.IsReleased() {
+		return fmt.Sprintf("%s-rc-%d", dl.Version, *dl.Seq)
+	}
+
+	return dl.Version
+}
+
 func (dl *DataLink) IsActive() bool {
-	return (dl.Flags & DataLinkFlags.Active) == DataLinkFlags.Active
+	if dl.Flags == nil {
+		return false
+	}
+
+	return (*dl.Flags & DataLinkFlags.Active) == DataLinkFlags.Active
+}
+
+func (dl *DataLink) IsAfter(dataLink *DataLink) bool {
+	if dataLink != nil && (dl.GetBranch() == dataLink.GetBranch()) {
+		// When a sequence value is blank, we assume it's a local build, and it is not the latest for the given branch
+		if dl.Seq != nil {
+			if dataLink.Seq == nil {
+				return !dataLink.IsReleased()
+			}
+
+			return *dl.Seq > *dataLink.Seq
+		}
+
+		return dl.IsReleased()
+	}
+
+	return false
 }
 
 func (dl *DataLink) IsEqual(oem, handle, version string) bool {
 	return dl.IsRevision(oem, handle) &&
 		strings.EqualFold(dl.Version, version)
+}
+
+func (dl *DataLink) IsReleased() bool {
+	if dl.Flags == nil {
+		return false
+	}
+
+	return (*dl.Flags & DataLinkFlags.Released) == DataLinkFlags.Released
 }
 
 func (dl *DataLink) IsRevision(oem, handle string) bool {
@@ -667,8 +718,8 @@ func (s Solution) GetVersion() string {
 	return s.Version
 }
 
-func (s Solution) IsAfter(solution Solution) bool {
-	if s.GetBranch() == solution.GetBranch() {
+func (s Solution) IsAfter(solution *Solution) bool {
+	if solution != nil && (s.GetBranch() == solution.GetBranch()) {
 		// When a sequence value is blank, we assume it's a local build, and it is not the latest for the given branch
 		if s.Seq != nil {
 			if solution.Seq == nil {

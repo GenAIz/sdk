@@ -27,6 +27,17 @@ func Ref[T any](value T) *T {
 	return &value
 }
 
+// Refs makes an array of pointer to its elements, this is useful when dealing with generics with mutable struct fields
+func Refs[T any](value []T) []*T {
+	var result []*T
+
+	for _, t := range value {
+		result = append(result, &t)
+	}
+
+	return result
+}
+
 // Supplier returns a function supplying the provided value, useful for testing otherwise should only be used in limited cases. Always pass a real factory when possible.
 func Supplier[P any](value *P) func() *P {
 	return func() *P {

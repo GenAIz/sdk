@@ -73,7 +73,7 @@ func TestNewDk(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewDk(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 5, len(testCmd.Commands()))
+	assert.Equal(t, 6, len(testCmd.Commands()))
 }
 
 func Test_ParseDataLinkArgument(t *testing.T) {

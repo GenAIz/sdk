@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -370,37 +369,23 @@ func handleSolutionPublishPretend(params *SolutionPublishParams, state *task.Sta
 }
 
 func handleSolutionReduceComplete(params *SolutionListParams, state *task.State) error {
-	var branchMap = map[string]Solution{}
-	var result []Solution
-
 	if remotes, hasInternal := state.Internal.([]Solution); hasInternal {
+		var hierarchy = NewHierarchy(lang.Refs(remotes), func(d1, d2 *Solution) bool {
+			return d1.IsAfter(d2)
+		})
+		var result []Solution
+
 		state.Logger.Debugf("Reducing [%d] account solutions", len(remotes))
 
-		for _, sol := range remotes {
-			if sol.IsReleased() {
-				result = append(result, sol)
-				branchMap[sol.GetBranch()] = sol
-			} else if latest, ok := branchMap[sol.GetBranch()]; !ok || sol.IsAfter(latest) {
-				branchMap[sol.GetBranch()] = sol
-			}
+		for _, dl := range hierarchy.reduce(lang.Refs(params.Local)) {
+			result = append(result, *dl)
 		}
 
-		for _, sol := range slices.Collect(maps.Values(branchMap)) {
-			if !sol.IsReleased() {
-				if _, ok := branchMap[sol.GetBranch()]; ok {
-					result = append(result, sol)
-				}
-			}
-		}
+		state.Internal = result
+		return nil
 	}
 
-	for _, sol := range params.Local {
-		if _, ok := branchMap[sol.GetBranch()]; !ok {
-			result = append(result, sol)
-		}
-	}
-
-	state.Internal = result
+	state.Internal = params.Local
 	return nil
 }
 

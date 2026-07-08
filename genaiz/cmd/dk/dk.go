@@ -86,6 +86,7 @@ func NewDk(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	}
 
 	dkCmd.AddCommand(NewCreate(ledger, dkCli))
+	dkCmd.AddCommand(NewList(ledger))
 	dkCmd.AddCommand(NewProp(ledger, dkCli))
 	dkCmd.AddCommand(NewProxy(ledger, dkCli))
 	dkCmd.AddCommand(NewPublish(ledger, dkCli))
@@ -103,6 +104,7 @@ func NewDkCli(confirm cli.Interactive, dry, pretend cli.Decisive) *Cli {
 	}
 }
 
+// ParseDataLinkArgument considers the argument to have a mandatory Handle, with an optional OEM
 func ParseDataLinkArgument(linkArgument string) (string, string, string) {
 	var oem, handle, version string
 
