@@ -13,16 +13,18 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz-lib/lang/intz"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
 
 var (
-	errDataLinkConflict = errors.New("data link can not be updated to existing version")
-	errDataLinkExists   = errors.New("data link exists")
-	errDataLinkInvalid  = errors.New("data link fqdn is invalid")
-	errDataLinkNotFound = errors.New("data link not found")
+	errDataLinkConflict   = task.NewError("data link can not be updated to existing version")
+	errDataLinkExists     = task.NewError("data link exists")
+	errDataLinkInvalid    = task.NewError("data link fqdn is invalid")
+	errDataLinkNotFound   = task.NewError("data link not found")
+	errDataLinkOemMissing = task.NewError("data link oem is unknown")
 )
 
 type DataLinkWriter interface {
@@ -133,6 +135,23 @@ func (dlp DataLinkParams) publishedFqdn() (string, string, string) {
 	return "", "", ""
 }
 
+type DataLinkListParams struct {
+	Broker
+	AccountOnly bool
+	Local       []DataLink
+	Oem         string
+	Handle      string
+	Version     string
+}
+
+func (dlp DataLinkListParams) isEqual(link *DataLink) bool {
+	if link != nil {
+		return link.IsEqual(dlp.Oem, dlp.Handle, dlp.Version)
+	}
+
+	return false
+}
+
 // NewDataLinkCollectTask creates a task.Task whose role is to collect data link definitions from user specified configurations.
 //
 // The configurations can be taken from the project Genaiz.yaml configs or the user's home repository configuration. This is used in cases where the datalink definitions are not synchronized using NewDataLinkExportTask. When the user is offline, or when Smart Functions are exported to a new broker which does not have the datalink definitions. It allows devs to defer validation to the broker on publish.
@@ -181,6 +200,9 @@ func NewDataLinkExportTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
 	}
 }
 
+// NewDataLinkFindTask builds a task.Task whose role is to find a specific datalink by fqdn and version.
+//
+// The Find task will fail with an error if oem, handle or version are not provided. Also this task assumes the list is returned in order of seq and picks the first datalink encountered in the list.
 func NewDataLinkFindTask() *task.Task[DataLinkParams] {
 	return &task.Task[DataLinkParams]{
 		Name:       "data-link-find",
@@ -190,12 +212,33 @@ func NewDataLinkFindTask() *task.Task[DataLinkParams] {
 	}
 }
 
+// NewDataLinkListTask builds a similar task to the Find task, but unlike it tries to produce the biggest list it can from the result set returned by the broker.
+//
+// The List task still requires an oem parameter, but if no handle and no versions are provided, the list will span multiple datalink definitions.
+func NewDataLinkListTask() *task.Task[DataLinkListParams] {
+	return &task.Task[DataLinkListParams]{
+		Name:         "data-link-list",
+		OnPrepare:    handleDataLinkListContext,
+		OnComplete:   handleDataLinkListComplete,
+		OnIncomplete: handleDataLinkListIncomplete,
+		OnPretend:    handleDataLinkListPretend,
+	}
+}
+
 func NewDataLinkPublishTask(writer DataLinkWriter) *task.Task[DataLinkParams] {
 	return &task.Task[DataLinkParams]{
 		Name:       "data-link-publish",
 		OnPrepare:  lang.Assists(writer, handleDataLinkPublishContext),
 		OnComplete: lang.Assists(writer, handleDataLinkPublishComplete),
 		OnPretend:  lang.Assists(writer, handleDataLinkPublishPretend),
+	}
+}
+
+func NewDataLinkReduceTask() *task.Task[DataLinkListParams] {
+	return &task.Task[DataLinkListParams]{
+		Name:       "data-link-reduce",
+		OnPrepare:  handleDataLinkReduceContext,
+		OnComplete: handleDataLinkReduceComplete,
 	}
 }
 
@@ -536,8 +579,8 @@ func handleDataLinkExportComplete(writer DataLinkWriter, params *DataLinkParams,
 
 			state.Logger.Debugf("Looking up for data link [%s]", fqdnString)
 
-			if params.Seq != 0 {
-				sequence = cast.ToString(params.Seq)
+			if params.Seq != nil {
+				sequence = cast.ToString(*params.Seq)
 				state.Logger.Debugf("Clamping on sequence version [%s]", sequence)
 			}
 
@@ -574,10 +617,10 @@ func handleDataLinkExportPretend(params *DataLinkParams, state *task.State) erro
 			var fqdnString = params.ToString()
 			var sequence string
 
-			if params.Seq == 0 {
+			if params.Seq == nil {
 				state.Logger.Debugf("Pretending to export data link [%s]", fqdnString)
 			} else {
-				sequence = cast.ToString(params.Seq)
+				sequence = cast.ToString(*params.Seq)
 				state.Logger.Debugf("Pretending to export data link [%s-rc%s]", fqdnString, sequence)
 			}
 
@@ -628,7 +671,7 @@ func handleDataLinkFindComplete(params *DataLinkParams, state *task.State) error
 			if i := slices.IndexFunc(dataLinks, func(link DataLink) bool {
 				return link.IsActive() && params.isEqual(&link)
 			}); i >= 0 {
-				state.Logger.Debugf("Found data link [%d]", dataLinks[i].Id)
+				state.Logger.Debugf("Found data link [%d]", intz.Int64ToDefault(dataLinks[i].Id, -1))
 				state.Internal = dataLinks[i]
 				return nil
 			}
@@ -661,6 +704,104 @@ func handleDataLinkFindPretend(params *DataLinkParams, state *task.State) error 
 	return err
 }
 
+func handleDataLinkListComplete(params *DataLinkListParams, state *task.State) error {
+	var brokerClient Client
+	var err error
+
+	if brokerClient, err = params.GetClient(); err == nil {
+		var dataLinks []DataLink
+		var handle, ver string
+
+		if params.Handle != "" {
+			handle = "/" + params.Handle
+		}
+
+		if params.Version != "" {
+			ver = ":" + params.Version
+		}
+
+		state.Logger.Debugf("Listing datalinks corresponding to [%s%s%s]", params.Oem, handle, ver)
+
+		if dataLinks, err = brokerClient.ListDataLinks(params.Oem, params.Handle, DataLinkFlags.Active); err == nil {
+			if params.Version != "" {
+				var filtered []DataLink
+
+				for _, dl := range dataLinks {
+					if params.isEqual(&dl) {
+						filtered = append(filtered, dl)
+					}
+				}
+
+				state.Internal = filtered
+			} else {
+				state.Internal = dataLinks
+			}
+
+			return nil
+		}
+	}
+
+	return err
+}
+
+func handleDataLinkListContext(params *DataLinkListParams, state *task.State) error {
+	if state.Internal == nil {
+		if params.Oem == "" {
+			return errDataLinkOemMissing
+		}
+
+		if brokerClient, err := params.GetClient(); err == nil {
+			if params.AccountOnly {
+				state.Logger.Debugf("Account only datalinks will be listed")
+
+				if len(params.Local) > 0 {
+					state.Logger.Warn("Local datalinks provided will be ignored")
+				}
+			}
+
+			state.Output = brokerClient.GetHostAddr()
+		} else {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func handleDataLinkListIncomplete(params *DataLinkListParams, state *task.State) error {
+	if state.Error != nil {
+		if params.AccountOnly {
+			state.Logger.Errorf("Could not list solution for account only")
+			return state.Error
+		}
+	}
+
+	state.Completed = true
+	return nil
+}
+
+func handleDataLinkListPretend(params *DataLinkListParams, state *task.State) error {
+	var brokerClient Client
+	var err error
+
+	if brokerClient, err = params.GetClient(); err == nil {
+		state.Logger.Debugf("Pretending to list data links for [%s/%s]", params.Oem, params.Handle)
+		fmt.Printf("curl -X GET -H \"Accept: application/json\" \\\n")
+		fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+		fmt.Printf("  -G -d oem=%s\\\n", params.Oem)
+
+		if params.Handle != "" {
+			fmt.Printf("  -d handle=%s\\\n", params.Handle)
+		}
+
+		fmt.Printf("  -d flags=%d\\\n", DataLinkFlags.Active)
+		fmt.Printf("%s\n", brokerClient.ListDataLinksUrl())
+		return nil
+	}
+
+	return err
+}
+
 func handleDataLinkPublishContext(writer DataLinkWriter, params *DataLinkParams, state *task.State) error {
 	if state.Output == "" {
 		var fqdn = params.ToString()
@@ -678,7 +819,10 @@ func handleDataLinkPublishContext(writer DataLinkWriter, params *DataLinkParams,
 				var remoteLink *DataLink
 
 				if remoteLink, err = brokerClient.FindDataLink(pubOem, pubHandle, pubVersion); err == nil {
-					state.Output = cast.ToString(remoteLink.Id)
+					if remoteLink.Id != nil {
+						state.Output = cast.ToString(*remoteLink.Id)
+					}
+
 					return errDataLinkConflict
 				}
 
@@ -712,7 +856,7 @@ func handleDataLinkPublishComplete(writer DataLinkWriter, params *DataLinkParams
 
 				if result, err = brokerClient.PublishDataLink(sanitized); err == nil {
 					state.Reportf("Published data link [%s/%s:%s], id [%d]",
-						result.Oem, result.Handle, result.Version, result.Id)
+						result.Oem, result.Handle, result.Version, intz.Int64ToDefault(result.Id, -1))
 					state.Internal = result
 					return nil
 				}
@@ -753,6 +897,37 @@ func handleDataLinkPublishPretend(writer DataLinkWriter, params *DataLinkParams,
 	}
 
 	return state.Error
+}
+
+func handleDataLinkReduceComplete(params *DataLinkListParams, state *task.State) error {
+	if remotes, hasInternal := state.Internal.([]DataLink); hasInternal {
+		var hierarchy = NewHierarchy(lang.Refs(remotes), func(d1, d2 *DataLink) bool {
+			return d1.IsAfter(d2)
+		})
+		var result []DataLink
+
+		state.Logger.Debugf("Reducing [%d] account datalinks", len(remotes))
+
+		for _, dl := range hierarchy.reduce(lang.Refs(params.Local)) {
+			result = append(result, *dl)
+		}
+
+		state.Internal = result
+		return nil
+	}
+
+	state.Internal = params.Local
+	return nil
+}
+
+func handleDataLinkReduceContext(params *DataLinkListParams, state *task.State) error {
+	var count = len(params.Local)
+
+	if count > 0 {
+		state.Logger.Debugf("Reducing [%d] local datalinks", count)
+	}
+
+	return nil
 }
 
 func persistVarSpecs(spec *DataLink, state *task.State) {

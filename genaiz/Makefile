@@ -12,7 +12,7 @@ help:
 ## build - Produces the main binary genaiz in the source folder
 build: clean
 	@echo "Building..."
-	go build -tags prod
+	go build -ldflags="-X genaiz.com/genaiz/version.Head=$$(git rev-parse HEAD)" -tags prod
 
 .PHONY: clean
 ## clean - Removes the built binaries and coverage reports, and resets the test cache of the go compiler
@@ -26,7 +26,7 @@ clean:
 dist:
 	@echo "Making distribution tarball"
 	mkdir dist
-	go build -tags prod -o dist/genaiz
+	go build -ldflags="-X genaiz.com/genaiz/version.Head=$$(git rev-parse HEAD)" -tags prod -o dist/genaiz
 	cd dist \
 		&& tar cvfz genaiz-"$$(./genaiz --version |awk '{print $$3}')".tar.gz genaiz \
 		&& sha256sum -b *.tar.gz > genaiz-"$$(./genaiz --version |awk '{print $$3}')".tar.gz.sha256

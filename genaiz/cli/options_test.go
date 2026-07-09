@@ -80,6 +80,24 @@ func Test_OptionsConfigsType(t *testing.T) {
 	assert.False(t, testOption.Validator("invalid"))
 }
 
+func Test_OptionsDataLinksAccount(t *testing.T) {
+	var testOption = Options.DataLinks.Account().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+
+}
+
+func Test_OptionsDataLinksAccountOnly(t *testing.T) {
+	var testOption = Options.DataLinks.AccountOnly().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsDataLinksDescription(t *testing.T) {
 	var testOption = Options.DataLinks.Description().BuildStringOption()
 

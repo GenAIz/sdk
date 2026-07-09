@@ -43,6 +43,11 @@ type Document struct {
 			UserDefined Keys
 			Version     Keys
 		}
+		List struct {
+			Account     Keys
+			AccountOnly Keys
+			Printer     Keys
+		}
 		PropSpecAdd struct {
 			ConfigType   Keys
 			DefaultValue Keys
@@ -468,6 +473,10 @@ func init() {
 	Genaiz.DataLink.Create.Oem = newKeys("DataLink.Create.Oem", "DK_CREATE_OEM", "Dk.Create.Oem")
 	Genaiz.DataLink.Create.UserDefined = newKeys("DataLink.Create.UserDefined", "DK_CREATE_USER_DEFINED", "Dk.Create.UserDefined")
 	Genaiz.DataLink.Create.Version = newKeys("DataLink.Create.Version", "DK_CREATE_VERSION", "Dk.Create.Version")
+
+	Genaiz.DataLink.List.Account = newKeys("DataLink.List.Account", "DK_LIST_ACCOUNT", "Dk.List.Account")
+	Genaiz.DataLink.List.AccountOnly = newKeys("DataLink.List.AccountOnly", "DK_LIST_ACCOUNT_ONLY", "Dk.List.AccountOnly")
+	Genaiz.DataLink.List.Printer = newKeys("DataLink.List.Printer", "DK_LIST_PRINTER", "Dk.List.Printer")
 
 	Genaiz.DataLink.PropSpecAdd.ConfigType = newKeys("DataLink.PropSpecAdd.ConfigType", "DK_CREATE_PROP_SPEC_ADD_CONFIG_TYPE", "Dk.PropSpecAdd.ConfigType")
 	Genaiz.DataLink.PropSpecAdd.DefaultValue = newKeys("DataLink.PropSpecAdd.DefaultValue", "DK_PROP_SPEC_ADD_DEFAULT_VALUE", "Dk.PropSpecAdd.DefaultValue")

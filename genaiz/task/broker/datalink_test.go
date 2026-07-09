@@ -10,19 +10,20 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
 
 type stubDataLinkClient struct {
 	client
+	brokerAddr           string
 	exportDataLink       *DataLink
 	exportDataLinkError  error
 	findDataLink         *DataLink
@@ -31,6 +32,10 @@ type stubDataLinkClient struct {
 	listDataLinkError    error
 	publishDataLink      *DataLink
 	publishDataLinkError error
+}
+
+func (sdc *stubDataLinkClient) GetHostAddr() string {
+	return sdc.brokerAddr
 }
 
 func (sdc *stubDataLinkClient) ExportDataLink(oem, handle, version, sequence string) (*DataLink, error) {
@@ -259,6 +264,29 @@ func TestDataLinkParam_publishFqdn(t *testing.T) {
 	assert.Equal(t, testParam.NewVersion, actualVersion)
 }
 
+func TestDataLinkListParams_isEqual(t *testing.T) {
+	var testParams = &DataLinkListParams{
+		Oem:     "expectedOem",
+		Handle:  "expectedHandle",
+		Version: "expectedVersion",
+	}
+
+	assert.False(t, testParams.isEqual(nil))
+	assert.False(t, testParams.isEqual(&DataLink{}))
+	assert.False(t, testParams.isEqual(&DataLink{
+		Oem: testParams.Oem,
+	}))
+	assert.False(t, testParams.isEqual(&DataLink{
+		Oem:    testParams.Oem,
+		Handle: testParams.Handle,
+	}))
+	assert.True(t, testParams.isEqual(&DataLink{
+		Oem:     testParams.Oem,
+		Handle:  testParams.Handle,
+		Version: testParams.Version,
+	}))
+}
+
 func TestNewDataLinkCollectTask(t *testing.T) {
 	var testTask = NewDataLinkCollectTask(nil)
 
@@ -306,6 +334,16 @@ func TestNewDataLinkFindTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnPretend)
 }
 
+func TestNewDataLinkListTask(t *testing.T) {
+	var testTask = NewDataLinkListTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnPrepare)
+	assert.NotEmpty(t, testTask.OnComplete)
+	assert.NotEmpty(t, testTask.OnIncomplete)
+	assert.NotEmpty(t, testTask.OnPretend)
+}
+
 func TestNewDataLinkPublishTask(t *testing.T) {
 	var testTask = NewDataLinkPublishTask(nil)
 
@@ -313,6 +351,15 @@ func TestNewDataLinkPublishTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnPrepare)
 	assert.NotEmpty(t, testTask.OnComplete)
 	assert.NotEmpty(t, testTask.OnPretend)
+}
+
+func TestNewDataLinkReduceTask(t *testing.T) {
+	var testTask = NewDataLinkReduceTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnPrepare)
+	assert.NotEmpty(t, testTask.OnComplete)
+	assert.Nil(t, testTask.OnPretend)
 }
 
 func Test_handleDataLinkAvailableError_InternalEmpty(t *testing.T) {
@@ -369,7 +416,7 @@ func Test_handleDataLinkCollectContext(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: t.TempDir(),
 			ConfigName:   "test",
-			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigType:   new(shared.ConfigTypeJson),
 		},
 		DataLink: &DataLink{
 			Oem:     "oem",
@@ -396,7 +443,7 @@ func Test_handleDataLinkCollectContext_NoConfig(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: t.TempDir(),
 			ConfigName:   "test",
-			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigType:   new(shared.ConfigTypeJson),
 		},
 		DataLink: &DataLink{
 			Oem:     "oem",
@@ -574,7 +621,7 @@ func Test_handleDataLinkCreateContext(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigType:   new(shared.ConfigTypeJson),
 		},
 		DataLink: &DataLink{
 			Handle:  testHandle,
@@ -598,7 +645,7 @@ func Test_handleDataLinkCreateContext_DirError(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeToml),
+			ConfigType:   new(shared.ConfigTypeToml),
 		},
 		DataLink: &DataLink{
 			Handle:  testHandle,
@@ -625,7 +672,7 @@ func Test_handleDataLinkCreateContext_FileExists(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigType:   new(shared.ConfigTypeJson),
 		},
 		DataLink: &DataLink{
 			Handle:  testHandle,
@@ -691,7 +738,7 @@ func Test_handleDataLinkCreateComplete(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeYaml),
+			ConfigType:   new(shared.ConfigTypeYaml),
 		},
 		DataLink: &DataLink{
 			Handle:  "testHandle",
@@ -862,7 +909,7 @@ func Test_handleDataLinkEditContext(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigType:   new(shared.ConfigTypeJson),
 		},
 		DataLink: &DataLink{
 			Handle:  testHandle,
@@ -896,7 +943,7 @@ func Test_handleDataLinkEditContext_DirError(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeToml),
+			ConfigType:   new(shared.ConfigTypeToml),
 		},
 		DataLink: &DataLink{
 			Handle:  testHandle,
@@ -955,7 +1002,7 @@ func Test_handleDataLinkEditComplete(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeYaml),
+			ConfigType:   new(shared.ConfigTypeYaml),
 		},
 		DataLink: &DataLink{
 			Handle:  "testHandle",
@@ -1066,7 +1113,7 @@ func Test_handleDataLinkExportContext(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeJson),
+			ConfigType:   new(shared.ConfigTypeJson),
 		},
 		DataLink: &DataLink{
 			Handle:  testHandle,
@@ -1089,7 +1136,7 @@ func Test_handleDataLinkExportContext_DirError(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeToml),
+			ConfigType:   new(shared.ConfigTypeToml),
 		},
 		DataLink: &DataLink{
 			Handle:  testHandle,
@@ -1115,7 +1162,7 @@ func Test_handleDataLinkExportContext_FileExists(t *testing.T) {
 		ConfigParams: shared.ConfigParams{
 			ConfigFolder: testDir,
 			ConfigName:   "Genaiz",
-			ConfigType:   lang.Ref(shared.ConfigTypeYaml),
+			ConfigType:   new(shared.ConfigTypeYaml),
 		},
 		DataLink: &DataLink{
 			Handle:  testHandle,
@@ -1286,7 +1333,7 @@ func Test_handleDataLinkExportComplete_WithSequence(t *testing.T) {
 			Handle:  "testHandle",
 			Oem:     "testOem",
 			Version: "testVersion",
-			Seq:     37,
+			Seq:     new(37),
 		},
 	}
 	var restoredFactory = clientFactory.Get
@@ -1444,7 +1491,7 @@ func Test_handleDataLinkExportPretend_WithSequence(t *testing.T) {
 			Handle:  "testHandle",
 			Oem:     "testOem",
 			Version: "testVersion",
-			Seq:     37,
+			Seq:     new(37),
 		},
 	}
 	var restoredFactory = clientFactory.Get
@@ -1506,11 +1553,11 @@ func Test_handleDataLinkFindComplete(t *testing.T) {
 	var expectedVersion = "expected-version"
 	var expectedLinks = []DataLink{
 		{
-			Id:      int64(37),
+			Id:      new(int64(37)),
 			Oem:     expectedOem,
 			Handle:  expectedHandle,
 			Version: expectedVersion,
-			Flags:   DataLinkFlags.Active,
+			Flags:   new(DataLinkFlags.Active),
 		},
 	}
 	var testState = &task.State{
@@ -1593,11 +1640,11 @@ func Test_handleDataLinkFindComplete_ListLinkInactive(t *testing.T) {
 	var expectedVersion = "expected-version"
 	var expectedLinks = []DataLink{
 		{
-			Id:      int64(37),
+			Id:      new(int64(37)),
 			Oem:     expectedOem,
 			Handle:  expectedHandle,
 			Version: expectedVersion,
-			Flags:   0,
+			Flags:   new(0),
 		},
 	}
 	var testState = &task.State{
@@ -1641,11 +1688,11 @@ func Test_handleDataLinkFindComplete_ListLinkUnavailable(t *testing.T) {
 	var expectedVersion = "expected-version"
 	var expectedLinks = []DataLink{
 		{
-			Id:      int64(37),
+			Id:      new(int64(37)),
 			Oem:     expectedOem,
 			Handle:  expectedHandle,
 			Version: expectedVersion,
-			Flags:   DataLinkFlags.Active,
+			Flags:   new(DataLinkFlags.Active),
 		},
 	}
 	var testState = &task.State{
@@ -1751,6 +1798,376 @@ func Test_handleDataLinkFindPretend_ClientError(t *testing.T) {
 	assert.ErrorIs(t, handleDataLinkFindPretend(testParams, &task.State{}), expectedError)
 }
 
+func Test_handleDataLinkListComplete(t *testing.T) {
+	var expectedToken = "expectedToken"
+	var expectedHostAddr = "expectedHost"
+	var testLink = &DataLink{
+		Handle:  "expectedHandle",
+		Oem:     "expectedOem",
+		Version: "expectedVersion",
+	}
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		Oem: "expectedOem",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{
+			listDataLink: []DataLink{*testLink},
+		}
+
+		clt.AuthToken = expectedToken
+		clt.HostAddr = expectedHostAddr
+		return clt, nil
+	}
+
+	assert.NoError(t, handleDataLinkListComplete(testParams, testState))
+	assert.NotNil(t, testState.Internal)
+	actual, ok := testState.Internal.([]DataLink)
+
+	if ok {
+		assert.Equal(t, []DataLink{*testLink}, actual)
+	} else {
+		assert.Fail(t, "expected a list of datalinks")
+	}
+}
+
+func Test_handleDataLinkListComplete_ClientError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleDataLinkListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleDataLinkListComplete_ListError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var expectedToken = "expectedToken"
+	var expectedHostAddr = "expectedHost"
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		Oem: "expectedOem",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{
+			listDataLinkError: expectedError,
+		}
+
+		clt.AuthToken = expectedToken
+		clt.HostAddr = expectedHostAddr
+		return clt, nil
+	}
+
+	assert.ErrorIs(t, handleDataLinkListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleDataLinkListComplete_WithVersion(t *testing.T) {
+	var expectedToken = "expectedToken"
+	var expectedHostAddr = "expectedHost"
+	var testLink = &DataLink{
+		Handle:  "expectedHandle",
+		Oem:     "expectedOem",
+		Version: "expectedVersion",
+	}
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		Oem:     "expectedOem",
+		Handle:  "expectedHandle",
+		Version: "expectedVersion",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{
+			listDataLink: []DataLink{*testLink,
+				{
+					Handle:  "expectedHandle",
+					Oem:     "expectedOem",
+					Version: "testVersion",
+				},
+			},
+		}
+
+		clt.AuthToken = expectedToken
+		clt.HostAddr = expectedHostAddr
+		return clt, nil
+	}
+
+	assert.NoError(t, handleDataLinkListComplete(testParams, testState))
+	assert.NotNil(t, testState.Internal)
+	actual, ok := testState.Internal.([]DataLink)
+
+	if ok {
+		assert.Equal(t, []DataLink{*testLink}, actual)
+	} else {
+		assert.Fail(t, "expected a list of datalinks")
+	}
+}
+
+func Test_handleDataLinkListContext(t *testing.T) {
+	var expectedBrokerAddr = "brokerAddr"
+	var restoredFactory = clientFactory.Active
+	var testLogger, testHook = test.NewNullLogger()
+	var testParams = &DataLinkListParams{
+		Oem: "oem",
+	}
+	var testState = &task.State{Logger: testLogger}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubDataLinkClient{
+			brokerAddr: expectedBrokerAddr,
+		}, nil
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.NoError(t, handleDataLinkListContext(testParams, testState))
+	assert.Equal(t, 0, len(testHook.Entries))
+	assert.Equal(t, expectedBrokerAddr, testState.Output)
+}
+
+func Test_handleDataLinkListContext_AccountOnly(t *testing.T) {
+	var expectedBrokerAddr = "brokerAddr"
+	var restoredFactory = clientFactory.Active
+	var testLogger, testHook = test.NewNullLogger()
+	var testParams = &DataLinkListParams{
+		Oem:         "oem",
+		AccountOnly: true,
+	}
+	var testState = &task.State{Logger: testLogger}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubDataLinkClient{
+			brokerAddr: expectedBrokerAddr,
+		}, nil
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.NoError(t, handleDataLinkListContext(testParams, testState))
+	assert.Equal(t, 1, len(testHook.Entries))
+	assert.Equal(t, expectedBrokerAddr, testState.Output)
+}
+
+func Test_handleDataLinkListContext_AccountOnlyIgnoreLocals(t *testing.T) {
+	var expectedBrokerAddr = "brokerAddr"
+	var restoredFactory = clientFactory.Active
+	var testLogger, testHook = test.NewNullLogger()
+	var testParams = &DataLinkListParams{
+		Oem:         "oem",
+		AccountOnly: true,
+		Local: []DataLink{
+			{
+				Id: new(int64(37)),
+			},
+		},
+	}
+	var testState = &task.State{Logger: testLogger}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubDataLinkClient{
+			brokerAddr: expectedBrokerAddr,
+		}, nil
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.NoError(t, handleDataLinkListContext(testParams, testState))
+	assert.Equal(t, 2, len(testHook.Entries))
+	assert.Equal(t, expectedBrokerAddr, testState.Output)
+}
+
+func Test_handleDataLinkListContext_ClientError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		Oem: "expectedOem",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleDataLinkListContext(testParams, testState), expectedError)
+}
+
+func Test_handleDataLinkListContext_ExistingInternal(t *testing.T) {
+	var testState = &task.State{Internal: "existing"}
+
+	assert.Nil(t, handleDataLinkListContext(&DataLinkListParams{}, testState))
+}
+
+func Test_handleDataLinkListContext_NoOem(t *testing.T) {
+	assert.ErrorIs(t, handleDataLinkListContext(&DataLinkListParams{}, &task.State{}), errDataLinkOemMissing)
+}
+
+func Test_handleDataLinkListIncomplete(t *testing.T) {
+	var testParams = &DataLinkListParams{}
+	var testState = &task.State{
+		Error:  errors.New("expected"),
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleDataLinkListIncomplete(testParams, testState))
+}
+
+func Test_handleDataLinkListIncomplete_AccountOnlyError(t *testing.T) {
+	var testParams = &DataLinkListParams{AccountOnly: true}
+	var testState = &task.State{
+		Error:  errors.New("expected"),
+		Logger: logrus.New(),
+	}
+
+	assert.ErrorIs(t, handleDataLinkListIncomplete(testParams, testState), testState.Error)
+}
+
+func Test_handleDataLinkListIncomplete_NoError(t *testing.T) {
+	assert.NoError(t, handleDataLinkListIncomplete(&DataLinkListParams{}, &task.State{}))
+}
+
+func Test_handleDataLinkListPretend(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		Oem: "expectedOem",
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubDataLinkClient{}, nil
+	}
+
+	assert.NoError(t, handleDataLinkListPretend(testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, testParams.Oem)
+}
+
+func Test_handleDataLinkListPretend_ClientError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		Oem: "expectedOem",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleDataLinkListPretend(testParams, testState), expectedError)
+}
+
+func Test_handleDataLinkListPretend_WithHandle(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &DataLinkListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		Oem:    "expectedOem",
+		Handle: "expectedHandle",
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubDataLinkClient{}, nil
+	}
+
+	assert.NoError(t, handleDataLinkListPretend(testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, testParams.Oem)
+	assert.Contains(t, output, testParams.Handle)
+}
+
 func Test_handleDataLinkPublishContext(t *testing.T) {
 	var expectedToken = "expectedToken"
 	var expectedHostAddr = "expectedHost"
@@ -1826,6 +2243,7 @@ func Test_handleDataLinkPublishContext_DataLinkConflict(t *testing.T) {
 	var expectedToken = "expectedToken"
 	var expectedHostAddr = "expectedHost"
 	var testLink = &DataLink{
+		Id:      new(int64(37)),
 		Handle:  "testHandle",
 		Oem:     "testOem",
 		Version: "testVersion",
@@ -1859,6 +2277,47 @@ func Test_handleDataLinkPublishContext_DataLinkConflict(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleDataLinkPublishContext(testWriter, testParams, testState), errDataLinkConflict)
+	assert.Equal(t, cast.ToString(testLink.Id), testState.Output)
+}
+
+func Test_handleDataLinkPublishContext_DataLinkConflictNoId(t *testing.T) {
+	var expectedToken = "expectedToken"
+	var expectedHostAddr = "expectedHost"
+	var testLink = &DataLink{
+		Handle:  "testHandle",
+		Oem:     "testOem",
+		Version: "testVersion",
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testWriter = &stubDataLinkWriter{
+		dataLink: testLink,
+	}
+	var testParams = &DataLinkParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataLink: testLink,
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		var clt = &stubDataLinkClient{
+			findDataLink: testLink,
+		}
+
+		clt.AuthToken = expectedToken
+		clt.HostAddr = expectedHostAddr
+		return clt, nil
+	}
+
+	assert.ErrorIs(t, handleDataLinkPublishContext(testWriter, testParams, testState), errDataLinkConflict)
+	assert.Empty(t, testState.Output)
 }
 
 func Test_handleDataLinkPublishContext_DataLinkError(t *testing.T) {
@@ -2165,6 +2624,94 @@ func Test_handleDataLinkPublishPretend_OutputKnown(t *testing.T) {
 	var testTask = &task.State{Output: "some existing id"}
 
 	assert.NoError(t, handleDataLinkPublishPretend(nil, &DataLinkParams{}, testTask))
+}
+
+func Test_handleDataLinkReduceComplete(t *testing.T) {
+	var expectedLocal = &DataLink{
+		Id:  new(int64(37)),
+		Oem: "localOem",
+	}
+	var expectedRemote = &DataLink{
+		Id:      new(int64(42)),
+		Oem:     "remoteOem",
+		Handle:  "remoteHandle",
+		Version: "remoteVersion",
+		Seq:     new(1),
+	}
+	var testParams = &DataLinkListParams{
+		Local: []DataLink{*expectedLocal},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Internal: []DataLink{*expectedRemote,
+			{
+				Id:      new(int64(69)),
+				Oem:     "remoteOem",
+				Handle:  "remoteHandle",
+				Version: "remoteVersion",
+				Seq:     new(0),
+			},
+		},
+	}
+
+	assert.NoError(t, handleDataLinkReduceComplete(testParams, testState))
+	actual, ok := testState.Internal.([]DataLink)
+
+	if ok {
+		assert.Equal(t, []DataLink{*expectedRemote, *expectedLocal}, actual)
+		return
+	}
+
+	assert.Fail(t, "expected a list of datalinks")
+}
+
+func Test_handleDataLinkReduceComplete_NoInternal(t *testing.T) {
+	var expectedLocal = &DataLink{
+		Id: new(int64(37)),
+	}
+	var testParams = &DataLinkListParams{
+		Local: []DataLink{*expectedLocal},
+	}
+	var testState = &task.State{}
+
+	assert.NoError(t, handleDataLinkReduceComplete(testParams, testState))
+	actual, ok := testState.Internal.([]DataLink)
+
+	if ok {
+		assert.Equal(t, []DataLink{*expectedLocal}, actual)
+		return
+	}
+
+	assert.Fail(t, "expected a list of datalinks")
+}
+
+func Test_handleDataLinkReduceContext(t *testing.T) {
+	var testLogger, testHook = test.NewNullLogger()
+	var testState = &task.State{
+		Logger: testLogger,
+	}
+	var testParams = &DataLinkListParams{
+		Local: []DataLink{
+			{
+				Id: new(int64(37)),
+			},
+		},
+	}
+
+	testLogger.Level = logrus.DebugLevel
+	assert.NoError(t, handleDataLinkReduceContext(testParams, testState))
+	assert.Equal(t, 1, len(testHook.Entries))
+}
+
+func Test_handleDataLinkReduceContext_NoLocal(t *testing.T) {
+	var testLogger, testHook = test.NewNullLogger()
+	var testState = &task.State{
+		Logger: testLogger,
+	}
+
+	testLogger.Level = logrus.DebugLevel
+	assert.NoError(t, handleDataLinkReduceContext(&DataLinkListParams{}, testState))
+	assert.Empty(t, testHook.Entries)
 }
 
 func Test_pretendPropSpec(t *testing.T) {

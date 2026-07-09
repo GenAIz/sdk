@@ -39,12 +39,111 @@ func TestDataLink_FindSecretSpec(t *testing.T) {
 	assert.Equal(t, &testLink.SecretSpecs[0], testLink.FindSecretSpec(testKey))
 }
 
+func TestDataLink_GetBranch(t *testing.T) {
+	var testDatalink = &DataLink{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "version",
+	}
+	var expectedBranch = fmt.Sprintf("%s/%s:%s", testDatalink.Oem, testDatalink.Handle, testDatalink.Version)
+
+	assert.Equal(t, expectedBranch, testDatalink.GetBranch())
+}
+
+func TestDataLink_GetFqdn(t *testing.T) {
+	var testDatalink = &DataLink{
+		Oem:    "oem",
+		Handle: "handle",
+	}
+	var expectedFqdn = fmt.Sprintf("%s/%s", testDatalink.Oem, testDatalink.Handle)
+
+	assert.Equal(t, expectedFqdn, testDatalink.GetFqdn())
+	testDatalink.Fqdn = new("expectedFqdn")
+	assert.Equal(t, *testDatalink.Fqdn, testDatalink.GetFqdn())
+}
+
+func TestDataLink_GetVersion(t *testing.T) {
+	var testDatalink = &DataLink{
+		Version: "version",
+	}
+
+	assert.Equal(t, testDatalink.Version, testDatalink.GetVersion())
+	testDatalink.Seq = new(1)
+	assert.Equal(t, fmt.Sprintf("%s-rc-%d", testDatalink.Version, *testDatalink.Seq), testDatalink.GetVersion())
+	testDatalink.Flags = new(DataLinkFlags.Active | DataLinkFlags.Released)
+	assert.Equal(t, testDatalink.Version, testDatalink.GetVersion())
+}
+
 func TestDataLink_IsActive(t *testing.T) {
 	var testLink = &DataLink{}
 
 	assert.False(t, testLink.IsActive())
-	testLink.Flags = DataLinkFlags.Active
+	testLink.Flags = new(DataLinkFlags.Active)
 	assert.True(t, testLink.IsActive())
+}
+
+func TestDataLink_IsAfter(t *testing.T) {
+	var branchOem = "oem"
+	var branchHandle = "handle"
+	var testDatalink1 = &DataLink{
+		Oem:    branchOem,
+		Handle: branchHandle,
+		Seq:    new(37),
+	}
+	var testDatalink2 = &DataLink{
+		Oem:    branchOem,
+		Handle: branchHandle,
+		Seq:    new(1337),
+	}
+
+	assert.False(t, testDatalink1.IsAfter(testDatalink2))
+	assert.True(t, testDatalink2.IsAfter(testDatalink1))
+}
+
+func TestDataLink_IsAfter_DifferentBranch(t *testing.T) {
+	var branchOem = "oem"
+	var branchHandle = "handle"
+	var testDatalink1 = &DataLink{
+		Oem:    branchOem,
+		Handle: branchHandle,
+	}
+	var testDatalink2 = &DataLink{
+		Oem:    branchOem,
+		Handle: "different",
+	}
+
+	assert.False(t, testDatalink1.IsAfter(testDatalink2))
+}
+
+func TestDataLink_IsAfter_NoSequence(t *testing.T) {
+	var branchOem = "oem"
+	var branchHandle = "handle"
+	var testDatalink1 = &DataLink{
+		Oem:    branchOem,
+		Handle: branchHandle,
+	}
+	var testDatalink2 = &DataLink{
+		Oem:    branchOem,
+		Handle: branchHandle,
+	}
+
+	assert.False(t, testDatalink1.IsAfter(testDatalink2))
+}
+
+func TestDataLink_IsAfter_Partial(t *testing.T) {
+	var branchOem = "oem"
+	var branchHandle = "handle"
+	var testDatalink1 = &DataLink{
+		Oem:    branchOem,
+		Handle: branchHandle,
+		Seq:    new(37),
+	}
+	var testDatalink2 = &DataLink{
+		Oem:    branchOem,
+		Handle: branchHandle,
+	}
+
+	assert.True(t, testDatalink1.IsAfter(testDatalink2))
 }
 
 func TestDataLink_RemovePropSpec(t *testing.T) {
@@ -533,8 +632,8 @@ func TestSolution_IsAfter(t *testing.T) {
 		Seq:    new(1337),
 	}
 
-	assert.False(t, testSolution1.IsAfter(*testSolution2))
-	assert.True(t, testSolution2.IsAfter(*testSolution1))
+	assert.False(t, testSolution1.IsAfter(testSolution2))
+	assert.True(t, testSolution2.IsAfter(testSolution1))
 }
 
 func TestSolution_IsAfter_DifferentBranch(t *testing.T) {
@@ -549,7 +648,7 @@ func TestSolution_IsAfter_DifferentBranch(t *testing.T) {
 		Handle: "different",
 	}
 
-	assert.False(t, testSolution1.IsAfter(*testSolution2))
+	assert.False(t, testSolution1.IsAfter(testSolution2))
 }
 
 func TestSolution_IsAfter_NoSequence(t *testing.T) {
@@ -564,7 +663,7 @@ func TestSolution_IsAfter_NoSequence(t *testing.T) {
 		Handle: branchHandle,
 	}
 
-	assert.False(t, testSolution1.IsAfter(*testSolution2))
+	assert.False(t, testSolution1.IsAfter(testSolution2))
 }
 
 func TestSolution_IsAfter_Partial(t *testing.T) {
@@ -580,7 +679,7 @@ func TestSolution_IsAfter_Partial(t *testing.T) {
 		Handle: branchHandle,
 	}
 
-	assert.True(t, testSolution1.IsAfter(*testSolution2))
+	assert.True(t, testSolution1.IsAfter(testSolution2))
 }
 
 func TestSolution_Merge(t *testing.T) {

@@ -6,8 +6,15 @@ import (
 	"genaiz.com/genaiz/version/env"
 )
 
-var version = "0.4.11"
+var (
+	version = "0.4.12"
+	Head    = ""
+)
 
 func GetVersion() string {
-	return fmt.Sprintf("%s%s", version, env.GetVersionTag())
+	if Head != "" {
+		Head = fmt.Sprintf(" (%s)", Head)
+	}
+
+	return fmt.Sprintf("%s%s%s", version, env.GetVersionTag(), Head)
 }

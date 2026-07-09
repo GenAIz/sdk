@@ -58,6 +58,19 @@ var (
 			},
 		},
 		DataLinks: dataLinkOptions{
+			mgmtOptions: mgmtOptions{
+				Account: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("account").
+						WithUsage("account managing the datalinks")
+				},
+				AccountOnly: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("account-only").
+						WithUsage("only lists account datalinks").
+						WithDefaultValue(cast.ToString(false))
+				},
+			},
 			Description: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("description").
@@ -702,6 +715,7 @@ type configOptions struct {
 }
 
 type dataLinkOptions struct {
+	mgmtOptions
 	Description      func() OptionBuilder
 	Handle           func() OptionBuilder
 	Name             func() OptionBuilder

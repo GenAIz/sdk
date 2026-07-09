@@ -163,6 +163,10 @@ func (dlr *DataLinksReader) WithCurrent(dataLinks []broker.DataLink) *DataLinksR
 	return dlr
 }
 
+func NewDataLinkReader() *DataLinksReader {
+	return &DataLinksReader{}
+}
+
 type SolutionReader struct {
 	BaseReader
 	current *broker.Solution

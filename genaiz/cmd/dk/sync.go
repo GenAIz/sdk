@@ -72,6 +72,9 @@ func (se SyncExecutor) Proceed() {
 }
 
 func (se SyncExecutor) makeDataLinkParams(configParams shared.ConfigParams) *broker.DataLinkParams {
+	var seqString = se.Ledger.GetString(se.optionSequence)
+	var seq = new(cast.ToInt(seqString))
+
 	se.setOptions(se.Ledger, se.linkArgument)
 	return &broker.DataLinkParams{
 		Broker: broker.Broker{
@@ -82,7 +85,7 @@ func (se SyncExecutor) makeDataLinkParams(configParams shared.ConfigParams) *bro
 			Handle:  se.Ledger.GetString(se.optionHandle),
 			Oem:     se.Ledger.GetString(se.optionOem),
 			Version: se.Ledger.GetString(se.optionVersion),
-			Seq:     cast.ToInt(se.Ledger.GetString(se.optionSequence)),
+			Seq:     seq,
 		},
 	}
 }
