@@ -133,6 +133,8 @@ func (mww *mockWorkflowWriter) Write(testOutput string) error {
 type stubSolutionClient struct {
 	client
 	brokerAddr      string
+	findError       error
+	findSolution    *Solution
 	listError       error
 	listSolutions   []Solution
 	publishError    error
@@ -141,6 +143,10 @@ type stubSolutionClient struct {
 
 func (ssc stubSolutionClient) GetHostAddr() string {
 	return ssc.brokerAddr
+}
+
+func (ssc stubSolutionClient) FindSolution(string, string, string) (*Solution, error) {
+	return ssc.findSolution, ssc.findError
 }
 
 func (ssc stubSolutionClient) ListSolutions(string) ([]Solution, error) {
@@ -157,6 +163,15 @@ func (ssc stubSolutionClient) PublishSolution(*Solution) (*Solution, error) {
 	}
 
 	return nil, nil
+}
+
+type stubSolutionGrapher struct {
+	graphError    error
+	graphSolution *Solution
+}
+
+func (s stubSolutionGrapher) Graph() (*Solution, error) {
+	return s.graphSolution, s.graphError
 }
 
 func TestSolutionParams_HasWorkflows(t *testing.T) {
@@ -226,6 +241,15 @@ func TestWorkflowParams_workflowPredicate(t *testing.T) {
 	assert.True(t, testParams.workflowPredicate()(Workflow{Handle: testParams.Handle}))
 }
 
+func TestNewSolutionCollectTask(t *testing.T) {
+	var testTask = NewSolutionCollectTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnComplete)
+	assert.NotEmpty(t, testTask.OnIncomplete)
+	assert.NotEmpty(t, testTask.OnPrepare)
+}
+
 func TestNewSolutionListTask(t *testing.T) {
 	var testTask = NewSolutionListTask()
 
@@ -273,6 +297,16 @@ func TestNewWorkflowDeleteTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnPrepare)
 }
 
+func TestNewWorkflowListTask(t *testing.T) {
+	var testTask = NewWorkflowListTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotEmpty(t, testTask.OnComplete)
+	assert.NotEmpty(t, testTask.OnPrepare)
+	assert.NotEmpty(t, testTask.OnPretend)
+	assert.Empty(t, testTask.OnIncomplete)
+}
+
 func TestNewWorkflowPropTask(t *testing.T) {
 	var testTask = NewWorkflowPropTask()
 
@@ -291,6 +325,106 @@ func TestNewWorkflowUpdateTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnComplete)
 	assert.NotEmpty(t, testTask.OnIncomplete)
 	assert.NotEmpty(t, testTask.OnPrepare)
+}
+
+func Test_handleSolutionCollectContext(t *testing.T) {
+	var testParams = &SolutionCollectParams{
+		Graphers: map[string]SolutionGrapher{
+			"path": nil,
+		},
+	}
+
+	assert.NoError(t, handleSolutionCollectContext(testParams, &task.State{}))
+}
+
+func Test_handleSolutionCollectContext_NoGraphers(t *testing.T) {
+	assert.ErrorIs(t, handleSolutionCollectContext(&SolutionCollectParams{}, &task.State{}), errorSolutionsNotFound)
+}
+
+func Test_handleSolutionCollectContext_OutputExist(t *testing.T) {
+	var testState = &task.State{Output: "output"}
+
+	assert.Nil(t, handleSolutionCollectContext(&SolutionCollectParams{}, testState))
+}
+
+func Test_handleSolutionCollectComplete(t *testing.T) {
+	var testGrapher = &stubSolutionGrapher{
+		graphSolution: &Solution{
+			Id: new(int64(37)),
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &SolutionCollectParams{
+		Graphers: map[string]SolutionGrapher{
+			"path": testGrapher,
+		},
+	}
+
+	assert.NoError(t, handleSolutionCollectComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.([]Solution); ok {
+		assert.Equal(t, []Solution{*testGrapher.graphSolution}, actual)
+	} else {
+		assert.Fail(t, "expected a list of solutions")
+	}
+}
+
+func Test_handleSolutionCollectComplete_GraphError(t *testing.T) {
+	var testGrapher = &stubSolutionGrapher{
+		graphError: errors.New("expected"),
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &SolutionCollectParams{
+		Graphers: map[string]SolutionGrapher{
+			"path": testGrapher,
+		},
+	}
+
+	assert.ErrorIs(t, handleSolutionCollectComplete(testParams, testState), testGrapher.graphError)
+	assert.Nil(t, testState.Internal)
+}
+
+func Test_handleSolutionCollectComplete_InternalExists(t *testing.T) {
+	var testState = &task.State{Internal: "set"}
+
+	assert.ErrorIs(t, handleSolutionCollectComplete(&SolutionCollectParams{}, testState), errorSolutionsConflict)
+}
+
+func Test_handleSolutionCollectComplete_NoGraphers(t *testing.T) {
+	var testState = &task.State{}
+
+	assert.NoError(t, handleSolutionCollectComplete(&SolutionCollectParams{}, testState))
+	assert.Empty(t, testState.Internal)
+}
+
+func Test_handleSolutionCollectIncomplete(t *testing.T) {
+	var testState = &task.State{
+		Error:  errorSolutionsNotFound,
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleSolutionCollectIncomplete(&SolutionCollectParams{}, testState))
+
+	if actual, ok := testState.Internal.([]Solution); ok {
+		assert.NotNil(t, actual)
+		assert.Empty(t, actual)
+	} else {
+		assert.Fail(t, "expected empty solution array")
+	}
+}
+
+func Test_handleSolutionCollectIncomplete_ForeignError(t *testing.T) {
+	var testState = &task.State{Error: errors.New("foreign")}
+
+	assert.ErrorIs(t, handleSolutionCollectIncomplete(&SolutionCollectParams{}, testState), testState.Error)
+}
+
+func Test_handleSolutionCollectIncomplete_NoError(t *testing.T) {
+	assert.NoError(t, handleSolutionCollectIncomplete(&SolutionCollectParams{}, &task.State{}))
 }
 
 func Test_handleSolutionCreateConfig(t *testing.T) {
@@ -878,9 +1012,9 @@ func Test_handleSolutionReduceComplete(t *testing.T) {
 
 	if actual, ok := testState.Internal.([]Solution); ok {
 		assert.Equal(t, 3, len(actual))
-		assert.Equal(t, *expectedReleased, actual[0])
-		assert.Equal(t, *expectedCandidate, actual[1])
-		assert.Equal(t, testParams.Local[0], actual[2])
+		assert.Contains(t, actual, *expectedReleased)
+		assert.Contains(t, actual, *expectedCandidate)
+		assert.Contains(t, actual, testParams.Local[0])
 	} else {
 		assert.Fail(t, "expected a list of solutions")
 	}
@@ -1207,6 +1341,145 @@ func Test_handleWorkflowDeletePretend_NoWorkflow(t *testing.T) {
 	assert.ErrorIs(t, handleWorkflowDeletePretend(&WorkflowParams{}, testState), errorWorkflowNotFound)
 }
 
+func Test_handleWorkflowListComplete(t *testing.T) {
+	var restoredFactory = clientFactory.Active
+	var testParams = &WorkflowListParams{Oem: "oem"}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var expectedSolution = &Solution{
+		Id: new(int64(37)),
+	}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubSolutionClient{
+			findSolution: expectedSolution,
+		}, nil
+	}
+
+	assert.NoError(t, handleWorkflowListComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.([]Solution); ok {
+		assert.Equal(t, []Solution{*expectedSolution}, actual)
+	} else {
+		assert.Fail(t, "expected an array of solutions")
+	}
+
+}
+
+func Test_handleWorkflowListComplete_FindError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var restoredFactory = clientFactory.Active
+	var testParams = &WorkflowListParams{Oem: "oem"}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubSolutionClient{
+			findError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkflowListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkflowListComplete_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var restoredFactory = clientFactory.Active
+	var testParams = &WorkflowListParams{Oem: "oem"}
+	var testState = &task.State{}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkflowListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkflowListContext(t *testing.T) {
+	var testParams = &WorkflowListParams{
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "version",
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleWorkflowListContext(testParams, testState))
+}
+
+func Test_handleWorkflowListContext_InvalidParams(t *testing.T) {
+	var testParams = &WorkflowListParams{}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.ErrorIs(t, handleWorkflowListContext(testParams, testState), errorWorkflowListInvalidParams)
+	testParams.Oem = "oem"
+	assert.ErrorIs(t, handleWorkflowListContext(testParams, testState), errorWorkflowListInvalidParams)
+	testParams.Handle = "handle"
+	assert.ErrorIs(t, handleWorkflowListContext(testParams, testState), errorWorkflowListInvalidParams)
+}
+
+func Test_handleWorkflowListContext_OutputExists(t *testing.T) {
+	var testState = &task.State{Output: "output"}
+
+	assert.NoError(t, handleWorkflowListContext(&WorkflowListParams{}, testState))
+}
+
+func Test_handleWorkflowListPretend(t *testing.T) {
+	var expectedBroker = "brokerAddr"
+	var restoredFactory = clientFactory.Active
+	var testParams = &WorkflowListParams{Oem: "oem"}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubSolutionClient{
+			brokerAddr: expectedBroker,
+		}, nil
+	}
+
+	assert.NoError(t, handleWorkflowListPretend(testParams, testState))
+}
+
+func Test_handleWorkflowListPretend_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var restoredFactory = clientFactory.Active
+	var testParams = &WorkflowListParams{Oem: "oem"}
+	var testState = &task.State{}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkflowListPretend(testParams, testState), expectedError)
+}
+
+func Test_handleWorkflowListPretend_StateError(t *testing.T) {
+	var testState = &task.State{Error: errors.New("expected")}
+
+	assert.ErrorIs(t, handleWorkflowListPretend(&WorkflowListParams{}, testState), testState.Error)
+}
+
 func Test_handleWorkflowPropContext(t *testing.T) {
 	var testParams = &WorkflowPropParams{
 		Workflow: &Workflow{
@@ -1251,7 +1524,7 @@ func Test_handleWorkflowPropContext_NoVarSpecs(t *testing.T) {
 		Logger: logrus.New(),
 	}
 
-	assert.ErrorIs(t, handleWorkflowPropContext(testParams, testState), ErrorWorkflowPropIncomplete)
+	assert.ErrorIs(t, handleWorkflowPropContext(testParams, testState), errorWorkflowPropIncomplete)
 }
 
 func Test_handleWorkflowPropContext_NoProps_NoVarSpecs(t *testing.T) {

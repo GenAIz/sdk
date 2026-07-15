@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/timez"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
@@ -19,25 +18,59 @@ func TestUserSolution_Match(t *testing.T) {
 	var testUserSolution = &UserSolution{}
 
 	// empty filter always match all solutions
-	assert.True(t, testUserSolution.Match(""))
+	assert.NotNil(t, testUserSolution.Match(""))
 	testUserSolution.Oem = "oem"
-	assert.True(t, testUserSolution.Match(testUserSolution.Oem))
-	assert.True(t, testUserSolution.Match(testUserSolution.Oem[0:2]))
+	assert.NotNil(t, testUserSolution.Match(testUserSolution.Oem))
+	assert.NotNil(t, testUserSolution.Match(testUserSolution.Oem[0:2]))
 	testUserSolution.Handle = "handle"
 	testUserSolution.Fqdn = fmt.Sprintf("%s/%s", testUserSolution.Oem, testUserSolution.Handle)
-	assert.True(t, testUserSolution.Match(testUserSolution.Fqdn))
-	assert.True(t, testUserSolution.Match(testUserSolution.Fqdn[0:5]))
+	assert.NotNil(t, testUserSolution.Match(testUserSolution.Fqdn))
+	assert.NotNil(t, testUserSolution.Match(testUserSolution.Fqdn[0:5]))
 	testUserSolution.Version = "version"
 	testPartialVersion := fmt.Sprintf("%s:%s", testUserSolution.Fqdn, testUserSolution.Version)
-	assert.True(t, testUserSolution.Match(testPartialVersion[0:14]))
+	assert.NotNil(t, testUserSolution.Match(testPartialVersion[0:14]))
 }
 
 func TestUserSolution_Match_Id(t *testing.T) {
 	var testUserSolution = &UserSolution{Id: 237}
+	var actual = testUserSolution.Match("345")
 
-	assert.False(t, testUserSolution.Match("345"))
-	assert.True(t, testUserSolution.Match("23"))
-	assert.True(t, testUserSolution.Match(cast.ToString(testUserSolution.Id)))
+	assert.Nil(t, actual)
+	actual = testUserSolution.Match("23")
+
+	if actual == nil {
+		assert.Fail(t, "expected actual")
+	} else {
+		assert.Equal(t, testUserSolution.Id, actual.Id)
+	}
+
+	actual = testUserSolution.Match(cast.ToString(testUserSolution.Id))
+
+	if actual == nil {
+		assert.Fail(t, "expected actual")
+	} else {
+		assert.Equal(t, testUserSolution.Id, actual.Id)
+	}
+}
+
+func TestUserSolution_Matched(t *testing.T) {
+	var expectedMatch = "matched"
+	var testUserSolution = &UserSolution{
+		matched: expectedMatch,
+	}
+
+	assert.Equal(t, expectedMatch, testUserSolution.Matched())
+}
+
+func TestUserSolution_Matched_Empty(t *testing.T) {
+	var expectedFqdn = "fqdn"
+	var expectedVersion = "version"
+	var testUserSolution = &UserSolution{
+		Fqdn:    expectedFqdn,
+		Version: expectedVersion,
+	}
+
+	assert.Equal(t, fmt.Sprintf("%s:%s", expectedFqdn, expectedVersion), testUserSolution.Matched())
 }
 
 func TestUserSolution_MarshalJSON(t *testing.T) {
@@ -57,7 +90,7 @@ func TestUserSolution_MarshalJSON(t *testing.T) {
 		Description: "expectedDescription",
 		Created:     testCreated.UnixMilli(),
 		Modified:    testModified.UnixMilli(),
-		Flags:       lang.Ref(1337),
+		Flags:       new(1337),
 	}
 	var bytes []byte
 	var err error
@@ -221,9 +254,9 @@ func TestUserSolutionsProvider_Get(t *testing.T) {
 	var calledParams broker.SolutionListParams
 	var testSolutions = []broker.Solution{
 		{
-			Id:    lang.Ref(int64(37)),
+			Id:    new(int64(37)),
 			Name:  "expected",
-			Flags: lang.Ref(10),
+			Flags: new(10),
 		},
 	}
 	var testParams = &broker.SolutionListParams{}
@@ -276,36 +309,36 @@ func TestUserSolutionsProvider_Get_Filtered(t *testing.T) {
 	var calledParams broker.SolutionListParams
 	var testSolutions = []broker.Solution{
 		{
-			Id:      lang.Ref(int64(37)),
-			Fqdn:    lang.Ref("oem/handle"),
+			Id:      new(int64(37)),
+			Fqdn:    new("oem/handle"),
 			Name:    "expected",
-			Flags:   lang.Ref(10),
-			Created: lang.Ref(int64(9)),
+			Flags:   new(10),
+			Created: new(int64(9)),
 		},
 		{
-			Id:   lang.Ref(int64(1337)),
-			Fqdn: lang.Ref("not_oem/handle"),
+			Id:   new(int64(1337)),
+			Fqdn: new("not_oem/handle"),
 		},
 		{
-			Id:       lang.Ref(int64(42)),
-			Fqdn:     lang.Ref("oem/handle2"),
+			Id:       new(int64(42)),
+			Fqdn:     new("oem/handle2"),
 			Name:     "second",
-			Created:  lang.Ref(int64(10)),
-			Modified: lang.Ref(int64(11)),
+			Created:  new(int64(10)),
+			Modified: new(int64(11)),
 		},
 		{
-			Id:       lang.Ref(int64(69)),
-			Fqdn:     lang.Ref("oem/handle3"),
+			Id:       new(int64(69)),
+			Fqdn:     new("oem/handle3"),
 			Name:     "first",
-			Created:  lang.Ref(int64(8)),
-			Modified: lang.Ref(int64(14)),
+			Created:  new(int64(8)),
+			Modified: new(int64(14)),
 		},
 		{
-			Id:       lang.Ref(int64(56)),
-			Fqdn:     lang.Ref("oem/handle4"),
+			Id:       new(int64(56)),
+			Fqdn:     new("oem/handle4"),
 			Name:     "unchecked",
-			Created:  lang.Ref(int64(8)),
-			Modified: lang.Ref(int64(13)),
+			Created:  new(int64(8)),
+			Modified: new(int64(13)),
 		},
 	}
 	var testParams = &broker.SolutionListParams{}

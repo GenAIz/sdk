@@ -127,6 +127,7 @@ func NewWf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	wfCmd.AddCommand(NewCreate(ledger, wfCli))
 	wfCmd.AddCommand(NewDelete(ledger, wfCli))
 	wfCmd.AddCommand(NewLinks(ledger, wfCli))
+	wfCmd.AddCommand(NewList(ledger))
 	wfCmd.AddCommand(NewNodes(ledger, wfCli))
 	wfCmd.AddCommand(NewProp(ledger, wfCli))
 	return wfCmd

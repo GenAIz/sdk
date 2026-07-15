@@ -329,6 +329,149 @@ func TestClient_FindDataLink_UrlError(t *testing.T) {
 	assert.ErrorIs(t, err, testBridge.err)
 }
 
+func TestClient_FindSolution(t *testing.T) {
+	var expectedToken = "token"
+	var expectedFunctions = []Function{
+		{
+			Id:      1337,
+			Oem:     "expectedFunctionOem",
+			Handle:  "expectedFunctionHandle",
+			Version: "expectedFunctionVersion",
+			Seq:     new(1),
+		},
+	}
+	var expectedSolution = &Solution{Id: new(int64(37))}
+	var expectedWorkflows = []Workflow{
+		{
+			Id: new(int64(42)),
+		},
+	}
+	var expectedWorkflowNodes = []WorkflowNode{
+		{
+			Id:     new(int64(1)),
+			Handle: "ignored",
+		},
+		{
+			Id:         new(int64(2)),
+			WorkflowId: expectedWorkflows[0].Id,
+			Handle:     "expectedNode",
+		},
+		{
+			Id:         new(int64(3)),
+			WorkflowId: new(int64(67)),
+			Handle:     "unknown",
+		},
+		{
+			Id:              new(int64(4)),
+			WorkflowId:      expectedWorkflows[0].Id,
+			SmartFunctionId: new(int64(expectedFunctions[0].Id)),
+			Handle:          "expectedSfNode",
+		},
+		{
+			Id:              new(int64(5)),
+			WorkflowId:      expectedWorkflows[0].Id,
+			SmartFunctionId: new(int64(99)),
+			Handle:          "expectedUnknownSf",
+		},
+	}
+	var expectedLinks = []WorkflowLink{
+		{
+			// This will be ignored because of no workflowId found
+			LhsNodeId: expectedWorkflowNodes[3].Id,
+			RhsNodeId: expectedWorkflowNodes[4].Id,
+		},
+		{
+			// This will be ignored because of no workflow 73 in the solution
+			WorkflowId: new(int64(73)),
+			LhsNodeId:  expectedWorkflowNodes[1].Id,
+			RhsNodeId:  expectedWorkflowNodes[4].Id,
+		},
+		{
+			// This will be ignored because links always require a left node
+			WorkflowId: expectedWorkflows[0].Id,
+		},
+		{
+			// This will be ignored because links always require a right node
+			WorkflowId: expectedWorkflows[0].Id,
+			LhsNodeId:  expectedWorkflowNodes[1].Id,
+		},
+		{
+			WorkflowId: expectedWorkflows[0].Id,
+			LhsNodeId:  expectedWorkflowNodes[1].Id,
+			RhsNodeId:  expectedWorkflowNodes[3].Id,
+		},
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[solutionSlices]{
+				Data: solutionSlices{
+					Solution:       *expectedSolution,
+					Workflows:      expectedWorkflows,
+					WorkflowLinks:  expectedLinks,
+					WorkflowNodes:  expectedWorkflowNodes,
+					SmartFunctions: expectedFunctions,
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.FindSolution("oem", "handle", "version")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedSolution.Id, actual.Id)
+	assert.Equal(t, expectedWorkflows[0].Id, actual.Workflows[0].Id)
+	assert.Equal(t, expectedWorkflowNodes[1].Id, actual.Workflows[0].Nodes[0].Id)
+	assert.Equal(t, expectedWorkflowNodes[3].Id, actual.Workflows[0].Nodes[1].Id)
+	assert.Equal(t, expectedWorkflowNodes[4].Handle, actual.Workflows[0].Nodes[2].Handle)
+	assert.Equal(t, expectedWorkflowNodes[1].Handle, actual.Workflows[0].Links[0].LhsNode)
+	assert.Equal(t, expectedWorkflowNodes[3].Handle, actual.Workflows[0].Links[0].RhsNode)
+}
+
+func TestClient_FindSolution_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.FindSolution("oem", "handle", "version")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_FindSolution_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.FindSolution("oem", "handle", "version")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_FindSolution_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.FindSolution("oem", "handle", "version")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_FindSolution_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.FindSolution("oem", "handle", "version")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
 func TestClient_GetFunction(t *testing.T) {
 	var expectedToken = "token"
 	var expectedFunction = &Function{Id: 37}

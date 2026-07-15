@@ -865,6 +865,14 @@ func Test_OptionsSolutionsWorkflowName(t *testing.T) {
 	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
 }
 
+func Test_OptionsWorkflowAccount(t *testing.T) {
+	var testOption = Options.Workflows.Account().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
 func Test_OptionsWorkflowDescription(t *testing.T) {
 	var testOption = Options.Workflows.Description().BuildStringOption()
 

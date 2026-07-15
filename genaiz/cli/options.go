@@ -449,7 +449,7 @@ var (
 				Account: func() OptionBuilder {
 					return NewOptionBuilder().
 						WithParam("account").
-						WithUsage("account managing the solution")
+						WithUsage("account managing the solutions")
 				},
 				AccountOnly: func() OptionBuilder {
 					return NewOptionBuilder().
@@ -562,6 +562,13 @@ var (
 			},
 		},
 		Workflows: workflowOptions{
+			mgmtOptions: mgmtOptions{
+				Account: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("account").
+						WithUsage("account managing the solution workflows")
+				},
+			},
 			Description: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("description").
@@ -826,6 +833,7 @@ type solutionOptions struct {
 }
 
 type workflowOptions struct {
+	mgmtOptions
 	Description      func() OptionBuilder
 	Handle           func() OptionBuilder
 	Name             func() OptionBuilder

@@ -62,6 +62,7 @@ flowchart LR
 * [create](create.md)
 * [delete](delete.md)
 * [links](links.md)
+* [list](list.md)
 * [nodes](nodes.md)
 * [prop](prop.md)
 
@@ -70,5 +71,7 @@ flowchart LR
 * [Create simple workflow](../../features/workflow/create_simple_workflow.feature)
 * [Delete simple workflow](../../features/workflow/delete_simple_workflow.feature)
 * [Links extensive workflow](../../features/workflow/links_extensive_workflow.feature)
+* [List account workflows](../../features/workflow/list_account_workflows.feature)
+* [List local workflows](../../features/workflow/list_local_workflows.feature)
 * [Nodes extensive workflow](../../features/workflow/nodes_extensive_workflow.feature)
 * [Props extensive workflow](../../features/workflow/props_extensive_workflow.feature)
