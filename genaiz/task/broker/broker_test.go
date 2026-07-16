@@ -277,6 +277,38 @@ func TestFunction_FindDataPortByHandle(t *testing.T) {
 	assert.Equal(t, expectedDataPort, actual)
 }
 
+func TestFunction_GetDataSourceLinks(t *testing.T) {
+	var expectedOem = "oem"
+	var expectedHandle = "handle"
+	var expectedVer = "version"
+	var testFunction = &Function{
+		DataSources: []string{
+			fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVer),
+		},
+	}
+
+	actual := testFunction.GetDataSourceLinks()
+	assert.Equal(t, expectedOem, actual[0].Oem)
+	assert.Equal(t, expectedHandle, actual[0].Handle)
+	assert.Equal(t, expectedVer, actual[0].Version)
+}
+
+func TestFunction_GetDataStoreLinks(t *testing.T) {
+	var expectedOem = "oem"
+	var expectedHandle = "handle"
+	var expectedVer = "version"
+	var testFunction = &Function{
+		DataStores: []string{
+			fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVer),
+		},
+	}
+
+	actual := testFunction.GetDataStoreLinks()
+	assert.Equal(t, expectedOem, actual[0].Oem)
+	assert.Equal(t, expectedHandle, actual[0].Handle)
+	assert.Equal(t, expectedVer, actual[0].Version)
+}
+
 func TestFunction_GetFullVersion(t *testing.T) {
 	var testFunction = &Function{
 		Version: "version",
@@ -1028,6 +1060,29 @@ func TestWorkflowNode_ValidateProps_Error(t *testing.T) {
 	assert.Error(t, workflowNode.ValidateProps([]shared.VarSpec{varSpec}))
 }
 
+func TestWorkflowNodeFunction_IsEqual(t *testing.T) {
+	var expectedOem = "oem"
+	var expectedHandle = "handle"
+	var expectedVersion = "ver"
+	var testNodeFn = &WorkflowNodeFunction{}
+	var testFn = &Function{}
+
+	assert.False(t, testNodeFn.IsEqual(nil))
+	assert.True(t, testNodeFn.IsEqual(testFn))
+	testNodeFn.Oem = expectedOem
+	assert.False(t, testNodeFn.IsEqual(testFn))
+	testFn.Oem = expectedOem
+	assert.True(t, testNodeFn.IsEqual(testFn))
+	testNodeFn.Handle = expectedHandle
+	assert.False(t, testNodeFn.IsEqual(testFn))
+	testFn.Handle = expectedHandle
+	assert.True(t, testNodeFn.IsEqual(testFn))
+	testNodeFn.Version = expectedVersion
+	assert.False(t, testNodeFn.IsEqual(testFn))
+	testFn.Version = expectedVersion
+	assert.True(t, testNodeFn.IsEqual(testFn))
+}
+
 func TestWorkspace_IsActive(t *testing.T) {
 	var testWorkspace = &Workspace{}
 
@@ -1098,4 +1153,25 @@ func TestWorkspace_MarshalJSON_RcEnabled(t *testing.T) {
 	assert.Contains(t, actual, testWorkspace.Description)
 	assert.Contains(t, actual, strings.ToUpper(testWorkspace.Visibility))
 	assert.Contains(t, actual, cast.ToString(WorkspaceFlags.RcEnabled|WorkspaceFlags.Active))
+}
+
+func TestParseFqdnVersion(t *testing.T) {
+	var expectedOem = "oem"
+	var expectedHandle = "handle"
+	var expectedVersion = "version"
+	var actualOem, actualHandle, actualVersion = ParseFqdnVersion(
+		fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVersion))
+
+	assert.Equal(t, expectedOem, actualOem)
+	assert.Equal(t, expectedHandle, actualHandle)
+	assert.Equal(t, expectedVersion, actualVersion)
+}
+
+func TestParseFqdnVersion_SingleString(t *testing.T) {
+	var expectedSingle = "single"
+	var oem, handle, ver = ParseFqdnVersion(expectedSingle)
+
+	assert.Equal(t, expectedSingle, oem)
+	assert.Empty(t, handle)
+	assert.Empty(t, ver)
 }

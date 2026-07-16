@@ -17,19 +17,26 @@ import (
 )
 
 var (
-	errorSolutionFileInvalid    = task.NewError("solution config is invalid")
-	errorSolutionInvalid        = task.NewError("solution is invalid")
-	errorSolutionOemRequired    = task.NewError("solution oem is required")
-	errorWorkflowConflict       = task.NewError("workflow already exists")
-	errorWorkflowFileInvalid    = task.NewError("workflow config is invalid")
-	errorWorkflowFileNotFound   = task.NewError("workflow config file not found")
-	errorWorkflowNotFound       = task.NewError("workflow not found")
-	ErrorWorkflowPropIncomplete = task.NewError("workflow prop specs are empty")
+	errorSolutionsConflict         = task.NewError("solution internal state conflict")
+	errorSolutionFileInvalid       = task.NewError("solution config is invalid")
+	errorSolutionInvalid           = task.NewError("solution is invalid")
+	errorSolutionsNotFound         = task.NewError("solution files not found")
+	errorSolutionOemRequired       = task.NewError("solution oem is required")
+	errorWorkflowConflict          = task.NewError("workflow already exists")
+	errorWorkflowFileInvalid       = task.NewError("workflow config is invalid")
+	errorWorkflowFileNotFound      = task.NewError("workflow config file not found")
+	errorWorkflowListInvalidParams = task.NewError("workflow list requires oem, handle and version of a solution")
+	errorWorkflowNotFound          = task.NewError("workflow not found")
+	errorWorkflowPropIncomplete    = task.NewError("workflow prop specs are empty")
 
 	errorInvalidNodeProp = func(key, handle string) error {
 		return fmt.Errorf("the key [%s] is invalid for node [%s]", strings.ToUpper(key), handle)
 	}
 )
+
+type SolutionGrapher interface {
+	Graph() (*Solution, error)
+}
 
 type SolutionWriter interface {
 	BuildSolution() (string, Solution)
@@ -59,6 +66,11 @@ type WorkflowWriter interface {
 	WithWorkflowNodes(string, []WorkflowNode) WorkflowWriter
 
 	Write(string) error
+}
+
+type SolutionCollectParams struct {
+	Graphers map[string]SolutionGrapher
+	Path     string
 }
 
 type SolutionParams struct {
@@ -95,6 +107,17 @@ type WorkflowParams struct {
 	WorkflowUpdate bool
 }
 
+type WorkflowListParams struct {
+	Broker
+	Oem     string
+	Handle  string
+	Version string
+}
+
+func (wlp WorkflowListParams) IsValid() bool {
+	return wlp.Oem != "" && wlp.Handle != "" && wlp.Version != ""
+}
+
 type WorkflowPropParams struct {
 	*Workflow
 	VarSpecs []shared.VarSpec
@@ -125,6 +148,15 @@ func (wp WorkflowParams) workflowPredicate() func(Workflow) bool {
 
 	return func(Workflow) bool {
 		return false
+	}
+}
+
+func NewSolutionCollectTask() *task.Task[SolutionCollectParams] {
+	return &task.Task[SolutionCollectParams]{
+		Name:         "solution-collect",
+		OnPrepare:    handleSolutionCollectContext,
+		OnComplete:   handleSolutionCollectComplete,
+		OnIncomplete: handleSolutionCollectIncomplete,
 	}
 }
 
@@ -170,6 +202,15 @@ func NewWorkflowDeleteTask(writer WorkflowWriter) *task.Task[WorkflowParams] {
 		OnPrepare:  handleWorkflowDeleteContext,
 		OnComplete: lang.Assists(writer, handleWorkflowDeleteConfig),
 		OnPretend:  handleWorkflowDeletePretend,
+	}
+}
+
+func NewWorkflowListTask() *task.Task[WorkflowListParams] {
+	return &task.Task[WorkflowListParams]{
+		Name:       "solution-list-workflows",
+		OnPrepare:  handleWorkflowListContext,
+		OnComplete: handleWorkflowListComplete,
+		OnPretend:  handleWorkflowListPretend,
 	}
 }
 
@@ -224,6 +265,48 @@ func handleSolutionCreateContext(params *SolutionParams, state *task.State) erro
 	}
 
 	return nil
+}
+
+func handleSolutionCollectComplete(params *SolutionCollectParams, state *task.State) error {
+	if state.Internal == nil {
+		var result []Solution
+
+		for solutionPath, solutionReader := range params.Graphers {
+			state.Logger.Debugf("Graphing solution path [%s]", solutionPath)
+
+			if solution, err := solutionReader.Graph(); err == nil {
+				result = append(result, *solution)
+			} else {
+				return err
+			}
+		}
+
+		state.Internal = result
+		return nil
+	}
+
+	return errorSolutionsConflict
+}
+
+func handleSolutionCollectContext(params *SolutionCollectParams, state *task.State) error {
+	if state.Output == "" {
+		if len(params.Graphers) == 0 {
+			return errorSolutionsNotFound
+		}
+	}
+
+	return nil
+}
+
+func handleSolutionCollectIncomplete(params *SolutionCollectParams, state *task.State) error {
+	if errors.Is(state.Error, errorSolutionsNotFound) {
+		state.Logger.Warnf("Could not collect any local solutions in path [%s]", params.Path)
+		state.Internal = []Solution{}
+		state.Output = ""
+		return nil
+	}
+
+	return state.Error
 }
 
 func handleSolutionListComplete(params *SolutionListParams, state *task.State) error {
@@ -558,6 +641,62 @@ func handleWorkflowDeletePretend(params *WorkflowParams, state *task.State) erro
 	return errorWorkflowFileInvalid
 }
 
+func handleWorkflowListComplete(params *WorkflowListParams, state *task.State) error {
+	var brokerClient Client
+	var err error
+
+	if brokerClient, err = params.GetClient(); err == nil {
+		var solution *Solution
+
+		if solution, err = brokerClient.FindSolution(params.Oem, params.Handle, params.Version); err == nil {
+			state.Logger.Debugf("Found solution [%d]", solution.Id)
+			state.Internal = []Solution{*solution}
+			return nil
+		}
+
+		state.Logger.Errorf("Solution [%s/%s:%s] could not be found on broker [%s]",
+			params.Oem, params.Handle, params.Version, brokerClient.GetHostAddr())
+		return err
+	}
+
+	return err
+}
+
+func handleWorkflowListContext(params *WorkflowListParams, state *task.State) error {
+	if state.Output == "" {
+		if params.IsValid() {
+			state.Logger.Debugf("Listing workflows for solution [%s/%s:%s]", params.Oem, params.Handle, params.Version)
+			return nil
+		}
+
+		return errorWorkflowListInvalidParams
+	}
+
+	return nil
+}
+
+func handleWorkflowListPretend(params *WorkflowListParams, state *task.State) error {
+	if state.Error == nil {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			state.Logger.Debugf("Pretending to list workflows for [%s/%s:%s]", params.Oem, params.Handle, params.Version)
+			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+			fmt.Printf("  -G -d oem=%s\\\n", params.Oem)
+			fmt.Printf("  -d handle=%s\\\n", params.Handle)
+			fmt.Printf("  -d version=%s\\\n", params.Version)
+			fmt.Printf("%s\n", brokerClient.FindSolutionUrl())
+			return nil
+		}
+
+		return err
+	}
+
+	return state.Error
+}
+
 func handleWorkflowPropContext(params *WorkflowPropParams, state *task.State) error {
 	if params.Workflow != nil {
 		var varSpecClient = shared.NewVarSpecState(state)
@@ -567,7 +706,7 @@ func handleWorkflowPropContext(params *WorkflowPropParams, state *task.State) er
 
 		if params.Workflow.HasNodeProps() && len(varSpecClient.VarSpecs) == 0 {
 			// On an incomplete set, we only need to validate if there are any props on any nodes
-			return ErrorWorkflowPropIncomplete
+			return errorWorkflowPropIncomplete
 		}
 
 		return nil

@@ -1,6 +1,6 @@
 # GenAIz SDK
 
-<sub>Genaiz Version 0.4.12</sub>
+<sub>Genaiz Version 0.4.13</sub>
 
 The GenAIz SDK is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestrator platform.
 

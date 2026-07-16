@@ -143,7 +143,7 @@ func TestNewWf(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewWf(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 5, len(testCmd.Commands()))
+	assert.Equal(t, 6, len(testCmd.Commands()))
 }
 
 func TestWorkflowWriter_addLinks(t *testing.T) {

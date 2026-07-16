@@ -331,6 +331,10 @@ type Document struct {
 				NoValidation Keys
 			}
 		}
+		List struct {
+			Account Keys
+			Printer Keys
+		}
 		Nodes struct {
 			Add struct {
 				ConfigType   Keys
@@ -709,6 +713,9 @@ func init() {
 	Genaiz.Workflow.Links.Add.NoValidation = newKeys("Workflow.Links.Add.NoValidation", "WF_LINKS_ADD_NO_VALIDATION", "Wf.Links.Add.NoValidation")
 	Genaiz.Workflow.Links.Remove.ConfigType = newKeys("Workflow.Links.Remove.ConfigType", "WF_LINKS_RM_CONFIG_TYPE", "Wf.Links.Remove.ConfigType")
 	Genaiz.Workflow.Links.Remove.NoValidation = newKeys("Workflow.Links.Remove.NoValidation", "WF_LINKS_RM_NO_VALIDATION", "Wf.Links.Remove.NoValidation")
+
+	Genaiz.Workflow.List.Account = newKeys("Workflow.List.Account", "WF_LIST_ACCOUNT", "Wf.List.Account")
+	Genaiz.Workflow.List.Printer = newKeys("Workflow.List.Printer", "WF_LIST_PRINTER", "Wf.List.Printer")
 
 	Genaiz.Workflow.Nodes.Add.ConfigType = newKeys("Workflow.Nodes.Add.ConfigType", "WF_NODES_ADD_CONFIG_TYPE", "Wf.Nodes.Add.ConfigType")
 	Genaiz.Workflow.Nodes.Add.Description = newKeys("Workflow.Nodes.Add.Description", "WF_NODES_ADD_DESCRIPTION", "Wf.Nodes.Add.Description")

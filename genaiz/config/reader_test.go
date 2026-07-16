@@ -14,6 +14,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -214,6 +215,135 @@ func TestDataLinksReader_ReadFile_MarshallError(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSolutionGrapher_Graph(t *testing.T) {
+	var testLedger = NewBuilder().Build()
+	var expectedStoreFqdn = "oem/storeHandle:0.2.0"
+	var expectedInputPortHandle = "inputPortHandle"
+	var expectedFunction = &broker.Function{
+		Handle:  "expectedHandle",
+		Oem:     "expectedOem",
+		Version: "expectedVersion",
+		DataStores: []string{
+			expectedStoreFqdn,
+		},
+		InputPorts: []broker.DataPort{
+			{
+				Handle: expectedInputPortHandle,
+			},
+		},
+	}
+	var testGrapher = &SolutionGrapher{
+		basePath: t.TempDir(),
+		ledger:   testLedger,
+		solution: &broker.Solution{
+			Handle: "solutionHandle",
+			Workflows: []broker.Workflow{
+				{
+					Nodes: []broker.WorkflowNode{
+						{
+							Handle: "noSf",
+						},
+						{
+							Handle: "expectedNode",
+							Sf: &broker.WorkflowNodeFunction{
+								Handle:  expectedFunction.Handle,
+								Oem:     expectedFunction.Oem,
+								Version: expectedFunction.Version,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	var testViper = viper.New()
+	var solutionFile = filepath.Join(testGrapher.basePath, testLedger.ConfigName+"."+shared.ConfigTypeYaml)
+	var subFunctionFile = filepath.Join(testGrapher.basePath, "sub", testLedger.ConfigName+"."+shared.ConfigTypeYaml)
+	var invalidFunctionFile = filepath.Join(testGrapher.basePath, "invalid", testLedger.ConfigName+"."+shared.ConfigTypeYaml)
+	var err error
+
+	testViper.Set("solution", testGrapher.solution)
+
+	if err = testViper.WriteConfigAs(solutionFile); err == nil {
+		var actual *broker.Solution
+
+		testViper = viper.New()
+		testViper.Set(schema.Genaiz.Function.Publish.Internal.Doc, expectedFunction)
+
+		if err = os.MkdirAll(filepath.Dir(subFunctionFile), 0750); err == nil {
+			err = testViper.WriteConfigAs(subFunctionFile)
+		}
+
+		if err == nil {
+			if err = os.MkdirAll(filepath.Dir(invalidFunctionFile), 0750); err == nil {
+				testViper = viper.New()
+				testViper.Set(schema.Genaiz.Function.Publish.Internal.Doc, "invalid")
+
+				if err = testViper.WriteConfigAs(invalidFunctionFile); err == nil {
+					testLedger.InitLogging()
+					actual, err = testGrapher.Graph()
+					assert.NoError(t, err)
+					assert.NotNil(t, actual)
+					return
+				}
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestSolutionGrapher_Graph_InvalidConfig(t *testing.T) {
+	var testLedger = NewBuilder().Build()
+	var testGrapher = &SolutionGrapher{
+		basePath: t.TempDir(),
+		ledger:   testLedger,
+		solution: &broker.Solution{
+			Handle: "expectedSolution",
+		},
+	}
+	var testViper = viper.New()
+	var solutionFile = filepath.Join(testGrapher.basePath, testLedger.ConfigName+"."+shared.ConfigTypeYaml)
+	var subFunctionFile = filepath.Join(testGrapher.basePath, "sub", testLedger.ConfigName+"."+shared.ConfigTypeYaml)
+	var err error
+
+	testViper.Set("solution", testGrapher.solution)
+
+	if err = testViper.WriteConfigAs(solutionFile); err == nil {
+		var actual *broker.Solution
+
+		if err = os.MkdirAll(filepath.Dir(subFunctionFile), 0750); err == nil {
+			var fd *os.File
+
+			if fd, err = os.Create(subFunctionFile); err == nil {
+				// It will be invalid when ReadInConfig is called
+				_, err = fd.Write([]byte("{"))
+			}
+		}
+
+		if err == nil {
+			testLedger.InitLogging()
+			actual, err = testGrapher.Graph()
+			assert.NoError(t, err)
+			assert.Equal(t, testGrapher.solution, actual)
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestSolutionGrapher_Graph_PathError(t *testing.T) {
+	var testGrapher = &SolutionGrapher{
+		basePath: filepath.Join(t.TempDir(), "notExist"),
+		ledger:   NewBuilder().Build(),
+	}
+
+	actual, err := testGrapher.Graph()
+	assert.Error(t, err)
+	assert.Nil(t, actual)
+}
+
 func TestSolutionReader_FindFunctionValues(t *testing.T) {
 	var testDir = t.TempDir()
 	var expectedName = "Test"
@@ -382,6 +512,64 @@ func TestSolutionReader_GetVersion(t *testing.T) {
 	assert.Empty(t, testReader.GetVersion())
 	testReader.current = &broker.Solution{Version: expectedVersion}
 	assert.Equal(t, expectedVersion, testReader.GetVersion())
+}
+
+func TestSolutionReader_GraphFile(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), "Genaiz.yaml")
+	var testViper = viper.New()
+	var testLedger = NewBuilder().WithViper(testViper).Build()
+	var testReader = &SolutionReader{
+		ledger: testLedger,
+	}
+	var expectedSolution = &broker.Solution{
+		Handle:    "expectedHandle",
+		Workflows: []broker.Workflow{},
+	}
+	var err error
+
+	testViper.Set("solution", expectedSolution)
+
+	if err = testViper.WriteConfigAs(testFile); err == nil {
+		var actual broker.SolutionGrapher
+
+		if actual, err = testReader.GraphFile(testFile); err == nil {
+			var actualSolution *broker.Solution
+
+			testLedger.InitLogging()
+			actualSolution, err = actual.Graph()
+			assert.Equal(t, expectedSolution, actualSolution)
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestSolutionReader_GraphFile_EmptyFile(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), "empty.yaml")
+	var testReader = &SolutionReader{}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testFile); err == nil {
+		var actual broker.SolutionGrapher
+
+		defer filez.CloseSilently(fd)
+		actual, err = testReader.GraphFile(testFile)
+		assert.ErrorIs(t, err, errEmptySolution)
+		assert.Nil(t, actual)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestSolutionReader_GraphFile_InvalidFile(t *testing.T) {
+	var testFile = filepath.Join(t.TempDir(), "noExists")
+	var testReader = &SolutionReader{}
+
+	actual, err := testReader.GraphFile(testFile)
+	assert.ErrorIs(t, err, errEmptySolution)
+	assert.Nil(t, actual)
 }
 
 func TestSolutionReader_Read(t *testing.T) {

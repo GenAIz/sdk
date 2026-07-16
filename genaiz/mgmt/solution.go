@@ -34,23 +34,55 @@ type UserSolution struct {
 	Local       bool `cli:"Local?"`
 	Released    bool `cli:"Published?"`
 	Flags       *int
+
+	matched string
 }
 
-func (us UserSolution) Match(filter string) bool {
-	if filter != "" {
-		var lowFilter = strings.ToLower(filter)
+func (us UserSolution) Match(filter string) *UserSolution {
+	var lowFilter = strings.ToLower(filter)
+	var fqdnVersion = fmt.Sprintf("%s:%s", us.Fqdn, us.Version)
+	var matched string
 
-		if _, err := strconv.Atoi(filter); err == nil {
-			return strings.HasPrefix(cast.ToString(us.Id), filter)
+	if _, err := strconv.Atoi(filter); err == nil {
+		if strings.HasPrefix(cast.ToString(us.Id), filter) {
+			matched = cast.ToString(us.Id)
 		}
-
-		return strings.EqualFold(us.Oem, filter) ||
-			strings.HasPrefix(us.Oem, lowFilter) ||
-			strings.HasPrefix(us.Fqdn, lowFilter) ||
-			strings.HasPrefix(fmt.Sprintf("%s:%s", us.Fqdn, us.Version), lowFilter)
+	} else if strings.EqualFold(us.Oem, filter) ||
+		strings.HasPrefix(us.Oem, lowFilter) ||
+		strings.HasPrefix(us.Fqdn, lowFilter) ||
+		strings.HasPrefix(fqdnVersion, lowFilter) {
+		// On autocomplete listings, we don't want to specify the sequence number in the CLI query
+		matched = fmt.Sprintf("%s:%s", us.Fqdn, strings.Split(us.Version, "-")[0])
 	}
 
-	return true
+	if matched == "" {
+		return nil
+	}
+
+	return &UserSolution{
+		Id:          us.Id,
+		Oem:         us.Oem,
+		Handle:      us.Handle,
+		Fqdn:        us.Fqdn,
+		Version:     us.Version,
+		Name:        us.Name,
+		Description: us.Description,
+		Digest:      us.Digest,
+		Created:     us.Created,
+		Modified:    us.Modified,
+		Local:       us.Local,
+		Released:    us.Released,
+		Flags:       us.Flags,
+		matched:     matched,
+	}
+}
+
+func (us UserSolution) Matched() string {
+	if us.matched == "" {
+		return fmt.Sprintf("%s:%s", us.Fqdn, us.Version)
+	}
+
+	return us.matched
 }
 
 func (us UserSolution) MarshalJSON() ([]byte, error) {
@@ -206,8 +238,10 @@ func (usp userSolutionsProvider) Get() ([]UserSolution, task.Error) {
 		for _, sol := range solutions {
 			var solution = ToUserSolution(&sol)
 
-			if solution.Match(usp.filter) {
+			if usp.filter == "" {
 				result = append(result, *solution)
+			} else if matched := solution.Match(usp.filter); matched != nil {
+				result = append(result, *matched)
 			}
 		}
 
@@ -227,7 +261,7 @@ func (usp userSolutionsProvider) Get() ([]UserSolution, task.Error) {
 		return result, nil
 	}
 
-	return nil, failure.(task.Error)
+	return nil, task.NewFailure(failure)
 }
 
 func NewUserSolutionFacade() UserSolutionFacade {

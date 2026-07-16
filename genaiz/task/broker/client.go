@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cast"
 	"resty.dev/v3"
 
+	"genaiz.com/genaiz-lib/lang/intz"
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/task"
@@ -82,6 +83,10 @@ type Client interface {
 	ExportDataLink(string, string, string, string) (*DataLink, error)
 
 	FindDataLink(string, string, string) (*DataLink, error)
+
+	FindSolution(string, string, string) (*Solution, error)
+
+	FindSolutionUrl() string
 
 	GetAuthToken() string
 
@@ -183,6 +188,118 @@ type solutionSlices struct {
 	WorkflowLinks  []WorkflowLink `json:"workflowLinks"`
 	WorkflowNodes  []WorkflowNode `json:"workflowNodes"`
 	SmartFunctions []Function     `json:"smartFunctions"`
+}
+
+func (ss solutionSlices) graph() *Solution {
+	var workflowsById = mapz.Mapped(ss.Workflows, func(workflow Workflow) string {
+		return cast.ToString(workflow.Id)
+	})
+	var functionsById = mapz.Mapped(ss.SmartFunctions, func(function Function) string {
+		return cast.ToString(function.Id)
+	})
+	var nodesByWorkflow = make(map[int64][]WorkflowNode)
+	var nodesById = make(map[int64]WorkflowNode)
+	var linksByWorkflow = make(map[int64][]WorkflowLink)
+	var graphedWorkflows []Workflow
+
+	for _, node := range ss.WorkflowNodes {
+		nodesById[*node.Id] = node
+
+		if node.WorkflowId != nil {
+			var wf Workflow
+			var ok bool
+
+			if wf, ok = workflowsById[cast.ToString(*node.WorkflowId)]; ok {
+				var nodeFunction *WorkflowNodeFunction
+
+				if node.SmartFunctionId != nil {
+					var function Function
+
+					if function, ok = functionsById[cast.ToString(*node.SmartFunctionId)]; ok {
+						nodeFunction = &WorkflowNodeFunction{
+							Oem:     function.Oem,
+							Handle:  function.Handle,
+							Version: function.Version,
+							Seq:     intz.IntToDefault(function.Seq, 0),
+						}
+					}
+				}
+
+				nodesByWorkflow[*wf.Id] = append(nodesByWorkflow[*wf.Id], WorkflowNode{
+					Id:          node.Id,
+					Handle:      node.Handle,
+					Name:        node.Name,
+					Description: node.Description,
+					Props:       node.Props,
+					Sf:          nodeFunction,
+				})
+			}
+		}
+	}
+
+	for _, link := range ss.WorkflowLinks {
+		if link.WorkflowId != nil {
+			if wf, ok := workflowsById[cast.ToString(link.WorkflowId)]; ok {
+				var leftNodeHandle, rightNodeHandle string
+
+				if link.LhsNodeId != nil {
+					var leftNode WorkflowNode
+
+					if leftNode, ok = nodesById[*link.LhsNodeId]; ok {
+						leftNodeHandle = leftNode.Handle
+					}
+				}
+
+				if link.RhsNodeId != nil {
+					var rightNode WorkflowNode
+
+					if rightNode, ok = nodesById[*link.RhsNodeId]; ok {
+						rightNodeHandle = rightNode.Handle
+					}
+				}
+
+				if leftNodeHandle != "" && rightNodeHandle != "" {
+					linksByWorkflow[*wf.Id] = append(linksByWorkflow[*wf.Id], WorkflowLink{
+						LhsNodeId:   link.LhsNodeId,
+						LhsNode:     leftNodeHandle,
+						LhsNodePort: link.LhsNodePort,
+						RhsNodeId:   link.RhsNodeId,
+						RhsNode:     rightNodeHandle,
+						RhsNodePort: link.RhsNodePort,
+					})
+				}
+			}
+		}
+	}
+
+	for _, wf := range slices.Collect(maps.Values(workflowsById)) {
+		graphedWorkflows = append(graphedWorkflows, Workflow{
+			Id:          wf.Id,
+			Created:     wf.Created,
+			Modified:    wf.Modified,
+			Flags:       wf.Flags,
+			Handle:      wf.Handle,
+			Name:        wf.Name,
+			Description: wf.Description,
+			Links:       linksByWorkflow[*wf.Id],
+			Nodes:       nodesByWorkflow[*wf.Id],
+		})
+	}
+
+	return &Solution{
+		Id:          ss.Solution.Id,
+		Created:     ss.Solution.Created,
+		Modified:    ss.Solution.Modified,
+		Flags:       ss.Solution.Flags,
+		Seq:         ss.Solution.Seq,
+		Name:        ss.Solution.Name,
+		Description: ss.Solution.Description,
+		Oem:         ss.Solution.Oem,
+		Handle:      ss.Solution.Handle,
+		Version:     ss.Solution.Version,
+		Digest:      ss.Solution.Digest,
+		Workflows:   graphedWorkflows,
+	}
 }
 
 type workspaceList struct {
@@ -311,6 +428,47 @@ func (c *client) FindDataLink(oem, handle, version string) (*DataLink, error) {
 	}
 
 	return nil, errorNoAuth
+}
+
+func (c *client) FindSolution(oem, handle, version string) (*Solution, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathSolution, "readByFqdn"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *Solution
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[solutionSlices]{}).
+				QueryParams(map[string]string{
+					"oem":     oem,
+					"handle":  handle,
+					"version": version,
+				}).Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *Solution {
+					var payload = resp.Result().(*clientPayload[solutionSlices])
+
+					return payload.Data.graph()
+				}); err == nil {
+					return result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) FindSolutionUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "readByFqdn")
 }
 
 func (c *client) GetAuthToken() string {

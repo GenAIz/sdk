@@ -1,7 +1,6 @@
 package dk
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -231,16 +230,4 @@ func TestNewList_NoSession(t *testing.T) {
 	b, _ := io.ReadAll(r)
 	output := string(b)
 	assert.Empty(t, output)
-}
-
-func TestParseDataLinkMandatoryOem(t *testing.T) {
-	var expectedOem = "oem"
-	var expectedHandle = "handle"
-	var expectedVersion = "version"
-	var actualOem, actualHandle, actualVersion = ParseDataLinkMandatoryOem(
-		fmt.Sprintf("%s/%s:%s", expectedOem, expectedHandle, expectedVersion))
-
-	assert.Equal(t, expectedOem, actualOem)
-	assert.Equal(t, expectedHandle, actualHandle)
-	assert.Equal(t, expectedVersion, actualVersion)
 }

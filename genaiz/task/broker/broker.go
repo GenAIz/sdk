@@ -396,6 +396,38 @@ func (f Function) GetFullVersion() string {
 	return result
 }
 
+func (f Function) GetDataSourceLinks() []DataLink {
+	var result []DataLink
+
+	for _, dl := range f.DataSources {
+		var oem, handle, ver = ParseFqdnVersion(dl)
+
+		result = append(result, DataLink{
+			Oem:     oem,
+			Handle:  handle,
+			Version: ver,
+		})
+	}
+
+	return result
+}
+
+func (f Function) GetDataStoreLinks() []DataLink {
+	var result []DataLink
+
+	for _, dl := range f.DataStores {
+		var oem, handle, ver = ParseFqdnVersion(dl)
+
+		result = append(result, DataLink{
+			Oem:     oem,
+			Handle:  handle,
+			Version: ver,
+		})
+	}
+
+	return result
+}
+
 func (f Function) asIdentity() *shared.Identity {
 	return &shared.Identity{
 		Id:      strconv.Itoa(f.Id),
@@ -786,11 +818,15 @@ type solutionFlags struct {
 
 type Workflow struct {
 	// Keep the ordering for the marshaler
+	Id          *int64         `yaml:"-" json:"id,omitempty"`
+	Created     *int64         `yaml:"-" json:"nco,omitempty"`
+	Modified    *int64         `yaml:"-" json:"nms,omitempty"`
+	Flags       *int           `yaml:"-" json:"flags,omitempty"`
 	Handle      string         `json:"handle"`
 	Name        string         `json:"name"`
-	Description string         `json:"Description"`
-	Links       []WorkflowLink `json:"links"`
-	Nodes       []WorkflowNode `json:"nodes"`
+	Description string         `json:"description"`
+	Links       []WorkflowLink `json:"links,omitempty"`
+	Nodes       []WorkflowNode `json:"nodes,omitempty"`
 }
 
 func (wf Workflow) ContainsNode(handle string) bool {
@@ -863,9 +899,12 @@ func (wf Workflow) HasNodeProps() bool {
 
 type WorkflowLink struct {
 	LhsNode     string `json:"lhsNode"`
+	LhsNodeId   *int64 `yaml:"-" json:"lhsNodeId,omitempty"`
 	LhsNodePort string `json:"lhsNodePort,omitempty"`
 	RhsNode     string `json:"rhsNode"`
+	RhsNodeId   *int64 `yaml:"-" json:"rhsNodeId,omitempty"`
 	RhsNodePort string `json:"rhsNodePort"`
+	WorkflowId  *int64 `yaml:"-" json:"workflowId,omitempty"`
 }
 
 func (wl WorkflowLink) Equals(wl2 WorkflowLink) bool {
@@ -899,11 +938,14 @@ func (wl WorkflowLink) String() string {
 
 type WorkflowNode struct {
 	// Keep the ordering for the marshaler
-	Handle      string                `yaml:"handle" json:"handle"`
-	Name        string                `yaml:"name" json:"name"`
-	Description string                `yaml:"description,omitempty" json:"description,omitempty"`
-	Props       map[string]string     `yaml:"props,omitempty" json:"props,omitempty"`
-	Sf          *WorkflowNodeFunction `yaml:"sf,omitempty" json:"sf,omitempty"`
+	Id              *int64                `yaml:"-" json:"id"`
+	Handle          string                `yaml:"handle" json:"handle"`
+	Name            string                `yaml:"name" json:"name"`
+	Description     string                `yaml:"description,omitempty" json:"description,omitempty"`
+	Props           map[string]string     `yaml:"props,omitempty" json:"props,omitempty"`
+	Sf              *WorkflowNodeFunction `yaml:"sf,omitempty" json:"sf,omitempty"`
+	WorkflowId      *int64                `yaml:"-" json:"workflowId,omitempty"`
+	SmartFunctionId *int64                `yaml:"-" json:"smartFunctionId,omitempty"`
 }
 
 func (wn *WorkflowNode) AssignProp(key, value string) {
@@ -967,10 +1009,24 @@ func (wn *WorkflowNode) ValidateProps(specs []shared.VarSpec) error {
 }
 
 type WorkflowNodeFunction struct {
-	Oem     string `yaml:"oem" json:"oem"`
-	Handle  string `yaml:"handle" json:"handle"`
-	Version string `yaml:"version" json:"version"`
-	Seq     int    `yaml:"seq,omitempty" json:"seq,omitzero"`
+	Oem         string     `yaml:"oem" json:"oem"`
+	Handle      string     `yaml:"handle" json:"handle"`
+	Version     string     `yaml:"version" json:"version"`
+	Seq         int        `yaml:"seq,omitempty" json:"seq,omitzero"`
+	DataSources []DataLink `yaml:"-" json:"dataSources,omitempty"`
+	DataStores  []DataLink `yaml:"-" json:"dataStores,omitempty"`
+	InputPorts  []DataPort `yaml:"-" json:"InputPorts,omitempty"`
+	OutputPorts []DataPort `yaml:"-" json:"OutputPorts,omitempty"`
+}
+
+func (wnf WorkflowNodeFunction) IsEqual(fn *Function) bool {
+	if fn == nil {
+		return false
+	}
+
+	return strings.EqualFold(wnf.Oem, fn.Oem) &&
+		strings.EqualFold(wnf.Handle, fn.Handle) &&
+		strings.EqualFold(wnf.Version, fn.Version)
 }
 
 func WorkflowHandlePredicate(handle string) func(Workflow) bool {
@@ -1049,4 +1105,24 @@ func (w Workspace) MarshalJSON() ([]byte, error) {
 type workspaceFlags struct {
 	Active    int
 	RcEnabled int
+}
+
+func ParseFqdnVersion(value string) (string, string, string) {
+	var oem, handle, ver string
+	var oemHandleParts = strings.Split(value, "/")
+
+	if len(oemHandleParts) > 1 {
+		var handleVersionParts = strings.Split(oemHandleParts[1], ":")
+
+		if len(handleVersionParts) > 1 {
+			ver = handleVersionParts[1]
+		}
+
+		handle = handleVersionParts[0]
+		oem = oemHandleParts[0]
+	} else {
+		oem = value
+	}
+
+	return oem, handle, ver
 }

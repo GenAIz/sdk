@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -9,8 +10,13 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/dirz"
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
+)
+
+var (
+	errEmptySolution = errors.New("no solution in file")
 )
 
 type BaseReader struct {
@@ -167,6 +173,52 @@ func NewDataLinkReader() *DataLinksReader {
 	return &DataLinksReader{}
 }
 
+type SolutionGrapher struct {
+	basePath string
+	ledger   *Ledger
+	solution *broker.Solution
+}
+
+func (sg SolutionGrapher) Graph() (*broker.Solution, error) {
+	var files []string
+	var err error
+
+	if files, err = filez.FindNamedFilesRecursively(sg.basePath, sg.ledger.ConfigName); err == nil {
+		for _, f := range files {
+			if filepath.Dir(f) != sg.basePath {
+				var vp = viper.New()
+
+				vp.SetConfigFile(f)
+
+				if err = vp.ReadInConfig(); err == nil {
+					var fn broker.Function
+
+					if err = vp.UnmarshalKey(schema.Genaiz.Function.Publish.Internal.Doc, &fn); err == nil {
+						for _, wf := range sg.solution.Workflows {
+							for _, n := range wf.Nodes {
+								if n.Sf != nil && n.Sf.IsEqual(&fn) {
+									n.Sf.DataSources = fn.GetDataSourceLinks()
+									n.Sf.DataStores = fn.GetDataStoreLinks()
+									n.Sf.InputPorts = fn.InputPorts
+									n.Sf.OutputPorts = fn.OutputPorts
+								}
+							}
+						}
+					} else {
+						sg.ledger.Logger.Warnf("File [%s] does not contain a function, skipping", f)
+					}
+				} else {
+					sg.ledger.Logger.Warnf("Could no graph function file [%s], skipping", f)
+				}
+			}
+		}
+
+		return sg.solution, nil
+	}
+
+	return nil, err
+}
+
 type SolutionReader struct {
 	BaseReader
 	current *broker.Solution
@@ -232,6 +284,18 @@ func (sr *SolutionReader) GetVersion() string {
 	}
 
 	return ""
+}
+
+func (sr *SolutionReader) GraphFile(file string) (broker.SolutionGrapher, error) {
+	if sol, err := sr.ReadFile(file); err == nil && sol != nil {
+		return &SolutionGrapher{
+			basePath: filepath.Dir(file),
+			ledger:   sr.ledger,
+			solution: sol,
+		}, nil
+	}
+
+	return nil, errEmptySolution
 }
 
 func (sr *SolutionReader) Read(configType shared.ConfigType, path ...string) error {

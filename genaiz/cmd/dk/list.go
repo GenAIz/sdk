@@ -73,7 +73,7 @@ func (le ListExecutor) newListParams(filter string) *broker.DataLinkListParams {
 			folder = filter
 		}
 
-		oem, handle, ver = ParseDataLinkMandatoryOem(filter)
+		oem, handle, ver = broker.ParseFqdnVersion(filter)
 	}
 
 	if folder != "" {
@@ -155,24 +155,4 @@ func NewListOptions() *ListOptions {
 			WithKeys(&schema.Genaiz.DataLink.List.Printer).
 			BuildBoolOption(),
 	}
-}
-
-func ParseDataLinkMandatoryOem(value string) (string, string, string) {
-	var oem, handle, version string
-	var oemHandleParts = strings.Split(value, "/")
-
-	if len(oemHandleParts) > 1 {
-		var handleVersionParts = strings.Split(oemHandleParts[1], ":")
-
-		if len(handleVersionParts) > 1 {
-			version = handleVersionParts[1]
-		}
-
-		handle = handleVersionParts[0]
-		oem = oemHandleParts[0]
-	} else {
-		oem = value
-	}
-
-	return oem, handle, version
 }
