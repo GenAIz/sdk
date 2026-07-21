@@ -14,6 +14,76 @@ import (
 	"genaiz.com/genaiz/task/broker"
 )
 
+func TestUserWorkflow_Match(t *testing.T) {
+	var testUserWorkflow = &UserWorkflow{
+		Id:     new(int64(37)),
+		Handle: "aHandleValue",
+	}
+
+	if uw := testUserWorkflow.Match("aHandle"); uw == nil {
+		assert.Fail(t, "expected a user workflow match")
+	} else {
+		assert.Equal(t, testUserWorkflow.Handle, uw.matched)
+	}
+}
+
+func TestUserWorkflow_Match_Id(t *testing.T) {
+	var testUserWorkflow = &UserWorkflow{
+		Id:     new(int64(1337)),
+		Handle: "aHandleValue",
+	}
+
+	if uw := testUserWorkflow.Match("13"); uw == nil {
+		assert.Fail(t, "expected a user workflow match")
+	} else {
+		assert.Equal(t, cast.ToString(*testUserWorkflow.Id), uw.matched)
+	}
+}
+
+func TestUserWorkflow_Match_NoMatch(t *testing.T) {
+	var testUserWorkflow = &UserWorkflow{
+		Id:     new(int64(1337)),
+		Handle: "aHandleValue",
+	}
+
+	if uw := testUserWorkflow.Match("test"); uw != nil {
+		assert.Fail(t, "not expected a user workflow to match")
+	}
+}
+
+func TestUserWorkflow_Matched(t *testing.T) {
+	var testUserWorkflow = &UserWorkflow{
+		Id:      new(int64(37)),
+		Handle:  "handle",
+		matched: "expected",
+	}
+	var expected = fmt.Sprintf("%s\t%d", testUserWorkflow.matched, *testUserWorkflow.Id)
+
+	assert.Equal(t, expected, testUserWorkflow.Matched())
+}
+
+func TestUserWorkflow_Matched_Id(t *testing.T) {
+	var testUserWorkflow = &UserWorkflow{
+		Id:      new(int64(37)),
+		Handle:  "handle",
+		matched: "42",
+	}
+	var expected = fmt.Sprintf("%s\t%s", testUserWorkflow.matched, testUserWorkflow.Handle)
+
+	assert.Equal(t, expected, testUserWorkflow.Matched())
+}
+
+func TestUserWorkflow_Matched_Nothing(t *testing.T) {
+	var testUserWorkflow = &UserWorkflow{
+		Id:      new(int64(37)),
+		Handle:  "handle",
+		matched: "",
+	}
+	var expected = fmt.Sprintf("%d\t%s", *testUserWorkflow.Id, testUserWorkflow.Handle)
+
+	assert.Equal(t, expected, testUserWorkflow.Matched())
+}
+
 func TestUserWorkflow_MarshalJSON(t *testing.T) {
 	var testCreated = time.Now()
 	var expectedCreated = timez.NewTodayFormatter().FormatMillis(testCreated.UnixMilli())
@@ -209,6 +279,40 @@ func TestUserWorkflowProvider_Get_Failure(t *testing.T) {
 	}
 
 	assert.Fail(t, "expected an error")
+}
+
+func TestUserWorkflowProvider_Get_Filtered(t *testing.T) {
+	var testParams = &broker.WorkflowListParams{Oem: "oem"}
+	var expectedSolutions = []broker.Solution{
+		{
+			Fqdn:    new("expectedFqdn"),
+			Version: "expectedVersion",
+
+			Workflows: []broker.Workflow{
+				{
+					Handle: "expectedWorkflowHandle",
+				},
+			},
+		},
+	}
+	var testProvider = &userWorkflowProvider{
+		Plan: task.Plan{
+			Logger: logrus.New(),
+		},
+		filter:                  "expected",
+		params:                  testParams,
+		workflowListTaskFactory: newWorkflowListTaskComplete(expectedSolutions),
+	}
+	var actual []UserWorkflow
+	var err error
+
+	if actual, err = testProvider.Get(); err == nil {
+		assert.Equal(t, *expectedSolutions[0].Fqdn, actual[0].SolutionFqdn)
+		assert.Equal(t, expectedSolutions[0].Version, actual[0].SolutionVersion)
+		return
+	}
+
+	assert.NoError(t, err)
 }
 
 func newSolutionCollectTaskCompleteError(expectedError error) solutionCollectTaskFactory {

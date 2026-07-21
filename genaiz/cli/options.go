@@ -669,6 +669,18 @@ var (
 					WithUsage("description of the workspace").
 					WithValidator(config.Validation.Blob)
 			},
+			FlowDescription: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("description").
+					WithUsage("description of the workspace flow").
+					WithValidator(config.Validation.Blob)
+			},
+			FlowName: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithUsage("name of the workspace flow").
+					WithValidator(config.Validation.Name)
+			},
 			OwnerOnly: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("owner-only").
@@ -850,10 +862,12 @@ type workflowOptions struct {
 type workspaceOptions struct {
 	listOptions
 	mgmtOptions
-	Description func() OptionBuilder
-	OwnerOnly   func() OptionBuilder
-	RcEnabled   func() OptionBuilder
-	Visibility  func() OptionBuilder
+	Description     func() OptionBuilder
+	FlowDescription func() OptionBuilder
+	FlowName        func() OptionBuilder
+	OwnerOnly       func() OptionBuilder
+	RcEnabled       func() OptionBuilder
+	Visibility      func() OptionBuilder
 }
 
 type OptionBuilder interface {

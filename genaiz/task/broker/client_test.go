@@ -187,6 +187,75 @@ func TestClient_CreateWorkspace_UrlError(t *testing.T) {
 	assert.ErrorIs(t, err, testBridge.err)
 }
 
+func TestClient_CreateWorkspaceFlow(t *testing.T) {
+	var expectedToken = "token"
+	var expectedFlow = &WorkspaceFlow{
+		Id:          int64(37),
+		WorkflowId:  int64(42),
+		Name:        "expectedName",
+		Description: "expectedDescription",
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[workspaceFlowsSlices]{
+				Data: workspaceFlowsSlices{
+					WorkspaceFlow: *expectedFlow,
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateWorkspaceFlow(expectedFlow.Id, expectedFlow.WorkflowId, expectedFlow.Name, expectedFlow.Description)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedFlow, actual)
+}
+
+func TestClient_CreateWorkspaceFlow_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.CreateWorkspaceFlow(int64(37), int64(42), "name", "description")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_CreateWorkspaceFlow_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateWorkspaceFlow(int64(37), int64(42), "name", "description")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_CreateWorkspaceFlow_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.CreateWorkspaceFlow(int64(37), int64(42), "name", "description")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_CreateWorkspaceFlow_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateWorkspaceFlow(int64(37), int64(42), "name", "description")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
 func TestClient_ExportDataLink(t *testing.T) {
 	var expectedToken = "token"
 	var expectedDataLink = &DataLink{Handle: "handle"}
