@@ -1021,6 +1021,25 @@ func Test_OptionsWorkspacesDescription(t *testing.T) {
 	assert.NotEmpty(t, testOption.Validator)
 }
 
+func Test_OptionWorkspacesFlowDescription(t *testing.T) {
+	var testOption = Options.Workspaces.FlowDescription().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("description"))
+}
+
+func Test_OptionWorkspacesFlowName(t *testing.T) {
+	var testOption = Options.Workspaces.FlowName().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("valid name"))
+	assert.False(t, testOption.Validator("this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for "))
+}
+
 func Test_OptionsWorkspacesOwnerOnly(t *testing.T) {
 	var testOption = Options.Workspaces.OwnerOnly().BuildBoolOption()
 

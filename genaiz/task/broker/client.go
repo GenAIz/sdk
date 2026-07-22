@@ -80,6 +80,10 @@ type Client interface {
 
 	CreateWorkspaceUrl() string
 
+	CreateWorkspaceFlow(int64, int64, string, string) (*WorkspaceFlow, error)
+
+	CreateWorkspaceFlowUrl() string
+
 	ExportDataLink(string, string, string, string) (*DataLink, error)
 
 	FindDataLink(string, string, string) (*DataLink, error)
@@ -310,6 +314,10 @@ type workspaceSlices struct {
 	Workspace *Workspace `json:"workspace"`
 }
 
+type workspaceFlowsSlices struct {
+	WorkspaceFlow WorkspaceFlow `json:"workspaceFlow"`
+}
+
 func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
 	if c.AuthToken != "" {
 		var url string
@@ -348,6 +356,48 @@ func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
 
 func (c *client) CreateWorkspaceUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "create")
+}
+
+func (c *client) CreateWorkspaceFlow(workspaceId int64, workflowId int64, name string, description string) (*WorkspaceFlow, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspace, "flow", "create"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *WorkspaceFlow
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[workspaceFlowsSlices]{}).
+				FormData(map[string]string{
+					"workspaceId": cast.ToString(workspaceId),
+					"workflowId":  cast.ToString(workflowId),
+					"name":        name,
+					"description": description,
+				}).Post(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *WorkspaceFlow {
+					var payload = resp.Result().(*clientPayload[workspaceFlowsSlices])
+
+					return &payload.Data.WorkspaceFlow
+				}); err == nil {
+					return result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) CreateWorkspaceFlowUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "flow", "create")
 }
 
 func (c *client) ExportDataLink(oem, handle, version, sequence string) (*DataLink, error) {

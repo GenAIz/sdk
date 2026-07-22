@@ -16,20 +16,30 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 )
 
 type stubWorkspaceClient struct {
 	client
-	createWorkspaceError error
-	createWorkspaceParam *Workspace
-	createWorkspace      *Workspace
-	listWorkspaceError   error
-	listWorkspaceMask    int
-	listWorkspaceFlags   int
-	listWorkspaces       []Workspace
-	liseWorkspacesUserId int
+	createFlowError       error
+	createFlowExpected    *WorkspaceFlow
+	createFlowWorkspaceId int64
+	createFlowWorkflowId  int64
+	createFlowName        string
+	createFlowDescription string
+	createWorkspaceError  error
+	createWorkspaceParam  *Workspace
+	createWorkspace       *Workspace
+	findSolutionError     error
+	findSolutionExpected  *Solution
+	findSolutionOem       string
+	findSolutionHandle    string
+	findSolutionVersion   string
+	listWorkspaceError    error
+	listWorkspaceMask     int
+	listWorkspaceFlags    int
+	listWorkspaces        []Workspace
+	liseWorkspacesUserId  int
 }
 
 func (swc *stubWorkspaceClient) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
@@ -40,6 +50,21 @@ func (swc *stubWorkspaceClient) CreateWorkspace(workspace *Workspace) (*Workspac
 	}
 
 	return nil, swc.createWorkspaceError
+}
+
+func (swc *stubWorkspaceClient) CreateWorkspaceFlow(wsId, wfId int64, name, description string) (*WorkspaceFlow, error) {
+	swc.createFlowWorkspaceId = wsId
+	swc.createFlowWorkspaceId = wfId
+	swc.createFlowName = name
+	swc.createFlowDescription = description
+	return swc.createFlowExpected, swc.createFlowError
+}
+
+func (swc *stubWorkspaceClient) FindSolution(oem, handle, vers string) (*Solution, error) {
+	swc.findSolutionOem = oem
+	swc.findSolutionHandle = handle
+	swc.findSolutionVersion = vers
+	return swc.findSolutionExpected, swc.findSolutionError
 }
 
 func (swc *stubWorkspaceClient) GetUserId() int {
@@ -60,6 +85,35 @@ func TestNewWorkspaceCreateTask(t *testing.T) {
 	assert.NotNil(t, testTask.OnComplete)
 	assert.NotNil(t, testTask.OnPretend)
 	assert.Nil(t, testTask.OnIncomplete)
+}
+
+func TestNewWorkspaceFlowCreateTask(t *testing.T) {
+	var testTask = NewWorkspaceFlowCreateTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestNewWorkspaceFlowResolveTask(t *testing.T) {
+	var testTask = NewWorkspaceFlowResolveTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnIncomplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestNewWorkspaceFlowSolutionTask(t *testing.T) {
+	var testTask = NewWorkspaceFlowSolutionTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnIncomplete)
+	assert.NotNil(t, testTask.OnPretend)
 }
 
 func TestNewWorkspaceListTask(t *testing.T) {
@@ -295,6 +349,748 @@ func Test_handleWorkspaceCreatePretend_NoSession(t *testing.T) {
 	assert.ErrorIs(t, handleWorkspaceCreatePretend(testParams, testState), expectedError)
 }
 
+func Test_handleWorkspaceFlowCreateContext(t *testing.T) {
+	var testParams = &WorkspaceFlowCreateParams{
+		WorkspaceId: new(int64(37)),
+		WorkflowId:  new(int64(43)),
+	}
+
+	assert.NoError(t, handleWorkspaceFlowCreateContext(testParams, &task.State{}))
+}
+
+func Test_handleWorkspaceFlowCreateContext_NoWorkflowId(t *testing.T) {
+	var testParams = &WorkspaceFlowCreateParams{
+		WorkspaceId: new(int64(37)),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowCreateContext(testParams, &task.State{}), ErrorWorkflowIdRequired)
+}
+
+func Test_handleWorkspaceFlowCreateContext_NoWorkspaceId(t *testing.T) {
+	var testParams = &WorkspaceFlowCreateParams{
+		WorkflowId: new(int64(43)),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowCreateContext(testParams, &task.State{}), ErrorWorkspaceIdRequired)
+}
+
+func Test_handleWorkspaceFlowCreateContext_OutputCheck(t *testing.T) {
+	var testState = &task.State{Output: "check"}
+
+	assert.NoError(t, handleWorkspaceFlowCreateContext(&WorkspaceFlowCreateParams{}, testState))
+}
+
+func Test_handleWorkspaceFlowCreateComplete(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testClient = &stubWorkspaceClient{
+		createFlowExpected: &WorkspaceFlow{
+			WorkspaceId: int64(37),
+			WorkflowId:  int64(42),
+			Name:        "expectedName",
+			Description: "expectedDesc",
+		},
+	}
+	var testParams = &WorkspaceFlowCreateParams{
+		Broker: &Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		WorkspaceId: &testClient.createFlowExpected.WorkspaceId,
+		WorkflowId:  &testClient.createFlowExpected.WorkflowId,
+		Name:        testClient.createFlowExpected.Name,
+	}
+
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return testClient, nil
+	}
+
+	assert.NoError(t, handleWorkspaceFlowCreateComplete(testParams, testState))
+	assert.NotEmpty(t, testState.Reports)
+	assert.Empty(t, testState.Output)
+
+	if actual, ok := testState.Internal.(*WorkspaceFlow); ok {
+		assert.Equal(t, testClient.createFlowExpected, actual)
+	} else {
+		assert.Fail(t, "expected internal workspace flow")
+	}
+}
+
+func Test_handleWorkspaceFlowCreateComplete_CreateError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &WorkspaceFlowCreateParams{
+		Broker: &Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		WorkspaceId: new(int64(37)),
+		WorkflowId:  new(int64(42)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			createFlowError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowCreateComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceFlowCreateComplete_InvalidParams(t *testing.T) {
+	var testParams = &WorkspaceFlowCreateParams{
+		WorkspaceId: new(int64(37)),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowCreateComplete(testParams, &task.State{}), ErrorWorkspaceFlowInvalid)
+}
+
+func Test_handleWorkspaceFlowCreateComplete_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{}
+	var testParams = &WorkspaceFlowCreateParams{
+		Broker: &Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		WorkspaceId: new(int64(37)),
+		WorkflowId:  new(int64(42)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowCreateComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceFlowCreatePretend(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &WorkspaceFlowCreateParams{
+		Broker: &Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		WorkspaceId: new(int64(37)),
+		WorkflowId:  new(int64(69)),
+		Name:        "expectedName",
+		Description: "expectedDesc",
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceFlowCreatePretend(testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, cast.ToString(*testParams.WorkspaceId))
+	assert.Contains(t, output, cast.ToString(*testParams.WorkflowId))
+	assert.Contains(t, output, testParams.Name)
+	assert.Contains(t, output, testParams.Description)
+}
+
+func Test_handleWorkspaceFlowCreatePretend_InvalidParams(t *testing.T) {
+	var testParams = &WorkspaceFlowCreateParams{
+		WorkspaceId: new(int64(37)),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowCreatePretend(testParams, &task.State{}), ErrorWorkspaceFlowInvalid)
+}
+
+func Test_handleWorkspaceFlowCreatePretend_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{}
+	var testParams = &WorkspaceFlowCreateParams{
+		Broker: &Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		WorkspaceId: new(int64(37)),
+		WorkflowId:  new(int64(42)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowCreatePretend(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceFlowResolveComplete(t *testing.T) {
+	var expectedId = int64(37)
+	var testState = &task.State{Logger: logrus.New()}
+	var testClient = &stubWorkspaceClient{
+		listWorkspaces: []Workspace{
+			{
+				Id:   expectedId,
+				Name: "expected",
+			},
+		},
+	}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+		WorkspaceName: testClient.listWorkspaces[0].Name,
+		RcEnabled:     true,
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return testClient, nil
+	}
+
+	assert.NoError(t, handleWorkspaceFlowResolveComplete(testParams, testState))
+	assert.Equal(t, expectedId, *testParams.WorkspaceId)
+}
+
+func Test_handleWorkspaceFlowResolveComplete_ListError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			listWorkspaceError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowResolveComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceFlowResolveComplete_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowResolveComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceFlowResolveComplete_WorkspaceId(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			WorkspaceId: new(int64(37)),
+		},
+	}
+
+	assert.NoError(t, handleWorkspaceFlowResolveComplete(testParams, &task.State{}))
+}
+
+func Test_handleWorkspaceFlowResolveContext(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceName: "name",
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleWorkspaceFlowResolveContext(testParams, testState))
+}
+
+func Test_handleWorkspaceFlowResolveContext_NoName(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowResolveContext(testParams, testState), ErrorWorkspaceNameRequired)
+}
+
+func Test_handleWorkspaceFlowResolveContext_OutputCheck(t *testing.T) {
+	var testState = &task.State{Output: "check"}
+
+	assert.NoError(t, handleWorkspaceFlowResolveContext(&WorkspaceFlowResolveParams{}, testState))
+}
+
+func Test_handleWorkspaceFlowResolveContext_WorkspaceId(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			WorkspaceId: new(int64(937)),
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowResolveContext(testParams, testState), ErrorWorkspaceIdKnown)
+}
+
+func Test_handleWorkspaceFlowResolveIncomplete(t *testing.T) {
+	var testState = &task.State{
+		Error: errors.New("expected"),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowResolveIncomplete(&WorkspaceFlowResolveParams{}, testState), testState.Error)
+	assert.False(t, testState.Completed)
+}
+
+func Test_handleWorkspaceFlowResolveIncomplete_KnownId(t *testing.T) {
+	var testState = &task.State{
+		Error:  ErrorWorkspaceIdKnown,
+		Logger: logrus.New(),
+	}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			WorkspaceId: new(int64(37)),
+		},
+	}
+
+	assert.NoError(t, handleWorkspaceFlowResolveIncomplete(testParams, testState))
+	assert.True(t, testState.Completed)
+}
+
+func Test_handleWorkspaceFlowResolvePretend(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+		RcEnabled: true,
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceFlowResolvePretend(testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, fmt.Sprintf("mask=%d", WorkspaceFlags.RcEnabled|WorkspaceFlags.Active))
+	assert.Contains(t, output, fmt.Sprintf("flags=%d", WorkspaceFlags.RcEnabled|WorkspaceFlags.Active))
+}
+
+func Test_handleWorkspaceFlowResolvePretend_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowResolvePretend(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceFlowResolvePretend_WorkspaceId(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			WorkspaceId: new(int64(73)),
+		},
+	}
+
+	assert.NoError(t, handleWorkspaceFlowResolvePretend(testParams, &task.State{}))
+}
+
+func Test_handleWorkspaceFlowSolutionComplete(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testClient = &stubWorkspaceClient{
+		findSolutionExpected: &Solution{
+			Id: new(int64(37)),
+			Workflows: []Workflow{
+				{
+					Id:     new(int64(37)),
+					Handle: "expected",
+				},
+			},
+		},
+	}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+		WorkflowHandle: "expected",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return testClient, nil
+	}
+
+	assert.NoError(t, handleWorkspaceFlowSolutionComplete(testParams, testState))
+	assert.Equal(t, testClient.findSolutionExpected.Workflows[0].Id, testParams.WorkflowId)
+}
+
+func Test_handleWorkspaceFlowSolutionComplete_FindError(t *testing.T) {
+	var testState = &task.State{}
+	var testClient = &stubWorkspaceClient{
+		findSolutionError: errors.New("expected"),
+	}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return testClient, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionComplete(testParams, testState), testClient.findSolutionError)
+}
+
+func Test_handleWorkspaceFlowSolutionComplete_FindEmpty(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testClient = &stubWorkspaceClient{
+		findSolutionExpected: &Solution{
+			Id:        new(int64(37)),
+			Workflows: make([]Workflow, 0),
+		},
+	}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return testClient, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionComplete(testParams, testState), ErrorWorkflowNotFound)
+}
+
+func Test_handleWorkspaceFlowSolutionComplete_NoMatches(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testClient = &stubWorkspaceClient{
+		findSolutionExpected: &Solution{
+			Id: new(int64(37)),
+			Workflows: []Workflow{
+				{
+					Handle: "someHandle",
+				},
+			},
+		},
+	}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+		WorkflowHandle: "anotherHandle",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return testClient, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionComplete(testParams, testState), ErrorWorkflowNotFound)
+}
+
+func Test_handleWorkspaceFlowSolutionComplete_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceFlowSolutionComplete_WorkflowId(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			WorkflowId: new(int64(73)),
+		},
+	}
+
+	assert.NoError(t, handleWorkspaceFlowSolutionComplete(testParams, &task.State{}))
+}
+
+func Test_handleWorkspaceFlowSolutionContext(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		SolutionHandle:  "handle",
+		SolutionOem:     "oem",
+		SolutionVersion: "version",
+	}
+
+	assert.NoError(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}))
+}
+
+func Test_handleWorkspaceFlowSolutionContext_OutputCheck(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{}
+	var testState = &task.State{
+		Output: "check",
+	}
+
+	assert.NoError(t, handleWorkspaceFlowSolutionContext(testParams, testState))
+}
+
+func Test_handleWorkspaceFlowSolutionContext_NoSolutionHandle(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		SolutionOem:     "oem",
+		SolutionVersion: "version",
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}), ErrorWorkflowHandleRequired)
+}
+
+func Test_handleWorkspaceFlowSolutionContext_NoSolutionOem(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		SolutionHandle:  "handle",
+		SolutionVersion: "version",
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}), ErrorWorkflowOemRequired)
+}
+
+func Test_handleWorkspaceFlowSolutionContext_NoSolutionVersion(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		SolutionHandle: "handle",
+		SolutionOem:    "oem",
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}), ErrorWorkflowVersionRequired)
+}
+
+func Test_handleWorkspaceFlowSolutionContext_WorkflowId(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			WorkflowId: new(int64(37)),
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, testState), ErrorWorkflowIdKnown)
+}
+
+func Test_handleWorkspaceFlowSolutionIncomplete(t *testing.T) {
+	var testState = &task.State{
+		Error: errors.New("expected"),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionIncomplete(&WorkspaceFlowResolveParams{}, testState), testState.Error)
+	assert.False(t, testState.Completed)
+}
+
+func Test_handleWorkspaceFlowSolutionIncomplete_KnownId(t *testing.T) {
+	var testState = &task.State{
+		Error:  ErrorWorkflowIdKnown,
+		Logger: logrus.New(),
+	}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			WorkflowId: new(int64(37)),
+		},
+	}
+
+	assert.NoError(t, handleWorkspaceFlowSolutionIncomplete(testParams, testState))
+	assert.True(t, testState.Completed)
+}
+
+func Test_handleWorkspaceFlowSolutionPretend(t *testing.T) {
+	var testState = &task.State{Logger: logrus.New()}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+		SolutionHandle:  "expectedHandle",
+		SolutionOem:     "expectedOem",
+		SolutionVersion: "expectedVers",
+		RcEnabled:       true,
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdoutRestore
+	}()
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceFlowSolutionPretend(testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, testParams.SolutionOem)
+	assert.Contains(t, output, testParams.SolutionHandle)
+	assert.Contains(t, output, testParams.SolutionVersion)
+}
+
+func Test_handleWorkspaceFlowSolutionPretend_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{}
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			Broker: &Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionPretend(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceFlowSolutionPretend_WorkflowId(t *testing.T) {
+	var testParams = &WorkspaceFlowResolveParams{
+		WorkspaceFlowCreateParams: &WorkspaceFlowCreateParams{
+			WorkflowId: new(int64(37)),
+		},
+	}
+
+	assert.NoError(t, handleWorkspaceFlowSolutionPretend(testParams, &task.State{}))
+}
+
 func Test_handleWorkspaceListContext(t *testing.T) {
 	assert.NoError(t, handleWorkspaceListContext(&WorkspaceListParams{}, &task.State{}))
 
@@ -448,7 +1244,7 @@ func Test_handleWorkspaceListComplete_DateFilter(t *testing.T) {
 			AuthFile: "file",
 			HostAddr: "hostAddr",
 		},
-		FromDate: lang.Ref(time.UnixMilli(1)),
+		FromDate: new(time.UnixMilli(1)),
 	}
 	var testWorkspaces = []Workspace{
 		{
@@ -630,7 +1426,7 @@ func Test_handleWorkspaceListPretend_FromDate(t *testing.T) {
 			AuthFile: filepath.Join(t.TempDir(), ".auth"),
 			HostAddr: "hostAddr",
 		},
-		FromDate: lang.Ref(time.UnixMilli(1)),
+		FromDate: new(time.UnixMilli(1)),
 	}
 	var expectedMask, expectedFlags = testParams.GetMaskFlags()
 	var testLogger, hook = test.NewNullLogger()

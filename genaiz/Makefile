@@ -60,7 +60,7 @@ dev:
 ## install - Installs the binary under the users bin directory ($HOME/go/bin)
 install: build
 	@echo "Installing..."
-	go install -tags prod
+	go install -ldflags="-X genaiz.com/genaiz/version.Head=$$(git rev-parse HEAD)" -tags prod
 
 .PHONY: recipes
 ## recipes - Should install embedded recipes and recipe packs under the users share folder ($HOME/.local/share/genaiz)

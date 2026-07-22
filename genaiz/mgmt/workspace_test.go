@@ -11,10 +11,77 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/lang/timez"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
+
+func TestUserWorkspace_Match(t *testing.T) {
+	var testUserWorkspace = &UserWorkspace{
+		Id:   int64(37),
+		Name: "workspaceName",
+	}
+
+	if uw := testUserWorkspace.Match("work"); uw == nil {
+		assert.Fail(t, "expected a user workspace match")
+	} else {
+		assert.Equal(t, testUserWorkspace.Name, uw.matched)
+	}
+}
+
+func TestUserWorkspace_Match_Id(t *testing.T) {
+	var testUserWorkspace = &UserWorkspace{
+		Id:   int64(1337),
+		Name: "aHandleValue",
+	}
+
+	if uw := testUserWorkspace.Match("13"); uw == nil {
+		assert.Fail(t, "expected a user workspace match")
+	} else {
+		assert.Equal(t, cast.ToString(testUserWorkspace.Id), uw.matched)
+	}
+}
+
+func TestUserWorkspace_Match_NoMatch(t *testing.T) {
+	var testUserWorkspace = &UserWorkspace{
+		Id:   int64(1337),
+		Name: "aHandleValue",
+	}
+
+	if uw := testUserWorkspace.Match("test"); uw != nil {
+		assert.Fail(t, "not expected a user workspace to match")
+	}
+}
+
+func TestUserWorkspace_Matched(t *testing.T) {
+	var testUserWorkspace = &UserWorkspace{
+		Id:      int64(37),
+		matched: "expected",
+	}
+	var expected = fmt.Sprintf("%s\t%d", testUserWorkspace.matched, testUserWorkspace.Id)
+
+	assert.Equal(t, expected, testUserWorkspace.Matched())
+}
+
+func TestUserWorkspace_Matched_Id(t *testing.T) {
+	var testUserWorkspace = &UserWorkspace{
+		Id:      int64(37),
+		matched: "42",
+	}
+	var expected = fmt.Sprintf("%s\t%s", testUserWorkspace.matched, testUserWorkspace.Name)
+
+	assert.Equal(t, expected, testUserWorkspace.Matched())
+}
+
+func TestUserWorkspace_Matched_Nothing(t *testing.T) {
+	var testUserWorkspace = &UserWorkspace{
+		Id:      int64(37),
+		Name:    "Expected",
+		matched: "",
+	}
+	var expected = fmt.Sprintf("%d\t%s", testUserWorkspace.Id, testUserWorkspace.Name)
+
+	assert.Equal(t, expected, testUserWorkspace.Matched())
+}
 
 func TestUserWorkspace_MarshalJSON(t *testing.T) {
 	var testUserWorkspace = &UserWorkspace{
@@ -177,7 +244,7 @@ func TestUserWorkspacesProvider_Get(t *testing.T) {
 		{
 			Id:    37,
 			Name:  "expected",
-			Flags: lang.Ref(10),
+			Flags: new(10),
 		},
 	}
 	var testParams = &broker.WorkspaceListParams{

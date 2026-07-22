@@ -6,6 +6,7 @@ invoke a Workflow on a groups of Agents managed by the Broker.
 
 * [Features](#features)
     * [Workspace Creation](#workspace-creation)
+    * [Workspace Flow Creation]()
     * [Workspace Listing](#workspace-listing)
 * [By Command](#commands)
 * [By Test Cases](#test-cases)
@@ -27,9 +28,33 @@ flowchart LR
     login --> wsCreate([create<br>workspace])
 ```
 
+### Workspace Flow Creation
+
+The Workspace Flow creation activity is a complex user to broker sequence of requests which serves as a starting point
+for the deployment of Solution Workflow into an orchestrated Flow execution. It involves a series of scenarios detailed
+under [create workspace flow](../../features/workspace/create_workspace_flow.feature)
+
+```mermaid
+---
+title: Workspace Flow Creation Activity
+---
+flowchart LR
+    use>user] --> login([account<br>login])
+    login --> wsList([workspace<br>list])
+    login --> wsCreate([workspace<br>create])
+    login --> snList([solution<br>list])
+    login --> wfList([workflow<br>list])
+    wsList --> flowCreate([flow<br>create])
+    snList --> flowCreate
+    wfList --> flowCreate
+    wsCreate <--> wsList
+```
+
 ### Workspace Listing
 
-The workspace listing activity is a simple user to broker request which returns the list of workspaces for an integer flag value representing Workspace status and type. It involves a series of scenarios detailed under [list simple use workspaces](../../features/workspace/list_simple_user_workspaces.feature)
+The workspace listing activity is a simple user to broker request which returns the list of workspaces for an integer
+flag value representing Workspace status and type. It involves a series of scenarios detailed
+under [list simple use workspaces](../../features/workspace/list_simple_user_workspaces.feature)
 
 ```mermaid
 ---
@@ -45,9 +70,11 @@ flowchart LR
 ## Commands
 
 * [create](create.md)
+* [flow](flow.md)
 * [list](list.md)
 
 ## Test Cases
 
 * [Create Simple Workspace](../../features/workspace/create_simple_workspace.feature)
+* [Create Workspace Flow](../../features/workspace/create_workspace_flow.feature)
 * [List Simple User Workspaces](../../features/workspace/list_simple_user_workspaces.feature)

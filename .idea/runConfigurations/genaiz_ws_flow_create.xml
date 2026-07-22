@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="genaiz ws flow create" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="genaiz ws">
+    <module name="sdk" />
+    <working_directory value="$PROJECT_DIR$/out" />
+    <go_parameters value="-tags dev" />
+    <parameters value="ws flow create 3334 com.genaiz/cellcarta-risk-relief:1.0.0 95842 --name=intellijTest2" />
+    <kind value="PACKAGE" />
+    <package value="genaiz.com/genaiz" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/genaiz/task/plan.go" />
+    <method v="2" />
+  </configuration>
+</component>

@@ -373,6 +373,14 @@ type Document struct {
 			RcEnabled   Keys
 			Visibility  Keys
 		}
+		Flow struct {
+			Create struct {
+				Account     Keys
+				Description Keys
+				Name        Keys
+				Printer     Keys
+			}
+		}
 		List struct {
 			Account     Keys
 			DateMonthly Keys
@@ -739,6 +747,11 @@ func init() {
 	Genaiz.Workspace.Create.Printer = newKeys("Workspace.Create.Printer", "WS_CREATE_PRINTER", "Ws.Create.Printer")
 	Genaiz.Workspace.Create.RcEnabled = newKeys("Workspace.Create.RcEnabled", "WS_CREATE_RC_ENABLED", "Ws.Create.RcEnabled")
 	Genaiz.Workspace.Create.Visibility = newKeys("Workspace.Create.Visibility", "WS_CREATE_VISIBILITY", "Ws.Create.Visibility")
+
+	Genaiz.Workspace.Flow.Create.Account = newKeys("Workspace.Flow.Create.Account", "WS_FLOW_CREATE_ACCOUNT", "Ws.Flow.Create.Account")
+	Genaiz.Workspace.Flow.Create.Description = newKeys("Workspace.Flow.Create.Description", "WS_FLOW_CREATE_DESCRIPTION", "Ws.Flow.Create.Description")
+	Genaiz.Workspace.Flow.Create.Name = newKeys("Workspace.Flow.Create.Name", "WS_FLOW_CREATE_NAME", "Ws.Flow.Create.Name")
+	Genaiz.Workspace.Flow.Create.Printer = newKeys("Workspace.Flow.Create.Printer", "WS_FLOW_CREATE_PRINTER", "WS.Flow.Create.Printer")
 
 	Genaiz.Workspace.List.Account = newKeys("Workspace.List.Account", "WS_LIST_ACCOUNT", "Ws.List.Account")
 	Genaiz.Workspace.List.DateMonthly = newKeys("Workspace.List.DateMonthly", "WS_LIST_DATE_MONTHLY", "Ws.List.DateMonthly")

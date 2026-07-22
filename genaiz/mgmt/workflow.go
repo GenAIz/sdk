@@ -2,9 +2,12 @@ package mgmt
 
 import (
 	"encoding/json"
+	"strconv"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
+	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/intz"
 	"genaiz.com/genaiz-lib/lang/stringz"
@@ -35,6 +38,8 @@ type UserWorkflow struct {
 	Nodes           []broker.WorkflowNode `cli:"Nodes"`
 	Links           []broker.WorkflowLink
 	Local           bool `cli:"Local?"`
+
+	matched string
 }
 
 func (uw UserWorkflow) MarshalJSON() ([]byte, error) {
@@ -93,6 +98,51 @@ func (uw UserWorkflow) MarshalSlice() ([]string, error) {
 		cast.ToString(len(uw.Nodes)),
 		stringz.YesOrNo(uw.Local),
 	}, nil
+}
+
+func (uw UserWorkflow) Match(filter string) *UserWorkflow {
+	var matched string
+
+	if strings.EqualFold(uw.Handle, filter) ||
+		strings.HasPrefix(uw.Handle, filter) {
+		matched = uw.Handle
+	} else if uw.Id != nil &&
+		strings.HasPrefix(cast.ToString(*uw.Id), filter) {
+		matched = cast.ToString(*uw.Id)
+	}
+
+	if matched == "" {
+		return nil
+	}
+
+	return &UserWorkflow{
+		Id:              uw.Id,
+		SolutionId:      uw.SolutionId,
+		SolutionFqdn:    uw.SolutionFqdn,
+		SolutionVersion: uw.SolutionVersion,
+		Handle:          uw.Handle,
+		Created:         uw.Created,
+		Modified:        uw.Modified,
+		Flags:           uw.Flags,
+		Name:            uw.Name,
+		Description:     uw.Description,
+		Nodes:           uw.Nodes,
+		Links:           uw.Links,
+		Local:           uw.Local,
+		matched:         matched,
+	}
+}
+
+func (uw UserWorkflow) Matched() string {
+	if uw.matched == "" {
+		return cobra.CompletionWithDesc(cast.ToString(*uw.Id), uw.Handle)
+	}
+
+	if _, err := strconv.Atoi(uw.matched); err == nil {
+		return cobra.CompletionWithDesc(uw.matched, uw.Handle)
+	}
+
+	return cobra.CompletionWithDesc(uw.matched, cast.ToString(*uw.Id))
 }
 
 func ToUserWorkflow(solution *broker.Solution, workflow *broker.Workflow) *UserWorkflow {
@@ -194,7 +244,11 @@ func (uwp userWorkflowProvider) Get() ([]UserWorkflow, task.Error) {
 			for _, wf := range sol.Workflows {
 				var userWorkflow = ToUserWorkflow(&sol, &wf)
 
-				result = append(result, *userWorkflow)
+				if uwp.filter == "" {
+					result = append(result, *userWorkflow)
+				} else if matchedWorkflow := userWorkflow.Match(uwp.filter); matchedWorkflow != nil {
+					result = append(result, *matchedWorkflow)
+				}
 			}
 		}
 

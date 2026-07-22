@@ -1107,6 +1107,18 @@ type workspaceFlags struct {
 	RcEnabled int
 }
 
+type WorkspaceFlow struct {
+	Id          int64
+	Created     int64  `json:"nco,omitempty"`
+	Modified    int64  `json:"nms,omitempty"`
+	WorkspaceId int64  `json:"workspaceId"`
+	SolutionId  int64  `json:"solutionId"`
+	WorkflowId  int64  `json:"workflowId"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Flags       *int   `json:"Flags,omitempty"`
+}
+
 func ParseFqdnVersion(value string) (string, string, string) {
 	var oem, handle, ver string
 	var oemHandleParts = strings.Split(value, "/")

@@ -2,10 +2,12 @@ package mgmt
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
+	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/task"
@@ -27,6 +29,8 @@ type UserWorkspace struct {
 	RcEnabled   bool `cli:"RC?"`
 	Active      bool `cli:"Active"`
 	Flags       *int
+
+	matched string
 }
 
 func (uw UserWorkspace) MarshalJSON() ([]byte, error) {
@@ -81,15 +85,48 @@ func (uw UserWorkspace) MarshalSlice() ([]string, error) {
 	}, nil
 }
 
-func (uw UserWorkspace) Match(filter string) bool {
-	var lowFilter = strings.ToLower(filter)
+func (uw UserWorkspace) Match(filter string) *UserWorkspace {
 	var idString = cast.ToString(uw.Id)
+	var matched string
 
-	return strings.EqualFold(idString, lowFilter) ||
-		strings.HasPrefix(idString, lowFilter) ||
-		strings.EqualFold(uw.Name, lowFilter) ||
-		strings.HasPrefix(uw.Name, lowFilter) ||
-		strings.HasSuffix(uw.Name, lowFilter)
+	if strings.EqualFold(idString, filter) ||
+		strings.HasPrefix(idString, filter) {
+		matched = idString
+	} else if strings.EqualFold(uw.Name, filter) ||
+		strings.HasPrefix(uw.Name, filter) {
+		matched = uw.Name
+	}
+
+	if matched == "" {
+		return nil
+	}
+
+	return &UserWorkspace{
+		Id:          uw.Id,
+		Name:        uw.Name,
+		Description: uw.Description,
+		Created:     uw.Created,
+		Modified:    uw.Modified,
+		OwnerAppId:  uw.OwnerAppId,
+		OwnerUserId: uw.OwnerUserId,
+		Visibility:  uw.Visibility,
+		RcEnabled:   uw.RcEnabled,
+		Active:      uw.Active,
+		Flags:       uw.Flags,
+		matched:     matched,
+	}
+}
+
+func (uw UserWorkspace) Matched() cobra.Completion {
+	if uw.matched == "" {
+		return cobra.CompletionWithDesc(cast.ToString(uw.Id), uw.Name)
+	}
+
+	if _, err := strconv.Atoi(uw.matched); err == nil {
+		return cobra.CompletionWithDesc(uw.matched, uw.Name)
+	}
+
+	return cobra.CompletionWithDesc(uw.matched, cast.ToString(uw.Id))
 }
 
 type userWorkspacesFacade struct {
@@ -155,8 +192,10 @@ func (uwp userWorkspacesProvider) Get() ([]UserWorkspace, task.Error) {
 				Active:      ws.IsActive(),
 			}
 
-			if uwp.filter == "" || userWorkspace.Match(uwp.filter) {
+			if uwp.filter == "" {
 				result = append(result, *userWorkspace)
+			} else if matched := userWorkspace.Match(uwp.filter); matched != nil {
+				result = append(result, *matched)
 			}
 		}
 
