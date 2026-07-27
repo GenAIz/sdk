@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/mock"
-	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/mgmt"
 	"genaiz.com/genaiz/task"
@@ -44,34 +43,6 @@ func (s *stubUserAccountFacade) WithLogger(logger *logrus.Logger) mgmt.Facade[[]
 func (s *stubUserAccountFacade) WithParams(params *broker.AuthParams) mgmt.Facade[[]mgmt.UserAccount, broker.AuthParams] {
 	s.params = params
 	return s
-}
-
-type stubCliPrinterParametric struct {
-}
-
-func (s stubCliPrinterParametric) Printer() cli.Printer {
-	return &stubCliPrinter{}
-}
-
-func (s stubCliPrinterParametric) IsDefault() bool {
-	return true
-}
-
-type stubCliPrinter struct {
-	errorError   error
-	errorPayload interface{}
-	printError   error
-	printPayload interface{}
-}
-
-func (s *stubCliPrinter) Error(i interface{}) error {
-	s.errorPayload = i
-	return s.errorError
-}
-
-func (s *stubCliPrinter) Print(i interface{}) error {
-	s.printPayload = i
-	return s.printError
 }
 
 func TestListExecutor_List(t *testing.T) {

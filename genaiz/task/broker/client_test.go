@@ -1722,6 +1722,19 @@ func TestGetClient_NoAccount(t *testing.T) {
 	}
 }
 
+func TestSeedClient(t *testing.T) {
+	var expectedAddr = "tehAddr"
+	var expectedToken = "leToken"
+
+	if actual, err := SeedClient(expectedAddr, expectedToken); err == nil {
+		assert.Equal(t, expectedAddr, actual.GetHostAddr())
+		assert.Equal(t, expectedToken, actual.GetAuthToken())
+		return
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
 func TestNewClientFactory(t *testing.T) {
 	var expectedAddr = "expectedAddr"
 	var testClientFactory = NewClientFactory()

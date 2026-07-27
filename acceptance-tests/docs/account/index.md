@@ -3,6 +3,7 @@
 ## Test Cases
 
 * [Account activation](../../features/account/activate_oidc_account.feature)
+* [Account session inspect](../../features/account/inspect_user_account.feature)
 * [Account listings](../../features/account/list_accounts_username_oidc.feature)
 * [Account login with username](../../features/account/login_username.feature)
 * [Account login with OIDC](../../features/account/login_oidc.feature)
@@ -10,6 +11,7 @@
 ## Commands
 
 * [activate](#activate)
+* [inspect](#inspect)
 * [list](#list)
 * [login](#login)
 * [logout](#logout)
@@ -84,6 +86,14 @@ If the command does not find any results it should print `Error: No sessions fou
   }
 ]
 ```
+
+### Inspect
+
+`genaiz account inspect [HOST]`
+
+The command allows inspection of the first session found for the specified host or for the active session under
+`$HOME/.cache/genaiz`. It will also support overrides `GENAIZ_AUTH_URL` and `GENAIZ_AUTH_SESSION`, which can be used in
+CI/CD environments to keep tokens from spilling out of Pipelines onto disk.
 
 ### Login
 

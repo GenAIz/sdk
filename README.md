@@ -1,6 +1,6 @@
 # GenAIz SDK
 
-<sub>Genaiz Version 0.4.14</sub>
+<sub>Genaiz Version 0.4.15</sub>
 
 The GenAIz SDK is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestrator platform.
 
@@ -171,6 +171,18 @@ host argument:
 genaiz ac logout dev.genaiz.com
 genaiz ac logout
 ```
+
+#### Environment logins for CI/CD
+
+To facilitate a secure in-memory mechanism for handling credentials, the genaiz cli can use a combination of environment
+variables.
+
+* `GENAIZ_AUTH_URL`: the url that would be used on genaiz ac login command
+* `GENAIZ_AUTH_SESSION`: the session token emitted by a previous ac login command for that host
+
+These 2 bits of information can be used on CI/CD configurations to avoid having to write a `.auth` file under
+`$HOME/.cache/genaiz` for a given session. The session token should typically be held in the **Secrets** of the CI/CD
+pipeline in need of calling the genaiz cli.
 
 ## Development Guide
 

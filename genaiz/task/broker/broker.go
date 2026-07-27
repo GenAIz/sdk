@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,6 +16,9 @@ import (
 )
 
 const (
+	genaizAuthUrlKey     = "GENAIZ_AUTH_URL"
+	genaizAuthSessionKey = "GENAIZ_AUTH_SESSION"
+
 	PropSpecTypeBoolean PropSpecType = "BOOL"
 	PropSpecTypeDouble  PropSpecType = "DOUBLE"
 	PropSpecTypeEnum    PropSpecType = "ENUM"
@@ -68,6 +72,14 @@ type Broker struct {
 }
 
 func (b Broker) GetClient() (Client, error) {
+	var envHost = os.Getenv(genaizAuthUrlKey)
+	var envSession = os.Getenv(genaizAuthSessionKey)
+
+	if envHost != "" && envSession != "" {
+		// override in effect
+		return clientFactory.Seed(envHost, envSession)
+	}
+
 	if b.HostAddr == "" {
 		return clientFactory.Active(b.AuthFile)
 	}
