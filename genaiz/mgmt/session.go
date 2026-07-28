@@ -1,6 +1,7 @@
 package mgmt
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/spf13/cast"
@@ -16,6 +17,34 @@ type UserSession struct {
 	Expiry  int64 `cli:"Expires" redGreen:"Expired"`
 	Expired bool  `cli:"Expired,noShow"`
 	Flags   *int
+}
+
+func (us UserSession) MarshalJSON() ([]byte, error) {
+	var created, expiry string
+
+	if us.Created > 0 {
+		created = createdFormatter.FormatMillis(us.Created)
+	}
+
+	if us.Expiry > 0 {
+		expiry = expiryFormatter.FormatMillis(us.Expiry)
+	}
+
+	return json.Marshal(&struct {
+		Id      int64  `json:"id,omitempty"`
+		UserId  int    `json:"userId,omitempty"`
+		Created string `json:"created,omitempty"`
+		Expiry  string `json:"expiry,omitempty"`
+		Expired bool   `json:"expired"`
+		Flags   *int   `json:"flags,omitempty"`
+	}{
+		Id:      us.Id,
+		UserId:  us.UserId,
+		Created: created,
+		Expiry:  expiry,
+		Expired: us.Expired,
+		Flags:   us.Flags,
+	})
 }
 
 func (us UserSession) MarshalSlice() ([]string, error) {
