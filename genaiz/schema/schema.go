@@ -21,6 +21,9 @@ type Document struct {
 		Activate struct {
 			Username Keys
 		}
+		Inspect struct {
+			Printer Keys
+		}
 		List struct {
 			Printer Keys
 		}
@@ -469,6 +472,8 @@ func Normalize(vp *viper.Viper) *viper.Viper {
 
 func init() {
 	Genaiz.Account.Activate.Username = newKeys("Account.Activate.Username", "AC_ACTIVATE_USERNAME", "Ac.Activate.Username")
+
+	Genaiz.Account.Inspect.Printer = newKeys("Account.Inspect.Printer", "AC_INSPECT_PRINTER", "Ac.Inspect.Printer")
 
 	Genaiz.Account.List.Printer = newKeys("Account.List.Printer", "AC_LIST_PRINTER", "Ac.List.Printer")
 

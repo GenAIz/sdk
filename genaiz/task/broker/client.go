@@ -1167,8 +1167,9 @@ func (c *client) sessionOrError(resp responseBridge, username string) (*AuthSess
 
 type ClientFactory struct {
 	Active func(string) (Client, error)
-	New    func(string) Client
 	Get    func(string, string) (Client, error)
+	New    func(string) Client
+	Seed   func(string, string) (Client, error)
 }
 
 func ActiveClient(authFile string) (Client, error) {
@@ -1230,11 +1231,30 @@ func NewClient(addr string) Client {
 	})
 }
 
+func SeedClient(addr string, authToken string) (Client, error) {
+	var key = sanitizeHostUrl(addr)
+	var account = &AuthAccount{
+		HostAddr: addr,
+		AuthSession: &AuthSession{
+			Created:   -1,
+			Expiry:    -1,
+			SessionId: -1,
+			Token:     authToken,
+			UserId:    -1,
+			Username:  "token",
+		},
+	}
+
+	clientByHost[key], _ = NewClient(key).WithAccount(account)
+	return clientByHost[key], nil
+}
+
 func NewClientFactory() *ClientFactory {
 	return &ClientFactory{
 		Active: ActiveClient,
-		New:    NewClient,
 		Get:    GetClient,
+		New:    NewClient,
+		Seed:   SeedClient,
 	}
 }
 

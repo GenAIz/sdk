@@ -25,7 +25,6 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
@@ -291,7 +290,7 @@ func (lr *Ledger) GetConfigType(option *StringOption) (*shared.ConfigType, error
 	var configTypeString = lr.GetString(option)
 
 	if configTypeString == "none" {
-		return lang.Ref(shared.ConfigTypeNone), nil
+		return new(shared.ConfigTypeNone), nil
 	}
 
 	return shared.ConfigTypes.FromString(configTypeString)

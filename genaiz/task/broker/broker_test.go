@@ -2,6 +2,8 @@ package broker
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,6 +12,109 @@ import (
 
 	"genaiz.com/genaiz/task/shared"
 )
+
+type stubBaseClient struct {
+	client
+	brokerAddr      string
+	sessionExpected *Session
+	sessionError    error
+}
+
+func (sbc stubBaseClient) GetHostAddr() string {
+	return sbc.brokerAddr
+}
+
+func (sbc stubBaseClient) Session() (*Session, error) {
+	return sbc.sessionExpected, sbc.sessionError
+}
+
+func TestBroker_GetClient(t *testing.T) {
+	var expectedAddr = "expectedAddr"
+	var restoredFactory = clientFactory.Get
+	var err error
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubBaseClient{
+			brokerAddr: expectedAddr,
+		}, nil
+	}
+
+	var testBroker = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		HostAddr: expectedAddr,
+	}
+	var actual Client
+
+	if actual, err = testBroker.GetClient(); err == nil {
+		assert.Equal(t, expectedAddr, actual.GetHostAddr())
+		return
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestBroker_GetClient_Active(t *testing.T) {
+	var expectedAddr = "expectedAddr"
+	var restoredFactory = clientFactory.Active
+	var err error
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return &stubBaseClient{
+			brokerAddr: expectedAddr,
+		}, nil
+	}
+
+	var testBroker = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+	}
+	var actual Client
+
+	if actual, err = testBroker.GetClient(); err == nil {
+		assert.Equal(t, expectedAddr, actual.GetHostAddr())
+		return
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestBroker_GetClient_Seed(t *testing.T) {
+	var expectedAddr = "expectedAddr"
+	var restoredFactory = clientFactory.Seed
+	var err error
+
+	defer func() {
+		clientFactory.Seed = restoredFactory
+	}()
+	clientFactory.Seed = func(authFile, addr string) (Client, error) {
+		return &stubBaseClient{
+			brokerAddr: expectedAddr,
+		}, nil
+	}
+
+	if err = os.Setenv(genaizAuthUrlKey, "url"); err == nil {
+		defer func() { _ = os.Setenv(genaizAuthUrlKey, "") }()
+
+		if err = os.Setenv(genaizAuthSessionKey, "session"); err == nil {
+			var testBroker = &Broker{}
+			var actual Client
+
+			defer func() { _ = os.Setenv(genaizAuthSessionKey, "") }()
+
+			if actual, err = testBroker.GetClient(); err == nil {
+				assert.Equal(t, expectedAddr, actual.GetHostAddr())
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
 
 func TestDataLink_FindPropSpec(t *testing.T) {
 	var testKey = "testKey"

@@ -18,6 +18,7 @@ func NewAc(ledger *config.Ledger) *cobra.Command {
 	}
 
 	ac.AddCommand(NewActivate(ledger))
+	ac.AddCommand(NewInspect(ledger))
 	ac.AddCommand(NewList(ledger))
 	ac.AddCommand(NewLogin(ledger))
 	ac.AddCommand(NewLogout(ledger))

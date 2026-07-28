@@ -253,6 +253,16 @@ func TestNewAuthTask(t *testing.T) {
 	assert.Empty(t, actual.OnPretend)
 }
 
+func TestNewInspectTask(t *testing.T) {
+	var actual = NewInspectTask()
+
+	assert.NotEmpty(t, actual.Name)
+	assert.NotEmpty(t, actual.OnPrepare)
+	assert.NotEmpty(t, actual.OnComplete)
+	assert.NotEmpty(t, actual.OnIncomplete)
+	assert.Empty(t, actual.OnPretend)
+}
+
 func TestNewLoginTask(t *testing.T) {
 	var actual = NewLoginTask()
 
@@ -658,6 +668,225 @@ func Test_handleAuthList_NegActiveNoExpired(t *testing.T) {
 	}
 
 	assert.NoError(t, err)
+}
+
+func Test_handleInspectComplete(t *testing.T) {
+	var restoredFactory = clientFactory.Active
+	var testClient = &stubBaseClient{
+		sessionExpected: &Session{
+			Id: int64(37),
+		},
+	}
+	var testParams = &Broker{}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return testClient, nil
+	}
+
+	assert.NoError(t, handleInspectComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.(Session); ok {
+		assert.Equal(t, testClient.sessionExpected.Id, actual.Id)
+	} else {
+		assert.Fail(t, "expected an internal session")
+	}
+}
+
+func Test_handleInspectComplete_NoSession(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var restoredFactory = clientFactory.Get
+	var testParams = &Broker{
+		HostAddr: "hostAddr",
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, hostAddr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleInspectComplete(testParams, testState), expectedError)
+}
+
+func Test_handleInspectCompete_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var restoredFactory = clientFactory.Active
+	var testClient = &stubBaseClient{
+		sessionError: expectedError,
+	}
+	var testParams = &Broker{}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	defer func() {
+		clientFactory.Active = restoredFactory
+	}()
+	clientFactory.Active = func(authFile string) (Client, error) {
+		return testClient, nil
+	}
+
+	assert.ErrorIs(t, handleInspectComplete(testParams, testState), expectedError)
+}
+
+func Test_handleInspectContext(t *testing.T) {
+	var testParams = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		HostAddr: "testHost",
+	}
+	var testAuth = &AuthData{
+		Active: 0,
+		Accounts: []*AuthAccount{
+			{
+				HostAddr: testParams.HostAddr,
+				AuthSession: &AuthSession{
+					Username: "testUsername",
+					Expiry:   time.Now().Add(7 * time.Minute).UTC().UnixMilli(),
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuth); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.NoError(t, handleInspectContext(testParams, testState))
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func Test_handleInspectContext_AuthNotFound(t *testing.T) {
+	var testParams = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		HostAddr: "aHost",
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		defer filez.CloseSilently(fd)
+		assert.ErrorIs(t, handleInspectContext(testParams, testState), ErrorNoSession)
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func Test_handleInspectContext_NoHostAddr(t *testing.T) {
+	var testParams = &Broker{}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+
+	assert.NoError(t, handleInspectContext(testParams, testState))
+}
+
+func Test_handleInspectContext_SessionExpired(t *testing.T) {
+	var testParams = &Broker{
+		AuthFile: filepath.Join(t.TempDir(), ".auth"),
+		HostAddr: "testHost",
+	}
+	var testAuth = &AuthData{
+		Active: 0,
+		Accounts: []*AuthAccount{
+			{
+				HostAddr: testParams.HostAddr,
+				AuthSession: &AuthSession{
+					Username: "testUsername",
+					Expiry:   1,
+				},
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var fd *os.File
+	var err error
+
+	if fd, err = os.Create(testParams.AuthFile); err == nil {
+		var bytes []byte
+
+		defer filez.CloseSilently(fd)
+
+		if bytes, err = yaml.Marshal(testAuth); err == nil {
+			if _, err = fd.Write(bytes); err == nil {
+				assert.ErrorIs(t, handleInspectContext(testParams, testState), ErrorSessionExpired)
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func Test_handleInspectIncomplete(t *testing.T) {
+	var testParams = &Broker{}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Error:  ErrorNoSession,
+	}
+
+	assert.NoError(t, handleInspectIncomplete(testParams, testState))
+
+	if actual, ok := testState.Internal.(Session); ok {
+		assert.Empty(t, actual)
+	} else {
+		assert.Fail(t, "expected an empty session")
+	}
+}
+
+func Test_handleInspectIncomplete_HostExpired(t *testing.T) {
+	var testParams = &Broker{
+		HostAddr: "testHost",
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Error:  ErrorNoSession,
+	}
+
+	assert.NoError(t, handleInspectIncomplete(testParams, testState))
+
+	if actual, ok := testState.Internal.(Session); ok {
+		assert.Empty(t, actual)
+	} else {
+		assert.Fail(t, "expected an empty session")
+	}
+}
+
+func Test_handleInspectIncomplete_NotExpiredError(t *testing.T) {
+	var testParams = &Broker{}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Error:  ErrorSessionExpired,
+	}
+
+	assert.ErrorIs(t, handleInspectIncomplete(testParams, testState), ErrorSessionExpired)
 }
 
 func Test_handleLoginContext_EmptyFile(t *testing.T) {
