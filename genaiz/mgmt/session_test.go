@@ -1,6 +1,7 @@
 package mgmt
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +10,77 @@ import (
 
 	"genaiz.com/genaiz/task/broker"
 )
+
+func TestUserSession_MarshalJSON(t *testing.T) {
+	var testUserSession = &UserSession{
+		Id:      int64(37),
+		UserId:  42,
+		Created: int64(1),
+		Expiry:  int64(2),
+		Expired: false,
+		Flags:   new(3),
+	}
+
+	if bytes, err := testUserSession.MarshalJSON(); err == nil {
+		var expectedCreated = createdFormatter.FormatMillis(testUserSession.Created)
+		var expectedExpiry = expiryFormatter.FormatMillis(testUserSession.Expiry)
+		var actual = string(bytes)
+
+		assert.Contains(t, actual, fmt.Sprintf("\"id\":%d", testUserSession.Id))
+		assert.Contains(t, actual, fmt.Sprintf("\"userId\":%d", testUserSession.UserId))
+		assert.Contains(t, actual, fmt.Sprintf("\"created\":\"%s\"", expectedCreated))
+		assert.Contains(t, actual, fmt.Sprintf("\"expiry\":\"%s\"", expectedExpiry))
+		assert.Contains(t, actual, fmt.Sprintf("\"expired\":%s", cast.ToString(testUserSession.Expired)))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestUserSession_MarshalJSON_NoCreated(t *testing.T) {
+	var testUserSession = &UserSession{
+		Id:      int64(37),
+		UserId:  42,
+		Expiry:  int64(2),
+		Expired: false,
+		Flags:   new(3),
+	}
+
+	if bytes, err := testUserSession.MarshalJSON(); err == nil {
+		var expectedExpiry = expiryFormatter.FormatMillis(testUserSession.Expiry)
+		var actual = string(bytes)
+
+		assert.Contains(t, actual, fmt.Sprintf("\"id\":%d", testUserSession.Id))
+		assert.Contains(t, actual, fmt.Sprintf("\"userId\":%d", testUserSession.UserId))
+		assert.NotContains(t, actual, "\"created\":\"")
+		assert.Contains(t, actual, fmt.Sprintf("\"expiry\":\"%s\"", expectedExpiry))
+		assert.Contains(t, actual, fmt.Sprintf("\"expired\":%s", cast.ToString(testUserSession.Expired)))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestUserSession_MarshalJSON_NoExpiry(t *testing.T) {
+	var testUserSession = &UserSession{
+		Id:      int64(37),
+		UserId:  42,
+		Created: int64(1),
+		Expired: false,
+		Flags:   new(3),
+	}
+
+	if bytes, err := testUserSession.MarshalJSON(); err == nil {
+		var expectedCreated = createdFormatter.FormatMillis(testUserSession.Created)
+		var actual = string(bytes)
+
+		assert.Contains(t, actual, fmt.Sprintf("\"id\":%d", testUserSession.Id))
+		assert.Contains(t, actual, fmt.Sprintf("\"userId\":%d", testUserSession.UserId))
+		assert.Contains(t, actual, fmt.Sprintf("\"created\":\"%s\"", expectedCreated))
+		assert.NotContains(t, actual, "\"expiry\":\"")
+		assert.Contains(t, actual, fmt.Sprintf("\"expired\":%s", cast.ToString(testUserSession.Expired)))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
 
 func TestUserSession_MarshalSlice(t *testing.T) {
 	var testUserSession = &UserSession{

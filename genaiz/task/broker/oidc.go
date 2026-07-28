@@ -21,7 +21,7 @@ const (
 	oidcClientId       = "com.genaiz.sdk"
 	oidcClientScope    = "openid profile email"
 	oidcDefaultTimeout = 3500 * time.Millisecond
-	oidcDefaultTries   = 4
+	oidcDefaultTries   = 7
 	oidcGrantType      = "urn:ietf:params:oauth:grant-type:device_code"
 )
 
