@@ -1,6 +1,6 @@
 module genaiz.com/genaiz-lib
 
-go 1.24.2
+go 1.26.5
 
 require (
 

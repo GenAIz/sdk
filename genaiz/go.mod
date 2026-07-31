@@ -1,6 +1,6 @@
 module genaiz.com/genaiz
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
@@ -19,6 +19,8 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect

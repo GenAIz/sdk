@@ -6,16 +6,16 @@ help:
 	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
 
 .PHONY: all
-## all - Invokes all on genaiz, genaiz-it, genaiz-oauth, omitting genaiz-it as experimental
-all: genaiz-lib/all genaiz-oauth/all genaiz/all
+## all - Invokes all on genaiz-lib and genaiz
+all: genaiz-lib/all genaiz/all
 
 .PHONY: docker
-## docker - Invokes docker builds on genaiz, genaiz-oauth, omitting genaiz-it as experimental
-docker: genaiz/docker genaiz-oauth/docker
+## docker - Invokes docker build on genaiz
+docker: genaiz/docker
 
 .PHONY: install
-## install - Invokes install on genaiz, genaiz-oauth, omitting genaiz-it as experimental
-install: genaiz/install genaiz-oauth/install
+## install - Invokes install on genaiz
+install: genaiz/install
 
 .PHONY:
 ## genaiz/dev - Installs development packaged binaries with supplementary trace tooling
@@ -37,37 +37,7 @@ genaiz/docker:
 genaiz/install:
 	cd genaiz && make install
 
-.PHONY: genaiz-it/all
-## genaiz-it/all - Invokes all on genaiz-it
-genaiz-it/all:
-	cd genaiz-it && make all
-
-.PHONY: genaiz-it/docker
-## genaiz-it/docker - Invokes docker build on genaiz-it
-genaiz-it/docker:
-	cd genaiz-it && make docker
-
-.PHONY: genaiz-it/install
-## genaiz-it/install - Invokes install on genaiz-it
-genaiz-it/install:
-	cd genaiz-it && make install
-
 .PHONY: genaiz-lib/all
 ## genaiz-lib/all - Invokes all on genaiz-lib
 genaiz-lib/all:
 	cd genaiz-lib && make all
-
-.PHONY: genaiz-oauth/all
-## genaiz-oauth/all - Invokes all on genaiz-oauth
-genaiz-oauth/all:
-	cd genaiz-oauth && make all
-
-.PHONY: genaiz-oauth/docker
-## genaiz-oauth/docker - Invokes docker build on genaiz-oauth
-genaiz-oauth/docker:
-	cd genaiz-oauth && make docker
-
-.PHONY: genaiz-oauth/install
-## genaiz-oauth/install - Invokes install on genaiz-oauth
-genaiz-oauth/install:
-	cd genaiz-oauth && make install

@@ -10,7 +10,7 @@ else
 fi
 
 FULL=$(./genaiz --version)
-VERSION=$(echo "${FULL##genaiz version}" | tr -d ' ')
+VERSION=$(echo "${FULL##genaiz version}" | awk '{print $1}' | tr -d ' ')
 cd ..
 docker build -t "$TAG_PREFIX/sdk/genaiz:$VERSION" -f ./genaiz/Dockerfile .
 docker tag "$TAG_PREFIX/sdk/genaiz:$VERSION" "$TAG_PREFIX/sdk/genaiz:latest"
