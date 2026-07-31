@@ -1314,17 +1314,19 @@ func resultOrError[T any](response responseBridge, transformer func(body any) *T
 				var respError Error
 
 				if err := json.Unmarshal(bytes, &respError); err == nil {
-					return nil, errors.New(respError.Message)
+					return nil, task.NewRequestError(respError.Message, respError.Code)
 				}
 
-				return nil, errors.New(string(bytes))
+				return nil, task.NewRequestError(string(bytes), response.StatusCode())
 			}
 
 			return nil, clientErrors[400]
 		}
 
 		return nil, mapz.GetOrDefault(clientErrors, response.StatusCode(), func() error {
-			return fmt.Errorf("%d %s", response.StatusCode(), response.Status())
+			var message = fmt.Sprintf("%d %s", response.StatusCode(), response.Status())
+
+			return task.NewRequestError(message, response.StatusCode())
 		})
 	}
 
