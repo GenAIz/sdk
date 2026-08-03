@@ -1,15 +1,11 @@
-go 1.26.4
+go 1.26.5
 
 use (
 	genaiz
-	genaiz-it
 	genaiz-lib
-	genaiz-oauth
 )
 
 replace (
-	genaiz.com/genaiz-it@latest => ./genaiz-it
-	genaiz.com/genaiz-lib@latest => ./genaiz-lib
-	genaiz.com/genaiz-oauth@latest => ./genaiz-oauth
-	genaiz.com/genaiz@latest => ./genaiz
+	./genaiz-lib@latest => ./genaiz-lib
+	./genaiz@latest => ./genaiz
 )

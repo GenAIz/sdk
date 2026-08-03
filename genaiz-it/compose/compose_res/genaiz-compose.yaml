@@ -1,7 +1,0 @@
-services:
-  genaiz:
-    image: genaiz.com/sdk/genaiz:${VERSION:-latest}
-    container_name: ${CONTAINER}
-    working_dir: /home/genaiz
-    profiles:
-      - services-genaiz

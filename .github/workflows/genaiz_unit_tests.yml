@@ -13,7 +13,7 @@ jobs:
       GENAIZ_VERSION: 0
     strategy:
       matrix:
-        go-version: ['1.26.4']
+        go-version: ['1.26.5']
 
     steps:
       - name: Checkout

@@ -1,6 +1,6 @@
 # GenAIz SDK
 
-<sub>Genaiz Version 0.4.16</sub>
+<sub>Genaiz Version 0.4.18</sub>
 
 The GenAIz SDK is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestrator platform.
 
@@ -13,9 +13,6 @@ The GenAIz SDK is a tool for creating, building and publishing Smart Functions t
 * [Development Guide](#development-guide)
     * [Prerequisites](#prerequisites)
     * [Building from source](#building-from-source)
-    * [Modules](#modules)
-    * [Unit testing](#unit-testing)
-* [Acceptance Testing](#acceptance-testing)
 * [Troubleshooting](#troubleshooting)
     * [GoLang](#golang)
     * [Docker](#docker)
@@ -221,75 +218,6 @@ Print a summary of all make targets by entering
 ```bash
 make help
 ```
-
-### Modules
-
-Individual modules with make files will answer their own targets, but most will have *clean, build* and *test* at a
-minimum.
-
-#### [GenAIz SmartFunction Toolkit](genaiz/README.md)
-
-Handles building, running, testing and publishing Smart Functions to a GenAIz Broker Platform.
-
-#### [GenAIz Integration Test Toolkit](genaiz-it/README.md)
-
-Handles testing of service deployments with the GenAIz SmartFunction Kit. It offers the following functionality:
-
-- CNCF Distribution Registry bootstrapping for tests
-- Wiremock deployment to simulate what the SDK expects out of an orchestrator deployment
-- Cucumber-like Genaiz runtime implementation with the step definitions used under Gherkin features
-
-#### [GenAIz Library](genaiz-lib/README.md)
-
-The library of common functionality used by other GenAIz go modules. Providing:
-
-- Common language enhancements
-- Common support code for unit tests as GO unit tests can not share code across compilation units
-
-#### [GenAIz OAuth Utility Toolkit](genaiz-oauth/README.md)
-
-The oauth utility kit provides functionality to:
-
-- Generate Certificate Authority ECDSA key pair files
-- Generate Signed Certificate ECDSA key pair files
-- Manage JWKS public key stores
-- Create and Decode JWT Signed tokens
-
-These facilities should be used to integrate token authentication
-on  [CNCF Distribution Registry](https://distribution.github.io/distribution/spec/auth/jwt/). With source
-code available on [GitHub](https://github.com/distribution/distribution)
-
-### Unit testing
-
-Genaiz unit testing facilities only cover the production module of [genaiz](#genaiz-smartfunction-toolkit). The unit
-test files cover the entire
-functionality with ideally, individual units tested in isolation to provide a `White Box` map of the implementation.
-
-The goal here is to provide a minimal harness for catching regression and also provide future functionality for
-associating units to acceptance test cases.
-
-Currently, a coverage report can be obtained with:
-
-```bash
-cd genaiz && make coverage
-```
-
-This opens a visual HTML report of the implementation tested by the unit tests.
-
-## Acceptance Testing
-
-Not to be confused with unit testing: Acceptance testing is to unit testing what acceleration is to speed. An acceptance
-test case is composed of several units working to achieve feature requirements. Acceptance typically provides a
-`Black Box` map of a feature set.
-
-[Acceptance testing is made of a repository](acceptance-tests/docs/index.md)
-of [Gherkin](https://cucumber.io/docs/gherkin/) features describing what the [genaiz](#genaiz-smartfunction-toolkit)
-needs to
-provide to a CLI user, but also to other types of integrations relying on CLI commands.
-
-> [!NOTE]
-> Currently, the features can only be read and ran manually. The runtime to automatically execute them would be hosted
-> under the [genaiz-it](#genaiz-integration-test-toolkit) module.
 
 ## Troubleshooting
 
