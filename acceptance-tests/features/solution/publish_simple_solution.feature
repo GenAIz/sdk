@@ -5,7 +5,7 @@ Feature: solution publish with simple solution
 
   Scenario: create simple solution
     Given the following parameters
-      | folder      | oem            | handle     | name        | version | workflowDesc         | workflowHandle | workflowName |
+      | folder      | oem             | handle     | name        | version | workflowDesc         | workflowHandle | workflowName |
       | my-solution | com.genaiz.test | solution-1 | My Solution | 0.1.1   | workflow description | workflow-1     | workflow one |
     When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --name='<name>' --version=<version> --workflow-desc='<workflowDesc>' --workflow-handle=<workflowHandle> --workflow-name='<workflowName>'"
     Then I should have a solution under "<folder>" named "<name>" with oem "<oem>", handle "<handle>", description "<name>" and version "<version>"
@@ -14,7 +14,7 @@ Feature: solution publish with simple solution
   Scenario: create simple solution function
     Given the scenario "create simple solution" ran with condition "service_completed_successfully"
     And the following parameters
-      | solution    | folder      | recipe       | oem            | type     | version |
+      | solution    | folder      | recipe       | oem             | type     | version |
       | my-solution | my-function | bash-example | com.genaiz.test | function | 0.1.1   |
     And the workdir changes to "<solution>"
     When I run the command "sf create <folder> --recipe=<recipe>"
@@ -23,7 +23,7 @@ Feature: solution publish with simple solution
   Scenario: build simple solution function
     Given the scenario "create simple solution function" ran with condition "service_completed_successfully"
     And the following parameters
-      | solution    | folder      | handle     | oem            |
+      | solution    | folder      | handle     | oem             |
       | my-solution | my-function | function-1 | com.genaiz.test |
     And the workdir changes to "<solution>/<folder>"
     When I run the command "sf build"
@@ -32,7 +32,7 @@ Feature: solution publish with simple solution
   Scenario: add workflow node to simple solution
     Given the scenario "build simple solution function" ran with condition "service_completed_successfully"
     And the following parameters
-      | solution    | workflowHandle | handle | name        | description    | functionOem    | functionHandle | functionVersion |
+      | solution    | workflowHandle | handle | name        | description    | functionOem     | functionHandle | functionVersion |
       | my-solution | workflow-1     | node-1 | Single Node | My Single Node | com.genaiz.test | function-1     | 0.1.1           |
     And the workdir changes to "<solution>"
     When I run the command "wf nodes add <workflowHandle> <handle> --name='<name>' --description='<description>' --sf=<functionOem>/<functionHandle>:<functionVersion>"

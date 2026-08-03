@@ -5,7 +5,7 @@ Feature: solution publish with a simple connector
 
   Scenario: create simple solution with defaults
     Given the following parameters
-      | folder      | oem            | version | workflowDesc     | workflowHandle | workflowName     |
+      | folder      | oem             | version | workflowDesc     | workflowHandle | workflowName     |
       | my-solution | com.genaiz.test | 1.0.0   | default workflow | default        | Default Workflow |
     When I run the command "sn create <folder> --oem=<oem>"
     Then I should have a solution under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", description "<folder>" and version "<version>"
@@ -13,7 +13,7 @@ Feature: solution publish with a simple connector
 
   Scenario: create bash connector with version
     Given the following parameters
-      | folder      | recipe       | handle       | oem            | type      | version |
+      | folder      | recipe       | handle       | oem             | type      | version |
       | my-solution | bash-example | my-connector | com.genaiz.test | connector | 0.1.1   |
     And the workdir changes to "<folder>"
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --type=<type> --version=<version>"
@@ -31,7 +31,7 @@ Feature: solution publish with a simple connector
   Scenario: create data link for data source
     Given the scenario "login bash connector" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder       | handle       | oem            | version | name       |
+      | folder       | handle       | oem             | version | name       |
       | my-connector | data-input-1 | com.genaiz.test | 0.2.0   | Data Input |
     And the workdir changes to "<folder>"
     When I run the command "dk create <handle> --oem=<oem> --version=<version> --name='<name>'"
@@ -40,7 +40,7 @@ Feature: solution publish with a simple connector
   Scenario: add data source to connector
     Given the scenario "create data link for data source" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder       | handle       | oem            | version |
+      | folder       | handle       | oem             | version |
       | my-connector | data-input-1 | com.genaiz.test | 0.2.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle>:<version>"
@@ -49,7 +49,7 @@ Feature: solution publish with a simple connector
   Scenario: create data link for data store
     Given the scenario "create data link for data source" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder       | handle        | oem            | version |
+      | folder       | handle        | oem             | version |
       | my-connector | data-output-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "dk create <handle> --oem=<oem>"
@@ -58,7 +58,7 @@ Feature: solution publish with a simple connector
   Scenario: add data store to connector
     Given the scenario "add data source to connector" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder       | handle        | oem            | version |
+      | folder       | handle        | oem             | version |
       | my-connector | data-output-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf data store add <handle>:<version> --oem=<oem>"
@@ -86,7 +86,7 @@ Feature: solution publish with a simple connector
   Scenario: add workflow node to simple solution
     Given the scenario "build bash connector" ran with condition "service_completed_successfully"
     And the following parameters
-      | solution    | workflowHandle | handle | description | functionOem    | functionHandle | functionVersion |
+      | solution    | workflowHandle | handle | description | functionOem     | functionHandle | functionVersion |
       | my-solution | default        | node-1 |             | com.genaiz.test | my-connector   | 0.1.1           |
     And the workdir changes to "<solution>"
     When I run the command "wf nodes add <workflowHandle> <handle> --sf=<functionOem>/<functionHandle>:<functionVersion>"

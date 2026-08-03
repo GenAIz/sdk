@@ -5,7 +5,7 @@ Feature: function publish with the bash example
 
   Scenario: create bash example
     Given the following parameters
-      | recipe       | configType | handle          | oem            | name            | type     | version |
+      | recipe       | configType | handle          | oem             | name            | type     | version |
       | bash-example | yaml       | my-bash-example | com.genaiz.test | My Bash Example | function | 0.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe> --config-type=<configType> --handle=<handle> --oem=<oem> --name='<name>' --type=<type> --version=<version>"
     Then I should have a function under "<handle>" named "<name>" with oem "<oem>", version "<version>" and type "<type>"
@@ -19,35 +19,35 @@ Feature: function publish with the bash example
 
   Scenario: publish bash example bad handle
     Given the following parameters
-      | handle    | oem            | version |
+      | handle    | oem             | version |
       | --invalid | com.genaiz.test | 0.1.2   |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --handle=<handle> --version=<version>"
     Then I should have an error for field "function.publish.handle"
 
   Scenario: publish bash example bad version
     Given the following parameters
-      | handle          | oem            | version |
+      | handle          | oem             | version |
       | my-bash-example | com.genaiz.test | 00.0.1  |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version>"
     Then I should have an error for field "function.publish.version"
 
   Scenario: publish bash example bad name
     Given the following parameters
-      | handle          | oem            | name                                                                                                                                                                                                                                                                          |
+      | handle          | oem             | name                                                                                                                                                                                                                                                                          |
       | my-bash-example | com.genaiz.test | a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --name='<name>'"
     Then I should have an error for field "function.publish.name"
 
   Scenario: publish bash example bad type
     Given the following parameters
-      | handle          | oem            | version | type    |
+      | handle          | oem             | version | type    |
       | my-bash-example | com.genaiz.test | 0.1.2   | invalid |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version> --type<type>"
     Then I should have an error for field "function.publish.type"
 
   Scenario: publish bash example bad arch
     Given the following parameters
-      | handle          | oem            | version | arch    |
+      | handle          | oem             | version | arch    |
       | my-bash-example | com.genaiz.test | 0.1.2   | invalid |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version> --arch=<arch>"
     Then I should have an error for field "function.publish.arches"
@@ -56,7 +56,7 @@ Feature: function publish with the bash example
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the execution group "<docker_gid>"
     And the following parameters
-      | handle          | oem            |
+      | handle          | oem             |
       | my-bash-example | com.genaiz.test |
     When I run the command "sf build -c=<handle>"
     Then I should have a docker image tagged "<oem>/<handle>:latest"
@@ -75,7 +75,7 @@ Feature: function publish with the bash example
     And the scenario "login bash example" ran with condition "service_completed_successfully"
     And the registry is running with condition: "service_healthy"
     And the following parameters
-      | handle          | oem            | version |
+      | handle          | oem             | version |
       | my-bash-example | com.genaiz.test | 0.1.2   |
     And the execution group "<docker_gid>"
     And the workdir changes to "<handle>"

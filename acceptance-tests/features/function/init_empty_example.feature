@@ -26,7 +26,7 @@ Feature: function init on empty folder
 
   Scenario: init empty example bad repository
     Given the following parameters
-      | repository                     |
+      | repository                      |
       | com.genaiz.test/bad..repository |
     When I run the command "sf init --repository=<repository>"
     Then I should have an error for field "function.build.repository"
@@ -47,14 +47,14 @@ Feature: function init on empty folder
 
   Scenario: init empty example bad version
     Given the following parameters
-      | handle        | oem            | version |
+      | handle        | oem             | version |
       | empty-example | com.genaiz.test | 1..0    |
     When I run the command "sf init --handle=<handle> --oem=<oem> --version=<version>"
     Then I should have an error for field "function.init.version"
 
   Scenario: init empty example bad type
     Given the following parameters
-      | handle        | oem            | version | type    |
+      | handle        | oem             | version | type    |
       | empty-example | com.genaiz.test | 1.0.1   | invalid |
     When I run the command "sf init --handle=<handle> --oem=<oem> --version=<version> --type=<type>"
     Then I should have an error for field "function.init.type"
@@ -75,7 +75,7 @@ Feature: function init on empty folder
 
   Scenario: create empty example solution
     Given the following parameters
-      | path              | oem            | version |
+      | path              | oem             | version |
       | my-empty-solution | com.genaiz.test | 0.1.1   |
     When I run the command "sn create <path> --oem=<oem> --version=<version>"
     Then I should have a solution under "<path>" named "<path>" with version "<version>"
@@ -83,7 +83,7 @@ Feature: function init on empty folder
   Scenario: init empty example
     Given the scenario "create empty example solution" ran with condition "service_completed_successfully"
     And the following parameters
-      | path              | handle            | oem            | version | type     |
+      | path              | handle            | oem             | version | type     |
       | my-empty-solution | my-empty-function | com.genaiz.test | 0.1.1   | function |
     And the working dir <handle> created
     And a Dockerfile created under <handle>

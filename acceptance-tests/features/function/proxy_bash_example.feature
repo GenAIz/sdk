@@ -5,7 +5,7 @@ Feature: outbound proxy for the bash example
 
   Scenario: create bash function
     Given the following parameters
-      | recipe       | handle           | oem            | type     | version |
+      | recipe       | handle           | oem             | type     | version |
       | bash-example | my-bash-function | com.genaiz.test | function | 1.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --version=<version>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
@@ -21,7 +21,7 @@ Feature: outbound proxy for the bash example
 
   Scenario: create bash connector
     Given the following parameters
-      | recipe       | handle            | oem            | type      | version |
+      | recipe       | handle            | oem             | type      | version |
       | bash-example | my-bash-connector | com.genaiz.test | connector | 1.1.1   |
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --version=<version> --type=<type>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"

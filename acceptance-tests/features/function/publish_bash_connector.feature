@@ -5,7 +5,7 @@ Feature: connector publish with the bash example
 
   Scenario: create bash connector no version
     Given the following parameters
-      | recipe       | handle            | oem            | type      | version |
+      | recipe       | handle            | oem             | type      | version |
       | bash-example | my-bash-connector | com.genaiz.test | connector | 1.0.0   |
     When I run the command "sf create <handle> --recipe=<recipe> --oem=<oem> --type=<type>"
     Then I should have a function under "<handle>" named "<handle>" with oem "<oem>", version "<version>" and type "<type>"
@@ -22,7 +22,7 @@ Feature: connector publish with the bash example
   Scenario: create data link for data source
     Given the scenario "login bash connector" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder            | handle         | oem            | version |
+      | folder            | handle         | oem             | version |
       | my-bash-connector | datalink-src-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "dk create <handle> --oem=<oem>"
@@ -31,7 +31,7 @@ Feature: connector publish with the bash example
   Scenario: create data link for data store
     Given the scenario "create data link for data source" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder            | handle         | oem            | version |
+      | folder            | handle         | oem             | version |
       | my-bash-connector | datalink-str-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "dk create <handle> --oem=<oem>"
@@ -40,7 +40,7 @@ Feature: connector publish with the bash example
   Scenario: add data source to connector
     Given the scenario "create data link for data source" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder            | handle         | oem            | version |
+      | folder            | handle         | oem             | version |
       | my-bash-connector | datalink-src-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf data source add <oem>/<handle>:<version>"
@@ -49,7 +49,7 @@ Feature: connector publish with the bash example
   Scenario: add data store to connector
     Given the scenario "add data source to connector" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder            | handle         | oem            | version |
+      | folder            | handle         | oem             | version |
       | my-bash-connector | datalink-str-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf data store add <handle>:<version> --oem=<oem>"

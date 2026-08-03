@@ -5,7 +5,7 @@ Feature: workflow create for a simple solution
 
   Scenario: create simple solution with defaults
     Given the following parameters
-      | folder      | oem            | handle     | version | workflowHandle | workflowName     | workflowDescription |
+      | folder      | oem             | handle     | version | workflowHandle | workflowName     | workflowDescription |
       | my-solution | com.genaiz.test | solution-1 | 1.0.0   | default        | Default Workflow | default workflow    |
     When I run the command "sn create <folder> --oem=<oem> --handle=<handle>"
     Then I should have a solution under "<folder>" named "<handle>" with oem "<oem>", handle "<handle>", description "<handle>" and version "<version>"
@@ -22,7 +22,7 @@ Feature: workflow create for a simple solution
   Scenario: create bash example
     Given the scenario "create simple solution with defaults" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder      | recipe       | handle      | oem            | version | type     |
+      | folder      | recipe       | handle      | oem             | version | type     |
       | my-solution | bash-example | my-function | com.genaiz.test | 1.0.0   | function |
     When I run the command "sf create <handle> --context=<folder> --recipe=<recipe>"
     Then I should have a function under "<folder>/<handle>" named "<handle>" with oem "<oem>" and version "<version>" of type "<type>"
@@ -30,7 +30,7 @@ Feature: workflow create for a simple solution
   Scenario: add bash example node
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder      | workflowHandle | functionFolder | nodeHandle       | oem            | version |
+      | folder      | workflowHandle | functionFolder | nodeHandle       | oem             | version |
       | my-solution | my-workflow    | my-function    | my-function-node | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <functionFolder>"
@@ -49,7 +49,7 @@ Feature: workflow create for a simple solution
   Scenario: add external node
     Given the scenario "add bash example node" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder      | workflowHandle | nodeHandle       | sfOem          | sfHandle    | sfVersion | sfSeq |
+      | folder      | workflowHandle | nodeHandle       | sfOem           | sfHandle    | sfVersion | sfSeq |
       | my-solution | my-workflow    | my-external-node | com.genaiz.test | my-external | 1.0.0     | 2     |
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <nodeHandle> --sf-oem=<sfOem> --sf-handle=<sfHandle> --sf-version=<sfVersion> --sf-seq=<sfSeq>"

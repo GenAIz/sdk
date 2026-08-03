@@ -62,5 +62,5 @@ specified or the active session one.
 The JSON printer switch affects the type of output the command yields. In JSON mode, the command will display the
 solutions listed as a `REST` array of resources to `STDOUT`
 
-* by default, the solution list command will display a tab-delimited table with solution id, name, fqdn, creation, status
-  indicator and a local flag columns.
+* by default, the solution list command will display a tab-delimited table with solution id, name, fqdn, creation,
+  status indicator and a local flag columns.

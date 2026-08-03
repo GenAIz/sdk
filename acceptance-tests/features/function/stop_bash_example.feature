@@ -5,7 +5,7 @@ Feature: function stop with the bash example
 
   Scenario: create bash example
     Given the following parameters
-      | path               | oem            | version |
+      | path               | oem             | version |
       | stop-bash-function | com.genaiz.test | 1.0.0   |
     When I run the command "sf create <path> --oem=<oem> --recipe=bash-example"
     Then I should have a function under "<path>" named "<path>", handle "<path>", oem "<oem>" with version "<version>"
@@ -14,7 +14,7 @@ Feature: function stop with the bash example
   Scenario: build bash example
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | path               | repository                        | version |
+      | path               | repository                         | version |
       | stop-bash-function | com.genaiz.test/stop-bash-function | latest  |
     And the workdir changes to "<path>"
     When I run the command "sf build"
@@ -23,7 +23,7 @@ Feature: function stop with the bash example
   Scenario: list bash example in context
     Given the scenario "build bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | path               | repository                        | version |
+      | path               | repository                         | version |
       | stop-bash-function | com.genaiz.test/stop-bash-function | latest  |
     And the workdir changes to "<path>"
     When I run the command "sf list"
@@ -32,7 +32,7 @@ Feature: function stop with the bash example
   Scenario: start bash example
     Given the scenario "build bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | path               | oem            | handle             | version | name                |
+      | path               | oem             | handle             | version | name                |
       | stop-bash-function | com.genaiz.test | stop-bash-function | latest  | stop-bash-container |
     And the workdir changes to "<path>"
     When I run the command "sf start --name=<name> --preserve"
@@ -42,7 +42,7 @@ Feature: function stop with the bash example
   Scenario stop bash example
     Given the scenario "start bash example" ran with condition "service_healthy"
     And the following parameters
-      | path               | oem            | handle             | version | name                |
+      | path               | oem             | handle             | version | name                |
       | stop-bash-function | com.genaiz.test | stop-bash-function | latest  | stop-bash-container |
     And the workdir changes to "<path>"
     When I run the command "sf stop --name=<name>"

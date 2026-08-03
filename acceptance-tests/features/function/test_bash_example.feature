@@ -5,7 +5,7 @@ Feature: function test with the bash example
 
   Scenario: create bash example
     Given the following parameters
-      | path               | oem            | version |
+      | path               | oem             | version |
       | test-bash-function | com.genaiz.test | 1.0.0   |
     When I run the command "sf create <path> --oem=<oem> --recipe=bash-example"
     Then I should have a function under "<path>" named "<path>", handle "<path>", oem "<oem>" with version "<version>"
@@ -14,7 +14,7 @@ Feature: function test with the bash example
   Scenario: build bash example
     Given the scenario "create bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | path               | repository                        | version |
+      | path               | repository                         | version |
       | test-bash-function | com.genaiz.test/test-bash-function | latest  |
     And the workdir changes to "<path>"
     When I run the command "sf build"
@@ -23,7 +23,7 @@ Feature: function test with the bash example
   Scenario: list bash example in context
     Given the scenario "build bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | path               | repository                        | version |
+      | path               | repository                         | version |
       | test-bash-function | com.genaiz.test/test-bash-function | latest  |
     And the workdir changes to "<path>"
     When I run the command "sf list"
@@ -48,7 +48,7 @@ Feature: function test with the bash example
   Scenario: test bash example bad repository
     Given the scenario "building bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | path               | repository         |
+      | path               | repository  |
       | test-bash-function | n--t.valid. |
     And the workdir changes to "<path>"
     When I run the command "sf test --repository=<repository>"
@@ -111,7 +111,7 @@ Feature: function test with the bash example
   Scenario: test bash example
     Given the scenario "build bash example" ran with condition "service_completed_successfully"
     And the following parameters
-      | path               | oem            | handle             | version |
+      | path               | oem             | handle             | version |
       | test-bash-function | com.genaiz.test | test-bash-function | latest  |
     And the workdir changes to "<path>"
     When I run the command "sf test"

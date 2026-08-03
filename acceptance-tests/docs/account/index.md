@@ -21,10 +21,10 @@
 `genaiz account activate HOST --username=USERNAME`
 
 The command will activate a session if it can find one for the specified host and username. Note that activating a
-session that is expired, does trigger a login request. If the intent is always to use a valid session [login](#login)
+session that is expired should not trigger a login request. If the intent is always to use a valid session [login](#login)
 should be invoked.
 
-If the command activates finds a session that is no longer valid, the command returns an error:
+If the command finds a session that is no longer valid, the command returns an error:
 `Error session is expired`.
 
 #### HOST
@@ -92,8 +92,8 @@ If the command does not find any results it should print `Error: No sessions fou
 `genaiz account inspect [HOST]`
 
 The command allows inspection of the first session found for the specified host or for the active session under
-`$HOME/.cache/genaiz`. It will also support overrides `GENAIZ_AUTH_URL` and `GENAIZ_AUTH_SESSION`, which can be used in
-CI/CD environments to keep tokens from spilling out of Pipelines onto disk.
+`$HOME/.cache/genaiz`. It also supports overrides `GENAIZ_AUTH_URL` and `GENAIZ_AUTH_SESSION`, which can be used in
+CI/CD environments to keep tokens from spilling out of pipelines onto disk.
 
 ### Login
 

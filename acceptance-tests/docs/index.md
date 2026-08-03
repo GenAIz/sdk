@@ -1,26 +1,41 @@
 # SDK Feature Docs
 
-The concepts and design related to the Orchestrator and GenAIz platform should be available through their own respective projects. This document serves the purpose of exposing how the main entry point of the SDK, its CLI, is behaving.
+The concepts and design related to the Orchestrator should be available with the GenAIz Data Review
+System platform. This document serves the purpose of exposing how the Orchestration can be interacted with from the
+GenAIz CLI.
 
-The usage documentation is established with set of rules assigned to actors implicated on a particular feature. Features are described plainly in [Gherkin](https://cucumber.io/docs/gherkin/) format.
+The usage documentation is established with set of rules assigned to actors implicated on a particular feature. Features
+are described plainly in [Gherkin](https://cucumber.io/docs/gherkin/) format.
 
 > [!NOTE]
-> Historically the features are established like a series of use cases describing the behavior of a user. 
-
-> [!NOTE]
-> Since the project is not handled by Cucumber, step definition should be/is defined and compiled in the [genaiz-it](../../genaiz-it/README.md) modules
+> Historically the features are established like a series of use cases describing the behavior of a user, trying to
+> achieve a certain goal in one sitting.
 
 ## [Accounts](account/index.md)
+
+* [genaiz account activate](account/index.md#activate)
+* [genaiz account inspect](account/index.md#inspect)
 * [genaiz account login](account/index.md#login)
 * [genaiz account logout](account/index.md#logout)
 
+## [Datalinks](datalink/index.md)
+
+* [genaiz datalink create](datalink/create.md)
+* [genaiz datalink list](datalink/list.md)
+* [genaiz datalink prop](datalink/prop.md)
+* [genaiz datalink proxy](datalink/proxy.md)
+* [genaiz datalink publish](datalink/publish.md)
+* [genaiz datalink sync](datalink/sync.md)
+
 ## [Smart Functions](function/index.md)
+
 * [genaiz function build](function/build.md)
 * [genaiz function create](function/create.md)
 * [genaiz function data](function/data.md)
 * [genaiz function init](function/init.md)
 * [genaiz function list](function/list.md)
 * [genaiz function prop](function/prop.md)
+* [genaiz function proxy](function/proxy.md)
 * [genaiz function publish](function/publish.md)
 * [genaiz function run](function/run.md)
 * [genaiz function start](function/start.md)
@@ -28,15 +43,24 @@ The usage documentation is established with set of rules assigned to actors impl
 * [genaiz function test](function/test.md)
 
 ## [Solutions](solution/index.md)
+
 * [genaiz solution create](solution/create.md)
+* [genaiz solution list](solution/list.md)
 * [genaiz solution publish](solution/publish.md)
 
 ## [Workflows](workflow/index.md)
+
 * [genaiz workflow create](workflow/create.md)
 * [genaiz workflow delete](workflow/delete.md)
 * [genaiz workflow links](workflow/links.md)
 * [genaiz workflow nodes](workflow/nodes.md)
 * [genaiz workflow prop](workflow/prop.md)
+
+## [Workspaces](workspace/index.md)
+
+* [genaiz workspace create](workspace/create.md)
+* [genaiz workspace flow](workspace/flow.md)
+* [genaiz workspace list](workspace/list.md)
 
 ## Model Validation
 
@@ -46,14 +70,16 @@ The usage documentation is established with set of rules assigned to actors impl
 * Any characters may be accepted.
 
 > [!CAUTION]
-> Descriptions currently do not support any kind of official templating engine. If changes do occur, then the validity will depend on the Templating engine selected.
+> Descriptions currently do not support any kind of official templating engine. If changes do occur, then the validity
+> will depend on the Templating engine selected.
 
 ### FQDNV
 
 For Fully Qualified Domain Name and Version.
 
 * Is simply a composition of [OEM](#handle-and-oem)/[HANDLE](#handle-and-oem):[VERSION](#version)
-* Each component needs to be valid or needs to be accounted for the command requiring the field. (Through options if necessary)
+* Each component needs to be valid or needs to be accounted for the command requiring the field. (Through options if
+  necessary)
 
 ### Handle and OEM
 
@@ -82,7 +108,8 @@ For Fully Qualified Domain Name and Version.
 
 * The key of a property specification mirrors the string used to define conventional Environment Variables.
 * It must be composed only of capitalized alphanumeric characters and underscores; `[A-Z_][A-Z0-9_]*`
-* Keys can not be expanded into other keys. That is you can not define a key using the value of another one. For example, MY_KEY_$KEY_INDEX is not a valid key.
+* Keys can not be expanded into other keys. That is you can not define a key using the value of another one. For
+  example, MY_KEY_$KEY_INDEX is not a valid key.
 
 ### Property Name
 
