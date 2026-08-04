@@ -53,6 +53,15 @@ genaiz ac activate --help
 genaiz ac activate dev.genaiz.com
 ```
 
+#### inspect
+
+The inspect command allows a process to confirm session credentials. This was added for CI/CD scripts.
+
+```bash
+genaiz ac inspect --help
+genaiz ac inspect
+```
+
 #### list
 
 The list command displays a tab delimited table of account sessions available to the CLI. It can also display the

@@ -67,7 +67,7 @@ install: build
 recipes:
 
 .PHONY: report
-## report - produces a coverage report invoking the go test tool, produced as cover.out in source folder
+## report - Produces a coverage report invoking the go test tool, produced as cover.out in source folder
 report:
 	@echo "Running coverage, report only..."
 	# gcflags=-1 disables inlining to allow Monkey Patching

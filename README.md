@@ -1,8 +1,8 @@
-# GenAIz SDK
+# GenAIz CLI
 
 <sub>Genaiz Version 0.4.18</sub>
 
-The GenAIz SDK is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestrator platform.
+The GenAIz CLI is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestration platform.
 
 * [Installation](#installation)
 * [Running the GenAIz CLI](#running-the-genaiz-cli)
@@ -21,8 +21,9 @@ The GenAIz SDK is a tool for creating, building and publishing Smart Functions t
 
 ## Installation
 
-> [!IMPORTANT]
-> TODO: We need a GitHub package which can be installed with curl (#32)
+The `genaiz` command line tool can be downloaded from the [Releases](https://github.com/GenAIz/sdk/releases) of this
+repository. There is also a [GenAIz Setup Action](https://www.github.com/GenAIz/genaiz-setup-action), which can be used
+to configure GitHub Action Workflows.
 
 ## Running the GenAIz CLI
 
@@ -34,24 +35,24 @@ available commands and their options.
 #### Creating a simple solution
 
 The following example creates a solution **solution-1** and a smart function **my-bash-example** using the recipe
-**bash-example**. It then builds the function with the default version assigned by
-create, [1.0.0](acceptance-tests/docs/function/index.md#version), assigns a
-single node to the **default** workflow, authenticates a user
-with [broker.genaiz.com](acceptance-tests/docs/account/index.md#host) and publishes the solution
-to the broker.
+**bash-example**. It then builds the function with the default version assigned by create,
+[1.0.0](acceptance-tests/docs/function/index.md#version), assigns a single node to the **default** workflow,
+authenticates a user with [dev.genaiz.com](acceptance-tests/docs/account/index.md#host) and publishes the solution to
+the broker.
 
 ```bash
 genaiz sn create mySolutionDir --name="My Solution" --handle="solution-1" \
-  --oem="com.genaiz" --description="A Description"
+  --oem="com.genaiz.examples" --description="A Description"
 cd mySolutionDir
 genaiz sf create mySmartFunction --recipe="bash-example" \
-  --oem="com.genaiz" --handle="my-bash-example" --name="My Bash Example"
+  --oem="com.genaiz.examples" --name="My Bash Example"
 cd mySmartFunction
 genaiz sf build
 cd ..
 genaiz wf nodes add default node1 --name="Single Node" \
-  --description="My Single Node" --sf="com.genaiz/my-bash-example:1.0.0"
-genaiz ac login broker.genaiz.com --username="myUsername"
+  --description="My Single Node" \
+  --sf="com.genaiz.examples/mySmartFunction:1.0.0"
+genaiz ac login dev.genaiz.com
 genaiz sn publish
 ```
 
@@ -62,8 +63,7 @@ out of context. We can then list and run the smart function on a local **Docker*
 or out of it.
 
 ```bash
-genaiz sf create function-1 --oem="com.genaiz" \
-  --recipe="bash-example"
+genaiz sf create function-1 --oem="com.genaiz.examples" --recipe="bash-example"
 genaiz sf build --context=function-1/
 cd function-1
 genaiz sf list
@@ -80,7 +80,7 @@ property specifications to the function. The example completes with building the
 with the console attached using `test`.
 
 ```bash
-genaiz sf create function-2 --oem="com.genaiz" \
+genaiz sf create function-2 --oem="com.genaiz.examples" \
   --recipe="bash-example"
 cd function-2
 genaiz sf prop add MY_KEY --name="Key Example" \
@@ -96,14 +96,15 @@ The following example creates a smart function **function-3**, without a parent 
 publish a data link **datalink-1** and add it to the smart function for provisioning on a broker.
 
 ```bash
-genaiz sf create function-3 --oem="com.genaiz" --version="0.2.0" \
+genaiz sf create function-3 --oem="com.genaiz.examples" --version="0.2.0" \
   --recipe="bash-example"
 cd function-3
-genaiz dk create datalink-1 --oem="com.genaiz" --version="1.0.0" \
+genaiz dk create datalink-1 --oem="com.genaiz.examples" --version="1.0.0" \
   --description="My DataLink"
 cd function-3
 genaiz data source add com.genaiz/datalink-1:1.0.0
 genaiz sf build
+genaiz ac login dev.genaiz.com
 genaiz sf publish
 ```
 
@@ -197,14 +198,14 @@ information at the links provided here:
 ### Building from Source
 
 ```bash
-cd sdk
+cd genaiz-cli
 make genaiz/install
 ```
 
 > [!TIP]
 > It is possible $HOME/go/bin is not included within a users' path. That can be fixed with
 > `export PATH=$PATH:$HOME/go/bin` added to the users' .bashrc, .bash_profile or .profile file, depending on the
-> platform.
+> OS and distribution.
 
 Building the individual modules can be achieved in the same manner or simply by running the install target on the root
 project:
@@ -225,7 +226,7 @@ make help
 
 #### Go tools tag
 
-We use 2 different environment builds. The `prod` build is the build configured by default under the `Makefile`s of the
+We use 2 different environment builds. The `prod` build is the build configured by default under the `Makefile` of the
 project. It builds with an HTTP request gate which denies connections on `http` addresses. When this is not practical,
 for testing reasons, the `dev` tag can be enabled to exempt `localhost` from this restriction.
 
@@ -240,8 +241,8 @@ configured under
 #### Tests are failing with `permission denied`
 
 Golang's testing tools rely on executing code from the `/tmp` folder. On many modern system /tmp is now mounted to
-[tmpfs](https://www.kernel.org/doc/html/latest/filesystems/tmpfs.html) with `noexec`. It is a recommendation from
-[CIS](https://www.cisecurity.org/). You may have to fix GO's toolchain environment adding:
+[tmpfs](https://www.kernel.org/doc/html/latest/filesystems/tmpfs.html) with `noexec`. It is a recommendation
+from [CIS](https://www.cisecurity.org/). You may have to fix GO's toolchain environment adding:
 
 ```bash
 export GOTMPDIR="/var/tmp"
@@ -270,10 +271,16 @@ configuration you will have to configure it manually. Under **Intellij**, this i
 
 #### Connection to /var/run/docker.sock failing
 
-Check that docker is running:
+Check that docker is running the following under Systemd:
 
 ```bash
 systemctl status docker
+```
+
+Under OpenRC:
+
+```bash
+rc-service docker status
 ```
 
 Check that the permissions on /var/run/docker.sock allows your user to connect to it:
@@ -285,7 +292,7 @@ groups
 
 Your user should be in the same group owning the docker.sock file.
 
-If all conditions are met, and you are not using Windows, write to `sdk 'at' genaiz.com` with the following details:
+If all conditions are met, and you are using a Linx/amd64 distributions, write to `sdk 'at' genaiz.com` with the following details:
 
 * Docker version
 * OS and version
@@ -303,6 +310,6 @@ To contribute to this project, please follow these steps:
 
 ## License
 
-This project is licensed under a commercial license. Unauthorized duplication is prohibited.
+The GenAIz CLI is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
 
 &copy; 2018 - 2026 GenAIz. All rights reserved.

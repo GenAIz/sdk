@@ -1,20 +1,12 @@
+.idea
+*.iml
+
 **/cover.out
 **/coverage.out
 **/dist
 
 /genaiz/genaiz
-/genaiz-it/genaiz-it
-/genaiz-oauth/genaiz-oauth
-/.registry
 
 /logs
 /out
 /var
-
-/example/logs
-/example/out
-/example/var
-
-/example/smart-function-1/logs
-/example/smart-function-1/out
-/example/smart-function-1/var
