@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	version = "0.4.18"
+	version = "0.4.19"
 	Head    = ""
 )
 

@@ -30,9 +30,6 @@ type PropExecutor struct {
 	addProps map[string]string
 	rmProps  []string
 
-	nodeArg     string
-	workflowArg string
-
 	external     *broker.Function
 	function     *broker.Function
 	solution     *broker.Solution

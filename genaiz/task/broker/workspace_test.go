@@ -24,7 +24,6 @@ type stubWorkspaceClient struct {
 	createFlowError       error
 	createFlowExpected    *WorkspaceFlow
 	createFlowWorkspaceId int64
-	createFlowWorkflowId  int64
 	createFlowName        string
 	createFlowDescription string
 	createWorkspaceError  error

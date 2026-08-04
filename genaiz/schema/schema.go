@@ -446,16 +446,12 @@ func Normalize(vp *viper.Viper) *viper.Viper {
 		switch strings.ToLower(key)[0:3] {
 		case "ac.":
 			merging["account"+key[2:]] = vp.Get(key)
-			break
 		case "sf.":
 			merging["function"+key[2:]] = vp.Get(key)
-			break
 		case "sn.":
 			merging["solution"+key[2:]] = vp.Get(key)
-			break
 		case "wf.":
 			merging["workflow"+key[2:]] = vp.Get(key)
-			break
 		default:
 			result.Set(key, vp.Get(key))
 		}

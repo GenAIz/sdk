@@ -88,7 +88,7 @@ func (us UserSolution) Matched() string {
 func (us UserSolution) MarshalJSON() ([]byte, error) {
 	var created, modified, readableDigest string
 
-	if strings.Index(us.Digest, "sha256") >= 0 &&
+	if strings.Contains(us.Digest, "sha256") &&
 		len(us.Digest) >= 8 {
 		readableDigest = us.Digest[7:]
 	}

@@ -1121,7 +1121,7 @@ func Test_stateError(t *testing.T) {
 	testLogger.Level = logrus.DebugLevel
 	testWriter(fmt.Sprintf("error: %s", expectedError))
 	testWriter("")
-	testWriter(fmt.Sprintf("%s", expectedLine))
+	testWriter(expectedLine)
 	testWriter("#")     // an empty comment line
 	testWriter("#4323") // a weird status line
 	testWriter(fmt.Sprintf("#4324 %s", expectedDebug))

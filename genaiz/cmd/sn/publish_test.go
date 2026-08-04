@@ -80,6 +80,7 @@ type testSnDoc struct {
 }
 
 func TestPublishExecutor_Display(t *testing.T) {
+	var expectedVersion = "v1"
 	var testDir = t.TempDir()
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
@@ -96,53 +97,60 @@ func TestPublishExecutor_Display(t *testing.T) {
 		solutionReader: config.NewSolutionReader(testLedger),
 	}
 	var err error
-	var fd *os.File
+	var fd, fnd1, fnd2 *os.File
 
 	testViper.Set(testExecutor.optionConfigType.Key, shared.ConfigTypeYaml)
 	testLedger.Logger = logrus.New()
 
 	if fd, err = os.Create(filepath.Join(testDir, testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
 		defer filez.CloseSilently(fd)
-		var expectedVersion = "v1"
 		var expectedSolution = &testSnDoc{Solution: &broker.Solution{Version: expectedVersion}}
 		var data []byte
-		var actual string
 
 		if data, err = yaml.Marshal(expectedSolution); err == nil {
 			var expectedHandle = "handle"
 			var td = &testSfDoc{Sf: &testSf{Publish: &broker.Function{Handle: expectedHandle}}}
-			var fnd1 *os.File
-			var fnd2 *os.File
 
 			defer filez.CloseSilently(fd)
-			_, err = fd.Write(data)
-			panicz.PanicIfError(err)
 
-			panicz.PanicIfError(os.MkdirAll(filepath.Join(testDir, "function1"), 0750))
-			fnd1, err = os.Create(filepath.Join(testDir, "function1", testLedger.ConfigName+"."+shared.ConfigTypeYaml))
-			panicz.PanicIfError(err)
-			defer filez.CloseSilently(fnd1)
+			if _, err = fd.Write(data); err == nil {
+				if err = os.MkdirAll(filepath.Join(testDir, "function1"), 0750); err == nil {
+					if fnd1, err = os.Create(filepath.Join(testDir, "function1", testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
+						defer filez.CloseSilently(fnd1)
+					}
+				}
 
-			panicz.PanicIfError(os.MkdirAll(filepath.Join(testDir, "function2"), 0750))
-			fnd2, err = os.Create(filepath.Join(testDir, "function2", testLedger.ConfigName+"."+shared.ConfigTypeYaml))
-			panicz.PanicIfError(err)
-			defer filez.CloseSilently(fnd2)
-			data, err = yaml.Marshal(td)
-			_, err = fnd2.Write(data)
-			panicz.PanicIfError(err)
+				if err != nil {
+					assert.Fail(t, err.Error())
+					return
+				}
 
-			testExecutor.Display()
-			actual = testOutput.String()
-			assert.NotEmpty(t, actual)
-			assert.Contains(t, actual, fd.Name())
-			assert.Contains(t, actual, expectedVersion)
-			assert.NotContains(t, actual, fnd1.Name())
-			assert.Contains(t, actual, fnd2.Name())
-			return
+				if err = os.MkdirAll(filepath.Join(testDir, "function2"), 0750); err == nil {
+					if fnd2, err = os.Create(filepath.Join(testDir, "function2", testLedger.ConfigName+"."+shared.ConfigTypeYaml)); err == nil {
+						defer filez.CloseSilently(fnd2)
+
+						if data, err = yaml.Marshal(td); err == nil {
+							_, err = fnd2.Write(data)
+						}
+					}
+				}
+			}
 		}
 	}
 
-	assert.NoError(t, err)
+	if err == nil {
+		var actual string
+
+		testExecutor.Display()
+		actual = testOutput.String()
+		assert.NotEmpty(t, actual)
+		assert.Contains(t, actual, fd.Name())
+		assert.Contains(t, actual, expectedVersion)
+		assert.NotContains(t, actual, fnd1.Name())
+		assert.Contains(t, actual, fnd2.Name())
+	} else {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func TestPublishExecutor_Display_EmptySolution(t *testing.T) {

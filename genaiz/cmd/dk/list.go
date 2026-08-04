@@ -21,7 +21,6 @@ type ListExecutor struct {
 	accountParams config.AccountParametric
 	printerParams cli.PrinterParametric
 
-	dataLinksWriterFactory     DataLinksWriterFactory
 	userDataLinkFacadeProvider func() mgmt.UserDataLinkFacade
 }
 

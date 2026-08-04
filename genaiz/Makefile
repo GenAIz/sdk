@@ -74,3 +74,13 @@ report:
 	go test -tags prod -gcflags=-l --coverprofile=cover.out ./...
 	@echo "Removing test executable"
 	rm -f genaiz
+
+.PHONY: staticcheck
+## staticcheck - Outputs staticcheck reports
+staticcheck:
+	staticcheck -f stylish -tags prod ./...
+
+.PHONY: staticcheck-json
+## staticcheck - Outputs staticcheck reports in json format
+staticcheck-json:
+	staticcheck -f json -tags prod ./...

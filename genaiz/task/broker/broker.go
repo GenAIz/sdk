@@ -252,9 +252,7 @@ func (dl *DataLink) Sanitize() *DataLink {
 		Description: dl.Description,
 	}
 
-	for _, proxy := range dl.OutboundProxies {
-		result.OutboundProxies = append(result.OutboundProxies, proxy)
-	}
+	result.OutboundProxies = append(result.OutboundProxies, dl.OutboundProxies...)
 
 	for _, spec := range dl.PropSpecs {
 		result.PropSpecs = append(result.PropSpecs, spec.Sanitize())
@@ -808,9 +806,7 @@ func (s Solution) Merge(update Solution) *Solution {
 		result.Version = s.Version
 	}
 
-	for _, wf := range s.Workflows {
-		result.Workflows = append(result.Workflows, wf)
-	}
+	result.Workflows = append(result.Workflows, s.Workflows...)
 
 	for _, wf := range update.Workflows {
 		if !slices.ContainsFunc(result.Workflows, WorkflowHandlePredicate(wf.Handle)) {

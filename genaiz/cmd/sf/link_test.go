@@ -98,7 +98,7 @@ func TestDataLinkExecutor_makeDataLinkParams_WithValidation(t *testing.T) {
 	testViper.Set(testExecutor.optionOem.Key, expectedOem)
 	testViper.Set(testExecutor.optionVersion.Key, expectedVersion)
 	testViper.Set(testExecutor.optionNoValidation.Key, false)
-	actual := testExecutor.makeDataLinkParams(fmt.Sprintf("%s", expectedHandle))
+	actual := testExecutor.makeDataLinkParams(expectedHandle)
 	assert.Equal(t, actual.Oem, expectedOem)
 	assert.Equal(t, actual.Handle, expectedHandle)
 	assert.Equal(t, actual.Version, expectedVersion)

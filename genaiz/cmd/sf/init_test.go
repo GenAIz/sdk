@@ -340,6 +340,7 @@ func TestInitWriter_BuildSources(t *testing.T) {
 
 	testWriter.vp.Set(testWriter.publishSourcesKeys.Doc, "invalid slice")
 	actualKey, actualSources = testWriter.BuildSources()
+	assert.Equal(t, testWriter.publishSourcesKeys.Doc, actualKey)
 	assert.Empty(t, actualSources)
 }
 
@@ -363,6 +364,7 @@ func TestInitWriter_BuildStores(t *testing.T) {
 
 	testWriter.vp.Set(testWriter.publishStoresKeys.Doc, "invalid slice")
 	actualKey, actualStores = testWriter.BuildStores()
+	assert.Equal(t, testWriter.publishStoresKeys.Doc, actualKey)
 	assert.Empty(t, actualStores)
 }
 
