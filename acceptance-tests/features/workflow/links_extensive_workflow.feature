@@ -5,7 +5,7 @@ Feature: function links for an extensive workflow
 
   Scenario: create basic solution
     Given the following parameters
-      | folder      | oem            | handle     | version | workflowHandle | workflowName     | workflowDescription |
+      | folder      | oem             | handle     | version | workflowHandle | workflowName     | workflowDescription |
       | my-solution | com.genaiz.test | solution-1 | 0.1.1   | workflow-1     | Default Workflow | default workflow    |
     When I run the command "sn create <folder> --oem=<oem> --handle=<handle> --version=<version> --workflow-handle=<workflowHandle>"
     Then I should have a solution under "<folder>" named "<handle>" with oem "<oem>", handle "<handle>", description "<handle>" and version "<version>"
@@ -14,7 +14,7 @@ Feature: function links for an extensive workflow
   Scenario: create first function
     Given the scenario "create basic solution" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder      | recipe       | handle         | oem            | version |
+      | folder      | recipe       | handle         | oem             | version |
       | my-solution | bash-example | first-function | com.genaiz.test | 0.1.1   |
     And the workdir changes to "<folder>"
     When I run the command "sf create <handle> --recipe=<recipe>"
@@ -23,7 +23,7 @@ Feature: function links for an extensive workflow
   Scenario: create second function
     Given the scenario "create basic solution" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder      | recipe       | handle          | oem            | version |
+      | folder      | recipe       | handle          | oem             | version |
       | my-solution | bash-example | second-function | com.genaiz.test | 0.1.1   |
     And the workdir changes to "<folder>"
     When I run the command "sf create <handle> --recipe=<recipe> --version=<version>"
@@ -32,7 +32,7 @@ Feature: function links for an extensive workflow
   Scenario: add first node
     Given the scenario "create first function" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder      | workflowHandle | functionFolder | nodeName   | nodeHandle          | oem            | version |
+      | folder      | workflowHandle | functionFolder | nodeName   | nodeHandle          | oem             | version |
       | my-solution | workflow-1     | first-function | first-node | first-function-node | com.genaiz.test | 0.1.1   |
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <functionFolder> --name=<nodeName>"
@@ -51,7 +51,7 @@ Feature: function links for an extensive workflow
   Scenario: add second node
     Given the scenario "create second function" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder      | workflowHandle | functionFolder  | nodeName    | nodeHandle           | oem            | version |
+      | folder      | workflowHandle | functionFolder  | nodeName    | nodeHandle           | oem             | version |
       | my-solution | workflow-1     | second-function | second-node | second-function-node | com.genaiz.test | 0.1.1   |
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <functionFolder> --name=<nodeName>"

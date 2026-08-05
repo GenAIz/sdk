@@ -63,8 +63,10 @@ the build coordinates in the `Genaiz.yaml` file, the command will return `Error:
 * if the resolved type does not match a valid type option (see [type validity](index#type)), the command will return an
   error with the key of the field and the invalid value;
   `Error: value [...] for option [function.publish.type] is invalid`
-* if the resolved type does not allow data sources, only connectors do, the command will return an error: `Error: type [...] can not specify data sources`
-* if the resolved type does not allow data stores, only connectors do, the command will return an error: `Error: type [...] can not specify data stores`
+* if the resolved type does not allow data sources, only connectors do, the command will return an error:
+  `Error: type [...] can not specify data sources`
+* if the resolved type does not allow data stores, only connectors do, the command will return an error:
+  `Error: type [...] can not specify data stores`
 
 ### arch
 

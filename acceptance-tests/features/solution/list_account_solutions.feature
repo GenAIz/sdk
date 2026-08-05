@@ -5,7 +5,7 @@ Feature: list account solutions
 
   Scenario: create simple solution with name and description
     Given the following parameters
-      | folder      | oem            | version | solutionName | solutionDesc         | workflowName     | workflowHandle | workflowDesc     |
+      | folder      | oem             | version | solutionName | solutionDesc         | workflowName     | workflowHandle | workflowDesc     |
       | my-solution | com.genaiz.test | 1.0.0   | My Solution  | Solution Description | Default Workflow | default        | default workflow |
     When I run the command "sn create <folder> --oem=<oem> --name='<solutionName>' --description='<solutionDesc>'"
     Then I should have a solution under "<folder>" named "<solutionName>" with oem "<oem>", handle "<folder>", description "<solutionDesc>" and version "<version>"
@@ -14,7 +14,7 @@ Feature: list account solutions
   Scenario: create bash example function
     Given the scenario "create simple solution with name and description" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder      | recipe       | handle      | oem            | type     | version |
+      | folder      | recipe       | handle      | oem             | type     | version |
       | my-solution | bash-example | my-function | com.genaiz.test | function | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "sf create <handle> --recipe=<recipe>"
@@ -23,7 +23,7 @@ Feature: list account solutions
   Scenario: add bash example node
     Given the scenario "create bash example function" ran with condition "service_completed_successfully"
     And the following parameters
-      | folder      | functionFolder | workflowHandle | nodeHandle       | oem            | version |
+      | folder      | functionFolder | workflowHandle | nodeHandle       | oem             | version |
       | my-solution | my-function    | default        | my-function-node | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <functionFolder>"
@@ -52,7 +52,7 @@ Feature: list account solutions
   Scenario: list account solutions
     Given the scenario "publish simple solution" ran with condition "service_completed_successfully"
     And the following parameters
-      | oem            | handle      | version | local |
+      | oem             | handle      | version | local |
       | com.genaiz.test | my-function | 1.0.0   | false |
     When I run the command "sn list <oem>/<handle>:<version> --account=<orchestrator>"
     Then I should have a solution list with solution "<oem>/<handle>:<version>" named "<solutionName>" and local flag set to "<local>"

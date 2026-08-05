@@ -29,7 +29,7 @@ genaiz dk prop add [OEM/]HANDLE[:VERSION] KEY \
 ```
 
 #### handle
-``
+
 * the command expects its first argument to at least be a handle, but it may be a FQDN string composed of the
   OEM/HANDLE:VERSION fields, which are all required
 * if the handle value does not match a valid handle string (see [handle validity](index.md#handle-and-oem)), the command

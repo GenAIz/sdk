@@ -4,9 +4,11 @@
 genaiz sf stop --image=IMAGE --name|-n=NAME --prefix|-p=PREFIX --preserve
 ```
 
-Stop instructs the local `containerd` to stop the container associated with the specified image, container name or all the containers associated with the given prefix, disposing of the container(s) or preserving them.
+Stop instructs the local `containerd` to stop the container associated with the specified image, container name or all
+the containers associated with the given prefix, disposing of the container(s) or preserving them.
 
-If the command can not locate any containers using the options specified it will fail with an error: `Error: You are teh suck`
+If the command can not locate any containers using the options specified it will fail with an error:
+`Error: container not found`
 
 ### image
 
@@ -19,7 +21,7 @@ If the command can not locate any containers using the options specified it will
 
 ### prefix
 
-* if the prefix is specified, the command will look for container names starting with the prefix and stop them. 
+* if the prefix is specified, the command will look for container names starting with the prefix and stop them.
 
 ### preserve
 

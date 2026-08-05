@@ -10,10 +10,13 @@
 * [Data store example](../../features/function/data_store_example.feature)
 * [Init empty example](../../features/function/init_empty_example.feature)
 * [List bash example](../../features/function/list_bash_example.feature)
+* [Prop bash connector](../../features/function/prop_bash_connector.feature)
 * [Prop bash example](../../features/function/prop_bash_example.feature)
 * [Proxy bash example](../../features/function/proxy_bash_example.feature)
 * [Publish bash connector](../../features/function/publish_bash_connector.feature)
 * [Publish bash example](../../features/function/publish_bash_example.feature)
+* [Publish function validation](../../features/function/publish_function_validation.feature)
+* [Publish unsynchronized example](../../features/function/publish_unsynchronized_example.feature)
 * [Run bash example](../../features/function/run_bash_example.feature)
 * [Start bash example](../../features/function/start_bash_example.feature)
 * [Stop bash example](../../features/function/stop_bash_example.feature)
@@ -27,6 +30,7 @@
 * [init](init.md)
 * [list](list.md)
 * [prop](prop.md)
+* [proxy](proxy.md)
 * [publish](publish.md)
 * [run](run.md)
 * [start](start.md)
@@ -35,9 +39,11 @@
 
 ## Environment:
 
-The [run](run.md), [start](start.md) and [test](test.md) commands should normally honor the following environment variables, forwarding them to the containers they create:
+The [run](run.md), [start](start.md) and [test](test.md) commands should normally honor the following environment
+variables, forwarding them to the containers they create:
 
-There should also be a mechanism for specifying environment variables using a .env file and be able to specify the path of such file if it can not be found under the resolved Docker context.
+There should also be a mechanism for specifying environment variables using a .env file and be able to specify the path
+of such file if it can not be found under the resolved Docker context.
 
 ### SF_INPUT_PATH
 
@@ -62,7 +68,8 @@ There should also be a mechanism for specifying environment variables using a .e
 ### SF_PROGRESS_FILE
 
 - default is SF_VAR_PATH + "/progress"
-- output a number between 0 and 100 and that progress will show up on the orchestrator (yes, validation exists) -- totally optional
+- output a number between 0 and 100 and that progress will show up on the orchestrator (yes, validation exists) --
+  totally optional
 
 ### SF_RESULT_FILE
 
@@ -72,12 +79,14 @@ There should also be a mechanism for specifying environment variables using a .e
 ### SF_STATUS_FILE
 
 - default is SF_VAR_PATH + "/status"
-- status of the SF -- mandatory -- you need to write 'SUCCESS' in there before exiting, or else we consider that the function failed
+- status of the SF -- mandatory -- you need to write 'SUCCESS' in there before exiting, or else we consider that the
+  function failed
 
 ### SF_TYPE
 
 - the type of smart function (CONNECTOR or FUNCTION or TRIGGER)
-- this should be provided by default by the SDK relying on the type field specified under the function publish configurations
+- this should be provided by default by the SDK relying on the type field specified under the function publish
+  configurations
 
 ## Validation
 

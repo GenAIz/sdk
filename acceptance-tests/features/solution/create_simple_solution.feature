@@ -47,7 +47,7 @@ Feature: solution create for a simple solution
 
   Scenario: create simple solution bad workflow name
     Given the following parameters
-      | folder      | workflowName |
+      | folder      | workflowName                                                                                                                                                                                                                                                        |
       | my-solution | this name value is too long this name value is too long this name value is too long this name value is too long this name value is too long this name value is too long this name value is too long this name value is too long this name value is too long because |
     When I run the command "sn create <folder> --workflow-name='<workflowName>'"
     Then I should have an error for field "solution.create.workflow.name"
