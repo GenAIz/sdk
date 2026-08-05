@@ -108,10 +108,7 @@ func (dlw *DataLinksWriter) BuildDataLinks() (string, []broker.DataLink) {
 		dlw.removedLinks = make([]*broker.DataLink, 0)
 	}
 
-	for _, link := range dlw.addedLinks {
-		result = append(result, link)
-	}
-
+	result = append(result, dlw.addedLinks...)
 	return "dataLinks", result
 }
 
@@ -188,9 +185,7 @@ func (sw *SolutionWriter) BuildSolution() (string, broker.Solution) {
 	if len(sw.workflows) > 0 {
 		var updatedWf []broker.Workflow
 
-		for _, wf := range result.Workflows {
-			updatedWf = append(updatedWf, wf)
-		}
+		updatedWf = append(updatedWf, result.Workflows...)
 
 		for _, key := range sw.order {
 			if !slices.ContainsFunc(updatedWf, broker.WorkflowHandlePredicate(key)) {

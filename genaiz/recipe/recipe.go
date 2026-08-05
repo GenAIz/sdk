@@ -75,6 +75,7 @@ var (
 	embedded     embed.FS
 	embeddedPath = "embedded_recipes"
 
+	//lint:ignore U1000 TODO
 	//go:embed recipe.json
 	schema     embed.FS
 	recipeFile = "recipe.yaml"
@@ -85,6 +86,7 @@ var (
 	TypeSolution = "solution" // a solution is a publishing container for functions and workflows
 	TypeWorkflow = "workflow" // a workflow is a composition of several functions
 
+	//lint:ignore U1000 TODO
 	Types = enumz.NewEnumType(TypeFunction, TypeModule, TypeProject, TypeSolution, TypeWorkflow)
 
 	Variations = map[Type]Varies{
@@ -296,7 +298,7 @@ func (r *recipe) getKeyAliases() []string {
 func (r *recipe) getKeyVariations() []string {
 	var result []string
 
-	if v, _ := Variations[r.Type]; v != nil {
+	if v := Variations[r.Type]; v != nil {
 		if !v.IsaVariety(r.Name) {
 			for _, variation := range v.GetVariations(r.Name) {
 				result = append(result, folderKey(r.Type, variation))

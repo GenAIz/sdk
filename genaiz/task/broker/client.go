@@ -935,13 +935,15 @@ func (c *client) ProvisionFunction(function *Function, extras map[string]any) (*
 					}).
 					Post(url)
 
-				return resultOrError(resp, func(body any) *shared.Identity {
-					var payload = resp.Result().(*clientPayload[provisionData])
-					var result = payload.Data.Sf.asIdentity()
+				if err == nil {
+					return resultOrError(resp, func(body any) *shared.Identity {
+						var payload = resp.Result().(*clientPayload[provisionData])
+						var result = payload.Data.Sf.asIdentity()
 
-					result.Auth = payload.Data.Auth
-					return result
-				})
+						result.Auth = payload.Data.Auth
+						return result
+					})
+				}
 			}
 		}
 
@@ -1012,11 +1014,13 @@ func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 				}).
 				Post(url)
 
-			return resultOrError(resp, func(body any) *Function {
-				var payload = resp.Result().(*clientPayload[publishingData])
+			if err == nil {
+				return resultOrError(resp, func(body any) *Function {
+					var payload = resp.Result().(*clientPayload[publishingData])
 
-				return &payload.Data.Sf
-			})
+					return &payload.Data.Sf
+				})
+			}
 		}
 
 		return nil, err
@@ -1048,12 +1052,14 @@ func (c *client) PublishSolution(solution *Solution) (*Solution, error) {
 				}).
 				Post(url)
 
-			return resultOrError(resp, func(body any) *Solution {
-				var payload = resp.Result().(*clientPayload[solutionSlices])
-				var graph = &payload.Data
+			if err == nil {
+				return resultOrError(resp, func(body any) *Solution {
+					var payload = resp.Result().(*clientPayload[solutionSlices])
+					var graph = &payload.Data
 
-				return &graph.Solution
-			})
+					return &graph.Solution
+				})
+			}
 		}
 
 		return nil, err
@@ -1081,11 +1087,13 @@ func (c *client) Session() (*Session, error) {
 				Resulting(&clientPayload[Session]{}).
 				Get(url)
 
-			return resultOrError(resp, func(body any) *Session {
-				var payload = resp.Result().(*clientPayload[Session])
+			if err == nil {
+				return resultOrError(resp, func(body any) *Session {
+					var payload = resp.Result().(*clientPayload[Session])
 
-				return &payload.Data
-			})
+					return &payload.Data
+				})
+			}
 		}
 
 		return nil, err

@@ -125,6 +125,8 @@ func TestLedger_AddConfigOption_MultiFiles(t *testing.T) {
 
 	if err = os.MkdirAll(testLedger.UserPath, 0750); err == nil {
 		if fd, err = os.Create(filepath.Join(testLedger.UserPath, testLedger.ConfigName+".yaml")); err == nil {
+			defer filez.CloseSilently(fd)
+
 			if fd, err = os.Create(expectedFile); err == nil {
 				var testOption = &StringOption{
 					Option{

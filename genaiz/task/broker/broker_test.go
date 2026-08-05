@@ -1001,6 +1001,7 @@ func TestWorkflow_FindNodeHandleBySf(t *testing.T) {
 	assert.Error(t, err)
 	actual, err = testWorkflow.FindNodeHandleBySf(expectedSfOem, expectedSfHandle, expectedSfVersion)
 	assert.Equal(t, actual, expectedHandle)
+	assert.NoError(t, err)
 }
 
 func TestWorkflow_HasNodeProps(t *testing.T) {

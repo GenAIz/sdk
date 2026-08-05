@@ -49,9 +49,11 @@ func TestContainerParams_GetName(t *testing.T) {
 	assert.Error(t, err)
 	testParams.Prefix = expectedPrefix
 	actual, err = testParams.GetName([]container.Summary{})
+	assert.NoError(t, err)
 	assert.Equal(t, expectedPrefix+"-0", actual)
 	testParams.Name = expectedName
 	actual, err = testParams.GetName([]container.Summary{})
+	assert.NoError(t, err)
 	assert.Equal(t, expectedName, actual)
 }
 

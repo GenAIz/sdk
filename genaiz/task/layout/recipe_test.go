@@ -94,7 +94,6 @@ type stubRegistry struct {
 	recipePath     string
 	recipeName     string
 	recipeType     recipe.Type
-	registryAdds   []recipe.Recipe
 	registryError  error
 	registryRecipe recipe.Recipe
 	variationBase  string
@@ -137,18 +136,26 @@ func TestRecipeParams_getRecipeFinder(t *testing.T) {
 		registryRecipe: &stubRecipe{},
 	}
 	var expectedPath = "path"
+	var actual recipe.Recipe
+	var err error
 
-	actual, err := testFinder(testRegistry)
-	assert.NoError(t, err)
-	assert.Same(t, testRegistry.registryRecipe, actual)
-	assert.Empty(t, testRegistry.recipePath)
-	assert.Equal(t, testParams.Name, testRegistry.recipeName)
-	testFinder = testParams.getRecipeFinder(expectedPath)
-	testRegistry.recipeName = ""
-	actual, err = testFinder(testRegistry)
-	assert.Same(t, testRegistry.registryRecipe, actual)
-	assert.Equal(t, expectedPath, testRegistry.recipePath)
-	assert.Empty(t, testRegistry.recipeName)
+	if actual, err = testFinder(testRegistry); err == nil {
+		assert.Same(t, testRegistry.registryRecipe, actual)
+		assert.Empty(t, testRegistry.recipePath)
+		assert.Equal(t, testParams.Name, testRegistry.recipeName)
+		testFinder = testParams.getRecipeFinder(expectedPath)
+		testRegistry.recipeName = ""
+
+		if actual, err = testFinder(testRegistry); err == nil {
+			assert.Same(t, testRegistry.registryRecipe, actual)
+			assert.Equal(t, expectedPath, testRegistry.recipePath)
+			assert.Empty(t, testRegistry.recipeName)
+		}
+	}
+
+	if err != nil {
+		assert.Fail(t, err.Error())
+	}
 }
 
 func Test_handleLayoutRecipeContext(t *testing.T) {

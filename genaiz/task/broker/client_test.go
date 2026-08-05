@@ -18,6 +18,7 @@ import (
 	"resty.dev/v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
+	"genaiz.com/genaiz/task/shared"
 	"genaiz.com/genaiz/version/env"
 )
 
@@ -1260,6 +1261,21 @@ func TestClient_ProvisionFunction_NoAuth(t *testing.T) {
 	assert.ErrorIs(t, err, errorNoAuth)
 }
 
+func TestClient_ProvisionFunction_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ProvisionFunction(&Function{}, map[string]any{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
 func TestClient_ProvisionFunctionUrl(t *testing.T) {
 	var expectedHost = "host"
 	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
@@ -1399,6 +1415,21 @@ func TestClient_PublishFunction_NoAuth(t *testing.T) {
 	assert.ErrorIs(t, err, errorNoAuth)
 }
 
+func TestClient_PublishFunction_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.PublishFunction(&shared.Identity{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
 func TestClient_PublishFunctionUrl(t *testing.T) {
 	var expectedHost = "host"
 	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
@@ -1476,6 +1507,21 @@ func TestClient_PublishSolution_NoAuth(t *testing.T) {
 	assert.ErrorIs(t, err, errorNoAuth)
 }
 
+func TestClient_PublishSolution_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.PublishSolution(&Solution{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
 func TestClient_PublishSolutionUrl(t *testing.T) {
 	var expectedHost = "host"
 	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
@@ -1524,6 +1570,21 @@ func TestClient_Session_NoAuth(t *testing.T) {
 	var _, err = testClient.Session()
 
 	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_Session_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.Session()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
 }
 
 func TestClient_SessionUrl(t *testing.T) {

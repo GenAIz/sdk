@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
 )
 
@@ -313,6 +314,7 @@ func TestRecipe_WriteFiles_DestExists(t *testing.T) {
 				},
 			}
 
+			defer filez.CloseSilently(fd)
 			assert.NoError(t, testRecipe.WriteFiles(testDir, "instanceName", map[string]string{}))
 			return
 		}

@@ -537,6 +537,7 @@ func TestSolutionReader_GraphFile(t *testing.T) {
 
 			testLedger.InitLogging()
 			actualSolution, err = actual.Graph()
+			assert.NoError(t, err)
 			assert.Equal(t, expectedSolution, actualSolution)
 			return
 		}

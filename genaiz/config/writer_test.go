@@ -333,12 +333,14 @@ func TestWorkflowWriter_BuildWorkflows(t *testing.T) {
 		WithWorkflows([]broker.Workflow{{Handle: expectedHandle}}).
 		WithWorkflowLinks(expectedHandle, []broker.WorkflowLink{{LhsNode: expectedLink}}).
 		BuildWorkflows()
+	assert.Equal(t, expectedRoot, root)
 	assert.Equal(t, 1, len(actual))
 	assert.Equal(t, 1, len(actual[0].Links))
 	assert.Equal(t, expectedLink, actual[0].Links[0].LhsNode)
 	root, actual = testWriter.
 		WithWorkflowNodes(expectedHandle, []broker.WorkflowNode{{Handle: expectedNode}}).
 		BuildWorkflows()
+	assert.Equal(t, expectedRoot, root)
 	assert.Equal(t, 1, len(actual))
 	assert.Equal(t, 1, len(actual[0].Nodes))
 	assert.Equal(t, expectedNode, actual[0].Nodes[0].Handle)

@@ -61,15 +61,6 @@ func TestNewRemoveLinksInvalidArgs(t *testing.T) {
 	assert.ErrorIs(t, testRmLinks.Execute(), errorInvalid)
 }
 
-func newRemoveFactory(actualWorkflow *string, actualLinks *[]string) RemoveExecutorFactory {
-	return func(command *cobra.Command) RemoveExecutor {
-		return &stubRemoveExecutor{
-			rmWorkflow: actualWorkflow,
-			rmLinks:    actualLinks,
-		}
-	}
-}
-
 func newRemoveValidator(valid bool) RemoveValidator {
 	return func(args []string) error {
 		if valid {

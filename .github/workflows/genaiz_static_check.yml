@@ -1,0 +1,29 @@
+name: genaiz_static_check.yml
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  genaiz_static_check:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version: [ '1.26.5' ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: false
+      - name: Static Check
+        uses: dominikh/staticcheck-action@v1.4.1
+        with:
+          version: '2026.1'
+          install-go: 'false'
+          build-tags: 'prod'
+          working-directory: 'genaiz'
