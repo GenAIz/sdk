@@ -20,12 +20,17 @@ var (
 	ErrorWorkflowHandleRequired  = task.NewError("workflow solution handle is required")
 	ErrorWorkflowVersionRequired = task.NewError("workflow solution version is required")
 	ErrorWorkspaceEmpty          = task.NewError("no workspace definition provided")
+	ErrorWorkspaceFlowConflict   = task.NewError("workflow present under multiple workspace flows")
 	ErrorWorkspaceFlowInvalid    = task.NewError("workspace flow definition is invalid")
+	ErrorWorkspaceFlowRequired   = task.NewError("workspace flow can not be located")
+	ErrorWorkspaceFlowUnresolved = task.NewError("workspace flow needs to be located")
+	ErrorWorkspaceConflict       = task.NewError("workspace can be several possibilities")
 	ErrorWorkspaceInvalidNco     = task.NewError("workspace creation date is invalid")
 	ErrorWorkspaceInvalidOwner   = task.NewError("workspace ownership can not be established with the selected session")
 	ErrorWorkspaceIdKnown        = task.NewError("workspace id is already known")
 	ErrorWorkspaceIdRequired     = task.NewError("workspace id is required")
 	ErrorWorkspaceNameRequired   = task.NewError("workspace name is required")
+	ErrorWorkspaceNotFound       = task.NewError("workspace could not be found")
 	ErrorWorkspaceVisibility     = task.NewError("workspace visibility is required")
 )
 
@@ -44,6 +49,36 @@ type WorkspaceFlowCreateParams struct {
 
 func (cp WorkspaceFlowCreateParams) IsValid() bool {
 	return cp.WorkspaceId != nil && cp.WorkflowId != nil
+}
+
+type WorkspaceFlowListParams struct {
+	*WorkspaceFlowResolveParams
+	ReadyOnly bool
+}
+
+func (lp WorkspaceFlowListParams) GetMaskFlags() (int, int) {
+	if lp.ReadyOnly {
+		return WorkspaceFlowFlags.Active | WorkspaceFlowFlags.Ready,
+			WorkspaceFlowFlags.Active | WorkspaceFlowFlags.Ready
+	}
+
+	return WorkspaceFlowFlags.Active, WorkspaceFlowFlags.Active
+}
+
+func (lp WorkspaceFlowListParams) GetWorkspaceId() *int64 {
+	if lp.WorkspaceFlowResolveParams == nil || lp.WorkspaceFlowCreateParams == nil {
+		return nil
+	}
+
+	return lp.WorkspaceFlowResolveParams.WorkspaceId
+}
+
+func (lp WorkspaceFlowListParams) IsValid() bool {
+	if lp.WorkspaceFlowResolveParams == nil || lp.WorkspaceFlowCreateParams == nil {
+		return false
+	}
+
+	return lp.WorkspaceId != nil
 }
 
 type WorkspaceFlowResolveParams struct {
@@ -79,6 +114,14 @@ func (wlp WorkspaceListParams) GetMaskFlags() (int, int) {
 	return getWorkspaceListFlags(wlp.RcEnabled)
 }
 
+type WorkspaceNodeListParams struct {
+	*Broker
+	WorkspaceName   string
+	WorkspaceId     *int64
+	WorkspaceFlowId *int64
+	WorkflowHandle  string
+}
+
 func NewWorkspaceCreateTask() *task.Task[WorkspaceCreateParams] {
 	return &task.Task[WorkspaceCreateParams]{
 		Name:       "workspace-create",
@@ -94,6 +137,15 @@ func NewWorkspaceFlowCreateTask() *task.Task[WorkspaceFlowCreateParams] {
 		OnPrepare:  handleWorkspaceFlowCreateContext,
 		OnComplete: handleWorkspaceFlowCreateComplete,
 		OnPretend:  handleWorkspaceFlowCreatePretend,
+	}
+}
+
+func NewWorkspaceFlowListTask() *task.Task[WorkspaceFlowListParams] {
+	return &task.Task[WorkspaceFlowListParams]{
+		Name:       "workspace-flow-list",
+		OnPrepare:  handleWorkspaceFlowListContext,
+		OnComplete: handleWorkspaceFlowListComplete,
+		OnPretend:  handleWorkspaceFlowListPretend,
 	}
 }
 
@@ -114,6 +166,16 @@ func NewWorkspaceFlowSolutionTask() *task.Task[WorkspaceFlowResolveParams] {
 		OnComplete:   handleWorkspaceFlowSolutionComplete,
 		OnIncomplete: handleWorkspaceFlowSolutionIncomplete,
 		OnPretend:    handleWorkspaceFlowSolutionPretend,
+	}
+}
+
+func NewWorkspaceNodeListTask() *task.Task[WorkspaceNodeListParams] {
+	return &task.Task[WorkspaceNodeListParams]{
+		Name:         "workspace-nodes-resolve",
+		OnPrepare:    handleWorkspaceNodeListContext,
+		OnComplete:   handleWorkspaceNodeListComplete,
+		OnIncomplete: handleWorkspaceNodeListIncomplete,
+		OnPretend:    handleWorkspaceNodeListPretend,
 	}
 }
 
@@ -287,6 +349,69 @@ func handleWorkspaceFlowCreatePretend(params *WorkspaceFlowCreateParams, state *
 	return ErrorWorkspaceFlowInvalid
 }
 
+func handleWorkspaceFlowListComplete(params *WorkspaceFlowListParams, state *task.State) error {
+	if params.IsValid() {
+		var workspaceId = *params.GetWorkspaceId()
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var mask, flags = params.GetMaskFlags()
+			var flows []WorkspaceFlow
+
+			if params.ReadyOnly {
+				state.Logger.Debugf("Finding ready workspace flows for workspace [%d]", params.WorkspaceId)
+			} else {
+				state.Logger.Debugf("Finding active workspace flows for workspace [%d]", params.WorkspaceId)
+			}
+
+			if flows, err = brokerClient.ListWorkspaceFlows(workspaceId, mask, flags); err == nil {
+				state.Logger.Debugf("Found %d workspace flows under workspace id [%d]", len(flows), workspaceId)
+				state.Internal = flows
+				return nil
+			}
+		}
+
+		return err
+	}
+
+	return ErrorWorkspaceIdRequired
+}
+
+func handleWorkspaceFlowListContext(params *WorkspaceFlowListParams, state *task.State) error {
+	if state.Output == "" {
+		if params.GetWorkspaceId() == nil {
+			return ErrorWorkspaceIdRequired
+		}
+
+		return nil
+	}
+
+	return nil
+}
+
+func handleWorkspaceFlowListPretend(params *WorkspaceFlowListParams, state *task.State) error {
+	if params.IsValid() {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var mask, flags = params.GetMaskFlags()
+
+			state.Logger.Debugf("Pretending to resolve workspace flows with a list request")
+			fmt.Printf("curl -X GET -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+			fmt.Printf("  -G -d workspaceId=%d", *params.WorkspaceId)
+			fmt.Printf("%s?mask=%d&flags=%d\n", brokerClient.ListWorkspaceFlowsUrl(), mask, flags)
+			return nil
+		}
+
+		return err
+	}
+
+	return ErrorWorkspaceIdRequired
+}
+
 func handleWorkspaceFlowResolveComplete(params *WorkspaceFlowResolveParams, state *task.State) error {
 	if !params.HasWorkspaceId() {
 		var brokerClient Client
@@ -444,6 +569,162 @@ func handleWorkspaceFlowSolutionPretend(params *WorkspaceFlowResolveParams, stat
 	}
 
 	return nil
+}
+
+func handleWorkspaceNodeListComplete(params *WorkspaceNodeListParams, state *task.State) error {
+	if params.WorkspaceFlowId != nil {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var nodes []WorkspaceNode
+			var result []WorkspaceNode
+
+			state.Logger.Debugf("Listing workspace flow nodes for flow id [%d]", params.WorkspaceFlowId)
+
+			if nodes, err = brokerClient.ListWorkspaceNodes(*params.WorkspaceFlowId); err == nil {
+				var sf *Function
+
+				state.Logger.Debugf("Found %d nodes under workspace [%d] for flow id [%d]",
+					len(nodes), *params.WorkspaceId, *params.WorkspaceFlowId)
+
+				for _, node := range nodes {
+					if sf, err = brokerClient.GetFunction(node.SmartFunctionId); err == nil {
+						result = append(result, node.withFunction(sf))
+					} else {
+						result = append(result, node)
+					}
+				}
+
+				state.Internal = result
+				return nil
+			}
+		}
+
+		return err
+	}
+
+	return ErrorWorkspaceFlowRequired
+}
+
+func handleWorkspaceNodeListContext(params *WorkspaceNodeListParams, state *task.State) error {
+	if state.Output == "" {
+		if params.WorkflowHandle == "" && params.WorkspaceFlowId == nil {
+			return ErrorWorkspaceFlowRequired
+		}
+
+		if params.WorkspaceFlowId == nil {
+			return ErrorWorkspaceFlowUnresolved
+		}
+	}
+
+	return nil
+}
+
+func handleWorkspaceNodeListIncomplete(params *WorkspaceNodeListParams, state *task.State) error {
+	state.Completed = true
+
+	if errors.Is(state.Error, ErrorWorkspaceFlowUnresolved) {
+		var brokerClient Client
+		var err error
+
+		state.Logger.Debugf("Workspace flow is unknown")
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var flows []WorkspaceFlow
+			var result []WorkspaceFlow
+
+			if params.WorkspaceId == nil {
+				var workspaces []Workspace
+				var results []Workspace
+
+				state.Logger.Debugf("Locating workspace [%s]", params.WorkspaceName)
+
+				if workspaces, err = brokerClient.ListWorkspaces(WorkspaceFlags.Active, WorkspaceFlags.Active); err == nil {
+					for _, ws := range workspaces {
+						if strings.EqualFold(params.WorkspaceName, ws.Name) {
+							results = append(results, ws)
+						}
+					}
+				} else {
+					return err
+				}
+
+				if len(results) == 0 {
+					return ErrorWorkspaceNotFound
+				} else if len(results) > 1 {
+					return ErrorWorkspaceConflict
+				}
+
+				params.WorkspaceId = new(results[0].Id)
+			}
+
+			state.Logger.Debugf("Listing workspace flows for workspace [%d]", *params.WorkspaceId)
+
+			if flows, err = brokerClient.ListWorkspaceFlows(*params.WorkspaceId, WorkspaceFlags.Active, WorkspaceFlags.Active); err == nil {
+				for _, fl := range flows {
+					if fl.Solution != nil {
+						var wf *Workflow
+
+						if wf, err = fl.Solution.FindWorkflowByHandle(params.WorkflowHandle); err == nil {
+							if wf.Id != nil && *wf.Id == fl.WorkflowId {
+								result = append(result, fl)
+							}
+						} else {
+							break
+						}
+					}
+				}
+			}
+
+			if err == nil {
+				if len(result) == 1 {
+					state.Logger.Debugf("Located workspace flow [%d]", result[0].Id)
+					params.WorkspaceFlowId = new(result[0].Id)
+					state.Completed = false
+					return nil
+				} else if len(result) > 1 {
+					return ErrorWorkspaceFlowConflict
+				}
+
+				return ErrorWorkspaceFlowRequired
+			}
+		}
+
+		return err
+	}
+
+	return ErrorWorkspaceFlowRequired
+}
+
+func handleWorkspaceNodeListPretend(params *WorkspaceNodeListParams, state *task.State) error {
+	var brokerClient Client
+	var err error
+
+	if brokerClient, err = params.GetClient(); err == nil {
+		if errors.Is(state.Error, ErrorWorkspaceFlowUnresolved) {
+			if params.WorkspaceId == nil {
+				state.Logger.Debugf("Pretending to list workspaces to resolve a workspace by name")
+				fmt.Printf("curl -X GET -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
+				fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+				fmt.Printf("%s?mask=%d&flags=%d\n", brokerClient.ListWorkspacesUrl(), WorkspaceFlags.Active, WorkspaceFlags.Active)
+			}
+
+			state.Logger.Debugf("Pretending to list workspace flows for the workspace id")
+			fmt.Printf("curl -X GET -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+			fmt.Printf("  -G -d workspaceId=%s", "[workspaceId]")
+			fmt.Printf("%s?mask=%d&flags=%d\n", brokerClient.ListWorkspaceFlowsUrl(), WorkspaceFlags.Active, WorkspaceFlags.Active)
+		}
+
+		state.Logger.Debugf("Pretending to list workspace flow nodes")
+		fmt.Printf("curl -X GET -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
+		fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+		fmt.Printf("  -G -d workspaceFlowId=%s", "[workspaceFlowId]")
+		fmt.Println(brokerClient.ListWorkspaceNodesUrl())
+	}
+
+	return err
 }
 
 func handleWorkspaceListContext(params *WorkspaceListParams, state *task.State) error {

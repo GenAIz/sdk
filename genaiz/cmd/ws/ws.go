@@ -32,6 +32,7 @@ func NewWs(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	wsCmd.AddCommand(NewCreate(ledger, wsCli, wsValidation))
 	wsCmd.AddCommand(NewFlow(ledger, wsCli))
 	wsCmd.AddCommand(NewList(ledger, wsCli))
+	wsCmd.AddCommand(NewNode(ledger, wsCli))
 	return wsCmd
 }
 

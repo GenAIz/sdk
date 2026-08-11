@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/ws/auto"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/mgmt"
@@ -34,11 +35,11 @@ func (co CreateOptions) allDefiners() []config.Definer {
 }
 
 type CreateAutoBridge struct {
-	ledger *config.Ledger
+	ledger     *config.Ledger
+	workspaces auto.Bridge
 
-	solutionFacadeProvider  func() mgmt.UserSolutionFacade
-	workflowFacadeProvider  func() mgmt.UserWorkflowFacade
-	workspaceFacadeProvider func() mgmt.UserWorkspacesFacade
+	solutionFacadeProvider func() mgmt.UserSolutionFacade
+	workflowFacadeProvider func() mgmt.UserWorkflowFacade
 }
 
 func (cab CreateAutoBridge) bridgeArguments(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
@@ -49,7 +50,7 @@ func (cab CreateAutoBridge) bridgeArguments(cmd *cobra.Command, args []string, t
 	_ = cmd
 
 	if argsCount == 0 {
-		results, directive = cab.bridgeWorkspaces(toComplete)
+		results, directive = cab.workspaces.Bridge(toComplete)
 	} else if argsCount == 1 {
 		// In the case where the toComplete string refers to a workflowId, we can not autocomplete as the orchestrator
 		// does not provide a list of workflows, without solution coordinates
@@ -125,42 +126,13 @@ func (cab CreateAutoBridge) bridgeWorkflows(fqdnVersion string, toComplete strin
 	return nil, cobra.ShellCompDirectiveError
 }
 
-func (cab CreateAutoBridge) bridgeWorkspaces(toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
-	var params = &broker.WorkspaceListParams{
-		Broker: broker.Broker{
-			AuthFile: cab.ledger.AuthFile,
-		},
-		RcEnabled: true,
-	}
-	var facade = cab.workspaceFacadeProvider().
-		WithParams(params).
-		WithLogger(cab.ledger.Logger).
-		Filtering(toComplete)
-
-	if workspaces, err := facade.Get(); err == nil {
-		if len(workspaces) > 0 {
-			var results []cobra.Completion
-
-			for _, w := range workspaces {
-				results = append(results, w.Matched())
-			}
-
-			return results, cobra.ShellCompDirectiveKeepOrder
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return nil, cobra.ShellCompDirectiveError
-}
-
 func NewCreate(ledger *config.Ledger, options *CreateOptions, factory CreateExecutorFactory) *cobra.Command {
 	var createAuto = NewCreateAuto(ledger)
 	var createCmd = &cobra.Command{
 		Use:     "create [WORKSPACE_NAME]|WORKSPACE_ID [SOLUTION_FQDN_VERSION WORKFLOW_HANDLE]|WORKFLOW_ID",
 		Short:   "Creates a Workspace Flow container",
 		Long:    "Creates a Workspace Flow container definition for a Solution Workflow",
-		Example: "genaiz create my-workspace com.genaiz.dev/my-function:1.0.0 my-workflow --json",
+		Example: "genaiz ws create my-workspace com.genaiz.dev/my-function:1.0.0 my-workflow --json",
 		Args:    cobra.MatchAll(cobra.MinimumNArgs(2), cobra.MaximumNArgs(3)),
 		Run: func(cmd *cobra.Command, args []string) {
 			var exec = factory(cmd)
@@ -186,11 +158,11 @@ func NewCreate(ledger *config.Ledger, options *CreateOptions, factory CreateExec
 
 func NewCreateAuto(ledger *config.Ledger) *CreateAutoBridge {
 	return &CreateAutoBridge{
-		ledger: ledger,
+		ledger:     ledger,
+		workspaces: auto.NewWorkspaceBridge(ledger),
 
-		solutionFacadeProvider:  mgmt.NewUserSolutionFacade,
-		workflowFacadeProvider:  mgmt.NewUserWorkflowFacade,
-		workspaceFacadeProvider: mgmt.NewUserWorkspacesFacade,
+		solutionFacadeProvider: mgmt.NewUserSolutionFacade,
+		workflowFacadeProvider: mgmt.NewUserWorkflowFacade,
 	}
 }
 

@@ -61,6 +61,7 @@ are described plainly in [Gherkin](https://cucumber.io/docs/gherkin/) format.
 * [genaiz workspace create](workspace/create.md)
 * [genaiz workspace flow](workspace/flow.md)
 * [genaiz workspace list](workspace/list.md)
+* [genaiz workspace node](workspace/node.md)
 
 ## Model Validation
 

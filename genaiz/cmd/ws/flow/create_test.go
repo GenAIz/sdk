@@ -109,39 +109,13 @@ func (s stubUserWorkflowProvider) Get() ([]mgmt.UserWorkflow, task.Error) {
 	return s.workflows, s.getError
 }
 
-type stubUserWorkspaceFacade struct {
-	filter   string
-	logger   *logrus.Logger
-	params   *broker.WorkspaceListParams
-	provider mgmt.Provider[[]mgmt.UserWorkspace]
+type stubWorkspaceBridge struct {
+	completions []cobra.Completion
+	directive   cobra.ShellCompDirective
 }
 
-func (s *stubUserWorkspaceFacade) Filtering(filter string) mgmt.Provider[[]mgmt.UserWorkspace] {
-	s.filter = filter
-	return s.provider
-}
-
-func (s *stubUserWorkspaceFacade) Provider() mgmt.Provider[[]mgmt.UserWorkspace] {
-	return s.provider
-}
-
-func (s *stubUserWorkspaceFacade) WithLogger(logger *logrus.Logger) mgmt.Facade[[]mgmt.UserWorkspace, broker.WorkspaceListParams] {
-	s.logger = logger
-	return s
-}
-
-func (s *stubUserWorkspaceFacade) WithParams(params *broker.WorkspaceListParams) mgmt.Facade[[]mgmt.UserWorkspace, broker.WorkspaceListParams] {
-	s.params = params
-	return s
-}
-
-type stubUserWorkspaceProvider struct {
-	workspaces []mgmt.UserWorkspace
-	getError   task.Error
-}
-
-func (s stubUserWorkspaceProvider) Get() ([]mgmt.UserWorkspace, task.Error) {
-	return s.workspaces, s.getError
+func (s stubWorkspaceBridge) Bridge(string) ([]cobra.Completion, cobra.ShellCompDirective) {
+	return s.completions, s.directive
 }
 
 func TestNewCreate(t *testing.T) {
@@ -375,83 +349,25 @@ func TestNewCreateAuto_bridgeWorkflows_Error(t *testing.T) {
 }
 
 func TestNewCreateAuto_bridgeWorkspaces(t *testing.T) {
-	var expectedId = int64(37)
-	var expectedName = "workspaceName"
+	var expectedCompletion = "expected"
 	var testLedger = config.NewBuilder().
 		WithViper(viper.New()).
 		Build()
-	var testProvider = stubUserWorkspaceProvider{
-		workspaces: []mgmt.UserWorkspace{
-			{
-				Id:   expectedId,
-				Name: expectedName,
-			},
-		},
-	}
 	var testAuto = &CreateAutoBridge{
 		ledger: testLedger,
-		workspaceFacadeProvider: func() mgmt.UserWorkspacesFacade {
-			return &stubUserWorkspaceFacade{
-				provider: testProvider,
-			}
+		workspaces: &stubWorkspaceBridge{
+			completions: []string{expectedCompletion},
+			directive:   cobra.ShellCompDirectiveKeepOrder,
 		},
 	}
 	var testCmd = &cobra.Command{}
 	var testCompletable = "37"
 
 	if actual, directive := testAuto.bridgeArguments(testCmd, []string{}, testCompletable); len(actual) > 0 {
-		assert.Equal(t, fmt.Sprintf("%d\t%s", testProvider.workspaces[0].Id, testProvider.workspaces[0].Name), actual[0])
+		assert.Contains(t, actual, expectedCompletion)
 		assert.Equal(t, cobra.ShellCompDirectiveKeepOrder, directive)
 	} else {
 		assert.Fail(t, "expected actual workspace results")
-	}
-}
-
-func TestNewCreateAuto_bridgeWorkspaces_Empty(t *testing.T) {
-	var testLedger = config.NewBuilder().
-		WithViper(viper.New()).
-		Build()
-	var testProvider = stubUserWorkspaceProvider{}
-	var testAuto = &CreateAutoBridge{
-		ledger: testLedger,
-		workspaceFacadeProvider: func() mgmt.UserWorkspacesFacade {
-			return &stubUserWorkspaceFacade{
-				provider: testProvider,
-			}
-		},
-	}
-	var testCmd = &cobra.Command{}
-	var testCompletable = "37"
-
-	if actual, directive := testAuto.bridgeArguments(testCmd, []string{}, testCompletable); len(actual) > 0 {
-		assert.Fail(t, "expected no workspace results")
-	} else {
-		assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
-	}
-}
-
-func TestNewCreateAuto_bridgeWorkspaces_Error(t *testing.T) {
-	var testLedger = config.NewBuilder().
-		WithViper(viper.New()).
-		Build()
-	var testProvider = stubUserWorkspaceProvider{
-		getError: task.NewError("expected"),
-	}
-	var testAuto = &CreateAutoBridge{
-		ledger: testLedger,
-		workspaceFacadeProvider: func() mgmt.UserWorkspacesFacade {
-			return &stubUserWorkspaceFacade{
-				provider: testProvider,
-			}
-		},
-	}
-	var testCmd = &cobra.Command{}
-	var testCompletable = "37"
-
-	if actual, directive := testAuto.bridgeArguments(testCmd, []string{}, testCompletable); len(actual) > 0 {
-		assert.Fail(t, "expected no workspace results")
-	} else {
-		assert.Equal(t, cobra.ShellCompDirectiveError, directive)
 	}
 }
 

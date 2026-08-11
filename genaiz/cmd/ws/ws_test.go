@@ -44,7 +44,7 @@ func TestNewWs(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewWs(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 3, len(testCmd.Commands()))
+	assert.Equal(t, 4, len(testCmd.Commands()))
 }
 
 func TestValidation_ArgsWorkspaceName(t *testing.T) {

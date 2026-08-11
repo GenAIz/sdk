@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -51,6 +50,10 @@ var (
 	WorkspaceFlags = &workspaceFlags{
 		Active:    1 << 0,
 		RcEnabled: 1 << 1,
+	}
+	WorkspaceFlowFlags = &workspaceFlowFlags{
+		Active: 1 << 0,
+		Ready:  1 << 1,
 	}
 	PropSpecTypes = enumz.NewEnumType(PropSpecTypeBoolean, PropSpecTypeDouble,
 		PropSpecTypeEnum, PropSpecTypeInt, PropSpecTypeString)
@@ -1052,16 +1055,16 @@ func WorkflowNamePredicate(name string) func(Workflow) bool {
 type WorkspaceVisibility = string
 
 type Workspace struct {
-	Id          int64  `yaml:"id,omitempty" json:"id,omitempty"`
-	Created     int64  `yaml:"nco,omitempty" json:"nco,omitempty"`
-	Modified    int64  `yaml:"nms,omitempty" json:"nms,omitempty"`
-	Name        string `yaml:"name" json:"name"`
-	Description string `yaml:"description,omitempty" json:"description,omitempty"`
-	OwnerAppId  int    `yaml:"ownerAppId,omitempty" json:"ownerAppId,omitempty"`
-	OwnerUserId int    `yaml:"OwnerUserId,omitempty" json:"OwnerUserId,omitempty"`
-	Visibility  string `yaml:"visibility" json:"visibility"`
-	RcEnabled   bool   `yaml:"-" json:"-"`
-	Flags       *int   `yaml:"Flags,omitempty"`
+	Id          int64  `json:"id,omitempty"`
+	Created     int64  `json:"nco,omitempty"`
+	Modified    int64  `json:"nms,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	OwnerAppId  int    `json:"ownerAppId,omitempty"`
+	OwnerUserId int    `json:"ownerUserId,omitempty"`
+	Visibility  string `json:"visibility"`
+	RcEnabled   bool   `json:"-"`
+	Flags       *int   `json:"flags,omitempty"`
 }
 
 func (w Workspace) IsActive() bool {
@@ -1074,40 +1077,6 @@ func (w Workspace) IsRcEnabled() bool {
 	}
 
 	return w.RcEnabled
-}
-
-func (w Workspace) MarshalJSON() ([]byte, error) {
-	var bytes []byte
-	var flags int
-
-	if w.Flags == nil {
-		if w.RcEnabled {
-			flags = WorkspaceFlags.Active | WorkspaceFlags.RcEnabled
-		} else {
-			flags = WorkspaceFlags.Active
-		}
-	} else {
-		flags = *w.Flags
-	}
-
-	bytes, _ = json.Marshal(struct {
-		Id          string `json:"id"`
-		Created     int64  `json:"created"`
-		Modified    int64  `json:"modified"`
-		Name        string `json:"name"`
-		Description string `json:"description,omitempty"`
-		Visibility  string `json:"visibility"`
-		Flags       int    `json:"flags"`
-	}{
-		Id:          cast.ToString(w.Id),
-		Created:     w.Created,
-		Modified:    w.Modified,
-		Name:        w.Name,
-		Description: w.Description,
-		Visibility:  strings.ToUpper(w.Visibility),
-		Flags:       flags,
-	})
-	return bytes, nil
 }
 
 type workspaceFlags struct {
@@ -1124,7 +1093,46 @@ type WorkspaceFlow struct {
 	WorkflowId  int64  `json:"workflowId"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
-	Flags       *int   `json:"Flags,omitempty"`
+	Flags       *int   `json:"flags,omitempty"`
+
+	Solution *Solution `json:"-"`
+}
+
+func (fl WorkspaceFlow) IsActive() bool {
+	return fl.Flags != nil && (*fl.Flags&WorkspaceFlowFlags.Active) == WorkspaceFlowFlags.Active
+}
+
+func (fl WorkspaceFlow) IsReady() bool {
+	return fl.Flags != nil && (*fl.Flags&WorkspaceFlowFlags.Ready) == WorkspaceFlowFlags.Ready
+}
+
+type workspaceFlowFlags struct {
+	Active int
+	Ready  int
+}
+
+type WorkspaceNode struct {
+	Id              int64 `json:"id"`
+	WorkspaceId     int64 `json:"workspaceId"`
+	WorkspaceFlowId int64 `json:"workspaceFlowId"`
+	WorkflowNodeId  int64 `json:"workflowNodeId"`
+	SmartFunctionId int64 `json:"smartFunctionId"`
+	Flags           *int  `json:"flags,omitempty"`
+
+	SmartFunction *Function     `json:"-"`
+	WorkflowNode  *WorkflowNode `json:"-"`
+}
+
+func (wn WorkspaceNode) withFunction(fn *Function) WorkspaceNode {
+	return WorkspaceNode{
+		Id:              wn.Id,
+		WorkspaceId:     wn.WorkspaceId,
+		WorkspaceFlowId: wn.WorkspaceFlowId,
+		WorkflowNodeId:  wn.WorkflowNodeId,
+		SmartFunctionId: wn.SmartFunctionId,
+		Flags:           wn.Flags,
+		SmartFunction:   fn,
+	}
 }
 
 func ParseFqdnVersion(value string) (string, string, string) {

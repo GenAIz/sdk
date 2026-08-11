@@ -124,6 +124,75 @@ type testStruct struct {
 	field2 int
 }
 
+func TestWorkspaceFlowsSlices_graph_InvalidSolution(t *testing.T) {
+	var testSlices = &workspaceFlowsSlices{
+		Solutions: []Solution{
+			{
+				Handle: "invalid",
+			},
+		},
+	}
+
+	assert.Panics(t, func() { testSlices.graph() })
+}
+
+func TestWorkspaceFlowsSlices_graph_InvalidWorkflow(t *testing.T) {
+	var testSlices = &workspaceFlowsSlices{
+		Workflows: []Workflow{
+			{
+				Handle: "invalid",
+			},
+		},
+	}
+
+	assert.Panics(t, func() { testSlices.graph() })
+}
+
+func TestWorkspaceFlowsSlices_graph_OrphanedSolution(t *testing.T) {
+	var testSlices = &workspaceFlowsSlices{
+		WorkspaceFlows: []WorkspaceFlow{
+			{
+				Id:         int64(42),
+				SolutionId: int64(1337),
+			},
+		},
+		Solutions: []Solution{
+			{
+				Id:     new(int64(37)),
+				Handle: "notTheOne",
+			},
+		},
+	}
+
+	assert.Panics(t, func() { testSlices.graph() })
+}
+
+func TestWorkspaceFlowsSlices_graph_OrphanedWorkflow(t *testing.T) {
+	var expectedSolutionId = int64(37)
+	var testSlices = &workspaceFlowsSlices{
+		WorkspaceFlows: []WorkspaceFlow{
+			{
+				Id:         int64(42),
+				SolutionId: expectedSolutionId,
+				WorkflowId: int64(1337),
+			},
+		},
+		Solutions: []Solution{
+			{
+				Id:     new(expectedSolutionId),
+				Handle: "expectedSolution",
+			},
+		},
+		Workflows: []Workflow{
+			{
+				Id: new(int64(69)),
+			},
+		},
+	}
+
+	assert.Panics(t, func() { testSlices.graph() })
+}
+
 func TestClient_CreateWorkspace(t *testing.T) {
 	var expectedToken = "token"
 	var expectedWorkspace = &Workspace{Name: "name"}
@@ -199,8 +268,8 @@ func TestClient_CreateWorkspaceFlow(t *testing.T) {
 	var testBridge = &stubBridge{
 		response: stubResponse{
 			success: true,
-			result: &clientPayload[workspaceFlowsSlices]{
-				Data: workspaceFlowsSlices{
+			result: &clientPayload[workspaceFlowSlices]{
+				Data: workspaceFlowSlices{
 					WorkspaceFlow: *expectedFlow,
 				},
 			},
@@ -604,6 +673,68 @@ func TestClient_GetFunction_UrlError(t *testing.T) {
 	assert.ErrorIs(t, err, testBridge.err)
 }
 
+func TestClient_GetSolution(t *testing.T) {
+	var expectedToken = "token"
+	var expectedSolution = &Solution{Id: new(int64(37))}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[Solution]{
+				Data: *expectedSolution,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.GetSolution(*expectedSolution.Id)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedSolution, actual)
+}
+
+func TestClient_GetSolution_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.GetSolution(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_GetSolution_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.GetSolution(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_GetSolution_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.GetSolution(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_GetSolution_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.GetSolution(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
 func TestClient_ListDataLinks(t *testing.T) {
 	var expectedToken = "token"
 	var expectedDataLinks = []DataLink{
@@ -811,6 +942,169 @@ func TestClient_ListWorkspaces_UrlError(t *testing.T) {
 	var testClient = newTestClient(testBridge, expectedToken)
 
 	actual, err := testClient.ListWorkspaces(1, 1)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_ListWorkspaceFlows(t *testing.T) {
+	var expectedToken = "token"
+	var expectedWorkspaceId = int64(37)
+	var expectedWorkflow = &Workflow{
+		Id: new(int64(69)),
+	}
+	var expectedSolution = &Solution{
+		Id: new(int64(42)),
+	}
+	var expectedWorkspace = &WorkspaceFlow{
+		Id:          1337,
+		Name:        "name",
+		SolutionId:  *expectedSolution.Id,
+		WorkflowId:  *expectedWorkflow.Id,
+		WorkspaceId: expectedWorkspaceId,
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[*workspaceFlowsSlices]{
+				Data: &workspaceFlowsSlices{
+					WorkspaceFlows: []WorkspaceFlow{*expectedWorkspace},
+					Solutions:      []Solution{*expectedSolution},
+					Workflows:      []Workflow{*expectedWorkflow},
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	if actual, err := testClient.ListWorkspaceFlows(expectedWorkspaceId, 1, 1); len(actual) > 0 {
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSolution.Id, actual[0].Solution.Id)
+		assert.Equal(t, expectedWorkflow.Id, actual[0].Solution.Workflows[0].Id)
+		return
+	}
+
+	assert.Fail(t, "expected one flow")
+}
+
+func TestClient_ListWorkspaceFlows_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.ListWorkspaceFlows(37, 1, 1)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_ListWorkspaceFlows_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListWorkspaceFlows(37, 1, 1)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_ListWorkspaceFlows_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.ListWorkspaceFlows(37, 1, 1)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_ListWorkspaceFlows_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListWorkspaceFlows(37, 1, 1)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_ListWorkspaceNodes(t *testing.T) {
+	var expectedToken = "token"
+	var expectedFlowId = int64(37)
+	var expectedNode = &WorkspaceNode{
+		Id:              1337,
+		WorkspaceId:     expectedFlowId,
+		WorkspaceFlowId: expectedFlowId,
+		WorkflowNodeId:  48,
+		SmartFunctionId: 69,
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[*workspaceNodeSlices]{
+				Data: &workspaceNodeSlices{
+					WorkspaceFlowNodes: []WorkspaceNode{*expectedNode},
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	if actual, err := testClient.ListWorkspaceNodes(expectedFlowId); len(actual) > 0 {
+		assert.NoError(t, err)
+		assert.Equal(t, expectedNode.Id, actual[0].Id)
+		assert.Equal(t, expectedNode.WorkspaceId, actual[0].WorkspaceId)
+		assert.Equal(t, expectedNode.WorkspaceFlowId, actual[0].WorkspaceFlowId)
+		assert.Equal(t, expectedNode.WorkflowNodeId, actual[0].WorkflowNodeId)
+		assert.Equal(t, expectedNode.SmartFunctionId, actual[0].SmartFunctionId)
+		return
+	}
+
+	assert.Fail(t, "expected one flow")
+}
+
+func TestClient_ListWorkspaceNodes_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.ListWorkspaceNodes(37)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_ListWorkspaceNodes_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListWorkspaceNodes(37)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_ListWorkspaceNodes_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.ListWorkspaceNodes(37)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_ListWorkspaceNodes_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListWorkspaceNodes(37)
 	assert.Empty(t, actual)
 	assert.ErrorIs(t, err, testBridge.err)
 }

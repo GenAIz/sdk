@@ -29,15 +29,16 @@ const (
 	defaultExpiryMinutes  = 5 * 24 * 60
 	defaultTimeoutSeconds = 30
 
-	apiVersion1     version = "v1"
-	pathDataLink    path    = "datalink"
-	pathFunction    path    = "sf"
-	pathOemSolution path    = "oem/solution"
-	pathOidcDevice  path    = "oidc/device"
-	pathOidcToken   path    = "oidc/token"
-	pathSession     path    = "user/session"
-	pathSolution    path    = "solution"
-	pathWorkspace   path    = "workspace"
+	apiVersion1       version = "v1"
+	pathDataLink      path    = "datalink"
+	pathFunction      path    = "sf"
+	pathOemSolution   path    = "oem/solution"
+	pathOidcDevice    path    = "oidc/device"
+	pathOidcToken     path    = "oidc/token"
+	pathSession       path    = "user/session"
+	pathSolution      path    = "solution"
+	pathWorkspace     path    = "workspace"
+	pathWorkspaceFlow path    = "workspace/flow"
 )
 
 var (
@@ -55,6 +56,8 @@ var (
 	errorNoToken            = task.NewRequestError("could not read token from cookie", 500)
 	errorSessionExpired     = task.NewRequestError("broker session is expired", 401)
 	errorUnauthorized       = task.NewRequestError("unauthorized, please login", 401)
+
+	errorWorkspaceFlowInvalid = task.NewRequestError("workspace flow slices provided are invalid", 501)
 
 	clientByHost = map[string]Client{}
 	clientErrors = map[int]error{
@@ -102,6 +105,10 @@ type Client interface {
 
 	GetHostAddr() string
 
+	GetSolution(int64) (*Solution, error)
+
+	GetSolutionUrl() string
+
 	GetTimeout() int
 
 	GetUserId() int
@@ -113,6 +120,14 @@ type Client interface {
 	ListSolutions(string) ([]Solution, error)
 
 	ListSolutionsUrl() string
+
+	ListWorkspaceFlows(workspaceId int64, mask, flags int) ([]WorkspaceFlow, error)
+
+	ListWorkspaceFlowsUrl() string
+
+	ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error)
+
+	ListWorkspaceNodesUrl() string
 
 	ListWorkspaces(int, int) ([]Workspace, error)
 
@@ -314,8 +329,66 @@ type workspaceSlices struct {
 	Workspace *Workspace `json:"workspace"`
 }
 
-type workspaceFlowsSlices struct {
+type workspaceFlowSlices struct {
 	WorkspaceFlow WorkspaceFlow `json:"workspaceFlow"`
+}
+
+type workspaceFlowsSlices struct {
+	WorkspaceFlows []WorkspaceFlow `json:"workspaceFlows"`
+	Solutions      []Solution      `json:"solutions"`
+	Workflows      []Workflow      `json:"workflows"`
+}
+
+func (wfs workspaceFlowsSlices) graph() []WorkspaceFlow {
+	var solutionMap = mapz.MappedInt64(wfs.Solutions, func(solution Solution) int64 {
+		return intz.Int64ToDefault(solution.Id, -1)
+	})
+	var workflowMap = mapz.MappedInt64(wfs.Workflows, func(workflow Workflow) int64 {
+		return intz.Int64ToDefault(workflow.Id, -1)
+	})
+	var result []WorkspaceFlow
+	var ok bool
+
+	if _, ok = solutionMap[-1]; ok {
+		panic(errorWorkspaceFlowInvalid)
+	}
+
+	if _, ok = workflowMap[-1]; ok {
+		panic(errorWorkspaceFlowInvalid)
+	}
+
+	for _, flow := range wfs.WorkspaceFlows {
+		var flowCopy = flow
+		var solCopy Solution
+		var wfCopy Workflow
+
+		if solCopy, ok = solutionMap[flow.SolutionId]; !ok {
+			panic(errorWorkspaceFlowInvalid)
+		}
+
+		if wfCopy, ok = workflowMap[flow.WorkflowId]; !ok {
+			panic(errorWorkspaceFlowInvalid)
+		}
+
+		flowCopy.Solution = &solCopy
+		solCopy.Workflows = append(solCopy.Workflows, wfCopy)
+		result = append(result, flowCopy)
+	}
+
+	return result
+}
+
+type workspaceNodeSlices struct {
+	WorkspaceFlow      *WorkspaceFlow  `json:"workspaceFlow"`
+	WorkspaceFlowNodes []WorkspaceNode `json:"workspaceFlowNodes"`
+	Solution           *Solution       `json:"solution"`
+}
+
+func (wns workspaceNodeSlices) graph() []WorkspaceNode {
+	//var result []WorkspaceNode
+
+	//TODO: if the call ever returns SmartFunctions and Workflows
+	return wns.WorkspaceFlowNodes
 }
 
 func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
@@ -371,7 +444,7 @@ func (c *client) CreateWorkspaceFlow(workspaceId int64, workflowId int64, name s
 			defer c.closeSilently(rb)
 			resp, err = rb.Json().
 				Cookie(c.makeCookie()).
-				Resulting(&clientPayload[workspaceFlowsSlices]{}).
+				Resulting(&clientPayload[workspaceFlowSlices]{}).
 				FormData(map[string]string{
 					"workspaceId": cast.ToString(workspaceId),
 					"workflowId":  cast.ToString(workflowId),
@@ -381,7 +454,7 @@ func (c *client) CreateWorkspaceFlow(workspaceId int64, workflowId int64, name s
 
 			if err == nil {
 				if result, err = resultOrError(resp, func(body any) *WorkspaceFlow {
-					var payload = resp.Result().(*clientPayload[workspaceFlowsSlices])
+					var payload = resp.Result().(*clientPayload[workspaceFlowSlices])
 
 					return &payload.Data.WorkspaceFlow
 				}); err == nil {
@@ -573,6 +646,46 @@ func (c *client) GetHostAddr() string {
 	return c.HostAddr
 }
 
+func (c *client) GetSolution(id int64) (*Solution, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathSolution, "get"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *Solution
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[Solution]{}).
+				QueryParams(map[string]string{
+					"id": cast.ToString(id),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *Solution {
+					var payload = resp.Result().(*clientPayload[Solution])
+
+					return &payload.Data
+				}); err == nil {
+					return result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) GetSolutionUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "get")
+}
+
 func (c *client) GetTimeout() int {
 	var bridge = c.requestBridge()
 
@@ -665,6 +778,90 @@ func (c *client) ListSolutions(oem string) ([]Solution, error) {
 
 func (c *client) ListSolutionsUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "list")
+}
+
+func (c *client) ListWorkspaceFlows(workspaceId int64, mask, flags int) ([]WorkspaceFlow, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspaceFlow, "listByWorkspace"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *[]WorkspaceFlow
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[*workspaceFlowsSlices]{}).
+				QueryParams(map[string]string{
+					"workspaceId": cast.ToString(workspaceId),
+					"mask":        cast.ToString(mask),
+					"flags":       cast.ToString(flags),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *[]WorkspaceFlow {
+					var payload = resp.Result().(*clientPayload[*workspaceFlowsSlices])
+					var flows = payload.Data.graph()
+
+					return &flows
+				}); err == nil {
+					return *result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) ListWorkspaceFlowsUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "listByWorkspace")
+}
+
+func (c *client) ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspaceFlow, "read"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *[]WorkspaceNode
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[*workspaceNodeSlices]{}).
+				QueryParams(map[string]string{
+					"id": cast.ToString(flowId),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *[]WorkspaceNode {
+					var payload = resp.Result().(*clientPayload[*workspaceNodeSlices])
+					var flows = payload.Data.graph()
+
+					return &flows
+				}); err == nil {
+					return *result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) ListWorkspaceNodesUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "read")
 }
 
 func (c *client) ListWorkspaces(mask, flags int) ([]Workspace, error) {

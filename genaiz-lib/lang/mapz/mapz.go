@@ -22,6 +22,17 @@ func Mapped[T any](slice []T, keySupplier func(T) string) map[string]T {
 	return result
 }
 
+// MappedInt64 returns a map of the slice hashed by the provided int64 keySupplier function
+func MappedInt64[T any](slice []T, keySupplier func(T) int64) map[int64]T {
+	var result = map[int64]T{}
+
+	for _, t := range slice {
+		result[keySupplier(t)] = t
+	}
+
+	return result
+}
+
 // Sorted invokes the consumer with all the keys of the provided map in order dictated by sort.Strings
 func Sorted(sorting map[string]string, consumer func(string)) {
 	var keys = make([]string, 0, len(sorting))
