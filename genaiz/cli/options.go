@@ -681,6 +681,12 @@ var (
 					WithUsage("name of the workspace flow").
 					WithValidator(config.Validation.Name)
 			},
+			FlowReadyOnly: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("ready-only").
+					WithUsage("only consider workspace flows that are ready for execution").
+					WithDefaultValue(cast.ToString(false))
+			},
 			OwnerOnly: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("owner-only").
@@ -865,6 +871,7 @@ type workspaceOptions struct {
 	Description     func() OptionBuilder
 	FlowDescription func() OptionBuilder
 	FlowName        func() OptionBuilder
+	FlowReadyOnly   func() OptionBuilder
 	OwnerOnly       func() OptionBuilder
 	RcEnabled       func() OptionBuilder
 	Visibility      func() OptionBuilder

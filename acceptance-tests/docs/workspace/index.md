@@ -6,8 +6,9 @@ invoke a Workflow on a groups of Agents managed by the Broker.
 
 * [Features](#features)
     * [Workspace Creation](#workspace-creation)
-    * [Workspace Flow Creation]()
+    * [Workspace Flow Creation](#workspace-flow-creation)
     * [Workspace Listing](#workspace-listing)
+    * [Workspace Node listing](#workspace-node-listing)
 * [By Command](#commands)
 * [By Test Cases](#test-cases)
 
@@ -67,14 +68,37 @@ flowchart LR
     wsCreate <--> wsList
 ```
 
+### Workspace Node Listing
+
+Once a Workspace Flow has been created, the Orchestration assigns `Solution Workflow Nodes` to `Workspace Flow Nodes`.
+These nodes are mirrored containers allowing the user to set configurations and parameters required by any Smart
+Function to be executed when the `Solution Workflow` is executed.
+
+Workspace Nodes always belong to a specific [Flow](#workspace-flow-creation). The scenario is detailed
+under [list workspace nodes](../../features/workspace/list_workspace_nodes.feature).
+
+```mermaid
+---
+title: Workfspace Node Listing Activity
+---
+flowchart LR
+    use>user] --> login([account<br>login])
+    login --> nodeList([list workspace<br>nodes])
+    login --> wsCreate([create<br>workspace])
+    wsCreate --> flowCreate([flow<br>create])
+    flowCreate --> nodeList
+```
+
 ## Commands
 
 * [create](create.md)
 * [flow](flow.md)
 * [list](list.md)
+* [node](node.md)
 
 ## Test Cases
 
 * [Create Simple Workspace](../../features/workspace/create_simple_workspace.feature)
 * [Create Workspace Flow](../../features/workspace/create_workspace_flow.feature)
 * [List Simple User Workspaces](../../features/workspace/list_simple_user_workspaces.feature)
+* [List Workspace Nodes](../../features/workspace/list_workspace_nodes.feature)

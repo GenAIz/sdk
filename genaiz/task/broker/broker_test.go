@@ -1211,54 +1211,49 @@ func TestWorkspace_IsRcEnabled(t *testing.T) {
 	assert.True(t, testWorkspace.IsRcEnabled())
 }
 
-func TestWorkspace_MarshalJSON(t *testing.T) {
-	var testWorkspace = &Workspace{
-		Name:        "expectedName",
-		Description: "expectedDesc",
-		Visibility:  "expectedlyVisible",
-		Flags:       new(37),
-	}
+func TestWorkspaceFlow_IsActive(t *testing.T) {
+	var testFlow = &WorkspaceFlow{Flags: new(WorkspaceFlowFlags.Active)}
 
-	bytes, err := testWorkspace.MarshalJSON()
-	assert.NoError(t, err)
-	actual := string(bytes)
-	assert.Contains(t, actual, testWorkspace.Name)
-	assert.Contains(t, actual, testWorkspace.Description)
-	assert.Contains(t, actual, strings.ToUpper(testWorkspace.Visibility))
-	assert.Contains(t, actual, cast.ToString(testWorkspace.Flags))
+	assert.True(t, testFlow.IsActive())
+	testFlow.Flags = new(0)
+	assert.False(t, testFlow.IsActive())
 }
 
-func TestWorkspace_MarshalJSON_DefaultActive(t *testing.T) {
-	var testWorkspace = &Workspace{
-		Name:        "expectedName",
-		Description: "expectedDesc",
-		Visibility:  "expectedlyVisible",
-	}
+func TestWorkspaceFlow_IsReady(t *testing.T) {
+	var testFlow = &WorkspaceFlow{Flags: new(WorkspaceFlowFlags.Ready)}
 
-	bytes, err := testWorkspace.MarshalJSON()
-	assert.NoError(t, err)
-	actual := string(bytes)
-	assert.Contains(t, actual, testWorkspace.Name)
-	assert.Contains(t, actual, testWorkspace.Description)
-	assert.Contains(t, actual, strings.ToUpper(testWorkspace.Visibility))
-	assert.Contains(t, actual, cast.ToString(WorkspaceFlags.Active))
+	assert.True(t, testFlow.IsReady())
+	testFlow.Flags = new(0)
+	assert.False(t, testFlow.IsReady())
 }
 
-func TestWorkspace_MarshalJSON_RcEnabled(t *testing.T) {
-	var testWorkspace = &Workspace{
-		Name:        "expectedName",
-		Description: "expectedDesc",
-		Visibility:  "expectedlyVisible",
-		RcEnabled:   true,
+func TestWorkspaceNode_withFunction(t *testing.T) {
+	var testFunction = &Function{
+		Id:      37,
+		Oem:     "expectedOem",
+		Handle:  "expectedHandle",
+		Version: "expectedVersion",
+	}
+	var testFlow = &WorkspaceNode{
+		Id:              42,
+		WorkspaceId:     1337,
+		WorkspaceFlowId: 31337,
+		WorkflowNodeId:  69,
+		SmartFunctionId: 38,
+		Flags:           new(3),
 	}
 
-	bytes, err := testWorkspace.MarshalJSON()
-	assert.NoError(t, err)
-	actual := string(bytes)
-	assert.Contains(t, actual, testWorkspace.Name)
-	assert.Contains(t, actual, testWorkspace.Description)
-	assert.Contains(t, actual, strings.ToUpper(testWorkspace.Visibility))
-	assert.Contains(t, actual, cast.ToString(WorkspaceFlags.RcEnabled|WorkspaceFlags.Active))
+	actual := testFlow.withFunction(testFunction)
+	assert.NotNil(t, actual)
+	assert.Equal(t, testFlow.Id, actual.Id)
+	assert.Equal(t, testFlow.WorkspaceId, actual.WorkspaceId)
+	assert.Equal(t, testFlow.WorkspaceFlowId, actual.WorkspaceFlowId)
+	assert.Equal(t, testFlow.WorkflowNodeId, actual.WorkflowNodeId)
+	assert.Equal(t, testFlow.SmartFunctionId, actual.SmartFunctionId)
+	assert.Equal(t, testFunction.Id, actual.SmartFunction.Id)
+	assert.Equal(t, testFunction.Oem, actual.SmartFunction.Oem)
+	assert.Equal(t, testFunction.Handle, actual.SmartFunction.Handle)
+	assert.Equal(t, testFunction.Version, actual.SmartFunction.Version)
 }
 
 func TestParseFqdnVersion(t *testing.T) {

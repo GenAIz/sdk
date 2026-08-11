@@ -1040,6 +1040,15 @@ func Test_OptionWorkspacesFlowName(t *testing.T) {
 	assert.False(t, testOption.Validator("this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for this name is too long for "))
 }
 
+func Test_OptionsWorkspacesFlowReadyOnly(t *testing.T) {
+	var testOption = Options.Workspaces.FlowReadyOnly().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsWorkspacesOwnerOnly(t *testing.T) {
 	var testOption = Options.Workspaces.OwnerOnly().BuildBoolOption()
 

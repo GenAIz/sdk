@@ -393,6 +393,13 @@ type Document struct {
 			Printer     Keys
 			RcEnabled   Keys
 		}
+		Node struct {
+			List struct {
+				Account   Keys
+				Printer   Keys
+				ReadyOnly Keys
+			}
+		}
 	}
 }
 
@@ -761,6 +768,10 @@ func init() {
 	Genaiz.Workspace.List.OwnerOnly = newKeys("Workspace.List.OwnerOnly", "WS_LIST_OWNER_ONLY", "Ws.List.OwnerOnly")
 	Genaiz.Workspace.List.Printer = newKeys("Workspace.List.Printer", "WS_LIST_PRINTER", "Ws.List.Printer")
 	Genaiz.Workspace.List.RcEnabled = newKeys("Workspace.List.RcEnabled", "WS_LIST_RC_ENABLED", "Ws.List.RcEnabled")
+
+	Genaiz.Workspace.Node.List.Account = newKeys("Workspace.Node.Account", "WS_NODE_ACCOUNT", "Ws.Node.Account")
+	Genaiz.Workspace.Node.List.Printer = newKeys("Workspace.Node.Printer", "WS_NODE_PRINTER", "Ws.Node.Printer")
+	Genaiz.Workspace.Node.List.ReadyOnly = newKeys("Workspace.Node.ReadyOnly", "WS_NODE_READY_ONLY", "Ws.Node.ReadyOnly")
 }
 
 func newKeys(docKey, envKey string, pseudonyms ...string) Keys {
