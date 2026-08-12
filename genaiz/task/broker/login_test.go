@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awnumar/memguard"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
@@ -24,13 +25,13 @@ type stubLoginClient struct {
 	logoutErr error
 
 	loginUsername string
-	loginPassword []byte
+	loginEnclave  *memguard.Enclave
 	logoutId      string
 }
 
-func (s *stubLoginClient) Login(username string, password []byte) (*AuthSession, error) {
+func (s *stubLoginClient) Login(username string, enclave *memguard.Enclave) (*AuthSession, error) {
 	s.loginUsername = username
-	s.loginPassword = password
+	s.loginEnclave = enclave
 	return s.session, s.loginErr
 }
 
@@ -942,7 +943,7 @@ func Test_handleLoginCreate_LoginErr(t *testing.T) {
 				HostAddr: "hostAddr",
 			},
 			Username: "username",
-			Password: []byte("password"),
+			Password: memguard.NewEnclave([]byte("password")),
 		}
 		var expectedError = errors.New("expected")
 
@@ -975,7 +976,7 @@ func Test_handleLoginCreate_WriteErr(t *testing.T) {
 				HostAddr: "hostAddr",
 			},
 			Username: "username",
-			Password: []byte("password"),
+			Password: memguard.NewEnclave([]byte("password")),
 		}
 
 		panicz.PanicIfError(os.Chmod(fd.Name(), 0400))
@@ -1010,7 +1011,7 @@ func Test_handleLoginCreate(t *testing.T) {
 				HostAddr: expectedHost,
 			},
 			Username: expectedUser,
-			Password: []byte("password"),
+			Password: memguard.NewEnclave([]byte("password")),
 		}
 		var restoredFactory = clientFactory.New
 		var actual *AuthAccount

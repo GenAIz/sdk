@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/awnumar/memguard"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
@@ -125,17 +126,14 @@ func (le *LoginExecutor) printSuccessHandler(brokerParams *broker.Broker) func(i
 	}
 }
 
-func (le *LoginExecutor) queryPassword() []byte {
-	var password = le.Ledger.GetString(le.optionPassword)
-	var result []byte
+func (le *LoginExecutor) queryPassword() *memguard.Enclave {
+	var password = le.Ledger.GetSecret(le.optionPassword)
 
-	if password == "" {
-		result = *le.Ledger.QuerySecret("password: ")
-	} else {
-		result = []byte(password)
+	if password == nil || password.Size() == 0 {
+		return le.Ledger.QuerySecret("password: ")
 	}
 
-	return result
+	return password
 }
 
 func (le *LoginExecutor) queryUsername() string {

@@ -14,6 +14,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/awnumar/memguard"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -336,6 +337,19 @@ func (lr *Ledger) GetPath(option *StringOption) string {
 	return path
 }
 
+// GetSecret assumes the option can only be passed as an environment variable and is returned as a memguard.Enclave
+func (lr *Ledger) GetSecret(option *StringOption) *memguard.Enclave {
+	var result *memguard.Enclave
+
+	if option.Env != "" {
+		var rawSecret = os.Getenv(option.Env)
+
+		result = memguard.NewEnclave([]byte(rawSecret))
+	}
+
+	return result
+}
+
 // GetString returns the value of a StringOption from Get as a string
 func (lr *Ledger) GetString(option *StringOption) string {
 	var result = cast.ToString(lr.Get(&option.Option))
@@ -484,15 +498,18 @@ func (lr *Ledger) QueryMandatory(message string) string {
 }
 
 // QuerySecret queries the user for a secret input and will take whatever is passed, returning it as a byte array
-func (lr *Ledger) QuerySecret(message string) *[]byte {
-	var result []byte
+func (lr *Ledger) QuerySecret(message string) *memguard.Enclave {
+	var result *memguard.Enclave
 
 	if _, err := fmt.Fprint(lr.output, message); err == nil {
-		result, _ = term.ReadPassword(syscall.Stdin)
+		var bytes, _ = term.ReadPassword(syscall.Stdin)
+
+		// The primary benefit to converting this to an Enclave/LockedBuffer is to prevent swapping of the credential from ram to disk
+		result = memguard.NewEnclave(bytes)
 	}
 
 	_, _ = fmt.Fprintln(lr.output)
-	return &result
+	return result
 }
 
 // Register configures Option Definer(s) with the provided cobra.Command and add their Definer.Default method as deferred initialization to be called on InitDefaults

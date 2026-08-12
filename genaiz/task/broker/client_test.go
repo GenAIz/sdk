@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awnumar/memguard"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 	"resty.dev/v3"
@@ -1126,7 +1127,7 @@ func TestClient_Login(t *testing.T) {
 		},
 	}
 	var testClient = newTestClient(testBridge)
-	var actual, err = testClient.Login(expectedUser, []byte(expectedPassword))
+	var actual, err = testClient.Login(expectedUser, memguard.NewEnclave([]byte(expectedPassword)))
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedSessionId, actual.SessionId)
@@ -1136,7 +1137,7 @@ func TestClient_Login(t *testing.T) {
 
 func TestClient_Login_InvalidUrl(t *testing.T) {
 	var testClient = &client{}
-	var actual, err = testClient.Login("", []byte(""))
+	var actual, err = testClient.Login("", memguard.NewEnclave([]byte{}))
 
 	assert.Empty(t, actual)
 	assert.ErrorIs(t, err, errorInvalidHost)
@@ -1147,7 +1148,7 @@ func TestClient_Login_NoCookie(t *testing.T) {
 		response: newTestResponse(200, ""),
 	}
 	var testClient = newTestClient(testBridge)
-	var actual, err = testClient.Login("", []byte(""))
+	var actual, err = testClient.Login("", memguard.NewEnclave([]byte{}))
 
 	assert.Empty(t, actual)
 	assert.ErrorIs(t, err, errorNoToken)
@@ -1159,7 +1160,7 @@ func TestClient_Login_NoResponse(t *testing.T) {
 		err: expectedErr,
 	}
 	var testClient = newTestClient(testBridge)
-	var actual, err = testClient.Login("", []byte(""))
+	var actual, err = testClient.Login("", memguard.NewEnclave([]byte{}))
 
 	assert.Empty(t, actual)
 	assert.ErrorIs(t, err, expectedErr)
@@ -1171,7 +1172,7 @@ func TestClient_Login_NoResponseCustomStatus(t *testing.T) {
 		response: newTestResponse(0, expectedStatus),
 	}
 	var testClient = newTestClient(testBridge)
-	var actual, err = testClient.Login("", []byte(""))
+	var actual, err = testClient.Login("", memguard.NewEnclave([]byte{}))
 
 	assert.Empty(t, actual)
 	assert.Error(t, err)
@@ -1183,7 +1184,7 @@ func TestClient_Login_NoResponseStatus(t *testing.T) {
 		response: newTestResponse(0, ""),
 	}
 	var testClient = newTestClient(testBridge)
-	var actual, err = testClient.Login("", []byte(""))
+	var actual, err = testClient.Login("", memguard.NewEnclave([]byte{}))
 
 	assert.Empty(t, actual)
 	assert.Error(t, err)

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awnumar/memguard"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -646,6 +647,34 @@ func TestLedger_GetPath_Invalid(t *testing.T) {
 	assert.Equal(t, filepath.Join(testDir, expectedFile), testLedger.GetPath(testOption))
 	assert.True(t, patch.Called)
 	assert.EqualValues(t, 1, patch.CalledWith)
+}
+
+func TestLedger_GetSecret(t *testing.T) {
+	var testEnvKey = "TestLedger_GetSecret"
+	var testLedger = NewBuilder().WithViper(viper.New()).Build()
+	var testOption = &StringOption{Option{Key: "key", Env: testEnvKey}}
+	var expectedPwd = "pwd"
+	var err error
+
+	if err = os.Setenv(testEnvKey, expectedPwd); err == nil {
+		var locked *memguard.LockedBuffer
+
+		if locked, err = testLedger.GetSecret(testOption).Open(); err == nil {
+			defer locked.Destroy()
+			assert.Equal(t, expectedPwd, locked.String())
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+
+}
+
+func TestLedger_GetSecret_NoEnv(t *testing.T) {
+	var testLedger = NewBuilder().WithViper(viper.New()).Build()
+	var testOption = &StringOption{Option{Key: "key"}}
+
+	assert.Nil(t, testLedger.GetSecret(testOption))
 }
 
 func TestLedger_GetString(t *testing.T) {

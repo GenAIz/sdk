@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/awnumar/memguard"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -222,6 +223,38 @@ func TestLoginExecutor_queryPassword(t *testing.T) {
 	}
 
 	assert.Empty(t, testExecutor.queryPassword())
+}
+
+func TestLoginExecutor_queryPassword_fromEnv(t *testing.T) {
+	var buff bytes.Buffer
+	var testPasswordOption = cli.Options.Accounts.Password().BuildStringOption()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithInput(os.Stdin).
+		WithOutput(io.Writer(&buff)).
+		WithViper(testViper).
+		Build()
+	var testExecutor = &LoginExecutor{
+		Ledger: testLedger,
+
+		optionPassword: testPasswordOption,
+	}
+	var expectedPassword = "testPassword"
+	var err error
+
+	if err = os.Setenv(testPasswordOption.Env, expectedPassword); err == nil {
+		var locked *memguard.LockedBuffer
+
+		defer func() { _ = os.Unsetenv(testPasswordOption.Env) }()
+
+		if locked, err = testExecutor.queryPassword().Open(); err == nil {
+			defer locked.Destroy()
+			assert.Equal(t, expectedPassword, locked.String())
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
 }
 
 func TestLoginExecutor_queryUsername(t *testing.T) {

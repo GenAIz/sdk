@@ -1,6 +1,6 @@
 # GenAIz CLI
 
-<sub>Genaiz Version 0.4.18</sub>
+<sub>Genaiz Version 0.4.21</sub>
 
 The GenAIz CLI is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestration platform.
 

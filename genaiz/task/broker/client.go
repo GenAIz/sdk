@@ -13,12 +13,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/awnumar/memguard"
 	"github.com/spf13/cast"
 	"resty.dev/v3"
 
 	"genaiz.com/genaiz-lib/lang/intz"
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz-lib/lang/secretz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 	"genaiz.com/genaiz/version/env"
@@ -133,7 +135,7 @@ type Client interface {
 
 	ListWorkspacesUrl() string
 
-	Login(string, []byte) (*AuthSession, error)
+	Login(string, *memguard.Enclave) (*AuthSession, error)
 
 	LoginUrl() string
 
@@ -905,20 +907,22 @@ func (c *client) ListWorkspacesUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "list")
 }
 
-func (c *client) Login(username string, password []byte) (*AuthSession, error) {
-	var url string
+func (c *client) Login(username string, enclave *memguard.Enclave) (*AuthSession, error) {
 	var err error
+	var url string
 
 	if url, err = c.makeUrl(apiVersion1, pathSession, "create"); err == nil {
 		var rb = c.requestBridge()
+		var locked = secretz.FromEnclave(enclave)
 		var resp responseBridge
 
 		defer c.closeSilently(rb)
+		defer locked.Destroy()
 		resp, err = rb.Json().
 			Resulting(&clientPayload[Session]{}).
 			FormData(map[string]string{
 				"email":    username,
-				"password": string(password),
+				"password": locked.String(),
 				"expiry":   strconv.FormatInt(int64(c.Expiry*60), 10),
 			}).
 			Post(url)
