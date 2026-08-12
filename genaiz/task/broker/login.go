@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/awnumar/memguard"
 	"gopkg.in/yaml.v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
@@ -167,7 +168,7 @@ func (s *AuthSession) IsExpired() bool {
 
 type LoginParams struct {
 	*Broker
-	Password []byte
+	Password *memguard.Enclave
 	Username string
 }
 
