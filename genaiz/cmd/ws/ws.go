@@ -26,7 +26,7 @@ func NewWs(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	var wsCmd = &cobra.Command{
 		Use:     "workspace",
 		Aliases: []string{"ws"},
-		Short:   "Genaiz Workspace Management Toolkit",
+		Short:   "GenAIz Workspace Management Toolkit",
 	}
 
 	wsCmd.AddCommand(NewCreate(ledger, wsCli, wsValidation))

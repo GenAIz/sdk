@@ -535,6 +535,37 @@ func Test_OptionsFunctionsVersion(t *testing.T) {
 	assert.False(t, testOption.Validator("1.1"))
 }
 
+func Test_OptionsLockerOverwrite(t *testing.T) {
+	var testOption = Options.Lockers.Overwrite().BuildBoolOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsLockerPath(t *testing.T) {
+	var testOption = Options.Lockers.Path().BuildStringOption()
+	var testLedger = config.NewBuilder().
+		WithViper(viper.New()).
+		WithUserPath(t.TempDir()).
+		Build()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), testOption.DefaultGetter(testLedger))
+}
+
+func Test_OptionsLockerUpdate(t *testing.T) {
+	var testOption = Options.Lockers.Update().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsModesInteractive(t *testing.T) {
 	var testOption = Options.Modes.Interactive().BuildBoolOption()
 

@@ -1,6 +1,6 @@
 # GenAIz CLI
 
-<sub>Genaiz Version 0.4.21</sub>
+<sub>Genaiz Version 0.4.22</sub>
 
 The GenAIz CLI is a tool for creating, building and publishing Smart Functions to the GenAiz Orchestration platform.
 
@@ -10,6 +10,7 @@ The GenAIz CLI is a tool for creating, building and publishing Smart Functions t
     * [Result Values](#result-values)
     * [Auto-Completion](#auto-completion)
     * [Account Management](#account-management)
+    * [Credentials Management]()
 * [Development Guide](#development-guide)
     * [Prerequisites](#prerequisites)
     * [Building from source](#building-from-source)
@@ -182,6 +183,50 @@ These 2 bits of information can be used on CI/CD configurations to avoid having 
 `$HOME/.cache/genaiz` for a given session. The session token should typically be held in the **Secrets** of the CI/CD
 pipeline in need of calling the genaiz cli.
 
+### Credentials Management
+
+The GenAIz CLI provides a way to manage Data Sources and Data Stores which would be used either with a Workspace on an
+Orchestration, or locally with the run, start and test commands.
+
+The facilities are there to fortify usage of potentially sensitive information on local developer environments.
+Currently, those keys are still held in clear text in .env files, which is not recommended at large.
+
+#### Creating a Data Locker
+
+For Sources (read-only) or Stores (read/write) connections, a **locker** can be created and updated with:
+
+```bash
+genaiz locker init
+genaiz locker source create myLocalHandle com.genaiz/my-link:1.0.0 -i
+genaiz locker source update myLocalHandle MyKey MyValue
+gpg --decrypt myKeyfile.gpg | genaiz locker source update myLocalHandle MySecretKey
+```
+
+#### Orchestration with Data Lockers
+
+The locker can be used to create a DataSource on the same account used to define the Datalink. Lockers can only ever be
+used in the context of a Workspace to avoid orphaned Active definitions to remain on server.
+
+```bash
+genaiz workspace data source link my-workspace \
+  my-workflow-handle my-node-handle myLocalHandle
+```
+
+And removed from the workspace flow later:
+
+```bash
+genaiz workspace data source unlink my-workspace \
+  my-workflow-handle myLocalHandle
+```
+
+#### Local runs with Data Lockers
+
+Locally, the locker should be used when invoking the Smart Function run, start and test commands:
+
+```bash
+genaiz sf run --env-locked=myLocalHandle --locker=myFilePath
+```
+
 ## Development Guide
 
 ### Prerequisites
@@ -292,7 +337,8 @@ groups
 
 Your user should be in the same group owning the docker.sock file.
 
-If all conditions are met, and you are using a Linx/amd64 distributions, write to `sdk 'at' genaiz.com` with the following details:
+If all conditions are met, and you are using a Linx/amd64 distributions, write to `sdk 'at' genaiz.com` with the
+following details:
 
 * Docker version
 * OS and version
