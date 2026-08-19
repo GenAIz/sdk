@@ -4,7 +4,6 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -17,12 +16,14 @@ import (
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/cmd/ac"
 	"genaiz.com/genaiz/cmd/dk"
+	"genaiz.com/genaiz/cmd/lk"
 	"genaiz.com/genaiz/cmd/sc"
 	"genaiz.com/genaiz/cmd/sf"
 	"genaiz.com/genaiz/cmd/sn"
 	"genaiz.com/genaiz/cmd/wf"
 	"genaiz.com/genaiz/cmd/ws"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/lang/dialogz"
 	"genaiz.com/genaiz/version"
 
 	easy "github.com/t-tomalak/logrus-easy-formatter"
@@ -49,7 +50,6 @@ type RunnerOptions struct {
 
 func (ro *RunnerOptions) Confirm(ledger *config.Ledger, display ...func()) bool {
 	if ledger.GetBool(ro.runConfirm) {
-		var r = bufio.NewReader(ro.stdIn)
 		var message = "Proceed?"
 
 		if len(display) > 0 {
@@ -60,26 +60,7 @@ func (ro *RunnerOptions) Confirm(ledger *config.Ledger, display ...func()) bool 
 			message = "Confirm all options?"
 		}
 
-		for {
-			if _, err := fmt.Fprintf(ro.stdOut, "%s (%s) ", message, "[y/n]"); err == nil {
-				var s, _ = r.ReadString('\n')
-
-				s = strings.TrimSpace(s)
-				s = strings.ToLower(s)
-
-				if s != "" {
-					if s == "y" || s == "yes" {
-						return true
-					}
-
-					if s == "n" || s == "no" {
-						return false
-					}
-				}
-			} else {
-				return false
-			}
-		}
+		return dialogz.ConfirmYes(ro.stdOut, ro.stdIn, message)
 	}
 
 	return true
@@ -108,7 +89,7 @@ func New(ledger *config.Ledger) *cobra.Command {
 	var options = NewRunnerOptions()
 	var root = &cobra.Command{
 		Use:           "genaiz",
-		Short:         "Genaiz SmartFunction Toolkit",
+		Short:         "GenAIz CLI",
 		Version:       version.GetVersion(),
 		SilenceErrors: true,
 	}
@@ -135,6 +116,7 @@ func New(ledger *config.Ledger) *cobra.Command {
 	root.AddCommand(wf.NewWf(ledger, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(ws.NewWs(ledger, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(dk.NewDk(ledger, options.Confirm, options.Dry, options.Pretend))
+	root.AddCommand(lk.NewLk(ledger, options.Confirm, options.Dry, options.Pretend))
 	root.AddCommand(sc.NewSc())
 	return root
 }

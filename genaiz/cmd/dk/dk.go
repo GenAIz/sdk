@@ -82,7 +82,7 @@ func NewDk(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	var dkCmd = &cobra.Command{
 		Use:     "datalink",
 		Aliases: []string{"dk"},
-		Short:   "Genaiz Data Link Toolkit",
+		Short:   "GenAIz Data Link Toolkit",
 	}
 
 	dkCmd.AddCommand(NewCreate(ledger, dkCli))

@@ -736,6 +736,16 @@ func TestClient_GetSolution_UrlError(t *testing.T) {
 	assert.ErrorIs(t, err, testBridge.err)
 }
 
+func TestClient_GetSolutionUrl(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{}
+	var testClient = newTestClient(testBridge, expectedToken)
+	var actual = testClient.GetSolutionUrl()
+
+	assert.True(t, strings.HasSuffix(actual, fmt.Sprintf("%s/get", pathSolution)))
+	assert.True(t, strings.HasPrefix(actual, "https://"))
+}
+
 func TestClient_ListDataLinks(t *testing.T) {
 	var expectedToken = "token"
 	var expectedDataLinks = []DataLink{

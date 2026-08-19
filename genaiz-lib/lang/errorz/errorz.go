@@ -32,9 +32,7 @@ func DeferOnExit(err *error, fn func()) func() {
 // IsPathError indicates whether an error is of type "file not found", which in certain cases is not an error. The method will return false for Permission Denied, which most of the time are user errors.
 func IsPathError(err error) bool {
 	if err != nil {
-		var pathError *os.PathError
-
-		if errors.As(err, &pathError) {
+		if _, ok := errors.AsType[*os.PathError](err); ok {
 			return !os.IsPermission(err)
 		} else if errors.Is(err, LocalPathError) {
 			return true

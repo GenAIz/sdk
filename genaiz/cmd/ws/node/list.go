@@ -104,7 +104,7 @@ func (lab ListAutoBridge) bridgeFlows(workspaceArg string, toComplete string) ([
 func NewList(ledger *config.Ledger, options *ListOptions, factory ListExecutorFactory) *cobra.Command {
 	var listAuto = NewListAuto(ledger, options.OptionReadyOnly)
 	var listCmd = &cobra.Command{
-		Use:     "list [WORKSPACE_NAME]|WORKSPACE_ID [WORKFLOW_HANDLE|FLOW_ID",
+		Use:     "list [WORKSPACE_NAME]|WORKSPACE_ID [WORKFLOW_HANDLE]|FLOW_ID",
 		Short:   "Lists workspace flow nodes",
 		Long:    "Lists workspace flow nodes under the specified flow",
 		Example: "genaiz ws List my-workspace my-workflow --json",

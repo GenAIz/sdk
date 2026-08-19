@@ -280,6 +280,13 @@ type Document struct {
 			Prefix      Keys
 		}
 	}
+	Locker struct {
+		Init struct {
+			Overwrite Keys
+			Path      Keys
+			Update    Keys
+		}
+	}
 	Solution struct {
 		Create struct {
 			ConfigType  Keys
@@ -692,6 +699,10 @@ func init() {
 	Genaiz.Function.Test.MountVar = newKeys("Function.Test.Var", "SF_RUN_MOUNT_VAR", "Sf.Test.Var")
 	Genaiz.Function.Test.NoPropSync = newKeys("Function.Test.NoPropSync", "SF_TEST_NO_PROP_SYNC", "Sf.Test.NoPropSync")
 	Genaiz.Function.Test.Prefix = newKeys("Function.Test.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Test.Prefix")
+
+	Genaiz.Locker.Init.Overwrite = newKeys("Locker.Init.Overwrite", "LK_INIT_OVERWRITE", "Lk.Init.Overwrite")
+	Genaiz.Locker.Init.Path = newKeys("Locker.Init.Path", "LK_INIT_PATH", "Lk.Init.Path")
+	Genaiz.Locker.Init.Update = newKeys("Locker.Init.Update", "LK_INIT_UPDATE", "Lk.Init.Update")
 
 	Genaiz.Solution.Create.ConfigType = newKeys("Solution.Create.ConfigType", "SN_CREATE_CONFIG_TYPE", "Sn.Create.ConfigType")
 	Genaiz.Solution.Create.Description = newKeys("Solution.Create.Description", "SN_CREATE_DESCRIPTION", "Sn.Create.Description")

@@ -156,7 +156,7 @@ func (c *Cli) ParentConfigType(parentOption *config.StringOption) func(*config.L
 
 		if c.parentConfigType == nil {
 			// Kludge: Event though we have no default definition under cli/options, defaulting to yaml because the command definitions all default to it
-			c.parentConfigType = lang.Ref(shared.ConfigTypeYaml)
+			c.parentConfigType = new(shared.ConfigTypeYaml)
 		}
 
 		return *c.parentConfigType
@@ -207,7 +207,7 @@ func (c *Cli) parseParentSolution(ledger *config.Ledger, parentOption *config.St
 		WithConfigPath(solutionPath)
 
 	if result, err := solutionReader.ReadName(ledger.ConfigName); err == nil {
-		c.parentConfigType = lang.Ref(solutionReader.GetConfigType())
+		c.parentConfigType = new(solutionReader.GetConfigType())
 		return result
 	} else if !errorz.IsPathError(err) {
 		lang.HandleExit(err)
@@ -221,7 +221,7 @@ func NewSf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	var sfCmd = &cobra.Command{
 		Use:     "function",
 		Aliases: []string{"sf"},
-		Short:   "Genaiz Smart Function Toolkit",
+		Short:   "GenAIz Smart Function Toolkit",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			var flags = cmd.Flags()
 

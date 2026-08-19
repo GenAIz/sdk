@@ -121,7 +121,7 @@ func NewWf(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	var wfCmd = &cobra.Command{
 		Use:     "workflow",
 		Aliases: []string{"wf"},
-		Short:   "Genaiz Workflow Toolkit",
+		Short:   "GenAIz Workflow Toolkit",
 	}
 
 	wfCmd.AddCommand(NewCreate(ledger, wfCli))

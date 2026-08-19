@@ -360,6 +360,31 @@ var (
 					WithValidator(config.Validation.Version)
 			},
 		},
+		Lockers: lockerOptions{
+			Overwrite: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("overwrite").
+					WithShort("o").
+					WithUsage("overwrite any existing locker file if it exists").
+					WithDefaultValue(cast.ToString(false))
+			},
+			Path: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("path").
+					WithShort("p").
+					WithUsage("the path to the locker file, by default: $HOME/.config/genaiz/locker.bin").
+					WithDefaultGetter(func(ledger *config.Ledger) any {
+						return filepath.Join(ledger.UserPath, "locker.bin")
+					})
+			},
+			Update: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("update").
+					WithShort("u").
+					WithUsage("if the locker already exists, change the password to open it").
+					WithDefaultValue(cast.ToString(false))
+			},
+		},
 		Modes: modeOptions{
 			Interactive: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -724,6 +749,7 @@ type cliOptions struct {
 	DataPorts  dataPortOptions
 	Docker     dockerOptions
 	Functions  functionOptions
+	Lockers    lockerOptions
 	Modes      modeOptions
 	Printer    printOptions
 	Proxies    proxyOptions
@@ -797,6 +823,12 @@ type listOptions struct {
 	DateMonthly func() OptionBuilder
 	DateToday   func() OptionBuilder
 	DateWeekly  func() OptionBuilder
+}
+
+type lockerOptions struct {
+	Overwrite func() OptionBuilder
+	Path      func() OptionBuilder
+	Update    func() OptionBuilder
 }
 
 type mgmtOptions struct {

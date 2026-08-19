@@ -42,7 +42,7 @@ func NewSn(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	var wfCmd = &cobra.Command{
 		Use:     "solution",
 		Aliases: []string{"sn"},
-		Short:   "Genaiz Solution Toolkit",
+		Short:   "GenAIz Solution Toolkit",
 	}
 
 	wfCmd.AddCommand(NewCreate(ledger, snCli))

@@ -1,4 +1,4 @@
-# SDK Feature Docs
+# GenAIz CLI Feature Docs
 
 The concepts and design related to the Orchestrator should be available with the GenAIz Data Review
 System platform. This document serves the purpose of exposing how the Orchestration can be interacted with from the
@@ -26,6 +26,10 @@ are described plainly in [Gherkin](https://cucumber.io/docs/gherkin/) format.
 * [genaiz datalink proxy](datalink/proxy.md)
 * [genaiz datalink publish](datalink/publish.md)
 * [genaiz datalink sync](datalink/sync.md)
+
+## [Lockers](locker/index.md)
+
+* [genaiz locker init](locker/init.md)
 
 ## [Smart Functions](function/index.md)
 
