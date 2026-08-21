@@ -57,6 +57,7 @@ func TestInitExecutor_Pretend(t *testing.T) {
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
 		WithUserPath(expectedPath).
+		WithSecretHandler(readEmptyPassword).
 		Build()
 	var testOptions = NewInitOptions()
 	var testExecutor = &InitExecutor{
@@ -120,6 +121,7 @@ func TestInitExecutor_Proceed(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
 		Build()
 	var testOptions = NewInitOptions()
 	var testExecutor = &InitExecutor{
@@ -193,6 +195,7 @@ func TestInitExecutor_Proceed_ConfirmOverwrite(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
 		Build()
 	var testOptions = &InitOptions{
 		optionOverwrite: cli.Options.Lockers.Overwrite().BuildBoolOption(),
@@ -236,6 +239,7 @@ func TestInitExecutor_Proceed_ConfirmUpdate(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
 		Build()
 	var testOptions = &InitOptions{
 		optionOverwrite: cli.Options.Lockers.Overwrite().BuildBoolOption(),
@@ -281,6 +285,7 @@ func TestInitExecutor_Proceed_Overwrite(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
 		Build()
 	var testOptions = NewInitOptions()
 	var testExecutor = &InitExecutor{
@@ -318,6 +323,7 @@ func TestInitExecutor_Proceed_Update(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
 		Build()
 	var testOptions = NewInitOptions()
 	var testExecutor = &InitExecutor{
@@ -398,4 +404,8 @@ func newInitLockerTaskCompleteCapture(capture *locker.InitParams) initLockerTask
 			},
 		}
 	}
+}
+
+func readEmptyPassword(int) ([]byte, error) {
+	return []byte{}, nil
 }

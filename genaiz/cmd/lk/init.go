@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/awnumar/memguard"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/filez"
@@ -70,7 +69,7 @@ func (ie InitExecutor) Proceed() {
 func (ie InitExecutor) newLockerInitParams() (*locker.InitParams, error) {
 	var update = ie.Ledger.GetBool(ie.optionUpdate)
 	var message = "enter passphrase: "
-	var oldEnclave *memguard.Enclave
+	var oldEnclave locker.Enclave
 	var resolved string
 	var err error
 

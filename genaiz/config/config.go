@@ -59,6 +59,9 @@ type Registrar interface {
 	Register(*cobra.Command, ...Definer)
 }
 
+// SecretHandler summarizes term.ReadPassword so secrets can retrieved from other entry points when needed
+type SecretHandler func(int) ([]byte, error)
+
 // Ledger defines a Mediator which pilots a series of cobra.Command(s), mediating configuration retrieval, work directory and logging services
 type Ledger struct {
 	AuthFile      string                       // AuthFile, set to the current authentification file to query broker accounts
@@ -73,10 +76,11 @@ type Ledger struct {
 
 	configurers       []func(*Ledger)        // configurers are a set of functions which modify the configuration paths to read before setting default values
 	defaulters        []func(*Ledger)        // defaulters containers all default resolution functions registered
-	input             io.Reader              // os.Stdin by default, swapped to other writers when testing
+	input             io.Reader              // os.Stdin by default, swapped to other readers when testing
 	loggers           []func(*logrus.Logger) // loggers is a list of delayed logging instructions for the Ledger to call OnLogging
 	output            io.Writer              // os.Stdout by default, swapped to other writers when testing
 	originalDir       string                 // originalDir is set to the dir the genaiz command was launched from
+	secretHandler     SecretHandler          // secretHandler is used to retrieve secrets from TTY or STDIN or any other source
 	validationHandler func(interface{})      // validationHandler is invoked when an option is not valid
 	viper             *viper.Viper           // viper internal reference
 	workspace         *StringOption          // workspace refers to an owning classification which may enter naming conventions by default
@@ -502,7 +506,7 @@ func (lr *Ledger) QuerySecret(message string) *memguard.Enclave {
 	var result *memguard.Enclave
 
 	if _, err := fmt.Fprint(lr.output, message); err == nil {
-		var bytes, _ = term.ReadPassword(syscall.Stdin)
+		var bytes, _ = lr.secretHandler(syscall.Stdin)
 
 		// The primary benefit to converting this to an Enclave/LockedBuffer is to prevent swapping of the credential from ram to disk
 		result = memguard.NewEnclave(bytes)
@@ -562,6 +566,7 @@ type Builder struct {
 	Viper         func() *viper.Viper
 	Input         func() io.Reader
 	Output        func() io.Writer
+	SecretHandler SecretHandler
 	TemplatePaths []string
 	UserPath      string
 	WorkDir       string
@@ -588,12 +593,13 @@ func (b *Builder) Build() *Ledger {
 		input:             b.Input(),
 		output:            b.Output(),
 		originalDir:       workDir,
+		secretHandler:     b.SecretHandler,
 		validationHandler: cobra.CheckErr,
 		viper:             b.Viper(),
 	}
 }
 
-// WithInput replaces the factory method providing input to the Ledger to build
+// WithInput replaces the factory method providing input to the Ledger to build, typically to replace STDIN
 func (b *Builder) WithInput(i io.Reader) *Builder {
 	b.Input = func() io.Reader {
 		return i
@@ -612,6 +618,12 @@ func (b *Builder) WithOutput(o io.Writer) *Builder {
 // WithTemplates will build the Ledger adding the specified paths to Ledger.TemplatePaths
 func (b *Builder) WithTemplates(paths ...string) *Builder {
 	b.TemplatePaths = paths
+	return b
+}
+
+// WithSecretHandler will build the Ledger with the SecretHandler provided
+func (b *Builder) WithSecretHandler(handler SecretHandler) *Builder {
+	b.SecretHandler = handler
 	return b
 }
 
@@ -651,7 +663,7 @@ func (b *Builder) resolveUserPath() (string, error) {
 	return b.UserPath, nil
 }
 
-// NewBuilder returns a builder with the default viper.Viper static instance, STDIN and STDOUT
+// NewBuilder returns a builder with the default viper.Viper static instance, STDIN, STDOUT and the default Terminal TTY on Unix-based platforms
 func NewBuilder() *Builder {
 	return &Builder{
 		Viper: viper.GetViper,
@@ -661,5 +673,6 @@ func NewBuilder() *Builder {
 		Output: func() io.Writer {
 			return os.Stdout
 		},
+		SecretHandler: term.ReadPassword,
 	}
 }

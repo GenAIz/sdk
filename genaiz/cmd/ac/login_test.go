@@ -59,7 +59,10 @@ func TestLoginExecutor_Login_ExpiredSession(t *testing.T) {
 	var expectedHost = "expectedAddr"
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
+		Build()
 	var testPasswordOption = cli.Options.Accounts.Password().BuildStringOption()
 	var testUsernameOption = cli.Options.Accounts.Username().
 		WithKeys(&schema.Genaiz.Account.Login.Username).
@@ -109,7 +112,10 @@ func TestLoginExecutor_Login_Refresh(t *testing.T) {
 	var expectedHost = "expectedAddr"
 	var expectedSession = "expectedSession"
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
+		Build()
 	var testPasswordOption = cli.Options.Accounts.Password().BuildStringOption()
 	var testRefreshOption = cli.Options.Accounts.Refresh().BuildBoolOption()
 	var testUsernameOption = cli.Options.Accounts.Username().
@@ -214,6 +220,7 @@ func TestLoginExecutor_queryPassword(t *testing.T) {
 	var testLedger = config.NewBuilder().
 		WithInput(os.Stdin).
 		WithOutput(io.Writer(&buff)).
+		WithSecretHandler(readEmptyPassword).
 		WithViper(testViper).
 		Build()
 	var testExecutor = &LoginExecutor{
@@ -293,7 +300,10 @@ func TestNewLogin_InvalidBrokerAddr(t *testing.T) {
 	var loginCompleted = false
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
+		Build()
 	var testLogin = NewLogin(testLedger)
 	var testPasswordOption = cli.Options.Accounts.Password().BuildStringOption()
 	var testRefreshOption = cli.Options.Accounts.Refresh().BuildBoolOption()
@@ -339,4 +349,8 @@ func newOidcNotSupportedTaskFactory() func() *task.Task[broker.OidcParams] {
 			},
 		}
 	}
+}
+
+func readEmptyPassword(int) ([]byte, error) {
+	return []byte{}, nil
 }

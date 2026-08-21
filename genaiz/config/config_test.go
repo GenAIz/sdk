@@ -1070,10 +1070,36 @@ func TestLedger_QueryMandatory(t *testing.T) {
 }
 
 func TestLedger_QuerySecret(t *testing.T) {
-	var buff, _, testLedger = newTestConfigsWithInput(os.Stdin)
+	var expectedSecret = "secretValue\n"
+	var testTty = filepath.Join(t.TempDir(), "tempTty")
+	var testLedger = NewBuilder().
+		WithSecretHandler(func(i int) ([]byte, error) {
+			return []byte(expectedSecret), nil
+		}).
+		Build()
+	var fd *os.File
+	var err error
 
-	assert.Empty(t, testLedger.QuerySecret("secret"))
-	assert.EqualValues(t, "secret\n", buff.String())
+	if fd, err = os.Create(testTty); err == nil {
+		defer filez.CloseSilently(fd)
+
+		if _, err = fd.Write([]byte(expectedSecret)); err == nil {
+			var actual *memguard.Enclave
+			var lb *memguard.LockedBuffer
+
+			if actual = testLedger.QuerySecret("secret"); actual == nil {
+				assert.Fail(t, "expected a non-empty Enclave")
+				return
+			}
+
+			if lb, err = actual.Open(); err == nil {
+				assert.EqualValues(t, expectedSecret, lb.String())
+				return
+			}
+		}
+	}
+
+	assert.NoError(t, err)
 }
 
 func TestLedger_StampString(t *testing.T) {
