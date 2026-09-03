@@ -1,6 +1,6 @@
 # GenAIz CLI
 
-<sub>Genaiz Version 0.4.23</sub>
+<sub>Genaiz Version 0.4.24</sub>
 
 The GenAIz CLI is a tool for creating, building and publishing Smart Functions to the GenAIz Orchestration platform. It
 also provides toolkits to manage Orchestrated Workspaces and execute their Workflows.
@@ -11,7 +11,8 @@ also provides toolkits to manage Orchestrated Workspaces and execute their Workf
     * [Result Values](#result-values)
     * [Auto-Completion](#auto-completion)
     * [Account Management](#account-management)
-    * [Credentials Management]()
+    * [Workspace Management](#workspace-management)
+    * [Credentials Management](#credentials-management)
 * [Development Guide](#development-guide)
     * [Prerequisites](#prerequisites)
     * [Building from source](#building-from-source)
@@ -184,6 +185,10 @@ These 2 bits of information can be used on CI/CD configurations to avoid having 
 `$HOME/.cache/genaiz` for a given session. The session token should typically be held in the **Secrets** of the CI/CD
 pipeline in need of calling the genaiz cli.
 
+### Workspace Management
+
+#### Creating a Workspace
+
 ### Credentials Management
 
 The GenAIz CLI provides a way to manage Data Sources and Data Stores which would be used either with a Workspace on an
@@ -198,7 +203,7 @@ For Sources (read-only) or Stores (read/write) connections, a **locker** can be 
 
 ```bash
 genaiz locker init
-genaiz locker source create myLocalHandle com.genaiz/my-link:1.0.0 -i
+genaiz locker source add myLocalHandle com.genaiz/my-link:1.0.0
 genaiz locker source update myLocalHandle MyKey MyValue
 gpg --decrypt myKeyfile.gpg | genaiz locker source update myLocalHandle MySecretKey
 ```

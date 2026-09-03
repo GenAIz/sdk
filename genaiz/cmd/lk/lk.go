@@ -9,6 +9,11 @@ import (
 	"genaiz.com/genaiz/config"
 )
 
+const (
+	passphraseEnvKey = "GENAIZ_LK_PASSWORD"
+	passphrasePrompt = "enter passphrase: "
+)
+
 type BaseExecutor struct {
 	Cli     *Cli
 	Context context.Context
@@ -28,6 +33,7 @@ func NewLk(ledger *config.Ledger, confirm cli.Interactive, dry, pretend cli.Deci
 	}
 
 	lkCmd.AddCommand(NewInit(ledger, lkCli))
+	lkCmd.AddCommand(NewSource(ledger, lkCli))
 	return lkCmd
 }
 

@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -59,8 +58,11 @@ type Registrar interface {
 	Register(*cobra.Command, ...Definer)
 }
 
+// PipeHandler summarizes io.ReadAll so it can be used when STDIN is connected to a pipe, but abstracted whenever it is not
+type PipeHandler func(io.Reader) ([]byte, error)
+
 // SecretHandler summarizes term.ReadPassword so secrets can retrieved from other entry points when needed
-type SecretHandler func(int) ([]byte, error)
+type SecretHandler func() ([]byte, error)
 
 // Ledger defines a Mediator which pilots a series of cobra.Command(s), mediating configuration retrieval, work directory and logging services
 type Ledger struct {
@@ -485,6 +487,32 @@ func (lr *Ledger) OverrideString(option *StringOption, value string) {
 	}
 }
 
+// QueryPipe retrieves input from the Ledger's pipeHandler. It is a blocking operation if any pipes are connected to STDIN
+func (lr *Ledger) QueryPipe() (*memguard.Enclave, error) {
+	var dataIn []byte
+	var err error
+
+	if lr.input == os.Stdin {
+		var info os.FileInfo
+		// A readAll call on os.Stdin will more than likely block indefinitely, so we need to ensure there's
+		// a character device connected to it before proceeding, like the STDOUT of another process
+		if info, err = os.Stdin.Stat(); err == nil {
+			if info.Mode()&os.ModeCharDevice != 0 {
+				// There's nothing connected
+				return nil, nil
+			}
+		}
+	}
+
+	if err == nil {
+		if dataIn, err = io.ReadAll(lr.input); err == nil {
+			return memguard.NewEnclave(dataIn), nil
+		}
+	}
+
+	return nil, err
+}
+
 // QueryMandatory queries the user for input using the provided message and will keep on asking until the input is not the empty string
 func (lr *Ledger) QueryMandatory(message string) string {
 	var buff = bufio.NewReader(lr.input)
@@ -506,10 +534,12 @@ func (lr *Ledger) QuerySecret(message string) *memguard.Enclave {
 	var result *memguard.Enclave
 
 	if _, err := fmt.Fprint(lr.output, message); err == nil {
-		var bytes, _ = lr.secretHandler(syscall.Stdin)
+		var bytes []byte
 
-		// The primary benefit to converting this to an Enclave/LockedBuffer is to prevent swapping of the credential from ram to disk
-		result = memguard.NewEnclave(bytes)
+		if bytes, err = lr.secretHandler(); err == nil {
+			// The primary benefit to converting this to an Enclave/LockedBuffer is to prevent swapping of the credential from ram to disk
+			result = memguard.NewEnclave(bytes)
+		}
 	}
 
 	_, _ = fmt.Fprintln(lr.output)
@@ -673,6 +703,19 @@ func NewBuilder() *Builder {
 		Output: func() io.Writer {
 			return os.Stdout
 		},
-		SecretHandler: term.ReadPassword,
+		SecretHandler: ttySecretHandler,
 	}
+}
+
+func ttySecretHandler() ([]byte, error) {
+	var tty *os.File
+	var err error
+
+	if tty, err = os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+		defer filez.CloseSilently(tty)
+
+		return term.ReadPassword(int(tty.Fd()))
+	}
+
+	return nil, err
 }

@@ -351,6 +351,6 @@ func newOidcNotSupportedTaskFactory() func() *task.Task[broker.OidcParams] {
 	}
 }
 
-func readEmptyPassword(int) ([]byte, error) {
+func readEmptyPassword() ([]byte, error) {
 	return []byte{}, nil
 }

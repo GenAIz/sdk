@@ -5,10 +5,14 @@ import (
 	"bytes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/awnumar/memguard"
 	"golang.org/x/crypto/argon2"
@@ -30,7 +34,11 @@ const (
 )
 
 var (
-	errorLockerContentEmpty = task.NewError("locker is empty")
+	errorLockerAccountNotFound = task.NewError("locker account not found")
+	errorLockerContentEmpty    = task.NewError("locker is empty")
+	errorLockerDataLinkFound   = task.NewError("locker data link known")
+	errorLockerDataLinkInvalid = task.NewError("locker data link invalid")
+	errorLockerSourceNotFound  = task.NewError("locker source not found")
 )
 
 // Enclave is an adapter to memguard.Enclave
@@ -40,15 +48,106 @@ type Enclave interface {
 	Size() int
 }
 
-type lockerAccounts struct {
+type emptyEnclave struct {
+}
+
+func (ee emptyEnclave) Open() (*memguard.LockedBuffer, error) {
+	return memguard.NewBuffer(0), nil
+}
+
+func (ee emptyEnclave) Size() int {
+	return 0
+}
+
+type RemoteLink interface {
+	GetPublishing() (string, string, string)
+}
+
+type SecuredCipher interface {
+	Decrypt([]byte, *memguard.Enclave) (*memguard.LockedBuffer, error)
+
+	Encrypt(*memguard.Enclave, *memguard.Enclave) ([]byte, error)
+}
+
+type BaseParams struct {
+	LockerPath string
+	Passphrase Enclave
+}
+
+type LinkParams struct {
+	Oem     string
+	Handle  string
+	Version string
+}
+
+type PropertyParams struct {
+	Key    string
+	Value  string
+	Secret Enclave
+}
+
+type lockerAccount struct {
 	AccountUrl  string       `json:"url,omitempty"`
-	AccountFile string       `json:"file,omitempty"`
 	DataSources []lockerLink `json:"dataSources,omitempty"`
 	DataStores  []lockerLink `json:"dataStores,omitempty"`
 }
 
+func (la lockerAccount) findSource(handle string) (*lockerLink, error) {
+	if i := slices.IndexFunc(la.DataSources, func(link lockerLink) bool {
+		return handle == link.LockerHandle
+	}); i >= 0 {
+		return &la.DataSources[i], nil
+	}
+
+	return nil, errorLockerSourceNotFound
+}
+
+func (la lockerAccount) withSource(source *lockerLink) *lockerAccount {
+	var sources []lockerLink
+
+	for _, s := range la.DataSources {
+		if s.LockerHandle == source.LockerHandle {
+			sources = append(sources, *source)
+		} else {
+			sources = append(sources, s)
+		}
+	}
+
+	return &lockerAccount{
+		AccountUrl:  la.AccountUrl,
+		DataSources: sources,
+		DataStores:  la.DataStores,
+	}
+}
+
 type lockerBody struct {
-	Accounts []lockerAccounts `json:"accounts"`
+	Accounts []lockerAccount `json:"accounts"`
+}
+
+func (lb lockerBody) findAccount(accountUrl string) (*lockerAccount, error) {
+	if i := slices.IndexFunc(lb.Accounts, func(account lockerAccount) bool {
+		return strings.EqualFold(account.AccountUrl, accountUrl)
+	}); i >= 0 {
+		return &lb.Accounts[i], nil
+	}
+
+	return nil, errorLockerAccountNotFound
+}
+
+func (lb lockerBody) withAccount(account *lockerAccount) *lockerBody {
+	var accounts []lockerAccount
+
+	for _, a := range lb.Accounts {
+		if a.AccountUrl == account.AccountUrl {
+			accounts = append(accounts, *account)
+		} else {
+			accounts = append(accounts, a)
+		}
+	}
+
+	return &lockerBody{
+		Accounts: accounts,
+	}
 }
 
 type lockerHeader struct {
@@ -133,17 +232,93 @@ func (lh lockerHeader) makeArgon2idKey(passphrase Enclave) (*memguard.LockedBuff
 }
 
 type lockerLink struct {
-	LockerHandle string          `json:"lockerHandle"`
-	LinkOem      string          `json:"oem"`
-	LinkHandle   string          `json:"handle"`
-	LinkVersion  string          `json:"version"`
-	Properties   json.RawMessage `json:"properties"`
+	LockerHandle string `json:"lockerHandle"`
+	LinkOem      string `json:"oem"`
+	LinkHandle   string `json:"handle"`
+	LinkVersion  string `json:"version"`
+	Properties   string `json:"properties"`
 }
 
-type SecuredCipher interface {
-	Decrypt([]byte, *memguard.Enclave) (*memguard.LockedBuffer, error)
+func (ll lockerLink) GetPublishing() (string, string, string) {
+	return ll.LinkOem, ll.LinkHandle, ll.LinkVersion
+}
 
-	Encrypt(*memguard.Enclave, *memguard.Enclave) ([]byte, error)
+func (ll lockerLink) decodeProperties(passphrase Enclave) (map[string]string, error) {
+	if ll.Properties != "" {
+		var err error
+		var b []byte
+
+		if b, err = base64.StdEncoding.DecodeString(ll.Properties); err == nil {
+			var header *lockerHeader
+			var cipherBytes []byte
+
+			if header, cipherBytes, err = readLockerData(bytes.NewReader(b)); err == nil {
+				var propBytes *memguard.LockedBuffer
+
+				if propBytes, err = header.Decrypt(cipherBytes, passphrase); err == nil {
+					var properties map[string]string
+
+					defer propBytes.Destroy()
+
+					if err = json.Unmarshal(propBytes.Bytes(), &properties); err == nil {
+						return properties, nil
+					}
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return map[string]string{}, nil
+}
+
+func (ll lockerLink) encodeProperties(properties map[string]string, passphrase Enclave) (string, error) {
+	if len(properties) > 0 {
+		var b []byte
+		var err error
+
+		if b, err = json.Marshal(properties); err == nil {
+			var header = newLockerHeader()
+			var enclaved = memguard.NewEnclave(b)
+
+			if b, err = header.Encrypt(enclaved, passphrase); err == nil {
+				return base64.StdEncoding.EncodeToString(b), nil
+			}
+		}
+
+		return "", err
+	}
+
+	return "", nil
+}
+
+func (ll lockerLink) withProperty(key string, value Enclave, passphrase Enclave) (*lockerLink, error) {
+	var decoded map[string]string
+	var err error
+
+	if decoded, err = ll.decodeProperties(passphrase); err == nil {
+		var lb *memguard.LockedBuffer
+
+		if lb, err = value.Open(); err == nil {
+			var encoded string
+
+			defer lb.Destroy()
+			decoded[key] = lb.String()
+
+			if encoded, err = ll.encodeProperties(decoded, passphrase); err == nil {
+				return &lockerLink{
+					LockerHandle: ll.LockerHandle,
+					LinkOem:      ll.LinkOem,
+					LinkHandle:   ll.LinkHandle,
+					LinkVersion:  ll.LinkVersion,
+					Properties:   encoded,
+				}, nil
+			}
+		}
+	}
+
+	return nil, err
 }
 
 type SecuredLockerState struct {
@@ -172,6 +347,25 @@ func (slt *SecuredLockerTracking) Destroy() {
 
 func (slt *SecuredLockerTracking) IsOpened() bool {
 	return slt.current != nil
+}
+
+func (slt *SecuredLockerTracking) LookupSource(accountUrl, handle string) (RemoteLink, error) {
+	var body *lockerBody
+	var err error
+
+	if body, err = slt.unfold(); err == nil {
+		var account *lockerAccount
+
+		if account, err = body.findAccount(accountUrl); err == nil {
+			var link *lockerLink
+
+			if link, err = account.findSource(handle); err == nil {
+				return link, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("data source [%s] for account [%s] does not exist", handle, accountUrl)
 }
 
 func (slt *SecuredLockerTracking) Read(path string, passphrase Enclave) error {
@@ -225,6 +419,42 @@ func (slt *SecuredLockerTracking) Write(path string, passphrase Enclave) error {
 	return err
 }
 
+func (slt *SecuredLockerTracking) addSource(accountUrl string, link *lockerLink) error {
+	var body *lockerBody
+	var err error
+
+	if body, err = slt.unfold(); err == nil {
+		var account *lockerAccount
+
+		if account, err = body.findAccount(accountUrl); err != nil {
+			body.Accounts = append(body.Accounts, lockerAccount{
+				AccountUrl: accountUrl,
+			})
+			account = &body.Accounts[len(body.Accounts)-1]
+		}
+
+		if i := slices.IndexFunc(account.DataSources, func(l lockerLink) bool {
+			return link.LockerHandle == l.LockerHandle
+		}); i >= 0 {
+			return fmt.Errorf("data source [%s] for account [%s] is already defined", link.LockerHandle, accountUrl)
+		}
+
+		account.DataSources = append(account.DataSources, *link)
+		slt.current = slt.fold(body)
+		return nil
+	}
+
+	return err
+}
+
+func (slt *SecuredLockerTracking) fold(body *lockerBody) *memguard.LockedBuffer {
+	var b, err = json.Marshal(body)
+
+	// There is no way json.Marshal ever returns an error here, unless lockerBody was tempered with
+	panicz.PanicIfError(err)
+	return memguard.NewBufferFromBytes(b)
+}
+
 func (slt *SecuredLockerTracking) unfold() (*lockerBody, error) {
 	var result lockerBody
 	var err error
@@ -238,6 +468,36 @@ func (slt *SecuredLockerTracking) unfold() (*lockerBody, error) {
 	}
 
 	return nil, err
+}
+
+func (slt *SecuredLockerTracking) updateSource(accountUrl, handle, key string, value, passphrase Enclave) error {
+	var body *lockerBody
+	var err error
+
+	if body, err = slt.unfold(); err == nil {
+		var account *lockerAccount
+
+		if account, err = body.findAccount(accountUrl); err == nil {
+			if i := slices.IndexFunc(account.DataSources, func(l lockerLink) bool {
+				return handle == l.LockerHandle
+			}); i >= 0 {
+				var link *lockerLink
+
+				if link, err = account.DataSources[i].withProperty(key, value, passphrase); err == nil {
+					var updatedBody = body.withAccount(account.withSource(link))
+
+					slt.current = slt.fold(updatedBody)
+					return nil
+				}
+
+				return err
+			}
+
+			return fmt.Errorf("data source [%s] for account [%s] does not exist", handle, accountUrl)
+		}
+	}
+
+	return err
 }
 
 func NewSecuredLockerState(state *task.State) *SecuredLockerState {
@@ -257,6 +517,10 @@ func NewSecuredLockerState(state *task.State) *SecuredLockerState {
 		},
 		state: state,
 	}
+}
+
+func newEmptyEnclave() Enclave {
+	return &emptyEnclave{}
 }
 
 // newLockerHeader initializes a lockerHeader with expected defaults, an initialization vector for chacha20poly1305 and a salt for the argon2id key
@@ -281,7 +545,7 @@ func newLockerHeader() *lockerHeader {
 	}
 }
 
-// readLockerData retrieves the lockerHeader of a locker file with the parameters to build an argon2id key and the initialization vector of the chacha20poly1305 encryption algorithm. It also returns encrypted bytes.
+// readLockerData retrieves the lockerHeader of a locker io.Reader with the parameters to build an argon2id key and the initialization vector of the chacha20poly1305 encryption algorithm. It also returns encrypted bytes.
 func readLockerData(in io.Reader) (*lockerHeader, []byte, error) {
 	var header = &lockerHeader{}
 	var saltLength uint16

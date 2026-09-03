@@ -176,6 +176,8 @@ type VarSpec interface {
 
 	GetKey() string
 
+	IsSecret() bool
+
 	Validate(value any) error
 }
 

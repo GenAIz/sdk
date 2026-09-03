@@ -361,6 +361,13 @@ var (
 			},
 		},
 		Lockers: lockerOptions{
+			mgmtOptions: mgmtOptions{
+				Account: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("account").
+						WithUsage("account managing the link associated with the locker sources and stores")
+				},
+			},
 			Overwrite: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("overwrite").
@@ -826,6 +833,7 @@ type listOptions struct {
 }
 
 type lockerOptions struct {
+	mgmtOptions
 	Overwrite func() OptionBuilder
 	Path      func() OptionBuilder
 	Update    func() OptionBuilder

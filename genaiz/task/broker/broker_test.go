@@ -530,6 +530,23 @@ func TestMapFunction(t *testing.T) {
 	}))
 }
 
+func TestPropSpec_SecretSpec(t *testing.T) {
+	var expectedSpec = &PropSpec{
+		Key:         "expectedKey",
+		Value:       "expectedValue",
+		Description: "expectedDesc",
+		Type:        PropSpecTypeDouble,
+	}
+	var actualSpec = expectedSpec.SecretSpec()
+
+	assert.Equal(t, expectedSpec.Key, actualSpec.GetKey())
+	assert.Equal(t, expectedSpec.Value, actualSpec.GetDefaultValue())
+	assert.Equal(t, expectedSpec.Description, actualSpec.GetDescription())
+	assert.NoError(t, actualSpec.Validate(31.337))
+	assert.Error(t, actualSpec.Validate("test"))
+	assert.True(t, actualSpec.IsSecret())
+}
+
 func TestPropSpec_Validate(t *testing.T) {
 	var booleanSpec = &PropSpec{Type: PropSpecTypeBoolean}
 	var intSpec = &PropSpec{Type: PropSpecTypeInt}

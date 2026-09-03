@@ -535,6 +535,13 @@ func Test_OptionsFunctionsVersion(t *testing.T) {
 	assert.False(t, testOption.Validator("1.1"))
 }
 
+func Test_OptionsLockerAccount(t *testing.T) {
+	var testOption = Options.Lockers.Account().BuildBoolOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
 func Test_OptionsLockerOverwrite(t *testing.T) {
 	var testOption = Options.Lockers.Overwrite().BuildBoolOption()
 

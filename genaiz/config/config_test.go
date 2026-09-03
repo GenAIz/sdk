@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/errorz"
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
+	gio "genaiz.com/genaiz-lib/mock/io"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -1069,11 +1071,99 @@ func TestLedger_QueryMandatory(t *testing.T) {
 	assert.EqualValues(t, expectedOutput, buff.String())
 }
 
+func TestLedger_QueryPipe(t *testing.T) {
+	var tmpFile = filepath.Join(t.TempDir(), "tmpPipe")
+	var tmpFd *os.File
+	var err error
+
+	if tmpFd, err = os.Create(tmpFile); err == nil {
+		var expectedBytes = []byte("secret")
+
+		if _, err = tmpFd.Write(expectedBytes); err == nil {
+			filez.CloseSilently(tmpFd)
+
+			if tmpFd, err = os.Open(tmpFile); err == nil {
+				defer filez.CloseSilently(tmpFd)
+				var restoredStdin = os.Stdin
+				var testLedger = NewBuilder().
+					WithInput(tmpFd).
+					Build()
+				var actual *memguard.Enclave
+
+				defer func() { os.Stdin = restoredStdin }()
+				os.Stdin = tmpFd
+
+				if actual, err = testLedger.QueryPipe(); err == nil {
+					var lb *memguard.LockedBuffer
+
+					if lb, err = actual.Open(); err == nil {
+						assert.Equal(t, expectedBytes, lb.Bytes())
+						return
+					}
+				}
+			}
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
+func TestLedger_QueryPipe_InputError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testReader = &gio.StubReader{ReadError: expectedError}
+	var testLedger = NewBuilder().
+		WithInput(testReader).
+		Build()
+
+	actual, err := testLedger.QueryPipe()
+	assert.Nil(t, actual)
+	assert.ErrorIs(t, err, expectedError)
+}
+
+func TestLedger_QueryPipe_StdinDisconnected(t *testing.T) {
+	var testLedger = NewBuilder().Build()
+
+	actual, err := testLedger.QueryPipe()
+	assert.Nil(t, actual)
+	assert.NoError(t, err)
+}
+
+func TestLedger_QueryPipe_StdinError(t *testing.T) {
+	var tmpFile = filepath.Join(t.TempDir(), "tmpPipe")
+	var tmpFd *os.File
+	var err error
+
+	if tmpFd, err = os.Create(tmpFile); err == nil {
+		var expectedBytes = []byte("secret")
+
+		if _, err = tmpFd.Write(expectedBytes); err == nil {
+			// this will cause an error on Stat
+			filez.CloseSilently(tmpFd)
+
+			var restoredStdin = os.Stdin
+			var testLedger = NewBuilder().
+				WithInput(tmpFd).
+				Build()
+			var actual *memguard.Enclave
+
+			defer func() { os.Stdin = restoredStdin }()
+			os.Stdin = tmpFd
+
+			actual, err = testLedger.QueryPipe()
+			assert.Nil(t, actual)
+			assert.Error(t, err)
+			return
+		}
+	}
+
+	assert.NoError(t, err)
+}
+
 func TestLedger_QuerySecret(t *testing.T) {
 	var expectedSecret = "secretValue\n"
 	var testTty = filepath.Join(t.TempDir(), "tempTty")
 	var testLedger = NewBuilder().
-		WithSecretHandler(func(i int) ([]byte, error) {
+		WithSecretHandler(func() ([]byte, error) {
 			return []byte(expectedSecret), nil
 		}).
 		Build()
