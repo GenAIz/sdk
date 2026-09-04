@@ -323,6 +323,44 @@ func TestInitExecutor_Proceed_Update(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
+		WithSecretHandler(readFactoryPassword("myPass")).
+		Build()
+	var testOptions = NewInitOptions()
+	var testExecutor = &InitExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		InitOptions:           testOptions,
+		path:                  expectedFile,
+		initLockerTaskFactory: newInitLockerTaskCompleteCapture(&captureParams),
+	}
+	var fd *os.File
+	var err error
+
+	defer patch.Unpatch()
+
+	if fd, err = os.Create(expectedFile); err == nil {
+		defer filez.CloseSilently(fd)
+		testViper.Set(testOptions.optionUpdate.Key, true)
+		testLedger.InitLogging()
+		testExecutor.Proceed()
+		assert.Equal(t, expectedFile, captureParams.LockerPath)
+		assert.True(t, captureParams.Update)
+		assert.False(t, patch.Called)
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func TestInitExecutor_Proceed_UpdateEnvPassword(t *testing.T) {
+	var expectedPath = t.TempDir()
+	var expectedFile = filepath.Join(expectedPath, "myLocker")
+	var patch = mock.Patches{T: t}.OsExit(func(int) {})
+	var captureParams locker.InitParams
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
 		WithSecretHandler(readEmptyPassword).
 		Build()
 	var testOptions = NewInitOptions()
@@ -341,6 +379,8 @@ func TestInitExecutor_Proceed_Update(t *testing.T) {
 
 	if fd, err = os.Create(expectedFile); err == nil {
 		defer filez.CloseSilently(fd)
+
+		t.Setenv(passphraseEnvKey, "my Pass")
 		testViper.Set(testOptions.optionUpdate.Key, true)
 		testLedger.InitLogging()
 		testExecutor.Proceed()
@@ -406,6 +446,12 @@ func newInitLockerTaskCompleteCapture(capture *locker.InitParams) initLockerTask
 	}
 }
 
-func readEmptyPassword(int) ([]byte, error) {
+func readEmptyPassword() ([]byte, error) {
 	return []byte{}, nil
+}
+
+func readFactoryPassword(password string) func() ([]byte, error) {
+	return func() ([]byte, error) {
+		return []byte(password), nil
+	}
 }

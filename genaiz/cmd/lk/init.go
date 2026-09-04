@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/awnumar/memguard"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/filez"
@@ -67,40 +68,46 @@ func (ie InitExecutor) Proceed() {
 }
 
 func (ie InitExecutor) newLockerInitParams() (*locker.InitParams, error) {
-	var update = ie.Ledger.GetBool(ie.optionUpdate)
-	var message = "enter passphrase: "
-	var oldEnclave locker.Enclave
-	var resolved string
+	var result = &locker.InitParams{
+		Update: ie.Ledger.GetBool(ie.optionUpdate),
+	}
+	var message = passphrasePrompt
 	var err error
 
 	ie.Ledger.OverrideString(ie.optionPath, ie.path)
-	resolved = ie.Ledger.GetString(ie.optionPath)
+	result.LockerPath = ie.Ledger.GetString(ie.optionPath)
 
-	if err = filez.IsReadable(resolved); err == nil {
+	if err = filez.IsReadable(result.LockerPath); err == nil {
 		var overwrite = ie.Ledger.GetBool(ie.optionOverwrite)
 
-		if !overwrite && !update {
-			if update = ie.InitOptions.confirmUpdate(resolved); !update {
-				if ok := ie.InitOptions.confirmOverwrite(resolved); !ok {
-					return nil, fmt.Errorf("the locker [%s] is already initialized", resolved)
+		if !overwrite && !result.Update {
+			if result.Update = ie.InitOptions.confirmUpdate(result.LockerPath); !result.Update {
+				if ok := ie.InitOptions.confirmOverwrite(result.LockerPath); !ok {
+					return nil, fmt.Errorf("the locker [%s] is already initialized", result.LockerPath)
 				}
 			}
 		}
 	} else if os.IsPermission(err) {
-		return nil, fmt.Errorf("the locker [%s] can not be read", resolved)
+		return nil, fmt.Errorf("the locker [%s] can not be read", result.LockerPath)
 	}
 
-	if update {
-		oldEnclave = ie.Ledger.QuerySecret("enter current passphrase: ")
+	if result.Update {
+		var oldPassphrase = ie.Ledger.QuerySecret("enter current passphrase: ")
+
 		message = "enter new passphrase: "
+
+		if oldPassphrase != nil {
+			result.OldPassphrase = oldPassphrase
+		}
 	}
 
-	return &locker.InitParams{
-		LockerPath:    resolved,
-		OldPassphrase: oldEnclave,
-		Passphrase:    ie.Ledger.QuerySecret(message),
-		Update:        update,
-	}, nil
+	if envPwd := os.Getenv(passphraseEnvKey); envPwd != "" {
+		result.Passphrase = memguard.NewEnclave([]byte(envPwd))
+	} else if passphrase := ie.Ledger.QuerySecret(message); passphrase != nil {
+		result.Passphrase = passphrase
+	}
+
+	return result, nil
 }
 
 type InitOptions struct {

@@ -30,6 +30,7 @@ are described plainly in [Gherkin](https://cucumber.io/docs/gherkin/) format.
 ## [Lockers](locker/index.md)
 
 * [genaiz locker init](locker/init.md)
+* [genaiz locker source](locker/source.md)
 
 ## [Smart Functions](function/index.md)
 

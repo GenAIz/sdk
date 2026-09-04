@@ -14,5 +14,5 @@ func TestNewLk(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewLk(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 1, len(testCmd.Commands()))
+	assert.Equal(t, 2, len(testCmd.Commands()))
 }

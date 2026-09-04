@@ -1,7 +1,6 @@
 package locker
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/chacha20poly1305"
 
+	gio "genaiz.com/genaiz-lib/mock/io"
 	"genaiz.com/genaiz/task"
 )
 
@@ -27,20 +27,6 @@ func (se stubEnclave) Open() (*memguard.LockedBuffer, error) {
 
 func (se stubEnclave) Size() int {
 	return se.size
-}
-
-type stubWriter struct {
-	MatchError []byte
-	WriteError error
-	WriteSize  int
-}
-
-func (s *stubWriter) Write(writeBytes []byte) (n int, err error) {
-	if bytes.Equal(writeBytes, s.MatchError) {
-		return 0, s.WriteError
-	}
-
-	return len(writeBytes), nil
 }
 
 func TestLockerHeader_Decrypt_OpenFail(t *testing.T) {
@@ -308,7 +294,7 @@ func Test_writeLockerData_ErrorIterations(t *testing.T) {
 	var testHeader = &lockerHeader{
 		iterations: 2,
 	}
-	var testWriter = &stubWriter{
+	var testWriter = &gio.StubWriter{
 		MatchError: make([]byte, 4),
 		WriteError: expectedError,
 	}
@@ -322,7 +308,7 @@ func Test_writeLockerData_ErrorKeyLength(t *testing.T) {
 	var testHeader = &lockerHeader{
 		keyLength: 37,
 	}
-	var testWriter = &stubWriter{
+	var testWriter = &gio.StubWriter{
 		MatchError: make([]byte, 4),
 		WriteError: expectedError,
 	}
@@ -336,7 +322,7 @@ func Test_writeLockerData_ErrorMemoryKb(t *testing.T) {
 	var testHeader = &lockerHeader{
 		memoryKb: 1024,
 	}
-	var testWriter = &stubWriter{
+	var testWriter = &gio.StubWriter{
 		MatchError: make([]byte, 4),
 		WriteError: expectedError,
 	}
@@ -350,7 +336,7 @@ func Test_writeLockerData_ErrorNonce(t *testing.T) {
 	var testHeader = &lockerHeader{
 		nonce: []byte("N once init"),
 	}
-	var testWriter = &stubWriter{
+	var testWriter = &gio.StubWriter{
 		MatchError: testHeader.nonce,
 		WriteError: expectedError,
 	}
@@ -363,7 +349,7 @@ func Test_writeLockerData_ErrorSaltLength(t *testing.T) {
 	var testHeader = &lockerHeader{
 		salt: []byte("salt is good"),
 	}
-	var testWriter = &stubWriter{
+	var testWriter = &gio.StubWriter{
 		MatchError: make([]byte, 2),
 		WriteError: expectedError,
 	}
@@ -377,7 +363,7 @@ func Test_writeLockerData_ErrorSalt(t *testing.T) {
 	var testHeader = &lockerHeader{
 		salt: []byte("salt is good"),
 	}
-	var testWriter = &stubWriter{
+	var testWriter = &gio.StubWriter{
 		MatchError: testHeader.salt,
 		WriteError: expectedError,
 	}
@@ -390,7 +376,7 @@ func Test_writeLockerData_ErrorThreads(t *testing.T) {
 	var testHeader = &lockerHeader{
 		threads: 37,
 	}
-	var testWriter = &stubWriter{
+	var testWriter = &gio.StubWriter{
 		MatchError: []byte{testHeader.threads},
 		WriteError: expectedError,
 	}
@@ -403,7 +389,7 @@ func Test_writeLockerData_ErrorVersion(t *testing.T) {
 	var testHeader = &lockerHeader{
 		version: 37,
 	}
-	var testWriter = &stubWriter{
+	var testWriter = &gio.StubWriter{
 		MatchError: []byte{testHeader.version},
 		WriteError: expectedError,
 	}

@@ -233,14 +233,14 @@ func TestDataLinkParam_isEqual(t *testing.T) {
 func TestDataLinkParam_isValid(t *testing.T) {
 	var testParams = &DataLinkParams{}
 
-	assert.False(t, testParams.isValid())
+	assert.False(t, testParams.IsValid())
 	testParams.DataLink = &DataLink{}
 	testParams.Oem = "oem"
-	assert.False(t, testParams.isValid())
+	assert.False(t, testParams.IsValid())
 	testParams.Handle = "handle"
-	assert.False(t, testParams.isValid())
+	assert.False(t, testParams.IsValid())
 	testParams.Version = "version"
-	assert.True(t, testParams.isValid())
+	assert.True(t, testParams.IsValid())
 }
 
 func TestDataLinkParam_publishFqdn(t *testing.T) {

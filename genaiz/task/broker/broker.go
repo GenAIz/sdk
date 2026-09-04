@@ -532,6 +532,8 @@ type PropSpec struct {
 	Type        PropSpecType `yaml:"type" json:"type"`
 	Value       string       `yaml:"value,omitempty" json:"value,omitempty"`
 	Values      []string     `yaml:"values,omitempty" json:"values,omitempty"`
+
+	secret bool
 }
 
 func (ps PropSpec) GetDefaultValue() string {
@@ -546,6 +548,10 @@ func (ps PropSpec) GetKey() string {
 	return ps.Key
 }
 
+func (ps PropSpec) IsSecret() bool {
+	return ps.secret
+}
+
 func (ps PropSpec) Sanitize() PropSpec {
 	return PropSpec{
 		Key:         ps.Key,
@@ -554,6 +560,18 @@ func (ps PropSpec) Sanitize() PropSpec {
 		Type:        strings.ToUpper(ps.Type),
 		Value:       ps.Value,
 		Values:      ps.Values,
+	}
+}
+
+func (ps PropSpec) SecretSpec() shared.VarSpec {
+	return &PropSpec{
+		Key:         ps.Key,
+		Name:        ps.Name,
+		Description: ps.Description,
+		Type:        ps.Type,
+		Value:       ps.Value,
+		Values:      ps.Values,
+		secret:      true,
 	}
 }
 

@@ -49,6 +49,14 @@ type DataLinkParams struct {
 	NoValidation bool
 }
 
+func (dlp DataLinkParams) IsValid() bool {
+	if dlp.DataLink != nil {
+		return dlp.Oem != "" && dlp.Handle != "" && dlp.Version != ""
+	}
+
+	return false
+}
+
 func (dlp DataLinkParams) ToFqdn() (string, string, string) {
 	if dlp.DataLink != nil {
 		return dlp.Oem, dlp.Handle, dlp.Version
@@ -108,14 +116,6 @@ func (dlp DataLinkParams) isEqual(link *DataLink) bool {
 		return dlp.DataLink == nil
 	} else if dlp.DataLink != nil {
 		return link.IsEqual(dlp.Oem, dlp.Handle, dlp.Version)
-	}
-
-	return false
-}
-
-func (dlp DataLinkParams) isValid() bool {
-	if dlp.DataLink != nil {
-		return dlp.Oem != "" && dlp.Handle != "" && dlp.Version != ""
 	}
 
 	return false
@@ -265,7 +265,7 @@ func handleDataLinkAvailableError(params *DataLinkParams, state *task.State) err
 
 func handleDataLinkCollectContext(params *DataLinkParams, state *task.State) error {
 	if state.Output == "" {
-		if params.isValid() {
+		if params.IsValid() {
 			var err error
 
 			state.Logger.Debugf("Validating configuration file [%s]", state.Output)
@@ -543,7 +543,7 @@ func handleDataLinkEditPretend(writer DataLinkWriter, params *DataLinkParams, st
 
 func handleDataLinkExportContext(params *DataLinkParams, state *task.State) error {
 	if state.Output == "" {
-		if params.isValid() {
+		if params.IsValid() {
 			var err error
 
 			if state.Output, err = params.ResolveOptionalType(shared.ConfigTypeYaml); err == nil {
@@ -646,7 +646,7 @@ func handleDataLinkExportPretend(params *DataLinkParams, state *task.State) erro
 
 func handleDataLinkFindContext(params *DataLinkParams, state *task.State) error {
 	if state.Internal == nil {
-		if !params.isValid() {
+		if !params.IsValid() {
 			return errDataLinkInvalid
 		}
 	}
@@ -939,7 +939,7 @@ func persistVarSpecs(spec *DataLink, state *task.State) {
 	}
 
 	for _, s := range spec.SecretSpecs {
-		varSpecs = append(varSpecs, s.VarSpec())
+		varSpecs = append(varSpecs, s.SecretSpec())
 	}
 
 	varSpecClient.AddSpecs(varSpecs)
