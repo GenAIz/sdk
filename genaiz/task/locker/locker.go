@@ -102,6 +102,34 @@ func (la lockerAccount) findSource(handle string) (*lockerLink, error) {
 	return nil, errorLockerSourceNotFound
 }
 
+func (la lockerAccount) refreshSources(oldPassphrase, passphrase Enclave) ([]lockerLink, error) {
+	var result []lockerLink
+	var err error
+
+	for _, s := range la.DataSources {
+		var props map[string]string
+		var refreshed string
+
+		if props, err = s.decodeProperties(oldPassphrase); err != nil {
+			return nil, err
+		}
+
+		if refreshed, err = s.encodeProperties(props, passphrase); err != nil {
+			return nil, err
+		}
+
+		result = append(result, lockerLink{
+			LockerHandle: s.LockerHandle,
+			LinkOem:      s.LinkOem,
+			LinkHandle:   s.LinkHandle,
+			LinkVersion:  s.LinkVersion,
+			Properties:   refreshed,
+		})
+	}
+
+	return result, nil
+}
+
 func (la lockerAccount) withSource(source *lockerLink) *lockerAccount {
 	var sources []lockerLink
 
@@ -275,15 +303,15 @@ func (ll lockerLink) decodeProperties(passphrase Enclave) (map[string]string, er
 
 func (ll lockerLink) encodeProperties(properties map[string]string, passphrase Enclave) (string, error) {
 	if len(properties) > 0 {
-		var b []byte
-		var err error
+		var b, err = json.Marshal(properties)
+		var enclaved = memguard.NewEnclave(b)
+		var header = newLockerHeader()
 
-		if b, err = json.Marshal(properties); err == nil {
-			var header = newLockerHeader()
-			var enclaved = memguard.NewEnclave(b)
+		if b, err = header.Encrypt(enclaved, passphrase); err == nil {
+			var buf = new(bytes.Buffer)
 
-			if b, err = header.Encrypt(enclaved, passphrase); err == nil {
-				return base64.StdEncoding.EncodeToString(b), nil
+			if err = writeLockerData(header, buf, b); err == nil {
+				return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 			}
 		}
 
@@ -345,6 +373,27 @@ func (slt *SecuredLockerTracking) Destroy() {
 	}
 }
 
+func (slt *SecuredLockerTracking) GetSourceProps(accountUrl, handle string, passphrase Enclave) (map[string]string, error) {
+	var body *lockerBody
+	var err error
+
+	if body, err = slt.unfold(); err == nil {
+		var account *lockerAccount
+
+		if account, err = body.findAccount(accountUrl); err == nil {
+			for _, source := range account.DataSources {
+				if strings.EqualFold(source.LockerHandle, handle) {
+					return source.decodeProperties(passphrase)
+				}
+			}
+
+			return nil, errorLockerSourceNotFound
+		}
+	}
+
+	return nil, err
+}
+
 func (slt *SecuredLockerTracking) IsOpened() bool {
 	return slt.current != nil
 }
@@ -380,9 +429,45 @@ func (slt *SecuredLockerTracking) Read(path string, passphrase Enclave) error {
 
 		if header, encrypted, err = readLockerData(fd); err == nil {
 			if slt.current, err = header.Decrypt(encrypted, passphrase); err == nil {
+				slt.currentPath = path
 				return nil
 			}
 		}
+	}
+
+	return err
+}
+
+func (slt *SecuredLockerTracking) Update(passphrase, oldPassphrase Enclave) error {
+	var root *lockerBody
+	var err error
+
+	if root, err = slt.unfold(); err == nil {
+		if len(root.Accounts) > 0 {
+			var newRoot = &lockerBody{}
+
+			for _, a := range root.Accounts {
+				var sources []lockerLink
+
+				if sources, err = a.refreshSources(oldPassphrase, passphrase); err == nil {
+					newRoot.Accounts = append(newRoot.Accounts, lockerAccount{
+						AccountUrl:  a.AccountUrl,
+						DataSources: sources,
+					})
+				} else {
+					break
+				}
+			}
+
+			if err == nil {
+				slt.current = slt.fold(newRoot)
+				return nil
+			}
+
+			return err
+		}
+
+		return nil
 	}
 
 	return err

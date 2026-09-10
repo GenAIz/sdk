@@ -24,6 +24,155 @@ import (
 	"genaiz.com/genaiz/task/locker"
 )
 
+func TestPublishExecutor_Publish(t *testing.T) {
+	var expectedHandle = "expectedHandle"
+	var testOutput bytes.Buffer
+	var testCli = &Cli{
+		BaseCli: cli.BaseCli{
+			Dry: func(ledger *config.Ledger) bool {
+				return true
+			},
+		},
+	}
+	var testLedger = config.NewBuilder().
+		WithViper(viper.New()).
+		WithUserPath(t.TempDir()).
+		WithOutput(io.Writer(&testOutput)).
+		Build()
+	var testExecutor = &PublishExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:    testCli,
+			Ledger: testLedger,
+		},
+		PublishOptions: NewPublishOptions(),
+	}
+	var expectedLockerPath = filepath.Join(testLedger.UserPath, "locker.bin")
+
+	assert.NoError(t, testExecutor.Publish(expectedHandle))
+	assert.Equal(t, expectedHandle, testExecutor.handleArg)
+	actual := testOutput.String()
+	assert.Regexp(t, regexp.MustCompile(`handle:[\s\t]*`+expectedHandle), actual)
+	assert.Regexp(t, regexp.MustCompile(`locker:[\s\t]*`+expectedLockerPath), actual)
+}
+
+func TestPublishExecutor_Display(t *testing.T) {
+	var expectedAccount = "expectedAccount"
+	var expectedLockerPath = "expectedLocker"
+	var expectedHandle = "expectedHandle"
+	var expectedName = "expectedName"
+	var expectedDesc = "expectedDesc"
+	var testOutput bytes.Buffer
+	var testCli = &Cli{
+		BaseCli: cli.BaseCli{
+			Dry: func(ledger *config.Ledger) bool {
+				return true
+			},
+		},
+	}
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithUserPath(t.TempDir()).
+		WithOutput(io.Writer(&testOutput)).
+		Build()
+	var testExecutor = &PublishExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli:    testCli,
+			Ledger: testLedger,
+		},
+		PublishOptions: NewPublishOptions(),
+	}
+
+	testViper.Set(testExecutor.optionAccount.Key, expectedAccount)
+	testViper.Set(testExecutor.optionLocker.Key, expectedLockerPath)
+	testViper.Set(testExecutor.optionName.Key, expectedName)
+	testViper.Set(testExecutor.optionDescription.Key, expectedDesc)
+	testViper.Set(testExecutor.optionVisibility.Key, broker.VisibilityOrg)
+	assert.NoError(t, testExecutor.Publish(expectedHandle))
+	assert.Equal(t, expectedHandle, testExecutor.handleArg)
+	actual := testOutput.String()
+	assert.Regexp(t, regexp.MustCompile(`handle:[\s\t]*`+expectedHandle), actual)
+	assert.Regexp(t, regexp.MustCompile(`locker:[\s\t]*`+expectedLockerPath), actual)
+	assert.Regexp(t, regexp.MustCompile(`account:[\s\t]*`+expectedAccount), actual)
+	assert.Regexp(t, regexp.MustCompile(`name:[\s\t]*`+expectedName), actual)
+	assert.Regexp(t, regexp.MustCompile(`description:[\s\t]*`+expectedDesc), actual)
+	assert.Regexp(t, regexp.MustCompile(`visibility:[\s\t]*`+broker.VisibilityOrg), actual)
+}
+
+func TestPublishExecutor_Pretend(t *testing.T) {
+	var capturedFindParams, capturedSyncParams locker.SourceFindParams
+	var capturedPublishParams locker.SourcePublishParams
+	var capturedDataLinkParams broker.DataLinkParams
+	var testOptions = NewPublishOptions()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
+		Build()
+	var testExecutor = &PublishExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		PublishOptions:           testOptions,
+		handleArg:                "expectedHandle",
+		accountParams:            config.NewAccountParams(testLedger, testOptions.optionAccount),
+		dataLinkFindTaskFactory:  newDataLinkFindTaskPretendStub(&capturedDataLinkParams, nil),
+		sourceFindTaskFactory:    newSourceFindTaskPretendStub(&capturedFindParams),
+		sourceSyncTaskFactory:    newSourceSyncTaskPretendStub(&capturedSyncParams),
+		sourcePublishTaskFactory: newSourcePublishTaskPretendStub(&capturedPublishParams),
+	}
+
+	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityOrg)
+	testLedger.InitLogging()
+	testExecutor.Pretend()
+	assert.NotEmpty(t, capturedFindParams)
+	assert.NotEmpty(t, capturedSyncParams)
+	assert.NotEmpty(t, capturedPublishParams)
+	assert.Equal(t, capturedPublishParams.Visibility, broker.VisibilityOrg)
+	assert.NotEmpty(t, capturedDataLinkParams)
+}
+
+func TestPublishExecutor_Proceed(t *testing.T) {
+	var capturedFindParams, capturedSyncParams locker.SourceFindParams
+	var capturedPublishParams locker.SourcePublishParams
+	var capturedDataLinkParams broker.DataLinkParams
+	var testOptions = NewPublishOptions()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		WithSecretHandler(readEmptyPassword).
+		Build()
+	var testExecutor = &PublishExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+		},
+		PublishOptions:           testOptions,
+		handleArg:                "expectedHandle",
+		accountParams:            config.NewAccountParams(testLedger, testOptions.optionAccount),
+		dataLinkFindTaskFactory:  newDataLinkFindTaskProceedStub(&capturedDataLinkParams, nil),
+		sourceFindTaskFactory:    newSourceFindTaskProceedStub(&capturedFindParams),
+		sourceSyncTaskFactory:    newSourceSyncTaskProceedStub(&capturedSyncParams),
+		sourcePublishTaskFactory: newSourcePublishTaskProceedStub(&capturedPublishParams),
+	}
+
+	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityOrg)
+	testLedger.InitLogging()
+	testExecutor.Proceed()
+	assert.NotEmpty(t, capturedFindParams)
+	assert.NotEmpty(t, capturedSyncParams)
+	assert.NotEmpty(t, capturedPublishParams)
+	assert.Equal(t, capturedPublishParams.Visibility, broker.VisibilityOrg)
+	assert.NotEmpty(t, capturedDataLinkParams)
+}
+
+func TestNewPublishExecutor(t *testing.T) {
+	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
+	var testCmd = &cobra.Command{}
+	var testFactory = newSourcePublishExecutorFactory(testLedger, &Cli{}, NewPublishOptions())
+
+	assert.NotNil(t, testFactory(testCmd))
+}
+
 func TestSourceExecutor_Add(t *testing.T) {
 	var testOutput bytes.Buffer
 	var testCli = &Cli{
@@ -427,7 +576,7 @@ func TestNewSource(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
 	var testCmd = NewSource(testLedger, &Cli{})
 
-	assert.Equal(t, 2, len(testCmd.Commands()))
+	assert.Equal(t, 3, len(testCmd.Commands()))
 }
 
 func TestNewSourceExecutor_Add(t *testing.T) {
@@ -457,6 +606,21 @@ func newCollectLinkTaskPretendStub(captured *broker.DataLinkParams) dk.CollectLi
 				params.Handle = "handle"
 				params.Version = "version"
 				*captured = *params
+				return nil
+			},
+		}
+	}
+}
+
+func newDataLinkFindTaskPretendStub(capture *broker.DataLinkParams, seeded []broker.DataLink) FindLinksTaskFactory {
+	return func() *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnPretend: func(params *broker.DataLinkParams, state *task.State) error {
+				*capture = *params
+				state.Internal = seeded
 				return nil
 			},
 		}
@@ -505,6 +669,34 @@ func newSourceFindTaskPretendStub(captured *locker.SourceFindParams) SourceFindT
 	}
 }
 
+func newSourcePublishTaskPretendStub(captured *locker.SourcePublishParams) SourcePublishTaskFactory {
+	return func() *task.Task[locker.SourcePublishParams] {
+		return &task.Task[locker.SourcePublishParams]{
+			OnPrepare: func(params *locker.SourcePublishParams, state *task.State) error {
+				return nil
+			},
+			OnPretend: func(params *locker.SourcePublishParams, state *task.State) error {
+				*captured = *params
+				return nil
+			},
+		}
+	}
+}
+
+func newSourceSyncTaskPretendStub(captured *locker.SourceFindParams) SourceSyncTaskFactory {
+	return func() *task.Task[locker.SourceFindParams] {
+		return &task.Task[locker.SourceFindParams]{
+			OnPrepare: func(params *locker.SourceFindParams, state *task.State) error {
+				return nil
+			},
+			OnPretend: func(params *locker.SourceFindParams, state *task.State) error {
+				*captured = *params
+				return nil
+			},
+		}
+	}
+}
+
 func newSourceUpdateTaskPretendStub(captured *locker.SourceUpdateParams) SourceUpdateTaskFactory {
 	return func() *task.Task[locker.SourceUpdateParams] {
 		return &task.Task[locker.SourceUpdateParams]{
@@ -532,6 +724,21 @@ func newCollectLinkTaskProceedStub(captured *broker.DataLinkParams) dk.CollectLi
 					Version: "version",
 				}
 				*captured = *params
+				return nil
+			},
+		}
+	}
+}
+
+func newDataLinkFindTaskProceedStub(capture *broker.DataLinkParams, seeded []broker.DataLink) FindLinksTaskFactory {
+	return func() *task.Task[broker.DataLinkParams] {
+		return &task.Task[broker.DataLinkParams]{
+			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *broker.DataLinkParams, state *task.State) error {
+				*capture = *params
+				state.Internal = seeded
 				return nil
 			},
 		}
@@ -567,6 +774,34 @@ func newSourceAddTaskProceedStub(captured *locker.SourceAddParams) SourceAddTask
 }
 
 func newSourceFindTaskProceedStub(captured *locker.SourceFindParams) SourceFindTaskFactory {
+	return func() *task.Task[locker.SourceFindParams] {
+		return &task.Task[locker.SourceFindParams]{
+			OnPrepare: func(params *locker.SourceFindParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *locker.SourceFindParams, state *task.State) error {
+				*captured = *params
+				return nil
+			},
+		}
+	}
+}
+
+func newSourcePublishTaskProceedStub(captured *locker.SourcePublishParams) SourcePublishTaskFactory {
+	return func() *task.Task[locker.SourcePublishParams] {
+		return &task.Task[locker.SourcePublishParams]{
+			OnPrepare: func(params *locker.SourcePublishParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *locker.SourcePublishParams, state *task.State) error {
+				*captured = *params
+				return nil
+			},
+		}
+	}
+}
+
+func newSourceSyncTaskProceedStub(captured *locker.SourceFindParams) SourceSyncTaskFactory {
 	return func() *task.Task[locker.SourceFindParams] {
 		return &task.Task[locker.SourceFindParams]{
 			OnPrepare: func(params *locker.SourceFindParams, state *task.State) error {

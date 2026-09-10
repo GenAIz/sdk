@@ -362,6 +362,41 @@ func TestDataLink_Sanitize(t *testing.T) {
 	assert.Equal(t, testDataLink.SecretSpecs[0].Values, actual.SecretSpecs[0].Values)
 }
 
+func TestDataLinkInstance_CompareSeq(t *testing.T) {
+	var testInstance = &DataLinkInstance{}
+	var testInstance2 = &DataLinkInstance{}
+
+	// If you have nil pointers in a list, they should end up at the beginning on a sort and not show up as Max, the end
+	assert.Equal(t, -1, testInstance.CompareSeq(nil))
+	assert.Equal(t, 0, testInstance.CompareSeq(testInstance2))
+	testInstance2.dataLinkSequence = new(1)
+	// Without a sequence the first instance should be determined to have precedence, e.g. released
+	assert.Equal(t, 1, testInstance.CompareSeq(testInstance2))
+	testInstance.dataLinkSequence = new(1)
+	testInstance2.dataLinkSequence = nil
+	// Without a sequence the second instance should be determined to have precedence, e.g. released
+	assert.Equal(t, -1, testInstance.CompareSeq(testInstance2))
+	testInstance2.dataLinkSequence = new(2)
+	assert.Equal(t, -1, testInstance.CompareSeq(testInstance2))
+	testInstance.dataLinkSequence = new(3)
+	assert.Equal(t, 1, testInstance.CompareSeq(testInstance2))
+}
+
+func TestDataLinkInstance_HasLink(t *testing.T) {
+	var testInstance = &DataLinkInstance{
+		dataLinkOem:     "oem",
+		dataLinkHandle:  "handle",
+		dataLinkVersion: "version",
+	}
+
+	assert.False(t, testInstance.HasLink(nil))
+	assert.True(t, testInstance.HasLink(&DataLink{
+		Oem:     testInstance.dataLinkOem,
+		Handle:  testInstance.dataLinkHandle,
+		Version: testInstance.dataLinkVersion,
+	}))
+}
+
 func TestFunction_FindDataPortByHandle(t *testing.T) {
 	var testHandle = "handle"
 	var testFunction = &Function{}
@@ -638,6 +673,25 @@ func TestListPropSpecs(t *testing.T) {
 	assert.Equal(t, expectedSpecMap["value"], actualSpecs[0].Value)
 	assert.Equal(t, expectedSpecMap["values"], actualSpecs[0].Values)
 	assert.Equal(t, expectedSpecMap["type"], actualSpecs[0].Type)
+}
+
+func TestNewDataLinkInstance(t *testing.T) {
+	var expectedSourceId = int64(42)
+	var testDataLink = &DataLink{
+		Id:      new(int64(37)),
+		Oem:     "expectedOem",
+		Handle:  "expectedHandle",
+		Version: "expectedVersion",
+		Seq:     new(1),
+	}
+	var testInstance = NewDataLinkInstance(expectedSourceId, "name", testDataLink)
+
+	assert.Equal(t, expectedSourceId, *testInstance.Id)
+	assert.Equal(t, *testDataLink.Id, *testInstance.DataLinkId)
+	assert.Equal(t, testDataLink.Oem, testInstance.dataLinkOem)
+	assert.Equal(t, testDataLink.Handle, testInstance.dataLinkHandle)
+	assert.Equal(t, testDataLink.Version, testInstance.dataLinkVersion)
+	assert.Equal(t, *testDataLink.Seq, *testInstance.dataLinkSequence)
 }
 
 func TestProxy_IsEqual(t *testing.T) {

@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -24,8 +25,8 @@ const (
 	PropSpecTypeInt     PropSpecType = "INT"
 	PropSpecTypeString  PropSpecType = "STRING"
 
-	WorkspaceVisibilityPrivate WorkspaceVisibility = "PRIVATE"
-	WorkspaceVisibilityOrg     WorkspaceVisibility = "ORGANIZATION"
+	VisibilityPrivate Visibility = "PRIVATE"
+	VisibilityOrg     Visibility = "ORGANIZATION"
 )
 
 var (
@@ -57,7 +58,7 @@ var (
 	}
 	PropSpecTypes = enumz.NewEnumType(PropSpecTypeBoolean, PropSpecTypeDouble,
 		PropSpecTypeEnum, PropSpecTypeInt, PropSpecTypeString)
-	WorkspaceVisibilities = enumz.NewEnumType(WorkspaceVisibilityPrivate, WorkspaceVisibilityOrg)
+	Visibilities = enumz.NewEnumType(VisibilityPrivate, VisibilityOrg)
 
 	ErrorDataPortNotFound     = errors.New("data port not found")
 	ErrorPropIllegalBool      = errors.New("illegal default value for bool type")
@@ -299,6 +300,62 @@ func (dl *DataLink) replacePropSpec(specs []PropSpec, spec *PropSpec) ([]PropSpe
 type dataLinkFlags struct {
 	Active   int
 	Released int
+}
+
+// DataLinkInstance can be a DataSource or a DataStore, they are semantically the same
+type DataLinkInstance struct {
+	Id          *int64 `json:"id,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	DataLinkId  *int64 `json:"dataLinkId,omitempty"`
+	OwnerUserId *int64 `json:"ownerUserId,omitempty"`
+	Active      bool   `json:"active"`
+	Visibility  string `json:"visibility"`
+	Flags       *int   `json:"flags,omitempty"`
+
+	dataLinkOem      string
+	dataLinkHandle   string
+	dataLinkVersion  string
+	dataLinkSequence *int
+}
+
+func (dli DataLinkInstance) CompareSeq(instance *DataLinkInstance) int {
+	if instance != nil {
+		// absence of sequence is interpreted as released so nil is >, although there should still be a sequence on it
+		if instance.dataLinkSequence != nil {
+			if dli.dataLinkSequence != nil {
+				return cmp.Compare(*dli.dataLinkSequence, *instance.dataLinkSequence)
+			}
+
+			return 1
+		}
+
+		if dli.dataLinkSequence == nil {
+			return 0
+		}
+	}
+
+	return -1
+}
+
+func (dli DataLinkInstance) HasLink(link *DataLink) bool {
+	if link == nil {
+		return false
+	}
+
+	return link.IsEqual(dli.dataLinkOem, dli.dataLinkHandle, dli.dataLinkVersion)
+}
+
+func NewDataLinkInstance(id int64, name string, dataLink *DataLink) *DataLinkInstance {
+	return &DataLinkInstance{
+		Id:               &id,
+		DataLinkId:       dataLink.Id,
+		Name:             name,
+		dataLinkOem:      dataLink.Oem,
+		dataLinkHandle:   dataLink.Handle,
+		dataLinkVersion:  dataLink.Version,
+		dataLinkSequence: dataLink.Seq,
+	}
 }
 
 type DataPort struct {
@@ -1070,7 +1127,7 @@ func WorkflowNamePredicate(name string) func(Workflow) bool {
 	}
 }
 
-type WorkspaceVisibility = string
+type Visibility = string
 
 type Workspace struct {
 	Id          int64  `json:"id,omitempty"`

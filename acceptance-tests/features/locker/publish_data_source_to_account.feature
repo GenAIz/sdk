@@ -1,9 +1,11 @@
-Feature: add data source to locker
+Feature: publish data source to account
   To be able to add a data source to a locker
   As an authenticated user
-  I should be able to create a datalink, login to an account and publish the datalink
+  I should be able to create a datalink, add prop specs, login to an account and publish the datalink
   I should be able to initialize a locker
   I should be able to add a data source to the locker for the account and datalink created
+  I should be able to update the data source in the locker for the rop specs
+  I should be able to publish the data source to the account owning the datalink
 
   Scenario: create data link for data source
     Given the following parameters
@@ -11,6 +13,14 @@ Feature: add data source to locker
       | $HOME/.config/genaiz/Genaiz.yaml | locker-src-1 | com.genaiz.test | 1.0.0   |
     When I run the command "dk create <oem>/<handle>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
+
+  Scenario: add data link property
+    Given the scenario "create data link for data source" ran with condition "service_completed_successfully"
+    And the following parameters
+      | configFile                       | handle       | oem             | version | key    | type   |
+      | $HOME/.config/genaiz/Genaiz.yaml | locker-src-1 | com.genaiz.test | 1.0.0   | TENANT | STRING |
+    When I run the command "dk prop add <oem>/<handle>:<version> <key>"
+    Then I should have a "<type>" property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>" and default value ""
 
   Scenario: login data link for data source
     Given the orchestrator is running with condition: "service_healthy"
@@ -23,7 +33,7 @@ Feature: add data source to locker
 
   Scenario: publish data link
     Given the scenario "login data link" ran with condition "service_completed_successfully"
-    And the scenario "create data link for data source" ran with condition "service_completed_successfully"
+    And the scenario "add data link secret property" ran with condition "service_completed_successfully"
     And the following parameters
       | handle       | oem             | version |
       | locker-src-1 | com.genaiz.test | 1.0.0   |
@@ -32,47 +42,38 @@ Feature: add data source to locker
 
   Scenario: init data source locker
     Given the following parameters
-      | path         | password |
-      | myLocker.bin | SIzlR0a$ |
+      | path         | password   |
+      | myLocker.bin | Testing37$ |
     And the environment contains "GENAIZ_LK_PASSWORD=<password>"
     When I run the command "lk init <path>"
     Then I should have a non-empty locker file initialized under "<path>"
-
-  Scenario: add data source for incomplete data link
-    Given the scenario "publish data link" ran with condition "service_completed_successfully"
-    And the scenario "init data source locker" ran with condition "service_completed_successfully"
-    And the following parameters
-      | path         | password | handle      | dataLinkFqdn                 | dataLinkVersion | mtime |
-      | myLocker.bin | SIzlR0a$ | myLockerSrc | com.genaiz.test/locker-src-1 | 1.0.0           |       |
-    And the modification time of "<path>" known as parameter "mtime"
-    And the environment contains "GENAIZ_LK_PASSWORD=<password>"
-    When I run the command "lk src add <handle> <dataLinkFqdn>:<dataLinkVersion> --locker=<path>"
-    Then I should have an error "datalink property set is empty, is it incomplete?"
-
-  Scenario: add data link secret property for data source
-    Given the scenario "create data link" ran with condition "service_completed_successfully"
-    And the following parameters
-      | configFile                       | handle       | oem             | dataLinkVersion | key        | type   |
-      | $HOME/.config/genaiz/Genaiz.yaml | locker-src-1 | com.genaiz.test | 1.0.0           | SECRET_KEY | STRING |
-    When I run the command "dk prop add <oem>/<handle>:<version> <key> --secret"
-    Then I should have a "<type>" secret property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>"
-
-  Scenario: re-publish data link
-    Given the scenario "login data link" ran with condition "service_completed_successfully"
-    And the scenario "create data link for data source" ran with condition "service_completed_successfully"
-    And the following parameters
-      | handle       | oem             | version | newVersion |
-      | locker-src-1 | com.genaiz.test | 1.0.0   | 1.0.1      |
-    When I run the command "dk publish <oem>/<handle>:<version> --new-version=<newVersion>"
-    Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<newVersion>"
 
   Scenario: add data source for data link
     Given the scenario "publish data link" ran with condition "service_completed_successfully"
     And the scenario "init data source locker" ran with condition "service_completed_successfully"
     And the following parameters
-      | path         | password | handle      | dataLinkFqdn                 | dataLinkVersion | mtime |
-      | myLocker.bin | SIzlR0a$ | myLockerSrc | com.genaiz.test/locker-src-1 | 1.0.1           |       |
+      | path         | password   | handle      | dataLinkFqdn                 | dataLinkVersion | mtime |
+      | myLocker.bin | Testing37$ | myLockerSrc | com.genaiz.test/locker-src-1 | 1.0.0           |       |
     And the modification time of "<path>" known as parameter "mtime"
     And the environment contains "GENAIZ_LK_PASSWORD=<password>"
     When I run the command "lk src add <handle> <dataLinkFqdn>:<dataLinkVersion> --locker=<path>"
     Then I should have a locker file under "<path>" with a modification time different than "<mtime>"
+
+  Scenario: update data source property
+    Given the scenario "add data source for data link" ran with condition "service_completed_successfully"
+    And the following parameters
+      | path         | password   | handle      | key    | value      |
+      | myLocker.bin | Testing37$ | myLockerSrc | TENANT | some Value |
+    And the modification time of "<path>" known as parameter "mtime"
+    And the environment contains "GENAIZ_LK_PASSWORD=<password>"
+    When I run the command "lk src update <handle> <key> '<value>' --locker=<path>"
+    Then I should have a locker file under "<path>" with a modification time different than "<mtime>"
+
+  Scenario: create data source for account
+    Given the scenario "update data source property" ran with condition "service_completed_successfully"
+    And the following parameters
+      | path         | password   | handle      | name         |
+      | myLocker.bin | Testing37$ | myLockerSrc | Locker Src 1 |
+    And the environment contains "GENAIZ_LK_PASSWORD=<password>"
+    When I run the command "lk src publish <handle> --name='<name>' --locker=<path>"
+    Then I should have a data source named "<name>" created under account "<orchestrator>"

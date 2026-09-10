@@ -3,8 +3,11 @@ package stdz
 import (
 	"bufio"
 	"io"
+	"os"
 	"sync/atomic"
 	"time"
+
+	"genaiz.com/genaiz-lib/lang/filez"
 )
 
 type Input interface {
@@ -71,4 +74,21 @@ func NewInput(reader io.ReadCloser) Input {
 		}
 	}()
 	return in
+}
+
+type SecretHandler func() ([]byte, error)
+
+func NewDeviceHandler(device string, deviceHandler func(int) ([]byte, error)) SecretHandler {
+	return func() ([]byte, error) {
+		var tty *os.File
+		var err error
+
+		if tty, err = os.OpenFile(device, os.O_RDWR, 0); err == nil {
+			defer filez.CloseSilently(tty)
+
+			return deviceHandler(int(tty.Fd()))
+		}
+
+		return nil, err
+	}
 }

@@ -330,6 +330,15 @@ type Document struct {
 			Version     Keys
 		}
 	}
+	Source struct {
+		Publish struct {
+			Account     Keys
+			Description Keys
+			Locker      Keys
+			Name        Keys
+			Visibility  Keys
+		}
+	}
 	Workflow struct {
 		Create struct {
 			ConfigType  Keys
@@ -741,6 +750,12 @@ func init() {
 	Genaiz.Solution.Publish.Oem = newKeys("Solution.Publish.Oem", "SN_PUBLISH_OEM", "Sn.Publish.Oem")
 	Genaiz.Solution.Publish.Printer = newKeys("Solution.Publish.Printer", "SN_PUBLISH_PRINTER", "Sn.Publish.Printer")
 	Genaiz.Solution.Publish.Version = newKeys("Solution.Publish.Version", "SN_PUBLISH_VERSION", "Sn.Publish.Version")
+
+	Genaiz.Source.Publish.Account = newKeys("DataSource.Publish.Account", "SRC_PUBLISH_ACCOUNT", "Src.Publish.Account")
+	Genaiz.Source.Publish.Description = newKeys("DataSource.Publish.Description", "SRC_PUBLISH_DESCRIPTION", "Src.Publish.Description")
+	Genaiz.Source.Publish.Locker = newKeys("DataSource.Publish.Locker", "SRC_PUBLISH_LOCKER", "Src.Publish.Locker")
+	Genaiz.Source.Publish.Name = newKeys("DataSource.Publish.Name", "SRC_PUBLISH_NAME", "Src.Publish.Name")
+	Genaiz.Source.Publish.Visibility = newKeys("DataSource.Publish.Visibility", "SRC_PUBLISH_VISIBILITY", "Src.Publish.Visibility")
 
 	Genaiz.Workflow.Create.ConfigType = newKeys("Workflow.Create.ConfigType", "WF_CREATE_CONFIG_TYPE", "Wf.Create.ConfigType")
 	Genaiz.Workflow.Create.Description = newKeys("Workflow.Create.Description", "WF_CREATE_DESCRIPTION", "Wf.Create.Description")

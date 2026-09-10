@@ -36,7 +36,7 @@ func TestCreateExecutor_Display(t *testing.T) {
 	}
 
 	testViper.Set(testOptions.optionDescription.Key, expectedDescription)
-	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityOrg)
+	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityOrg)
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testExecutor.Display()
 	actual := testOutput.String()
@@ -44,7 +44,7 @@ func TestCreateExecutor_Display(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedDescription), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionRcEnabled.Param+`:[\s\t]*false`), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionJsonPrinter.Param+`:[\s\t]*false`), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionVisibility.Param+`:[\s\t]*`+broker.WorkspaceVisibilityOrg), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionVisibility.Param+`:[\s\t]*`+broker.VisibilityOrg), actual)
 }
 
 func TestCreateExecutor_Display_WithAccount(t *testing.T) {
@@ -68,7 +68,7 @@ func TestCreateExecutor_Display_WithAccount(t *testing.T) {
 
 	testViper.Set(testOptions.optionAccount.Key, expectedAccount)
 	testViper.Set(testOptions.optionDescription.Key, expectedDescription)
-	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityOrg)
+	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityOrg)
 	testLedger.Register(&cobra.Command{}, testOptions.allDefiners()...)
 	testExecutor.Display()
 	actual := testOutput.String()
@@ -77,7 +77,7 @@ func TestCreateExecutor_Display_WithAccount(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedDescription), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionRcEnabled.Param+`:[\s\t]*false`), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionJsonPrinter.Param+`:[\s\t]*false`), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionVisibility.Param+`:[\s\t]*`+broker.WorkspaceVisibilityOrg), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionVisibility.Param+`:[\s\t]*`+broker.VisibilityOrg), actual)
 }
 
 func TestCreateExecutor_Pretend(t *testing.T) {
@@ -105,7 +105,7 @@ func TestCreateExecutor_Pretend(t *testing.T) {
 	testViper.Set(testOptions.optionDescription.Key, expectedDescription)
 	testViper.Set(testOptions.optionRcEnabled.Key, true)
 	testViper.Set(testOptions.optionAccount.Key, expectedAccount)
-	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityPrivate)
+	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityPrivate)
 	testLedger.InitLogging()
 	testExecutor.Pretend()
 	assert.NotNil(t, calledParams)
@@ -114,7 +114,7 @@ func TestCreateExecutor_Pretend(t *testing.T) {
 	assert.Equal(t, expectedName, calledParams.Workspace.Name)
 	assert.True(t, calledParams.Workspace.RcEnabled)
 	assert.Equal(t, expectedDescription, calledParams.Workspace.Description)
-	assert.Equal(t, broker.WorkspaceVisibilityPrivate, calledParams.Workspace.Visibility)
+	assert.Equal(t, broker.VisibilityPrivate, calledParams.Workspace.Visibility)
 }
 
 func TestCreateExecutor_Proceed_DefaultPrinter(t *testing.T) {
@@ -146,7 +146,7 @@ func TestCreateExecutor_Proceed_DefaultPrinter(t *testing.T) {
 	testViper.Set(testOptions.optionDescription.Key, expectedDescription)
 	testViper.Set(testOptions.optionAccount.Key, expectedAccount)
 	testViper.Set(testOptions.optionRcEnabled.Key, cast.ToString(true))
-	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityPrivate)
+	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityPrivate)
 	testLedger.InitLogging()
 	testExecutor.Proceed()
 	assert.NotNil(t, calledParams)
@@ -155,7 +155,7 @@ func TestCreateExecutor_Proceed_DefaultPrinter(t *testing.T) {
 	assert.Equal(t, expectedName, calledParams.Workspace.Name)
 	assert.True(t, calledParams.Workspace.RcEnabled)
 	assert.Equal(t, expectedDescription, calledParams.Workspace.Description)
-	assert.Equal(t, broker.WorkspaceVisibilityPrivate, calledParams.Workspace.Visibility)
+	assert.Equal(t, broker.VisibilityPrivate, calledParams.Workspace.Visibility)
 }
 
 func TestCreateExecutor_Proceed_JsonPrinter(t *testing.T) {
@@ -185,14 +185,14 @@ func TestCreateExecutor_Proceed_JsonPrinter(t *testing.T) {
 	}
 
 	testViper.Set(testOptions.optionRcEnabled.Key, cast.ToString(true))
-	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityOrg)
+	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityOrg)
 	testLedger.InitLogging()
 	testExecutor.Proceed()
 	assert.NotNil(t, calledParams)
 	assert.Equal(t, testLedger.AuthFile, calledParams.AuthFile)
 	assert.Equal(t, expectedName, calledParams.Workspace.Name)
 	assert.True(t, calledParams.Workspace.RcEnabled)
-	assert.Equal(t, broker.WorkspaceVisibilityOrg, calledParams.Workspace.Visibility)
+	assert.Equal(t, broker.VisibilityOrg, calledParams.Workspace.Visibility)
 
 	if workspace, ok := testPrinter.printOut.(*broker.Workspace); ok {
 		assert.Equal(t, expectedId, workspace.Id)
@@ -219,14 +219,14 @@ func TestNewCreate(t *testing.T) {
 	var expectedName = "name"
 
 	testViper.Set(testOptions.optionDescription.Key, expectedDescription)
-	testViper.Set(testOptions.optionVisibility.Key, broker.WorkspaceVisibilityOrg)
+	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityOrg)
 	testCmd.Run(testCmd, []string{expectedName})
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(`name:[\s\t]*`+expectedName), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionDescription.Param+`:[\s\t]*`+expectedDescription), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionRcEnabled.Param+`:[\s\t]*false`), actual)
 	assert.Regexp(t, regexp.MustCompile(testOptions.optionJsonPrinter.Param+`:[\s\t]*false`), actual)
-	assert.Regexp(t, regexp.MustCompile(testOptions.optionVisibility.Param+`:[\s\t]*`+broker.WorkspaceVisibilityOrg), actual)
+	assert.Regexp(t, regexp.MustCompile(testOptions.optionVisibility.Param+`:[\s\t]*`+broker.VisibilityOrg), actual)
 }
 
 func newWorkspaceCreateTaskCompleteCapture(capture *broker.WorkspaceCreateParams, expected *broker.Workspace) func() *task.Task[broker.WorkspaceCreateParams] {

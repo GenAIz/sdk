@@ -10,7 +10,6 @@ Feature: update data source secret to locker
     Given the following parameters
       | configFile                       | handle       | oem             | version |
       | $HOME/.config/genaiz/Genaiz.yaml | locker-src-2 | com.genaiz.test | 1.0.0   |
-    And the user genaiz config folder is under <path>
     When I run the command "dk create <oem>/<handle>"
     Then I should have a datalink under "<configFile>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
 
@@ -60,9 +59,10 @@ Feature: update data source secret to locker
     Given the scenario "publish data link" ran with condition "service_completed_successfully"
     And the scenario "init data source locker" ran with condition "service_completed_successfully"
     And the following parameters
-      | path         | handle      | dataLinkFqdn                 | dataLinkVersion | mtime |
-      | myLocker.bin | myLockerSrc | com.genaiz.test/locker-src-2 | 1.0.0           |       |
+      | path         | password | handle      | dataLinkFqdn                 | dataLinkVersion | mtime |
+      | myLocker.bin | SIzlR0a$ | myLockerSrc | com.genaiz.test/locker-src-2 | 1.0.0           |       |
     And the modification time of "<path>" known as parameter "mtime"
+    And the environment contains "GENAIZ_LK_PASSWORD=<password>"
     When I run the command "lk src add <handle> <dataLinkFqdn>:<dataLinkVersion> --locker=<path>"
     Then I should have a locker file under "<path>" with a modification time different than "<mtime>"
 

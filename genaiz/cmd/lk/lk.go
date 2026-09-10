@@ -2,11 +2,14 @@ package lk
 
 import (
 	"context"
+	"os"
 
+	"github.com/awnumar/memguard"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+	"genaiz.com/genaiz/task/locker"
 )
 
 const (
@@ -18,6 +21,20 @@ type BaseExecutor struct {
 	Cli     *Cli
 	Context context.Context
 	Ledger  *config.Ledger
+}
+
+func (be BaseExecutor) newSourceBaseParams(optionLocker *config.StringOption) *locker.BaseParams {
+	var baseParams = &locker.BaseParams{
+		LockerPath: be.Ledger.GetString(optionLocker),
+	}
+
+	if envPwd := os.Getenv(passphraseEnvKey); envPwd != "" {
+		baseParams.Passphrase = memguard.NewEnclave([]byte(envPwd))
+	} else if pwdEnclave := be.Ledger.QuerySecret(passphrasePrompt); pwdEnclave != nil {
+		baseParams.Passphrase = pwdEnclave
+	}
+
+	return baseParams
 }
 
 type Cli struct {

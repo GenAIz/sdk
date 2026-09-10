@@ -593,6 +593,27 @@ var (
 					WithValidator(config.Validation.RequiredName)
 			},
 		},
+		Sources: sourceOptions{
+			Description: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("description").
+					WithUsage("description of the data source").
+					WithValidator(config.Validation.Blob)
+			},
+			Name: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithUsage("name of the data source").
+					WithValidator(config.Validation.RequiredName)
+			},
+			Visibility: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("visibility").
+					WithUsage("who can use the data source, private data sources can only be viewed by their owners").
+					WithUsage("supported values are PRIVATE and ORGANIZATION").
+					WithValidator(config.AnyOfEnumerated(broker.Visibilities))
+			},
+		},
 		Workflows: workflowOptions{
 			mgmtOptions: mgmtOptions{
 				Account: func() OptionBuilder {
@@ -735,8 +756,8 @@ var (
 				return NewOptionBuilder().
 					WithParam("visibility").
 					WithUsage("who can use the workspace, private workspaces can only be viewed by their owners").
-					WithUsage("supported values are PRIVATE and ORG").
-					WithValidator(config.AnyOfEnumerated(broker.WorkspaceVisibilities))
+					WithUsage("supported values are PRIVATE and ORGANIZATION").
+					WithValidator(config.AnyOfEnumerated(broker.Visibilities))
 			},
 		},
 	}
@@ -762,6 +783,7 @@ type cliOptions struct {
 	Proxies    proxyOptions
 	PropSpecs  propSpecsOptions
 	Solutions  solutionOptions
+	Sources    sourceOptions
 	Workflows  workflowOptions
 	Workspaces workspaceOptions
 }
@@ -888,6 +910,12 @@ type solutionOptions struct {
 	WorkflowDesc    func() OptionBuilder
 	WorkflowHandle  func() OptionBuilder
 	WorkflowName    func() OptionBuilder
+}
+
+type sourceOptions struct {
+	Description func() OptionBuilder
+	Name        func() OptionBuilder
+	Visibility  func() OptionBuilder
 }
 
 type workflowOptions struct {

@@ -1,7 +1,7 @@
 # Locker Command Specs
 
 Locker is used as a command initiator for all commands use to manipulate data lockers. A data locker is a binary
-encrypted file containing [data source and store](../data/index.md) definitions. Locker files should always be treated
+encrypted file containing data source and store definitions. Locker files should always be treated
 as black boxes. No properties from a locker file, secret or not, should ever be printed using the CLI.
 
 Not all locker file interactions require usage of an account. All definitions, however are tied to
@@ -13,6 +13,7 @@ require a valid [datalink](../datalink/index.md) from a session established befo
     * [Data Source Addition](#data-source-addition)
     * [Data Source Update](#data-source-update)
     * [Data Source Update for a Secret](#data-source-update-for-a-secret)
+    * [Data Source Publish](#data-source-publish)
 * [Test Cases](#test-cases)
 * [Commands](#commands)
 * [Validation](#validation)
@@ -70,7 +71,7 @@ flowchart LR
 The data source update activity is the localized update of an existing data source under an existing locker file. The
 activity does not require a request to any [Account](../account/index.md), but still requires to know under which
 account to look for a data source handle. The data sources already enshrined inside a locker are considered valid until
-the [Data Source Creation](../data/index.md#data-source-creation) activity is invoked.
+the [Data Source Publish](#data-source-publish) activity is invoked.
 
 ```mermaid
 ---
@@ -87,7 +88,7 @@ flowchart LR
 
 The data source update activity above can not be used to update secret properties from text-based sources like the
 command line. Secrets must live unencrypted for the shortest amount of time possible when an update or when
-a [Create Data Source](../data/index.md#data-source-creation) activity is performed. Secrets can only be read through
+a [Data Source Publish](#data-source-publish) activity is performed. Secrets can only be read through
 STDIN when the update command is invoked.
 
 The recommended activity for updating a secret is as follows:
@@ -104,10 +105,38 @@ flowchart LR
     gpgDecrypt --> updateDataSourceSecret([update<br>data source secret])
 ```
 
+### Data Source Publish
+
+Data source publishing is the final activity involving working with data sources with the objective of using the data
+source with a user [workspace](../workspace/index.md). The activity implies that a data source which already exists can
+be updated to new property values.
+
+The user can perform any amount of updates with [data source update](#data-source-update)
+or [data source secret update](#data-source-update-for-a-secret). When the publishing is invoked, the command will
+determine if an update or a creation is necessary for it to complete the activity.
+
+```mermaid
+---
+title: Data Source Publish
+---
+flowchart LR
+    user>user] --> login([account<br>login])
+    user --> lkInit([init locker])
+    login --> lsDataLink([list<br>datalinks])
+    lkInit --> addDataSource([add<br>data source])
+    lsDataLink --> addDataSource([add<br>data source])
+    addDataSource --> updateProperties([update<br>properties])
+    updateProperties --> updateProperties
+    updateProperties --> publishDataSource([publish<br>data sources])
+    publishDataSource --> createDataSource([create<br>data source])
+    publishDataSource --> updateDataSource([update<br>data source])
+```
+
 ## Test Cases
 
 * [Add data source to locker](../../features/locker/add_data_source_to_locker.feature)
 * [Initialize locker](../../features/locker/init_locker.feature)
+* [Publish data source to account](../../features/locker/publish_data_source_to_account.feature)
 * [Update data source secret](../../features/locker/update_data_source_secret.feature)
 
 ## Commands

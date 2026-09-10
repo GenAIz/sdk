@@ -150,7 +150,7 @@ func NewCreateOptions() *CreateOptions {
 			BuildBoolOption(),
 		optionVisibility: cli.Options.Workspaces.Visibility().
 			WithKeys(&schema.Genaiz.Workspace.Create.Visibility).
-			WithDefaultValue(broker.WorkspaceVisibilityPrivate).
+			WithDefaultValue(broker.VisibilityPrivate).
 			BuildStringOption(),
 	}
 }

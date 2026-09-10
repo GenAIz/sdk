@@ -903,6 +903,37 @@ func Test_OptionsSolutionsWorkflowName(t *testing.T) {
 	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
 }
 
+func Test_OptionsSourcesDescription(t *testing.T) {
+	var testOption = Options.Sources.Description().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.Empty(t, testOption.DefaultValue)
+	assert.NotNil(t, testOption.Validator)
+}
+
+func Test_OptionsSourcesName(t *testing.T) {
+	var testOption = Options.Sources.Name().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.Empty(t, testOption.DefaultValue)
+	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
+}
+
+func Test_OptionsSourcesVisibility(t *testing.T) {
+	var testOption = Options.Sources.Visibility().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, testOption.Validator("notValid"))
+	assert.True(t, testOption.Validator(broker.VisibilityOrg))
+	assert.True(t, testOption.Validator(broker.VisibilityPrivate))
+}
+
 func Test_OptionsWorkflowAccount(t *testing.T) {
 	var testOption = Options.Workflows.Account().BuildStringOption()
 
@@ -1059,7 +1090,7 @@ func Test_OptionsWorkspacesDescription(t *testing.T) {
 	assert.NotEmpty(t, testOption.Validator)
 }
 
-func Test_OptionWorkspacesFlowDescription(t *testing.T) {
+func Test_OptionsWorkspacesFlowDescription(t *testing.T) {
 	var testOption = Options.Workspaces.FlowDescription().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
@@ -1068,7 +1099,7 @@ func Test_OptionWorkspacesFlowDescription(t *testing.T) {
 	assert.True(t, testOption.Validator("description"))
 }
 
-func Test_OptionWorkspacesFlowName(t *testing.T) {
+func Test_OptionsWorkspacesFlowName(t *testing.T) {
 	var testOption = Options.Workspaces.FlowName().BuildStringOption()
 
 	assert.Empty(t, testOption.Key)
@@ -1111,8 +1142,8 @@ func Test_OptionsWorkspacesVisibility(t *testing.T) {
 	assert.Empty(t, testOption.Key)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Usage)
-	assert.True(t, testOption.Validator(broker.WorkspaceVisibilityOrg))
-	assert.True(t, testOption.Validator(broker.WorkspaceVisibilityPrivate))
+	assert.True(t, testOption.Validator(broker.VisibilityOrg))
+	assert.True(t, testOption.Validator(broker.VisibilityPrivate))
 	assert.False(t, testOption.Validator("InvalidVisibility"))
 }
 

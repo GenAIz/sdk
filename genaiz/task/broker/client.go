@@ -33,6 +33,7 @@ const (
 
 	apiVersion1       version = "v1"
 	pathDataLink      path    = "datalink"
+	pathDataSource    path    = "datasource"
 	pathFunction      path    = "sf"
 	pathOemSolution   path    = "oem/solution"
 	pathOidcDevice    path    = "oidc/device"
@@ -81,6 +82,10 @@ type path string
 type version string
 
 type Client interface {
+	CreateDataSource(*DataLinkInstance, map[string]string) (*DataLinkInstance, error)
+
+	CreateDataSourceUrl() string
+
 	CreateWorkspace(*Workspace) (*Workspace, error)
 
 	CreateWorkspaceUrl() string
@@ -118,6 +123,10 @@ type Client interface {
 	ListDataLinks(string, string, int) ([]DataLink, error)
 
 	ListDataLinksUrl() string
+
+	ListDataSources() ([]DataLinkInstance, error)
+
+	ListDataSourcesUrl() string
 
 	ListSolutions(string) ([]Solution, error)
 
@@ -173,6 +182,10 @@ type Client interface {
 
 	SessionValid(*Session) bool
 
+	UpdateDataSource(*DataLinkInstance, map[string]string) (*DataLinkInstance, error)
+
+	UpdateDataSourceUrl() string
+
 	WithAccount(*AuthAccount) (Client, error)
 }
 
@@ -189,6 +202,49 @@ type clientPayload[P any] struct {
 	Code   int
 	Data   P
 	Status string
+}
+
+type dataSourceSlice struct {
+	DataSource DataLinkInstance `json:"dataSource"`
+	DataLink   DataLink         `json:"dataLink"`
+}
+
+type dataSourceSlices struct {
+	DataSources []DataLinkInstance `json:"dataSources"`
+	DataLinks   []DataLink
+}
+
+func (dss dataSourceSlices) graph() []DataLinkInstance {
+	var result []DataLinkInstance
+	var idToLink = mapz.MappedInt64(dss.DataLinks, func(link DataLink) int64 {
+		if link.Id == nil {
+			return -1
+		}
+
+		return *link.Id
+	})
+
+	for _, instance := range dss.DataSources {
+		if instance.DataLinkId != nil {
+			if dl, ok := idToLink[*instance.DataLinkId]; ok {
+				result = append(result, DataLinkInstance{
+					Id:               instance.Id,
+					Name:             instance.Name,
+					Description:      instance.Description,
+					Active:           instance.Active,
+					Visibility:       instance.Visibility,
+					Flags:            instance.Flags,
+					DataLinkId:       instance.DataLinkId,
+					dataLinkOem:      dl.Oem,
+					dataLinkHandle:   dl.Handle,
+					dataLinkVersion:  dl.Version,
+					dataLinkSequence: dl.Seq,
+				})
+			}
+		}
+	}
+
+	return result
 }
 
 type oauthResponse struct {
@@ -391,6 +447,50 @@ func (wns workspaceNodeSlices) graph() []WorkspaceNode {
 
 	//TODO: if the call ever returns SmartFunctions and Workflows
 	return wns.WorkspaceFlowNodes
+}
+
+func (c *client) CreateDataSource(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathDataSource, "create"); err == nil {
+			var propString, _ = json.Marshal(props)
+			var rb = c.requestBridge()
+			var resp responseBridge
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[dataSourceSlice]{}).
+				FormData(map[string]string{
+					"name":        instance.Name,
+					"description": instance.Description,
+					"dataLinkId":  cast.ToString(instance.DataLinkId),
+					"visibility":  strings.ToUpper(instance.Visibility),
+					"active":      cast.ToString(true),
+					"props":       string(propString),
+				}).
+				Post(url)
+
+			if err == nil {
+				return resultOrError(resp, func(body any) *DataLinkInstance {
+					var payload = resp.Result().(*clientPayload[dataSourceSlice])
+
+					// No need to graph(), here, but if ever needed see dataSourcesSlices
+					return &payload.Data.DataSource
+				})
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) CreateDataSourceUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "create")
 }
 
 func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
@@ -738,6 +838,44 @@ func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error
 
 func (c *client) ListDataLinksUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "list")
+}
+
+func (c *client) ListDataSources() ([]DataLinkInstance, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathDataSource, "list"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *[]DataLinkInstance
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[*dataSourceSlices]{}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *[]DataLinkInstance {
+					var payload = resp.Result().(*clientPayload[*dataSourceSlices])
+					var sources = payload.Data.graph()
+
+					return &sources
+				}); err == nil {
+					return *result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) ListDataSourcesUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "list")
 }
 
 func (c *client) ListSolutions(oem string) ([]Solution, error) {
@@ -1309,6 +1447,50 @@ func (c *client) SessionUrl() string {
 
 func (c *client) SessionValid(session *Session) bool {
 	return session.Id > 0 && session.UserId == c.UserId
+}
+
+func (c *client) UpdateDataSource(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathDataSource, "update"); err == nil {
+			var propString, _ = json.Marshal(props)
+			var rb = c.requestBridge()
+			var resp responseBridge
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[dataSourceSlice]{}).
+				FormData(map[string]string{
+					"id":          cast.ToString(instance.Id),
+					"name":        instance.Name,
+					"description": instance.Description,
+					"dataLinkId":  cast.ToString(instance.DataLinkId),
+					"visibility":  strings.ToUpper(instance.Visibility),
+					"active":      cast.ToString(true),
+					"props":       string(propString),
+				}).
+				Post(url)
+
+			if err == nil {
+				return resultOrError(resp, func(body any) *DataLinkInstance {
+					var payload = resp.Result().(*clientPayload[dataSourceSlice])
+
+					return &payload.Data.DataSource
+				})
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) UpdateDataSourceUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "create")
 }
 
 func (c *client) WithAccount(account *AuthAccount) (Client, error) {

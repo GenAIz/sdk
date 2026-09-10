@@ -1,7 +1,8 @@
 # Locker Source
 
 The source sub-command of `locker` is used to add and update data source properties to a locker file. The properties are
-used subsequently from commands such as [data source create]().
+used subsequently from the [publish](#source-publish) command or from [run](../function/run.md),
+[start](../function/start.md) and [test](../function/test.md).
 
 If the `locker source` commands can not find a locker file to manipulate, they return an error:
 `Error: no accessible locker found, run init first?`
@@ -102,6 +103,68 @@ Secret keys can only be updated through STDIN.
   should be reported to the user: `Property key [...] set to the empty string`
 * if the value specified does not evaluate to the same type as the Prop Spec, the command will return an error:
   `Error: property value type for key [...] is invalid`
+
+### locker
+
+When the user wishes to use a different locker file, this option expects a valid, readable path.
+
+* if the value points to a locker that can not be read, the command will return an error:
+  `Error: locker [...] can not be read`
+
+## source publish
+
+```
+genaiz lk source publish HANDLE \
+  --name=NAME --description=DESCRIPTION --visibility=[PRIVATE|ORG]
+  --account=[[<user>@]host]
+  --locker=LOCKER_PATH
+```
+
+The publish command will create a data source with [name](#name) set to [HANDLE](#handle-2) if it isn't provided. The
+data source will be created on the specified [account](#account-1) or the currently active account.
+
+Publish will ask for a passphrase to open the specified [locker](#locker-2), if the passphrase can not be used to
+decrypt the locker, the command returns an error: `Error: the passphrase failed decryption`
+
+Publish does not necessarily error out if a data source with the same name already exists. It will check if the datalink
+coordinates are the same, before deciding if there is a conflict. it should also be able to update the data link id on
+the source, if the version has a newer release candidate.
+
+### HANDLE
+
+* if the value provided does not correspond to an existing data source in the specified [locker](#locker-2), the command
+  returns and error: `Error: the data source [...] is unknown`
+* if the handle or the name already exists for the user creating it, but with a different data link, the command will
+  fail with an error: `Error: incompatible datalinks found for data source [...], locker [...] has [...]`
+
+### name
+
+* if the value of name is not specified, the handle string will be used instead.
+* if name does not match a valid name string, (see [name validity](../index.md#name)), the command will return an error
+  with the field and the shortened value: `value [...] for option [locker.datasource.publish.name] is invalid`
+
+### description
+
+* if description does not match a valid description, (see [description validity](../index.md#description)), the command
+  will return an error with the field and the shortened value:
+  `value [...] for option [locker.datasource.publish.description] is invalid`
+
+### visibility
+
+Visibility affects which users can access and manage the Workspace. A `PRIVATE` workspace can only be managed by its
+owner, while an `ORGANIZATION` workspace should be visible to users of the same organization as the owner.
+
+* by default, all workspace creation with the create command are flagged as `PRIVATE`
+* if the value of visibility is not `PRIVATE` or `ORGANIZATION`, case-insensitive, the command will return an error:
+  `Error: value [...] for option [workspace.create.visibility] is invalid`
+
+### account
+
+The account under which to create the workspace.
+
+* if the value of the account does not evaluate to a Host address, the command returns an error:
+  `Error: could not elect a session`
+* account values will auto-complete if the shell completion script is sourced.
 
 ### locker
 

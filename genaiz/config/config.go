@@ -25,6 +25,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
+	"genaiz.com/genaiz-lib/lang/stdz"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
@@ -61,9 +62,6 @@ type Registrar interface {
 // PipeHandler summarizes io.ReadAll so it can be used when STDIN is connected to a pipe, but abstracted whenever it is not
 type PipeHandler func(io.Reader) ([]byte, error)
 
-// SecretHandler summarizes term.ReadPassword so secrets can retrieved from other entry points when needed
-type SecretHandler func() ([]byte, error)
-
 // Ledger defines a Mediator which pilots a series of cobra.Command(s), mediating configuration retrieval, work directory and logging services
 type Ledger struct {
 	AuthFile      string                       // AuthFile, set to the current authentification file to query broker accounts
@@ -82,7 +80,7 @@ type Ledger struct {
 	loggers           []func(*logrus.Logger) // loggers is a list of delayed logging instructions for the Ledger to call OnLogging
 	output            io.Writer              // os.Stdout by default, swapped to other writers when testing
 	originalDir       string                 // originalDir is set to the dir the genaiz command was launched from
-	secretHandler     SecretHandler          // secretHandler is used to retrieve secrets from TTY or STDIN or any other source
+	secretHandler     stdz.SecretHandler     // secretHandler is used to retrieve secrets from TTY or STDIN or any other source
 	validationHandler func(interface{})      // validationHandler is invoked when an option is not valid
 	viper             *viper.Viper           // viper internal reference
 	workspace         *StringOption          // workspace refers to an owning classification which may enter naming conventions by default
@@ -596,7 +594,7 @@ type Builder struct {
 	Viper         func() *viper.Viper
 	Input         func() io.Reader
 	Output        func() io.Writer
-	SecretHandler SecretHandler
+	SecretHandler stdz.SecretHandler
 	TemplatePaths []string
 	UserPath      string
 	WorkDir       string
@@ -652,7 +650,7 @@ func (b *Builder) WithTemplates(paths ...string) *Builder {
 }
 
 // WithSecretHandler will build the Ledger with the SecretHandler provided
-func (b *Builder) WithSecretHandler(handler SecretHandler) *Builder {
+func (b *Builder) WithSecretHandler(handler stdz.SecretHandler) *Builder {
 	b.SecretHandler = handler
 	return b
 }
@@ -703,19 +701,6 @@ func NewBuilder() *Builder {
 		Output: func() io.Writer {
 			return os.Stdout
 		},
-		SecretHandler: ttySecretHandler,
+		SecretHandler: stdz.NewDeviceHandler("/dev/tty", term.ReadPassword),
 	}
-}
-
-func ttySecretHandler() ([]byte, error) {
-	var tty *os.File
-	var err error
-
-	if tty, err = os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
-		defer filez.CloseSilently(tty)
-
-		return term.ReadPassword(int(tty.Fd()))
-	}
-
-	return nil, err
 }

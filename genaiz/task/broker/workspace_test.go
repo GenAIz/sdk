@@ -180,7 +180,7 @@ func Test_handleWorkspaceCreateContext(t *testing.T) {
 		Workspace: &Workspace{
 			Name:       "expectedName",
 			RcEnabled:  true,
-			Visibility: WorkspaceVisibilityOrg,
+			Visibility: VisibilityOrg,
 		},
 	}
 
@@ -201,7 +201,7 @@ func Test_handleWorkspaceCreateContext_EmptyName(t *testing.T) {
 	var testParams = &WorkspaceCreateParams{
 		Workspace: &Workspace{
 			RcEnabled:  true,
-			Visibility: WorkspaceVisibilityPrivate,
+			Visibility: VisibilityPrivate,
 		},
 	}
 
@@ -234,7 +234,7 @@ func Test_handleWorkspaceCreateContext_RcDisabled(t *testing.T) {
 		Workspace: &Workspace{
 			Name:       "expectedName",
 			RcEnabled:  false,
-			Visibility: WorkspaceVisibilityPrivate,
+			Visibility: VisibilityPrivate,
 		},
 	}
 
@@ -336,7 +336,7 @@ func Test_handleWorkspaceCreatePretend(t *testing.T) {
 		Workspace: &Workspace{
 			Name:        "expectedName",
 			Description: "expectedDesc",
-			Visibility:  WorkspaceVisibilityPrivate,
+			Visibility:  VisibilityPrivate,
 		},
 	}
 	var restoredFactory = clientFactory.Get

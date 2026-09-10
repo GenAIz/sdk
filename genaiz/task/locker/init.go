@@ -107,14 +107,21 @@ func handleLockerInitComplete(params *InitParams, state *task.State) error {
 
 		state.Logger.Debugf("Writing locker file [%s]", state.Output)
 
-		if err = lockerState.Write(state.Output, params.Passphrase); err == nil {
-			if params.Update {
-				state.Reportf("Updated locker file %s", params.LockerPath)
-			} else {
-				state.Reportf("Initialized locker file %s", params.LockerPath)
-			}
+		if params.Update {
+			state.Logger.Debugf("Updating locker properties")
+			err = lockerState.Update(params.OldPassphrase, params.Passphrase)
+		}
 
-			return nil
+		if err == nil {
+			if err = lockerState.Write(state.Output, params.Passphrase); err == nil {
+				if params.Update {
+					state.Reportf("Updated locker file %s", params.LockerPath)
+				} else {
+					state.Reportf("Initialized locker file %s", params.LockerPath)
+				}
+
+				return nil
+			}
 		}
 
 		return err

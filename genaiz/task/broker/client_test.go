@@ -194,6 +194,86 @@ func TestWorkspaceFlowsSlices_graph_OrphanedWorkflow(t *testing.T) {
 	assert.Panics(t, func() { testSlices.graph() })
 }
 
+func TestClient_CreateDataSource(t *testing.T) {
+	var expectedToken = "token"
+	var expectedDataLinkId = new(int64(37))
+	var expectedDataLink = &DataLink{Id: expectedDataLinkId}
+	var expectedInstance = &DataLinkInstance{
+		Name:       "name",
+		DataLinkId: expectedDataLinkId,
+	}
+	var expectedProps = map[string]string{
+		"key": "value",
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[dataSourceSlice]{
+				Data: dataSourceSlice{
+					DataSource: *expectedInstance,
+					DataLink:   *expectedDataLink,
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateDataSource(expectedInstance, expectedProps)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedInstance, actual)
+}
+
+func TestClient_CreateDataSource_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.CreateDataSource(&DataLinkInstance{}, map[string]string{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_CreateDataSource_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateDataSource(&DataLinkInstance{}, map[string]string{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_CreateDataSource_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.CreateDataSource(&DataLinkInstance{}, map[string]string{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_CreateDataSource_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateDataSource(&DataLinkInstance{}, map[string]string{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_CreateDataSourceUrl(t *testing.T) {
+	var expectedHost = "host"
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.CreateDataSourceUrl(), expectedHost)
+}
+
 func TestClient_CreateWorkspace(t *testing.T) {
 	var expectedToken = "token"
 	var expectedWorkspace = &Workspace{Name: "name"}
@@ -818,6 +898,99 @@ func TestClient_ListDataLinksUrl(t *testing.T) {
 	var testClient = &client{HostAddr: expectedHost}
 
 	assert.Contains(t, testClient.ListDataLinksUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
+}
+
+func TestClient_ListDataSources(t *testing.T) {
+	var expectedToken = "token"
+	var expectedDataLink = &DataLink{
+		Id:      new(int64(37)),
+		Oem:     "oem",
+		Handle:  "handle",
+		Version: "version",
+	}
+	var expectedDataSource = &DataLinkInstance{
+		Id:         new(int64(42)),
+		Name:       "name",
+		DataLinkId: expectedDataLink.Id,
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[*dataSourceSlices]{
+				Data: &dataSourceSlices{
+					DataSources: []DataLinkInstance{
+						{
+							Name:       "notThere",
+							DataLinkId: new(int64(73)),
+						},
+						*expectedDataSource,
+					},
+					DataLinks: []DataLink{
+						{
+							Name: "invalid",
+						},
+						*expectedDataLink,
+					},
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListDataSources()
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(actual))
+}
+
+func TestClient_ListDataSources_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.ListDataSources()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_ListDataSources_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListDataSources()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_ListDataSources_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.ListDataSources()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_ListDataSources_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListDataSources()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_ListDataSourceUrl(t *testing.T) {
+	var expectedHost = "host"
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.ListDataSourcesUrl(), expectedHost)
 }
 
 func TestClient_ListSolutions(t *testing.T) {
@@ -1898,6 +2071,86 @@ func TestClient_SessionUrl(t *testing.T) {
 	var testClient = &client{HostAddr: expectedHost}
 
 	assert.Contains(t, testClient.SessionUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
+}
+
+func TestClient_UpdateDataSource(t *testing.T) {
+	var expectedToken = "token"
+	var expectedDataLinkId = new(int64(37))
+	var expectedDataLink = &DataLink{Id: expectedDataLinkId}
+	var expectedInstance = &DataLinkInstance{
+		Name:       "name",
+		DataLinkId: expectedDataLinkId,
+	}
+	var expectedProps = map[string]string{
+		"key": "value",
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[dataSourceSlice]{
+				Data: dataSourceSlice{
+					DataSource: *expectedInstance,
+					DataLink:   *expectedDataLink,
+				},
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UpdateDataSource(expectedInstance, expectedProps)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedInstance, actual)
+}
+
+func TestClient_UpdateDataSource_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.UpdateDataSource(&DataLinkInstance{}, map[string]string{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_UpdateDataSource_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UpdateDataSource(&DataLinkInstance{}, map[string]string{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_UpdateDataSource_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.UpdateDataSource(&DataLinkInstance{}, map[string]string{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_UpdateDataSource_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UpdateDataSource(&DataLinkInstance{}, map[string]string{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_UpdateDataSourceUrl(t *testing.T) {
+	var expectedHost = "host"
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.UpdateDataSourceUrl(), expectedHost)
 }
 
 func TestActiveClient(t *testing.T) {

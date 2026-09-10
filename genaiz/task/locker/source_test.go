@@ -17,6 +17,36 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
+type stubSourceClient struct {
+	stubClient
+	createDataSourceError    error
+	createDataSourceInstance *broker.DataLinkInstance
+	createDataSourceProps    map[string]string
+	createDataSourceResult   *broker.DataLinkInstance
+	listDataSourceError      error
+	listDataSourceResult     []broker.DataLinkInstance
+	updateDataSourceError    error
+	updateDataSourceInstance *broker.DataLinkInstance
+	updateDataSourceProps    map[string]string
+	updateDataSourceResult   *broker.DataLinkInstance
+}
+
+func (ssc *stubSourceClient) CreateDataSource(instance *broker.DataLinkInstance, props map[string]string) (*broker.DataLinkInstance, error) {
+	ssc.createDataSourceInstance = instance
+	ssc.createDataSourceProps = props
+	return ssc.createDataSourceResult, ssc.createDataSourceError
+}
+
+func (ssc *stubSourceClient) ListDataSources() ([]broker.DataLinkInstance, error) {
+	return ssc.listDataSourceResult, ssc.listDataSourceError
+}
+
+func (ssc *stubSourceClient) UpdateDataSource(instance *broker.DataLinkInstance, props map[string]string) (*broker.DataLinkInstance, error) {
+	ssc.updateDataSourceInstance = instance
+	ssc.updateDataSourceProps = props
+	return ssc.updateDataSourceResult, ssc.updateDataSourceError
+}
+
 func TestNewSourceAddTask(t *testing.T) {
 	var testTask = NewSourceAddTask()
 
@@ -34,6 +64,25 @@ func TestNewSourceFindTask(t *testing.T) {
 	assert.NotNil(t, testTask.OnPrepare)
 	assert.NotNil(t, testTask.OnComplete)
 	assert.NotNil(t, testTask.OnIncomplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestNewSourcePublishTask(t *testing.T) {
+	var testTask = NewSourcePublishTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnIncomplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestNewSourceSyncTask(t *testing.T) {
+	var testTask = NewSourceSyncTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
 	assert.NotNil(t, testTask.OnPretend)
 }
 
@@ -253,7 +302,7 @@ func Test_handleSourceAddComplete_UnfoldError(t *testing.T) {
 		var testLockerPath = filepath.Join(testDir, "locker.bin")
 		var testPassPhrase Enclave
 
-		if testPassPhrase, err = writeTestError(testLockerPath); err == nil {
+		if testPassPhrase, err = writeTestJsonError(testLockerPath); err == nil {
 			var testState = &task.State{
 				Output: "known",
 				Logger: logrus.New(),
@@ -712,6 +761,46 @@ func Test_handleSourceFindPretend(t *testing.T) {
 	assert.Fail(t, err.Error())
 }
 
+func Test_handleSourceFindPretend_ChaChaError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testLink = &lockerLink{
+			LockerHandle: "testHandle",
+		}
+		var testPassPhrase = memguard.NewEnclave([]byte("invalidPass"))
+
+		if _, err = writeTestLocker(testLockerPath, testUrl, testLink, nil); err == nil {
+			var testState = &task.State{
+				Output: "invalidDataSource",
+				Logger: logrus.New(),
+			}
+			var testParams = &SourceFindParams{
+				BaseParams: BaseParams{
+					LockerPath: testLockerPath,
+					Passphrase: testPassPhrase,
+				},
+				DataLinkParams: &broker.DataLinkParams{
+					Broker: broker.Broker{
+						AuthFile: testAuthFile,
+						HostAddr: testUrl,
+					},
+				},
+				SourceHandle: testLink.LockerHandle,
+			}
+
+			assert.ErrorIs(t, handleSourceFindPretend(testParams, testState), errorLockerPassFailed)
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
 func Test_handleSourceFindPretend_OutputError(t *testing.T) {
 	assert.ErrorIs(t, handleSourceFindPretend(&SourceFindParams{}, &task.State{}), errorLockerDataLinkInvalid)
 }
@@ -761,6 +850,1025 @@ func Test_handleSourceFindPretend_SessionError(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleSourceFindPretend(testParams, testState), broker.ErrorNoSession)
+}
+
+func Test_handleSourcePublishContext(t *testing.T) {
+	var testState = &task.State{
+		Logger:   logrus.New(),
+		Internal: broker.DataLinkInstance{},
+	}
+	var testParams = &SourcePublishParams{
+		BaseParams: BaseParams{
+			Passphrase: memguard.NewEnclave([]byte("passphrase")),
+		},
+	}
+
+	assert.ErrorIs(t, handleSourcePublishContext(testParams, testState), errorDataSourceExist)
+}
+
+func Test_handleSourcePublishContext_OutputKnown(t *testing.T) {
+	var testState = &task.State{
+		Output: "output",
+	}
+
+	assert.NoError(t, handleSourcePublishContext(&SourcePublishParams{}, testState))
+}
+
+func Test_handleSourcePublishContext_NoPassphrase(t *testing.T) {
+	assert.ErrorIs(t, handleSourcePublishContext(&SourcePublishParams{}, &task.State{}), errorLockerPassFailed)
+}
+
+func Test_handleSourcePublishContext_NoStateInternal(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &SourcePublishParams{
+		BaseParams: BaseParams{
+			Passphrase: memguard.NewEnclave([]byte("passphrase")),
+		},
+	}
+
+	assert.ErrorIs(t, handleSourcePublishContext(testParams, testState), errorDataSourceLinkUnknown)
+}
+
+func Test_handleSourcePublishContext_NoStateLinkOrSource(t *testing.T) {
+	var testState = &task.State{
+		Logger:   logrus.New(),
+		Internal: "notALinkOrSource",
+	}
+	var testParams = &SourcePublishParams{
+		BaseParams: BaseParams{
+			Passphrase: memguard.NewEnclave([]byte("passphrase")),
+		},
+	}
+
+	assert.ErrorIs(t, handleSourcePublishContext(testParams, testState), errorDataSourceLinkUnknown)
+}
+
+func Test_handleSourcePublishContext_StateDataLink(t *testing.T) {
+	var testState = &task.State{
+		Logger:   logrus.New(),
+		Internal: broker.DataLink{},
+	}
+	var testParams = &SourcePublishParams{
+		BaseParams: BaseParams{
+			Passphrase: memguard.NewEnclave([]byte("passphrase")),
+		},
+	}
+
+	assert.NoError(t, handleSourcePublishContext(testParams, testState))
+}
+
+func Test_handleSourcePublishCreate(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testLink = &lockerLink{
+			LockerHandle: "testSource",
+			LinkOem:      "testOem",
+			LinkHandle:   "testHandle",
+			LinkVersion:  "testVersion",
+		}
+		var testMappings = map[string]string{"key": "value"}
+		var testPassPhrase Enclave
+
+		if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, testLink, testMappings); err == nil {
+			var testState = &task.State{
+				Logger: logrus.New(),
+				Internal: broker.DataLink{
+					Id: new(int64(37)),
+				},
+			}
+			var testParams = &SourcePublishParams{
+				BaseParams: BaseParams{
+					LockerPath: testLockerPath,
+					Passphrase: testPassPhrase,
+				},
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+				SourceHandle: testLink.LockerHandle,
+
+				client: &stubSourceClient{
+					stubClient: stubClient{
+						decoratedClient: testClient,
+					},
+					createDataSourceResult: &broker.DataLinkInstance{
+						Id: new(int64(37)),
+					},
+				},
+			}
+
+			assert.NoError(t, handleSourcePublishCreate(testParams, testState))
+			assert.NotEmpty(t, testState.Reports)
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishCreate_CreateSourceError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testLink = &lockerLink{
+			LockerHandle: "testSource",
+			LinkOem:      "testOem",
+			LinkHandle:   "testHandle",
+			LinkVersion:  "testVersion",
+		}
+		var testMappings = map[string]string{"key": "value"}
+		var testPassPhrase Enclave
+
+		if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, testLink, testMappings); err == nil {
+			var testState = &task.State{
+				Logger: logrus.New(),
+				Internal: broker.DataLink{
+					Id: new(int64(37)),
+				},
+			}
+			var testParams = &SourcePublishParams{
+				BaseParams: BaseParams{
+					LockerPath: testLockerPath,
+					Passphrase: testPassPhrase,
+				},
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+				SourceHandle: testLink.LockerHandle,
+
+				client: &stubSourceClient{
+					stubClient: stubClient{
+						decoratedClient: testClient,
+					},
+					createDataSourceError: expectedError,
+				},
+			}
+
+			assert.ErrorIs(t, handleSourcePublishCreate(testParams, testState), expectedError)
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishCreate_GetPropError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testPassPhrase Enclave
+
+		// Will just make an UnfoldError and GetProp will fail
+		if testPassPhrase, err = writeTestJsonError(testLockerPath); err == nil {
+			var testState = &task.State{
+				Logger: logrus.New(),
+				Internal: broker.DataLink{
+					Id: new(int64(37)),
+				},
+			}
+			var testParams = &SourcePublishParams{
+				BaseParams: BaseParams{
+					LockerPath: testLockerPath,
+					Passphrase: testPassPhrase,
+				},
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+				SourceHandle: "someSource",
+			}
+
+			assert.Error(t, handleSourcePublishCreate(testParams, testState))
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishCreate_LockerReadError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Internal: broker.DataLink{
+				Id: new(int64(37)),
+			},
+		}
+		var testParams = &SourcePublishParams{
+			BaseParams: BaseParams{
+				LockerPath: filepath.Join(testDir, "locker.bin"),
+			},
+			Broker: broker.Broker{
+				AuthFile: testAuthFile,
+				HostAddr: testUrl,
+			},
+		}
+
+		assert.Error(t, handleSourcePublishCreate(testParams, testState))
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishCreate_NoStateInternal(t *testing.T) {
+	assert.ErrorIs(t, handleSourcePublishCreate(&SourcePublishParams{}, &task.State{}), errorDataSourceUnknown)
+}
+
+func Test_handleSourcePublishCreate_SessionError(t *testing.T) {
+	var testState = &task.State{
+		Internal: broker.DataLink{},
+	}
+	var testParams = &SourcePublishParams{
+		Broker: broker.Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+			HostAddr: "hostAddr",
+		},
+	}
+
+	assert.ErrorIs(t, handleSourcePublishCreate(testParams, testState), broker.ErrorNoSession)
+}
+
+func Test_handleSourcePublishUpdate(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testLink = &lockerLink{
+			LockerHandle: "testSource",
+			LinkOem:      "testOem",
+			LinkHandle:   "testHandle",
+			LinkVersion:  "testVersion",
+		}
+		var testMappings = map[string]string{"key": "value"}
+		var testPassPhrase Enclave
+
+		if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, testLink, testMappings); err == nil {
+			var testState = &task.State{
+				Logger: logrus.New(),
+				Error:  errorDataSourceExist,
+				Internal: broker.DataLinkInstance{
+					Id: new(int64(37)),
+				},
+			}
+			var testParams = &SourcePublishParams{
+				BaseParams: BaseParams{
+					LockerPath: testLockerPath,
+					Passphrase: testPassPhrase,
+				},
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+				SourceHandle: testLink.LockerHandle,
+
+				client: &stubSourceClient{
+					stubClient: stubClient{
+						decoratedClient: testClient,
+					},
+					updateDataSourceResult: &broker.DataLinkInstance{
+						Id: new(int64(37)),
+					},
+				},
+			}
+
+			assert.NoError(t, handleSourcePublishUpdate(testParams, testState), expectedError)
+			assert.NotEmpty(t, testState.Reports)
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishUpdate_GetPropsError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testLink = &lockerLink{
+			LockerHandle: "testSource",
+			LinkOem:      "testOem",
+			LinkHandle:   "testHandle",
+			LinkVersion:  "testVersion",
+		}
+		var testMappings = map[string]string{"key": "value"}
+		var testPassPhrase Enclave
+
+		if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, testLink, testMappings); err == nil {
+			var testState = &task.State{
+				Logger: logrus.New(),
+				Error:  errorDataSourceExist,
+				Internal: broker.DataLinkInstance{
+					Id: new(int64(37)),
+				},
+			}
+			var testParams = &SourcePublishParams{
+				BaseParams: BaseParams{
+					LockerPath: testLockerPath,
+					Passphrase: testPassPhrase,
+				},
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+				SourceHandle: "someSource",
+			}
+
+			assert.Error(t, handleSourcePublishUpdate(testParams, testState))
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishUpdate_LockerReadError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Error:  errorDataSourceExist,
+			Internal: broker.DataLinkInstance{
+				Id: new(int64(37)),
+			},
+		}
+		var testParams = &SourcePublishParams{
+			BaseParams: BaseParams{
+				LockerPath: filepath.Join(testDir, "locker.bin"),
+			},
+			Broker: broker.Broker{
+				AuthFile: testAuthFile,
+				HostAddr: testUrl,
+			},
+		}
+
+		assert.Error(t, handleSourcePublishUpdate(testParams, testState))
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishUpdate_SessionError(t *testing.T) {
+	var testState = &task.State{
+		Error:    errorDataSourceExist,
+		Internal: broker.DataLinkInstance{},
+	}
+	var testParams = &SourcePublishParams{
+		Broker: broker.Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+			HostAddr: "hostAddr",
+		},
+	}
+
+	assert.ErrorIs(t, handleSourcePublishUpdate(testParams, testState), broker.ErrorNoSession)
+}
+
+func Test_handleSourcePublishUpdate_SourceUnknown(t *testing.T) {
+	var testState = &task.State{
+		Error: errorDataSourceExist,
+	}
+
+	assert.ErrorIs(t, handleSourcePublishUpdate(&SourcePublishParams{}, testState), errorDataSourceUnknown)
+}
+
+func Test_handleSourcePublishUpdate_StateError(t *testing.T) {
+	var testError = errors.New("expected")
+	var testState = &task.State{
+		Error: testError,
+	}
+
+	assert.ErrorIs(t, handleSourcePublishUpdate(&SourcePublishParams{}, testState), testError)
+}
+
+func Test_handleSourcePublishUpdate_UpdateSourceError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testLink = &lockerLink{
+			LockerHandle: "testSource",
+			LinkOem:      "testOem",
+			LinkHandle:   "testHandle",
+			LinkVersion:  "testVersion",
+		}
+		var testMappings = map[string]string{"key": "value"}
+		var testPassPhrase Enclave
+
+		if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, testLink, testMappings); err == nil {
+			var testState = &task.State{
+				Logger: logrus.New(),
+				Error:  errorDataSourceExist,
+				Internal: broker.DataLinkInstance{
+					Id: new(int64(37)),
+				},
+			}
+			var testParams = &SourcePublishParams{
+				BaseParams: BaseParams{
+					LockerPath: testLockerPath,
+					Passphrase: testPassPhrase,
+				},
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+				SourceHandle: testLink.LockerHandle,
+
+				client: &stubSourceClient{
+					stubClient: stubClient{
+						decoratedClient: testClient,
+					},
+					updateDataSourceError: expectedError,
+				},
+			}
+
+			assert.ErrorIs(t, handleSourcePublishUpdate(testParams, testState), expectedError)
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishPretend(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testLink = &lockerLink{
+			LockerHandle: "testSource",
+			LinkOem:      "testOem",
+			LinkHandle:   "testHandle",
+			LinkVersion:  "testVersion",
+		}
+		var testMappings = map[string]string{"key": "value"}
+		var testPassPhrase Enclave
+
+		if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, testLink, testMappings); err == nil {
+			var testState = &task.State{
+				Logger: logrus.New(),
+				Error:  errorDataSourceExist,
+				Internal: broker.DataLinkInstance{
+					Id:         new(int64(37)),
+					DataLinkId: new(int64(42)),
+				},
+			}
+			var testParams = &SourcePublishParams{
+				BaseParams: BaseParams{
+					LockerPath: testLockerPath,
+					Passphrase: testPassPhrase,
+				},
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+				SourceHandle: testLink.LockerHandle,
+
+				client: &stubSourceClient{
+					stubClient: stubClient{
+						decoratedClient: testClient,
+					},
+					createDataSourceResult: &broker.DataLinkInstance{
+						Id: new(int64(37)),
+					},
+				},
+			}
+
+			assert.NoError(t, handleSourcePublishPretend(testParams, testState))
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishPretend_NoStateError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testLink = &lockerLink{
+			LockerHandle: "testSource",
+			LinkOem:      "testOem",
+			LinkHandle:   "testHandle",
+			LinkVersion:  "testVersion",
+		}
+		var testMappings = map[string]string{"key": "value"}
+		var testPassPhrase Enclave
+
+		if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, testLink, testMappings); err == nil {
+			var testState = &task.State{
+				Logger: logrus.New(),
+				Internal: broker.DataLink{
+					Id: new(int64(37)),
+				},
+			}
+			var testParams = &SourcePublishParams{
+				BaseParams: BaseParams{
+					LockerPath: testLockerPath,
+					Passphrase: testPassPhrase,
+				},
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+				SourceHandle: testLink.LockerHandle,
+
+				client: &stubSourceClient{
+					stubClient: stubClient{
+						decoratedClient: testClient,
+					},
+					createDataSourceResult: &broker.DataLinkInstance{
+						Id: new(int64(37)),
+					},
+				},
+			}
+
+			assert.NoError(t, handleSourcePublishPretend(testParams, testState))
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourcePublishPretend_NoStateNoSessionError(t *testing.T) {
+	var testState = &task.State{
+		Internal: broker.DataLink{},
+	}
+	var testParams = &SourcePublishParams{
+		Broker: broker.Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+			HostAddr: "hostAddr",
+		},
+	}
+
+	assert.ErrorIs(t, handleSourcePublishPretend(testParams, testState), broker.ErrorNoSession)
+}
+
+func Test_handleSourcePublishPretend_SessionError(t *testing.T) {
+	var testState = &task.State{
+		Internal: broker.DataLinkInstance{},
+		Error:    errorDataSourceExist,
+	}
+	var testParams = &SourcePublishParams{
+		Broker: broker.Broker{
+			AuthFile: filepath.Join(t.TempDir(), ".auth"),
+			HostAddr: "hostAddr",
+		},
+	}
+
+	assert.ErrorIs(t, handleSourcePublishPretend(testParams, testState), broker.ErrorNoSession)
+}
+
+func Test_handleSourcePublishPretend_StateError(t *testing.T) {
+	var expectedErrors = errors.New("expected")
+	var testState = &task.State{
+		Error: expectedErrors,
+	}
+
+	assert.ErrorIs(t, handleSourcePublishPretend(&SourcePublishParams{}, testState), expectedErrors)
+}
+
+func Test_handleSourceSyncComplete(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var expectedOem = "oem"
+		var expectedHandle = "handle"
+		var expectedVersion = "version"
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: "output",
+		}
+		var testDataLink = &broker.DataLink{
+			Oem:     expectedOem,
+			Handle:  expectedHandle,
+			Version: expectedVersion,
+		}
+		var testParams = &SourceFindParams{
+			BaseParams: BaseParams{
+				LockerPath: filepath.Join(testDir, "locker.bin"),
+			},
+			DataLinkParams: &broker.DataLinkParams{
+				DataLink: testDataLink,
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+			},
+
+			client: &stubSourceClient{
+				stubClient: stubClient{
+					decoratedClient: testClient,
+				},
+				listDataSourceResult: []broker.DataLinkInstance{
+					*broker.NewDataLinkInstance(1, "name1", testDataLink),
+					*broker.NewDataLinkInstance(2, "name2", &broker.DataLink{
+						Oem:     "other",
+						Handle:  "other",
+						Version: "version",
+					}),
+				},
+			},
+		}
+
+		assert.NoError(t, handleSourceSyncComplete(testParams, testState))
+		assert.Equal(t, int64(1), *testState.Internal.(broker.DataLinkInstance).Id)
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourceSyncComplete_Conflict(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var expectedOem = "oem"
+		var expectedHandle = "handle"
+		var expectedVersion = "version"
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: "output",
+		}
+		var testDataLink = &broker.DataLink{
+			Oem:     expectedOem,
+			Handle:  expectedHandle,
+			Version: expectedVersion,
+		}
+		var testParams = &SourceFindParams{
+			BaseParams: BaseParams{
+				LockerPath: filepath.Join(testDir, "locker.bin"),
+			},
+			DataLinkParams: &broker.DataLinkParams{
+				DataLink: testDataLink,
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+			},
+
+			client: &stubSourceClient{
+				stubClient: stubClient{
+					decoratedClient: testClient,
+				},
+				listDataSourceResult: []broker.DataLinkInstance{
+					*broker.NewDataLinkInstance(1, "name1", testDataLink),
+					*broker.NewDataLinkInstance(2, "name2", testDataLink),
+				},
+			},
+		}
+
+		assert.ErrorIs(t, handleSourceSyncComplete(testParams, testState), errorLockerDataLinkConflict)
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourceSyncComplete_ConflictSourceName(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var expectedOem = "oem"
+		var expectedHandle = "handle"
+		var expectedVersion = "version"
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: "output",
+		}
+		var testDataLink = &broker.DataLink{
+			Oem:     expectedOem,
+			Handle:  expectedHandle,
+			Version: expectedVersion,
+		}
+		var testParams = &SourceFindParams{
+			BaseParams: BaseParams{
+				LockerPath: filepath.Join(testDir, "locker.bin"),
+			},
+			DataLinkParams: &broker.DataLinkParams{
+				DataLink: testDataLink,
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+			},
+			SourceName: "name1",
+
+			client: &stubSourceClient{
+				stubClient: stubClient{
+					decoratedClient: testClient,
+				},
+				listDataSourceResult: []broker.DataLinkInstance{
+					*broker.NewDataLinkInstance(1, "name1", testDataLink),
+					*broker.NewDataLinkInstance(2, "name1", testDataLink),
+				},
+			},
+		}
+
+		assert.ErrorIs(t, handleSourceSyncComplete(testParams, testState), errorLockerDataSourceConflict)
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourceSyncComplete_ListSourcesError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: "output",
+		}
+		var testParams = &SourceFindParams{
+			BaseParams: BaseParams{
+				LockerPath: filepath.Join(testDir, "locker.bin"),
+			},
+			DataLinkParams: &broker.DataLinkParams{
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+			},
+
+			client: &stubSourceClient{
+				stubClient: stubClient{
+					decoratedClient: testClient,
+				},
+				listDataSourceError: expectedError,
+			},
+		}
+
+		assert.ErrorIs(t, handleSourceSyncComplete(testParams, testState), expectedError)
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourceSyncComplete_NoSources(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: "output",
+		}
+		var testParams = &SourceFindParams{
+			BaseParams: BaseParams{
+				LockerPath: filepath.Join(testDir, "locker.bin"),
+			},
+			DataLinkParams: &broker.DataLinkParams{
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+			},
+
+			client: &stubSourceClient{
+				stubClient: stubClient{
+					decoratedClient: testClient,
+				},
+				listDataSourceResult: []broker.DataLinkInstance{},
+			},
+		}
+
+		assert.NoError(t, handleSourceSyncComplete(testParams, testState))
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourceSyncComplete_OutputError(t *testing.T) {
+	assert.ErrorIs(t, handleSourceSyncComplete(&SourceFindParams{}, &task.State{}), errorLockerDataLinkInvalid)
+}
+
+func Test_handleSourceSyncComplete_SessionError(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &SourceFindParams{
+		DataLinkParams: &broker.DataLinkParams{
+			Broker: broker.Broker{
+				AuthFile: filepath.Join(t.TempDir(), ".auth"),
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+
+	assert.ErrorIs(t, handleSourceSyncComplete(testParams, testState), broker.ErrorNoSession)
+}
+
+func Test_handleSourceSyncComplete_WithSourceName(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var expectedOem = "oem"
+		var expectedHandle = "handle"
+		var expectedVersion = "version"
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: "output",
+		}
+		var testDataLink = &broker.DataLink{
+			Oem:     expectedOem,
+			Handle:  expectedHandle,
+			Version: expectedVersion,
+		}
+		var testParams = &SourceFindParams{
+			BaseParams: BaseParams{
+				LockerPath: filepath.Join(testDir, "locker.bin"),
+			},
+			DataLinkParams: &broker.DataLinkParams{
+				DataLink: testDataLink,
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+			},
+			SourceName: "name1",
+
+			client: &stubSourceClient{
+				stubClient: stubClient{
+					decoratedClient: testClient,
+				},
+				listDataSourceResult: []broker.DataLinkInstance{
+					*broker.NewDataLinkInstance(1, "name1", testDataLink),
+					*broker.NewDataLinkInstance(2, "name2", testDataLink),
+				},
+			},
+		}
+
+		assert.NoError(t, handleSourceSyncComplete(testParams, testState))
+		assert.Equal(t, int64(1), *testState.Internal.(broker.DataLinkInstance).Id)
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourceSyncContext(t *testing.T) {
+	var testParams = &SourceFindParams{
+		DataLinkParams: &broker.DataLinkParams{
+			DataLink: &broker.DataLink{
+				Oem:     "oem",
+				Handle:  "handle",
+				Version: "version",
+			},
+		},
+	}
+
+	assert.NoError(t, handleSourceSyncContext(testParams, &task.State{}))
+}
+
+func Test_handleSourceSyncContext_OutputKnown(t *testing.T) {
+	var testState = &task.State{
+		Output: "output",
+	}
+
+	assert.NoError(t, handleSourceSyncContext(&SourceFindParams{}, testState))
+}
+
+func Test_handleSourceSyncContext_DataLinkInvalid(t *testing.T) {
+	assert.ErrorIs(t, handleSourceSyncContext(&SourceFindParams{}, &task.State{}), errorLockerDataLinkInvalid)
+}
+
+func Test_handleSourceSyncPretend(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testClient, _ = broker.GetClient(testAuthFile, testUrl)
+		var testState = &task.State{
+			Logger: logrus.New(),
+			Output: "output",
+		}
+		var testParams = &SourceFindParams{
+			DataLinkParams: &broker.DataLinkParams{
+				Broker: broker.Broker{
+					AuthFile: testAuthFile,
+					HostAddr: testUrl,
+				},
+			},
+			SourceHandle: "lockerHandle",
+
+			client: &stubSourceClient{
+				stubClient: stubClient{
+					decoratedClient: testClient,
+				},
+				createDataSourceResult: &broker.DataLinkInstance{
+					Id: new(int64(37)),
+				},
+			},
+		}
+
+		assert.NoError(t, handleSourceSyncPretend(testParams, testState))
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func Test_handleSourceSyncPretend_DataLinkInvalid(t *testing.T) {
+	assert.ErrorIs(t, handleSourceSyncPretend(&SourceFindParams{}, &task.State{}), errorLockerDataLinkInvalid)
+}
+
+func Test_handleSourceSyncPretend_SessionError(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &SourceFindParams{
+		DataLinkParams: &broker.DataLinkParams{
+			Broker: broker.Broker{
+				AuthFile: filepath.Join(t.TempDir(), ".auth"),
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+
+	assert.ErrorIs(t, handleSourceSyncPretend(testParams, testState), broker.ErrorNoSession)
 }
 
 func Test_handleSourceUpdateComplete(t *testing.T) {
@@ -949,6 +2057,66 @@ func Test_handleSourceUpdateComplete_SessionError(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleSourceUpdateComplete(testParams, testState), broker.ErrorNoSession)
+}
+
+/*
+This is a very nasty internal issue that should not arise: If the password to decrypt the locker file fails on
+one of the source, the error returned will be a generic decryption failure.
+
+Normally this should not happen, unless someone implemented functionality invoked in separate locker calls without
+synchronizing the source with a new passphrase.
+*/
+func Test_handleSourceUpdateComplete_SourceChaChaError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testAuthFile = filepath.Join(testDir, ".auth")
+	var testUrl = "testUrl"
+	var err error
+
+	if err = writeTestAuthSession(testAuthFile, testUrl); err == nil {
+		var testLockerPath = filepath.Join(testDir, "locker.bin")
+		var testLink = &lockerLink{
+			LockerHandle: "testHandle",
+			LinkOem:      "testOem",
+			LinkHandle:   "testHandle",
+			LinkVersion:  "testVersion",
+		}
+		var testProperties = map[string]string{
+			"aKey": "aValue",
+		}
+		var testPassPhrase Enclave
+
+		if testPassPhrase, err = writeTestChaChaError(testLockerPath, testUrl, testLink, testProperties); err == nil {
+			var testState = &task.State{
+				Output: "known",
+				Logger: logrus.New(),
+			}
+			var testParams = &SourceUpdateParams{
+				SourceFindParams: &SourceFindParams{
+					BaseParams: BaseParams{
+						LockerPath: testLockerPath,
+						Passphrase: testPassPhrase,
+					},
+					DataLinkParams: &broker.DataLinkParams{
+						Broker: broker.Broker{
+							AuthFile: testAuthFile,
+							HostAddr: testUrl,
+						},
+					},
+					SourceHandle: testLink.LockerHandle,
+				},
+				PropertyParams: PropertyParams{
+					Key:    "myKey",
+					Secret: memguard.NewEnclave([]byte("someSecret")),
+				},
+			}
+
+			assert.ErrorIs(t, handleSourceUpdateComplete(testParams, testState), errorLockerPassFailed)
+			assert.Empty(t, testState.Reports)
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
 }
 
 func Test_handleSourceUpdateComplete_SourceNotFoundError(t *testing.T) {
@@ -1270,49 +2438,25 @@ func writeTestAuthSession(authPath, testUrl string) error {
 	return authData.Push(testUrl, authSession).Write(authPath)
 }
 
-func writeTestError(lockerPath string) (Enclave, error) {
-	var fd *os.File
-	var err error
-
-	if fd, err = os.OpenFile(lockerPath, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0660); err == nil {
-		defer filez.CloseSilently(fd)
-		var header = newLockerHeader()
-		var bodyEnclave = memguard.NewEnclave([]byte("- not json ever"))
-		var passphrase = memguard.NewEnclave([]byte("test"))
-		var encrypted []byte
-
-		if encrypted, err = header.Encrypt(bodyEnclave, passphrase); err == nil {
-			if err = writeLockerData(header, fd, encrypted); err == nil {
-				return passphrase, nil
-			}
-		}
-	}
-
-	return nil, err
-}
-
-func writeTestLocker(lockerPath, testUrl string, link *lockerLink, properties map[string]string) (Enclave, error) {
+func writeTestChaChaError(lockerPath, testUrl string, link *lockerLink, properties map[string]string) (Enclave, error) {
 	var lockerState = NewSecuredLockerState(&task.State{})
 	var testPassphrase = memguard.NewEnclave([]byte("test"))
+	var unsyncPassphrase = memguard.NewEnclave([]byte("result"))
 	var err error
 
-	if testUrl != "" && link != nil {
-		if err = lockerState.addSource(testUrl, link); err == nil {
-			if len(properties) > 0 {
-				for k, v := range properties {
-					var valueEnclave = memguard.NewEnclave([]byte(v))
+	if err = lockerState.addSource(testUrl, link); err == nil {
+		for k, v := range properties {
+			var valueEnclave = memguard.NewEnclave([]byte(v))
 
-					if err = lockerState.updateSource(testUrl, link.LockerHandle, k, valueEnclave, testPassphrase); err != nil {
-						break
-					}
-				}
+			if err = lockerState.updateSource(testUrl, link.LockerHandle, k, valueEnclave, testPassphrase); err != nil {
+				break
 			}
 		}
 	}
 
 	if err == nil {
-		if err = lockerState.Write(lockerPath, testPassphrase); err == nil {
-			return testPassphrase, nil
+		if err = lockerState.Write(lockerPath, unsyncPassphrase); err == nil {
+			return unsyncPassphrase, nil
 		}
 	}
 
