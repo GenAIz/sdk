@@ -37,8 +37,8 @@ var (
 	errorLockerAccountNotFound = task.NewError("locker account not found")
 	errorLockerContentEmpty    = task.NewError("locker is empty")
 	errorLockerDataLinkFound   = task.NewError("locker data link known")
-	errorLockerDataLinkInvalid = task.NewError("locker data link invalid")
 	errorLockerSourceNotFound  = task.NewError("locker source not found")
+	errorLockerStoreNotFound   = task.NewError("locker store not found")
 )
 
 // Enclave is an adapter to memguard.Enclave
@@ -69,23 +69,6 @@ type SecuredCipher interface {
 	Encrypt(*memguard.Enclave, *memguard.Enclave) ([]byte, error)
 }
 
-type BaseParams struct {
-	LockerPath string
-	Passphrase Enclave
-}
-
-type LinkParams struct {
-	Oem     string
-	Handle  string
-	Version string
-}
-
-type PropertyParams struct {
-	Key    string
-	Value  string
-	Secret Enclave
-}
-
 type lockerAccount struct {
 	AccountUrl  string       `json:"url,omitempty"`
 	DataSources []lockerLink `json:"dataSources,omitempty"`
@@ -102,11 +85,49 @@ func (la lockerAccount) findSource(handle string) (*lockerLink, error) {
 	return nil, errorLockerSourceNotFound
 }
 
+func (la lockerAccount) findStore(handle string) (*lockerLink, error) {
+	if i := slices.IndexFunc(la.DataStores, func(link lockerLink) bool {
+		return handle == link.LockerHandle
+	}); i >= 0 {
+		return &la.DataStores[i], nil
+	}
+
+	return nil, errorLockerSourceNotFound
+}
+
 func (la lockerAccount) refreshSources(oldPassphrase, passphrase Enclave) ([]lockerLink, error) {
 	var result []lockerLink
 	var err error
 
 	for _, s := range la.DataSources {
+		var props map[string]string
+		var refreshed string
+
+		if props, err = s.decodeProperties(oldPassphrase); err != nil {
+			return nil, err
+		}
+
+		if refreshed, err = s.encodeProperties(props, passphrase); err != nil {
+			return nil, err
+		}
+
+		result = append(result, lockerLink{
+			LockerHandle: s.LockerHandle,
+			LinkOem:      s.LinkOem,
+			LinkHandle:   s.LinkHandle,
+			LinkVersion:  s.LinkVersion,
+			Properties:   refreshed,
+		})
+	}
+
+	return result, nil
+}
+
+func (la lockerAccount) refreshStores(oldPassphrase, passphrase Enclave) ([]lockerLink, error) {
+	var result []lockerLink
+	var err error
+
+	for _, s := range la.DataStores {
 		var props map[string]string
 		var refreshed string
 
@@ -145,6 +166,24 @@ func (la lockerAccount) withSource(source *lockerLink) *lockerAccount {
 		AccountUrl:  la.AccountUrl,
 		DataSources: sources,
 		DataStores:  la.DataStores,
+	}
+}
+
+func (la lockerAccount) withStore(store *lockerLink) *lockerAccount {
+	var stores []lockerLink
+
+	for _, s := range la.DataStores {
+		if s.LockerHandle == store.LockerHandle {
+			stores = append(stores, *store)
+		} else {
+			stores = append(stores, s)
+		}
+	}
+
+	return &lockerAccount{
+		AccountUrl:  la.AccountUrl,
+		DataSources: la.DataSources,
+		DataStores:  stores,
 	}
 }
 
@@ -332,7 +371,7 @@ func (ll lockerLink) withProperty(key string, value Enclave, passphrase Enclave)
 			var encoded string
 
 			defer lb.Destroy()
-			decoded[key] = lb.String()
+			decoded[strings.ToUpper(key)] = lb.String()
 
 			if encoded, err = ll.encodeProperties(decoded, passphrase); err == nil {
 				return &lockerLink{
@@ -394,6 +433,27 @@ func (slt *SecuredLockerTracking) GetSourceProps(accountUrl, handle string, pass
 	return nil, err
 }
 
+func (slt *SecuredLockerTracking) GetStoreProps(accountUrl, handle string, passphrase Enclave) (map[string]string, error) {
+	var body *lockerBody
+	var err error
+
+	if body, err = slt.unfold(); err == nil {
+		var account *lockerAccount
+
+		if account, err = body.findAccount(accountUrl); err == nil {
+			for _, store := range account.DataStores {
+				if strings.EqualFold(store.LockerHandle, handle) {
+					return store.decodeProperties(passphrase)
+				}
+			}
+
+			return nil, errorLockerStoreNotFound
+		}
+	}
+
+	return nil, err
+}
+
 func (slt *SecuredLockerTracking) IsOpened() bool {
 	return slt.current != nil
 }
@@ -415,6 +475,25 @@ func (slt *SecuredLockerTracking) LookupSource(accountUrl, handle string) (Remot
 	}
 
 	return nil, fmt.Errorf("data source [%s] for account [%s] does not exist", handle, accountUrl)
+}
+
+func (slt *SecuredLockerTracking) LookupStore(accountUrl, handle string) (RemoteLink, error) {
+	var body *lockerBody
+	var err error
+
+	if body, err = slt.unfold(); err == nil {
+		var account *lockerAccount
+
+		if account, err = body.findAccount(accountUrl); err == nil {
+			var link *lockerLink
+
+			if link, err = account.findStore(handle); err == nil {
+				return link, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("data store [%s] for account [%s] does not exist", handle, accountUrl)
 }
 
 func (slt *SecuredLockerTracking) Read(path string, passphrase Enclave) error {
@@ -448,15 +527,21 @@ func (slt *SecuredLockerTracking) Update(passphrase, oldPassphrase Enclave) erro
 
 			for _, a := range root.Accounts {
 				var sources []lockerLink
+				var stores []lockerLink
 
-				if sources, err = a.refreshSources(oldPassphrase, passphrase); err == nil {
-					newRoot.Accounts = append(newRoot.Accounts, lockerAccount{
-						AccountUrl:  a.AccountUrl,
-						DataSources: sources,
-					})
-				} else {
+				if sources, err = a.refreshSources(oldPassphrase, passphrase); err != nil {
 					break
 				}
+
+				if stores, err = a.refreshStores(oldPassphrase, passphrase); err != nil {
+					break
+				}
+
+				newRoot.Accounts = append(newRoot.Accounts, lockerAccount{
+					AccountUrl:  a.AccountUrl,
+					DataSources: sources,
+					DataStores:  stores,
+				})
 			}
 
 			if err == nil {
@@ -532,6 +617,34 @@ func (slt *SecuredLockerTracking) addSource(accountUrl string, link *lockerLink)
 	return err
 }
 
+func (slt *SecuredLockerTracking) addStore(accountUrl string, link *lockerLink) error {
+	var body *lockerBody
+	var err error
+
+	if body, err = slt.unfold(); err == nil {
+		var account *lockerAccount
+
+		if account, err = body.findAccount(accountUrl); err != nil {
+			body.Accounts = append(body.Accounts, lockerAccount{
+				AccountUrl: accountUrl,
+			})
+			account = &body.Accounts[len(body.Accounts)-1]
+		}
+
+		if i := slices.IndexFunc(account.DataStores, func(l lockerLink) bool {
+			return link.LockerHandle == l.LockerHandle
+		}); i >= 0 {
+			return fmt.Errorf("data store [%s] for account [%s] is already defined", link.LockerHandle, accountUrl)
+		}
+
+		account.DataStores = append(account.DataStores, *link)
+		slt.current = slt.fold(body)
+		return nil
+	}
+
+	return err
+}
+
 func (slt *SecuredLockerTracking) fold(body *lockerBody) *memguard.LockedBuffer {
 	var b, err = json.Marshal(body)
 
@@ -579,6 +692,36 @@ func (slt *SecuredLockerTracking) updateSource(accountUrl, handle, key string, v
 			}
 
 			return fmt.Errorf("data source [%s] for account [%s] does not exist", handle, accountUrl)
+		}
+	}
+
+	return err
+}
+
+func (slt *SecuredLockerTracking) updateStore(accountUrl, handle, key string, value, passphrase Enclave) error {
+	var body *lockerBody
+	var err error
+
+	if body, err = slt.unfold(); err == nil {
+		var account *lockerAccount
+
+		if account, err = body.findAccount(accountUrl); err == nil {
+			if i := slices.IndexFunc(account.DataStores, func(l lockerLink) bool {
+				return handle == l.LockerHandle
+			}); i >= 0 {
+				var link *lockerLink
+
+				if link, err = account.DataStores[i].withProperty(key, value, passphrase); err == nil {
+					var updatedBody = body.withAccount(account.withStore(link))
+
+					slt.current = slt.fold(updatedBody)
+					return nil
+				}
+
+				return err
+			}
+
+			return fmt.Errorf("data store [%s] for account [%s] does not exist", handle, accountUrl)
 		}
 	}
 

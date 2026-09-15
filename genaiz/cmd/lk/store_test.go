@@ -24,7 +24,7 @@ import (
 	"genaiz.com/genaiz/task/locker"
 )
 
-func TestSourcePublishExecutor_Publish(t *testing.T) {
+func TestStorePublishExecutor_Publish(t *testing.T) {
 	var expectedHandle = "expectedHandle"
 	var testOutput bytes.Buffer
 	var testCli = &Cli{
@@ -39,13 +39,13 @@ func TestSourcePublishExecutor_Publish(t *testing.T) {
 		WithUserPath(t.TempDir()).
 		WithOutput(io.Writer(&testOutput)).
 		Build()
-	var testExecutor = &SourcePublishExecutor{
+	var testExecutor = &StorePublishExecutor{
 		BasePublishExecutor: BasePublishExecutor{
 			BaseExecutor: BaseExecutor{
 				Cli:    testCli,
 				Ledger: testLedger,
 			},
-			PublishOptions: NewSourcePublishOptions(),
+			PublishOptions: NewStorePublishOptions(),
 		},
 	}
 	var expectedLockerPath = filepath.Join(testLedger.UserPath, "locker.bin")
@@ -57,7 +57,7 @@ func TestSourcePublishExecutor_Publish(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`locker:[\s\t]*`+expectedLockerPath), actual)
 }
 
-func TestSourcePublishExecutor_Display(t *testing.T) {
+func TestStorePublishExecutor_Display(t *testing.T) {
 	var expectedAccount = "expectedAccount"
 	var expectedLockerPath = "expectedLocker"
 	var expectedHandle = "expectedHandle"
@@ -77,13 +77,13 @@ func TestSourcePublishExecutor_Display(t *testing.T) {
 		WithUserPath(t.TempDir()).
 		WithOutput(io.Writer(&testOutput)).
 		Build()
-	var testExecutor = &SourcePublishExecutor{
+	var testExecutor = &StorePublishExecutor{
 		BasePublishExecutor: BasePublishExecutor{
 			BaseExecutor: BaseExecutor{
 				Cli:    testCli,
 				Ledger: testLedger,
 			},
-			PublishOptions: NewSourcePublishOptions(),
+			PublishOptions: NewStorePublishOptions(),
 		},
 	}
 
@@ -103,17 +103,17 @@ func TestSourcePublishExecutor_Display(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`visibility:[\s\t]*`+broker.VisibilityOrg), actual)
 }
 
-func TestSourcePublishExecutor_Pretend(t *testing.T) {
-	var capturedFindParams, capturedSyncParams locker.SourceFindParams
-	var capturedPublishParams locker.SourcePublishParams
+func TestStorePublishExecutor_Pretend(t *testing.T) {
+	var capturedFindParams, capturedSyncParams locker.StoreFindParams
+	var capturedPublishParams locker.StorePublishParams
 	var capturedDataLinkParams broker.DataLinkParams
-	var testOptions = NewSourcePublishOptions()
+	var testOptions = NewStorePublishOptions()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
 		WithSecretHandler(readEmptyPassword).
 		Build()
-	var testExecutor = &SourcePublishExecutor{
+	var testExecutor = &StorePublishExecutor{
 		BasePublishExecutor: BasePublishExecutor{
 			BaseExecutor: BaseExecutor{
 				Ledger: testLedger,
@@ -125,9 +125,9 @@ func TestSourcePublishExecutor_Pretend(t *testing.T) {
 			dataLinkFindTaskFactory: newDataLinkFindTaskPretendStub(&capturedDataLinkParams, nil),
 		},
 
-		sourceFindTaskFactory:    newSourceFindTaskPretendStub(&capturedFindParams),
-		sourceSyncTaskFactory:    newSourceSyncTaskPretendStub(&capturedSyncParams),
-		sourcePublishTaskFactory: newSourcePublishTaskPretendStub(&capturedPublishParams),
+		storeFindTaskFactory:    newStoreFindTaskPretendStub(&capturedFindParams),
+		storeSyncTaskFactory:    newStoreSyncTaskPretendStub(&capturedSyncParams),
+		storePublishTaskFactory: newStorePublishTaskPretendStub(&capturedPublishParams),
 	}
 
 	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityOrg)
@@ -140,17 +140,17 @@ func TestSourcePublishExecutor_Pretend(t *testing.T) {
 	assert.NotEmpty(t, capturedDataLinkParams)
 }
 
-func TestSourcePublishExecutor_Proceed(t *testing.T) {
-	var capturedFindParams, capturedSyncParams locker.SourceFindParams
-	var capturedPublishParams locker.SourcePublishParams
+func TestStorePublishExecutor_Proceed(t *testing.T) {
+	var capturedFindParams, capturedSyncParams locker.StoreFindParams
+	var capturedPublishParams locker.StorePublishParams
 	var capturedDataLinkParams broker.DataLinkParams
-	var testOptions = NewSourcePublishOptions()
+	var testOptions = NewStorePublishOptions()
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().
 		WithViper(testViper).
 		WithSecretHandler(readEmptyPassword).
 		Build()
-	var testExecutor = &SourcePublishExecutor{
+	var testExecutor = &StorePublishExecutor{
 		BasePublishExecutor: BasePublishExecutor{
 			BaseExecutor: BaseExecutor{
 				Ledger: testLedger,
@@ -162,9 +162,9 @@ func TestSourcePublishExecutor_Proceed(t *testing.T) {
 			dataLinkFindTaskFactory: newDataLinkFindTaskProceedStub(&capturedDataLinkParams, nil),
 		},
 
-		sourceFindTaskFactory:    newSourceFindTaskProceedStub(&capturedFindParams),
-		sourceSyncTaskFactory:    newSourceSyncTaskProceedStub(&capturedSyncParams),
-		sourcePublishTaskFactory: newSourcePublishTaskProceedStub(&capturedPublishParams),
+		storeFindTaskFactory:    newStoreFindTaskProceedStub(&capturedFindParams),
+		storeSyncTaskFactory:    newStoreSyncTaskProceedStub(&capturedSyncParams),
+		storePublishTaskFactory: newStorePublishTaskProceedStub(&capturedPublishParams),
 	}
 
 	testViper.Set(testOptions.optionVisibility.Key, broker.VisibilityOrg)
@@ -177,15 +177,15 @@ func TestSourcePublishExecutor_Proceed(t *testing.T) {
 	assert.NotEmpty(t, capturedDataLinkParams)
 }
 
-func TestNewSourcePublishExecutor(t *testing.T) {
+func TestNewStorePublishExecutor(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
 	var testCmd = &cobra.Command{}
-	var testFactory = newSourcePublishExecutorFactory(testLedger, &Cli{}, NewSourcePublishOptions())
+	var testFactory = newStorePublishExecutorFactory(testLedger, &Cli{}, NewStorePublishOptions())
 
 	assert.NotNil(t, testFactory(testCmd))
 }
 
-func TestSourceLockerExecutor_Add(t *testing.T) {
+func TestStoreLockerExecutor_Add(t *testing.T) {
 	var testOutput bytes.Buffer
 	var testCli = &Cli{
 		BaseCli: cli.BaseCli{
@@ -198,8 +198,8 @@ func TestSourceLockerExecutor_Add(t *testing.T) {
 		WithViper(viper.New()).
 		WithOutput(io.Writer(&testOutput)).
 		Build()
-	var testOptions = NewSourceAddOptions()
-	var testExecutor = &SourceLockerExecutor{
+	var testOptions = NewStoreAddOptions()
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Cli:    testCli,
@@ -223,8 +223,8 @@ func TestSourceLockerExecutor_Add(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`datalink-seq:[\s\t]*\n`), actual)
 }
 
-func TestSourceLockerExecutor_Add_EmptyOem(t *testing.T) {
-	var testExecutor = &SourceLockerExecutor{}
+func TestStoreLockerExecutor_Add_EmptyOem(t *testing.T) {
+	var testExecutor = &StoreLockerExecutor{}
 	var testHandle = "handleArg"
 	// parsing assumes single atoms to be handles
 	var testDatalinkArg = "dataLinkArg"
@@ -232,8 +232,8 @@ func TestSourceLockerExecutor_Add_EmptyOem(t *testing.T) {
 	assert.ErrorIs(t, testExecutor.Add(testHandle, testDatalinkArg), errorDataLinkOemRequired)
 }
 
-func TestSourceLockerExecutor_Add_EmptyVersion(t *testing.T) {
-	var testExecutor = &SourceLockerExecutor{}
+func TestStoreLockerExecutor_Add_EmptyVersion(t *testing.T) {
+	var testExecutor = &StoreLockerExecutor{}
 	var testHandle = "handleArg"
 	// no support for default versioning
 	var testDatalinkArg = "dataLinkOem/dataLinkHandle"
@@ -241,8 +241,8 @@ func TestSourceLockerExecutor_Add_EmptyVersion(t *testing.T) {
 	assert.ErrorIs(t, testExecutor.Add(testHandle, testDatalinkArg), errorDataLinkVersionRequired)
 }
 
-func TestSourceLockerExecutor_Add_InvalidSeq(t *testing.T) {
-	var testExecutor = &SourceLockerExecutor{}
+func TestStoreLockerExecutor_Add_InvalidSeq(t *testing.T) {
+	var testExecutor = &StoreLockerExecutor{}
 	var testHandle = "handleArg"
 	// no support for default versioning
 	var testDatalinkArg = "dataLinkOem/dataLinkHandle:ver-rc-notSequence"
@@ -250,7 +250,7 @@ func TestSourceLockerExecutor_Add_InvalidSeq(t *testing.T) {
 	assert.ErrorIs(t, testExecutor.Add(testHandle, testDatalinkArg), errorDataLinkSequenceInvalid)
 }
 
-func TestSourceLockerExecutor_Add_WithSequence(t *testing.T) {
+func TestStoreLockerExecutor_Add_WithSequence(t *testing.T) {
 	var testOutput bytes.Buffer
 	var testCli = &Cli{
 		BaseCli: cli.BaseCli{
@@ -263,8 +263,8 @@ func TestSourceLockerExecutor_Add_WithSequence(t *testing.T) {
 		WithViper(viper.New()).
 		WithOutput(io.Writer(&testOutput)).
 		Build()
-	var testOptions = NewSourceAddOptions()
-	var testExecutor = &SourceLockerExecutor{
+	var testOptions = NewStoreAddOptions()
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Cli:    testCli,
@@ -290,7 +290,7 @@ func TestSourceLockerExecutor_Add_WithSequence(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`datalink-seq:[\s\t]*`+cast.ToString(expectedSeq)), actual)
 }
 
-func TestSourceLockerExecutor_Display_UpdateSecret(t *testing.T) {
+func TestStoreLockerExecutor_Display_UpdateSecret(t *testing.T) {
 	var expectedSecret = memguard.NewEnclave([]byte("secret"))
 	var expectedHandle = "handleArg"
 	var expectedKey = "key"
@@ -306,8 +306,8 @@ func TestSourceLockerExecutor_Display_UpdateSecret(t *testing.T) {
 		WithViper(viper.New()).
 		WithOutput(io.Writer(&testOutput)).
 		Build()
-	var testOptions = NewSourceAddOptions()
-	var testExecutor = &SourceLockerExecutor{
+	var testOptions = NewStoreAddOptions()
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Cli:    testCli,
@@ -328,10 +328,10 @@ func TestSourceLockerExecutor_Display_UpdateSecret(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`prop-value:[\s\t]*\*+\n`), actual)
 }
 
-func TestSourceLockerExecutor_Pretend(t *testing.T) {
-	var captureSourceAdd locker.SourceAddParams
+func TestStoreLockerExecutor_Pretend(t *testing.T) {
+	var captureStoreAdd locker.StoreAddParams
 	var captureExport broker.DataLinkParams
-	var expectedSourceHandle = "sourceHandle"
+	var expectedLockerHandle = "storeHandle"
 	var expectedOem = "oem"
 	var expectedHandle = "value"
 	var expectedVersion = "version"
@@ -340,14 +340,14 @@ func TestSourceLockerExecutor_Pretend(t *testing.T) {
 		WithUserPath(t.TempDir()).
 		WithSecretHandler(readEmptyPassword).
 		Build()
-	var testOptions = NewSourceAddOptions()
-	var testExecutor = &SourceLockerExecutor{
+	var testOptions = NewStoreAddOptions()
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Ledger: testLedger,
 			},
 			LockerOptions: testOptions,
-			handleArg:     expectedSourceHandle,
+			handleArg:     expectedLockerHandle,
 			addOem:        expectedOem,
 			addHandle:     expectedHandle,
 			addVersion:    expectedVersion,
@@ -359,7 +359,7 @@ func TestSourceLockerExecutor_Pretend(t *testing.T) {
 			exportLinkTaskFactory: newExportLinkTaskPretendStub(&captureExport),
 		},
 
-		sourceAddTaskFactory: newSourceAddTaskPretendStub(&captureSourceAdd),
+		storeAddTaskFactory: newStoreAddTaskPretendStub(&captureStoreAdd),
 	}
 
 	t.Setenv(passphraseEnvKey, "myPass")
@@ -368,16 +368,16 @@ func TestSourceLockerExecutor_Pretend(t *testing.T) {
 	assert.Equal(t, expectedOem, captureExport.Oem)
 	assert.Equal(t, expectedHandle, captureExport.Handle)
 	assert.Equal(t, expectedVersion, captureExport.Version)
-	assert.NotNil(t, captureSourceAdd)
-	assert.Equal(t, expectedSourceHandle, captureSourceAdd.LockerHandle)
-	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureSourceAdd.LockerPath)
+	assert.NotNil(t, captureStoreAdd)
+	assert.Equal(t, expectedLockerHandle, captureStoreAdd.LockerHandle)
+	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureStoreAdd.LockerPath)
 }
 
-func TestSourceLockerExecutor_Pretend_Update(t *testing.T) {
-	var captureSourceFind locker.SourceFindParams
-	var captureSourceUpdate locker.SourceUpdateParams
+func TestStoreLockerExecutor_Pretend_Update(t *testing.T) {
+	var captureStoreFind locker.StoreFindParams
+	var captureStoreUpdate locker.StoreUpdateParams
 	var captureCollect broker.DataLinkParams
-	var expectedHandle = "sourceHandle"
+	var expectedHandle = "storeHandle"
 	var expectedKey = "key"
 	var expectedValue = "value"
 	var testLedger = config.NewBuilder().
@@ -385,8 +385,8 @@ func TestSourceLockerExecutor_Pretend_Update(t *testing.T) {
 		WithUserPath(t.TempDir()).
 		WithSecretHandler(readEmptyPassword).
 		Build()
-	var testOptions = NewSourceUpdateOptions()
-	var testExecutor = &SourceLockerExecutor{
+	var testOptions = NewStoreUpdateOptions()
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Ledger: testLedger,
@@ -403,25 +403,25 @@ func TestSourceLockerExecutor_Pretend_Update(t *testing.T) {
 			},
 		},
 
-		sourceFindTaskFactory:   newSourceFindTaskPretendStub(&captureSourceFind),
-		sourceUpdateTaskFactory: newSourceUpdateTaskPretendStub(&captureSourceUpdate),
+		storeFindTaskFactory:   newStoreFindTaskPretendStub(&captureStoreFind),
+		storeUpdateTaskFactory: newStoreUpdateTaskPretendStub(&captureStoreUpdate),
 	}
 
 	testExecutor.Pretend()
-	assert.NotNil(t, captureSourceFind)
-	assert.Equal(t, expectedHandle, captureSourceFind.LockerHandle)
-	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureSourceFind.LockerPath)
+	assert.NotNil(t, captureStoreFind)
+	assert.Equal(t, expectedHandle, captureStoreFind.LockerHandle)
+	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureStoreFind.LockerPath)
 	assert.NotEmpty(t, captureCollect.Oem)
 	assert.NotEmpty(t, captureCollect.Handle)
 	assert.NotEmpty(t, captureCollect.Version)
-	assert.Equal(t, expectedKey, captureSourceUpdate.Key)
-	assert.Equal(t, expectedValue, captureSourceUpdate.Value)
+	assert.Equal(t, expectedKey, captureStoreUpdate.Key)
+	assert.Equal(t, expectedValue, captureStoreUpdate.Value)
 }
 
-func TestSourceLockerExecutor_Proceed(t *testing.T) {
-	var captureSourceAdd locker.SourceAddParams
+func TestStoreLockerExecutor_Proceed(t *testing.T) {
+	var captureStoreAdd locker.StoreAddParams
 	var captureExport broker.DataLinkParams
-	var expectedSourceHandle = "sourceHandle"
+	var expectedStoreHandle = "storeHandle"
 	var expectedOem = "oem"
 	var expectedHandle = "value"
 	var expectedVersion = "version"
@@ -430,14 +430,14 @@ func TestSourceLockerExecutor_Proceed(t *testing.T) {
 		WithUserPath(t.TempDir()).
 		WithSecretHandler(readEmptyPassword).
 		Build()
-	var testOptions = NewSourceAddOptions()
-	var testExecutor = &SourceLockerExecutor{
+	var testOptions = NewStoreAddOptions()
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Ledger: testLedger,
 			},
 			LockerOptions: testOptions,
-			handleArg:     expectedSourceHandle,
+			handleArg:     expectedStoreHandle,
 			addOem:        expectedOem,
 			addHandle:     expectedHandle,
 			addVersion:    expectedVersion,
@@ -449,7 +449,7 @@ func TestSourceLockerExecutor_Proceed(t *testing.T) {
 			exportLinkTaskFactory: newExportLinkTaskProceedStub(&captureExport),
 		},
 
-		sourceAddTaskFactory: newSourceAddTaskProceedStub(&captureSourceAdd),
+		storeAddTaskFactory: newStoreAddTaskProceedStub(&captureStoreAdd),
 	}
 
 	t.Setenv(passphraseEnvKey, "myPass")
@@ -459,24 +459,24 @@ func TestSourceLockerExecutor_Proceed(t *testing.T) {
 	assert.Equal(t, expectedOem, captureExport.Oem)
 	assert.Equal(t, expectedHandle, captureExport.Handle)
 	assert.Equal(t, expectedVersion, captureExport.Version)
-	assert.NotNil(t, captureSourceAdd)
-	assert.Equal(t, expectedSourceHandle, captureSourceAdd.LockerHandle)
-	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureSourceAdd.LockerPath)
+	assert.NotNil(t, captureStoreAdd)
+	assert.Equal(t, expectedStoreHandle, captureStoreAdd.LockerHandle)
+	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureStoreAdd.LockerPath)
 }
 
-func TestSourceLockerExecutor_Proceed_Secret(t *testing.T) {
-	var captureSourceFind locker.SourceFindParams
-	var captureSourceUpdate locker.SourceUpdateParams
+func TestStoreLockerExecutor_Proceed_Secret(t *testing.T) {
+	var captureStoreFind locker.StoreFindParams
+	var captureStoreUpdate locker.StoreUpdateParams
 	var captureCollect broker.DataLinkParams
-	var expectedHandle = "sourceHandle"
+	var expectedHandle = "storeHandle"
 	var expectedKey = "key"
 	var testLedger = config.NewBuilder().
 		WithViper(viper.New()).
 		WithUserPath(t.TempDir()).
 		WithSecretHandler(readFactoryPassword("myPass")).
 		Build()
-	var testOptions = NewSourceUpdateOptions()
-	var testExecutor = &SourceLockerExecutor{
+	var testOptions = NewStoreUpdateOptions()
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Ledger: testLedger,
@@ -493,28 +493,28 @@ func TestSourceLockerExecutor_Proceed_Secret(t *testing.T) {
 			},
 		},
 
-		sourceFindTaskFactory:   newSourceFindTaskProceedStub(&captureSourceFind),
-		sourceUpdateTaskFactory: newSourceUpdateTaskProceedStub(&captureSourceUpdate),
+		storeFindTaskFactory:   newStoreFindTaskProceedStub(&captureStoreFind),
+		storeUpdateTaskFactory: newStoreUpdateTaskProceedStub(&captureStoreUpdate),
 	}
 
 	testLedger.InitLogging()
 	testExecutor.Proceed()
-	assert.NotNil(t, captureSourceFind)
-	assert.Equal(t, expectedHandle, captureSourceFind.LockerHandle)
-	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureSourceFind.LockerPath)
+	assert.NotNil(t, captureStoreFind)
+	assert.Equal(t, expectedHandle, captureStoreFind.LockerHandle)
+	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureStoreFind.LockerPath)
 	assert.NotEmpty(t, captureCollect.Oem)
 	assert.NotEmpty(t, captureCollect.Handle)
 	assert.NotEmpty(t, captureCollect.Version)
-	assert.Equal(t, expectedKey, captureSourceUpdate.Key)
-	assert.Empty(t, captureSourceUpdate.Value)
-	assert.Same(t, testExecutor.secretArg, captureSourceUpdate.Secret)
+	assert.Equal(t, expectedKey, captureStoreUpdate.Key)
+	assert.Empty(t, captureStoreUpdate.Value)
+	assert.Same(t, testExecutor.secretArg, captureStoreUpdate.Secret)
 }
 
-func TestSourceLockerExecutor_Proceed_Update(t *testing.T) {
-	var captureSourceFind locker.SourceFindParams
-	var captureSourceUpdate locker.SourceUpdateParams
+func TestStoreLockerExecutor_Proceed_Update(t *testing.T) {
+	var captureStoreFind locker.StoreFindParams
+	var captureStoreUpdate locker.StoreUpdateParams
 	var captureCollect broker.DataLinkParams
-	var expectedHandle = "sourceHandle"
+	var expectedHandle = "storeHandle"
 	var expectedKey = "key"
 	var expectedValue = "value"
 	var testLedger = config.NewBuilder().
@@ -522,8 +522,8 @@ func TestSourceLockerExecutor_Proceed_Update(t *testing.T) {
 		WithUserPath(t.TempDir()).
 		WithSecretHandler(readEmptyPassword).
 		Build()
-	var testOptions = NewSourceUpdateOptions()
-	var testExecutor = &SourceLockerExecutor{
+	var testOptions = NewStoreUpdateOptions()
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Ledger: testLedger,
@@ -540,23 +540,23 @@ func TestSourceLockerExecutor_Proceed_Update(t *testing.T) {
 			},
 		},
 
-		sourceFindTaskFactory:   newSourceFindTaskProceedStub(&captureSourceFind),
-		sourceUpdateTaskFactory: newSourceUpdateTaskProceedStub(&captureSourceUpdate),
+		storeFindTaskFactory:   newStoreFindTaskProceedStub(&captureStoreFind),
+		storeUpdateTaskFactory: newStoreUpdateTaskProceedStub(&captureStoreUpdate),
 	}
 
 	testLedger.InitLogging()
 	testExecutor.Proceed()
-	assert.NotNil(t, captureSourceFind)
-	assert.Equal(t, expectedHandle, captureSourceFind.LockerHandle)
-	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureSourceFind.LockerPath)
+	assert.NotNil(t, captureStoreFind)
+	assert.Equal(t, expectedHandle, captureStoreFind.LockerHandle)
+	assert.Equal(t, filepath.Join(testLedger.UserPath, "locker.bin"), captureStoreFind.LockerPath)
 	assert.NotEmpty(t, captureCollect.Oem)
 	assert.NotEmpty(t, captureCollect.Handle)
 	assert.NotEmpty(t, captureCollect.Version)
-	assert.Equal(t, expectedKey, captureSourceUpdate.Key)
-	assert.Equal(t, expectedValue, captureSourceUpdate.Value)
+	assert.Equal(t, expectedKey, captureStoreUpdate.Key)
+	assert.Equal(t, expectedValue, captureStoreUpdate.Value)
 }
 
-func TestSourceLockerExecutor_Update(t *testing.T) {
+func TestStoreLockerExecutor_Update(t *testing.T) {
 	var testOutput bytes.Buffer
 	var testCli = &Cli{
 		BaseCli: cli.BaseCli{
@@ -569,8 +569,8 @@ func TestSourceLockerExecutor_Update(t *testing.T) {
 		WithViper(viper.New()).
 		WithOutput(io.Writer(&testOutput)).
 		Build()
-	var testOptions = NewSourceUpdateOptions()
-	var testExecutor = &SourceLockerExecutor{
+	var testOptions = NewStoreUpdateOptions()
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Cli:    testCli,
@@ -590,12 +590,12 @@ func TestSourceLockerExecutor_Update(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`prop-value:[\s\t]*`+expectedValue), actual)
 }
 
-func TestSourceLockerExecutor_Update_PipeError(t *testing.T) {
+func TestStoreLockerExecutor_Update_PipeError(t *testing.T) {
 	var expectedError = errors.New("error")
 	var testLedger = config.NewBuilder().
 		WithInput(&gio.StubReader{ReadError: expectedError}).
 		Build()
-	var testExecutor = &SourceLockerExecutor{
+	var testExecutor = &StoreLockerExecutor{
 		BaseLockerExecutor: BaseLockerExecutor{
 			BaseExecutor: BaseExecutor{
 				Ledger: testLedger,
@@ -609,39 +609,36 @@ func TestSourceLockerExecutor_Update_PipeError(t *testing.T) {
 	assert.ErrorIs(t, testExecutor.Update(testHandle, expectedKey, expectedValue), expectedError)
 }
 
-func TestNewSource(t *testing.T) {
+func TestNewStore(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
-	var testCmd = NewSource(testLedger, &Cli{})
+	var testCmd = NewStore(testLedger, &Cli{})
 
 	assert.Equal(t, 3, len(testCmd.Commands()))
 }
 
-func TestNewSourceLockerExecutor_Add(t *testing.T) {
+func TestNewStoreLockerExecutor_Add(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
 	var testCmd = &cobra.Command{}
-	var testFactory = newSourceAddExecutorFactory(testLedger, &Cli{}, NewSourceAddOptions())
+	var testFactory = newStoreAddExecutorFactory(testLedger, &Cli{}, NewStoreAddOptions())
 
 	assert.NotNil(t, testFactory(testCmd))
 }
 
-func TestNewSourceLockerExecutor_Update(t *testing.T) {
+func TestNewStoreLockerExecutor_Update(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
 	var testCmd = &cobra.Command{}
-	var testFactory = newSourceUpdateExecutorFactory(testLedger, &Cli{}, NewSourceUpdateOptions())
+	var testFactory = newStoreUpdateExecutorFactory(testLedger, &Cli{}, NewStoreUpdateOptions())
 
 	assert.NotNil(t, testFactory(testCmd))
 }
 
-func newCollectLinkTaskPretendStub(captured *broker.DataLinkParams) dk.CollectLinkTaskFactory {
-	return func(broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
-		return &task.Task[broker.DataLinkParams]{
-			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+func newStoreAddTaskPretendStub(captured *locker.StoreAddParams) StoreAddTaskFactory {
+	return func() *task.Task[locker.StoreAddParams] {
+		return &task.Task[locker.StoreAddParams]{
+			OnPrepare: func(params *locker.StoreAddParams, state *task.State) error {
 				return nil
 			},
-			OnPretend: func(params *broker.DataLinkParams, state *task.State) error {
-				params.Oem = "oem"
-				params.Handle = "handle"
-				params.Version = "version"
+			OnPretend: func(params *locker.StoreAddParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},
@@ -649,28 +646,13 @@ func newCollectLinkTaskPretendStub(captured *broker.DataLinkParams) dk.CollectLi
 	}
 }
 
-func newDataLinkFindTaskPretendStub(capture *broker.DataLinkParams, seeded []broker.DataLink) FindLinksTaskFactory {
-	return func() *task.Task[broker.DataLinkParams] {
-		return &task.Task[broker.DataLinkParams]{
-			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+func newStoreAddTaskProceedStub(captured *locker.StoreAddParams) StoreAddTaskFactory {
+	return func() *task.Task[locker.StoreAddParams] {
+		return &task.Task[locker.StoreAddParams]{
+			OnPrepare: func(params *locker.StoreAddParams, state *task.State) error {
 				return nil
 			},
-			OnPretend: func(params *broker.DataLinkParams, state *task.State) error {
-				*capture = *params
-				state.Internal = seeded
-				return nil
-			},
-		}
-	}
-}
-
-func newExportLinkTaskPretendStub(captured *broker.DataLinkParams) dk.ExportLinkTaskFactory {
-	return func(broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
-		return &task.Task[broker.DataLinkParams]{
-			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
-				return nil
-			},
-			OnPretend: func(params *broker.DataLinkParams, state *task.State) error {
+			OnComplete: func(params *locker.StoreAddParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},
@@ -678,13 +660,13 @@ func newExportLinkTaskPretendStub(captured *broker.DataLinkParams) dk.ExportLink
 	}
 }
 
-func newSourceAddTaskPretendStub(captured *locker.SourceAddParams) SourceAddTaskFactory {
-	return func() *task.Task[locker.SourceAddParams] {
-		return &task.Task[locker.SourceAddParams]{
-			OnPrepare: func(params *locker.SourceAddParams, state *task.State) error {
+func newStoreFindTaskPretendStub(captured *locker.StoreFindParams) StoreFindTaskFactory {
+	return func() *task.Task[locker.StoreFindParams] {
+		return &task.Task[locker.StoreFindParams]{
+			OnPrepare: func(params *locker.StoreFindParams, state *task.State) error {
 				return nil
 			},
-			OnPretend: func(params *locker.SourceAddParams, state *task.State) error {
+			OnPretend: func(params *locker.StoreFindParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},
@@ -692,13 +674,13 @@ func newSourceAddTaskPretendStub(captured *locker.SourceAddParams) SourceAddTask
 	}
 }
 
-func newSourceFindTaskPretendStub(captured *locker.SourceFindParams) SourceFindTaskFactory {
-	return func() *task.Task[locker.SourceFindParams] {
-		return &task.Task[locker.SourceFindParams]{
-			OnPrepare: func(params *locker.SourceFindParams, state *task.State) error {
+func newStoreFindTaskProceedStub(captured *locker.StoreFindParams) StoreFindTaskFactory {
+	return func() *task.Task[locker.StoreFindParams] {
+		return &task.Task[locker.StoreFindParams]{
+			OnPrepare: func(params *locker.StoreFindParams, state *task.State) error {
 				return nil
 			},
-			OnPretend: func(params *locker.SourceFindParams, state *task.State) error {
+			OnComplete: func(params *locker.StoreFindParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},
@@ -706,13 +688,13 @@ func newSourceFindTaskPretendStub(captured *locker.SourceFindParams) SourceFindT
 	}
 }
 
-func newSourcePublishTaskPretendStub(captured *locker.SourcePublishParams) SourcePublishTaskFactory {
-	return func() *task.Task[locker.SourcePublishParams] {
-		return &task.Task[locker.SourcePublishParams]{
-			OnPrepare: func(params *locker.SourcePublishParams, state *task.State) error {
+func newStorePublishTaskPretendStub(captured *locker.StorePublishParams) StorePublishTaskFactory {
+	return func() *task.Task[locker.StorePublishParams] {
+		return &task.Task[locker.StorePublishParams]{
+			OnPrepare: func(params *locker.StorePublishParams, state *task.State) error {
 				return nil
 			},
-			OnPretend: func(params *locker.SourcePublishParams, state *task.State) error {
+			OnPretend: func(params *locker.StorePublishParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},
@@ -720,13 +702,13 @@ func newSourcePublishTaskPretendStub(captured *locker.SourcePublishParams) Sourc
 	}
 }
 
-func newSourceSyncTaskPretendStub(captured *locker.SourceFindParams) SourceSyncTaskFactory {
-	return func() *task.Task[locker.SourceFindParams] {
-		return &task.Task[locker.SourceFindParams]{
-			OnPrepare: func(params *locker.SourceFindParams, state *task.State) error {
+func newStorePublishTaskProceedStub(captured *locker.StorePublishParams) StorePublishTaskFactory {
+	return func() *task.Task[locker.StorePublishParams] {
+		return &task.Task[locker.StorePublishParams]{
+			OnPrepare: func(params *locker.StorePublishParams, state *task.State) error {
 				return nil
 			},
-			OnPretend: func(params *locker.SourceFindParams, state *task.State) error {
+			OnComplete: func(params *locker.StorePublishParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},
@@ -734,13 +716,13 @@ func newSourceSyncTaskPretendStub(captured *locker.SourceFindParams) SourceSyncT
 	}
 }
 
-func newSourceUpdateTaskPretendStub(captured *locker.SourceUpdateParams) SourceUpdateTaskFactory {
-	return func() *task.Task[locker.SourceUpdateParams] {
-		return &task.Task[locker.SourceUpdateParams]{
-			OnPrepare: func(params *locker.SourceUpdateParams, state *task.State) error {
+func newStoreSyncTaskPretendStub(captured *locker.StoreFindParams) StoreSyncTaskFactory {
+	return func() *task.Task[locker.StoreFindParams] {
+		return &task.Task[locker.StoreFindParams]{
+			OnPrepare: func(params *locker.StoreFindParams, state *task.State) error {
 				return nil
 			},
-			OnPretend: func(params *locker.SourceUpdateParams, state *task.State) error {
+			OnPretend: func(params *locker.StoreFindParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},
@@ -748,18 +730,13 @@ func newSourceUpdateTaskPretendStub(captured *locker.SourceUpdateParams) SourceU
 	}
 }
 
-func newCollectLinkTaskProceedStub(captured *broker.DataLinkParams) dk.CollectLinkTaskFactory {
-	return func(broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
-		return &task.Task[broker.DataLinkParams]{
-			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+func newStoreSyncTaskProceedStub(captured *locker.StoreFindParams) StoreSyncTaskFactory {
+	return func() *task.Task[locker.StoreFindParams] {
+		return &task.Task[locker.StoreFindParams]{
+			OnPrepare: func(params *locker.StoreFindParams, state *task.State) error {
 				return nil
 			},
-			OnComplete: func(params *broker.DataLinkParams, state *task.State) error {
-				params.DataLink = &broker.DataLink{
-					Oem:     "oem",
-					Handle:  "handle",
-					Version: "version",
-				}
+			OnComplete: func(params *locker.StoreFindParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},
@@ -767,28 +744,13 @@ func newCollectLinkTaskProceedStub(captured *broker.DataLinkParams) dk.CollectLi
 	}
 }
 
-func newDataLinkFindTaskProceedStub(capture *broker.DataLinkParams, seeded []broker.DataLink) FindLinksTaskFactory {
-	return func() *task.Task[broker.DataLinkParams] {
-		return &task.Task[broker.DataLinkParams]{
-			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
+func newStoreUpdateTaskPretendStub(captured *locker.StoreUpdateParams) StoreUpdateTaskFactory {
+	return func() *task.Task[locker.StoreUpdateParams] {
+		return &task.Task[locker.StoreUpdateParams]{
+			OnPrepare: func(params *locker.StoreUpdateParams, state *task.State) error {
 				return nil
 			},
-			OnComplete: func(params *broker.DataLinkParams, state *task.State) error {
-				*capture = *params
-				state.Internal = seeded
-				return nil
-			},
-		}
-	}
-}
-
-func newExportLinkTaskProceedStub(captured *broker.DataLinkParams) dk.ExportLinkTaskFactory {
-	return func(broker.DataLinkWriter) *task.Task[broker.DataLinkParams] {
-		return &task.Task[broker.DataLinkParams]{
-			OnPrepare: func(params *broker.DataLinkParams, state *task.State) error {
-				return nil
-			},
-			OnComplete: func(params *broker.DataLinkParams, state *task.State) error {
+			OnPretend: func(params *locker.StoreUpdateParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},
@@ -796,69 +758,13 @@ func newExportLinkTaskProceedStub(captured *broker.DataLinkParams) dk.ExportLink
 	}
 }
 
-func newSourceAddTaskProceedStub(captured *locker.SourceAddParams) SourceAddTaskFactory {
-	return func() *task.Task[locker.SourceAddParams] {
-		return &task.Task[locker.SourceAddParams]{
-			OnPrepare: func(params *locker.SourceAddParams, state *task.State) error {
+func newStoreUpdateTaskProceedStub(captured *locker.StoreUpdateParams) StoreUpdateTaskFactory {
+	return func() *task.Task[locker.StoreUpdateParams] {
+		return &task.Task[locker.StoreUpdateParams]{
+			OnPrepare: func(params *locker.StoreUpdateParams, state *task.State) error {
 				return nil
 			},
-			OnComplete: func(params *locker.SourceAddParams, state *task.State) error {
-				*captured = *params
-				return nil
-			},
-		}
-	}
-}
-
-func newSourceFindTaskProceedStub(captured *locker.SourceFindParams) SourceFindTaskFactory {
-	return func() *task.Task[locker.SourceFindParams] {
-		return &task.Task[locker.SourceFindParams]{
-			OnPrepare: func(params *locker.SourceFindParams, state *task.State) error {
-				return nil
-			},
-			OnComplete: func(params *locker.SourceFindParams, state *task.State) error {
-				*captured = *params
-				return nil
-			},
-		}
-	}
-}
-
-func newSourcePublishTaskProceedStub(captured *locker.SourcePublishParams) SourcePublishTaskFactory {
-	return func() *task.Task[locker.SourcePublishParams] {
-		return &task.Task[locker.SourcePublishParams]{
-			OnPrepare: func(params *locker.SourcePublishParams, state *task.State) error {
-				return nil
-			},
-			OnComplete: func(params *locker.SourcePublishParams, state *task.State) error {
-				*captured = *params
-				return nil
-			},
-		}
-	}
-}
-
-func newSourceSyncTaskProceedStub(captured *locker.SourceFindParams) SourceSyncTaskFactory {
-	return func() *task.Task[locker.SourceFindParams] {
-		return &task.Task[locker.SourceFindParams]{
-			OnPrepare: func(params *locker.SourceFindParams, state *task.State) error {
-				return nil
-			},
-			OnComplete: func(params *locker.SourceFindParams, state *task.State) error {
-				*captured = *params
-				return nil
-			},
-		}
-	}
-}
-
-func newSourceUpdateTaskProceedStub(captured *locker.SourceUpdateParams) SourceUpdateTaskFactory {
-	return func() *task.Task[locker.SourceUpdateParams] {
-		return &task.Task[locker.SourceUpdateParams]{
-			OnPrepare: func(params *locker.SourceUpdateParams, state *task.State) error {
-				return nil
-			},
-			OnComplete: func(params *locker.SourceUpdateParams, state *task.State) error {
+			OnComplete: func(params *locker.StoreUpdateParams, state *task.State) error {
 				*captured = *params
 				return nil
 			},

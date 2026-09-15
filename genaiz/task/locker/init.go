@@ -15,7 +15,6 @@ import (
 var (
 	errorLockerPassCapLetter   = task.NewError("the passphrase must contain at least 1 capital letter")
 	errorLockerPassDigit       = task.NewError("the passphrase must contain at least 1 digit")
-	errorLockerPassFailed      = task.NewError("the passphrase failed decryption")
 	errorLockerPassInvalid     = task.NewError("the passphrase must be 8 characters long and contain capital, small letters, digits at least one special character")
 	errorLockerPassShort       = task.NewError("the passphrase can not be empty")
 	errorLockerPassSmallLetter = task.NewError("the passphrase must contain at least 1 small letter")

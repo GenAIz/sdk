@@ -1,5 +1,39 @@
 # Genaiz SmartFunction Toolkit
 
+* [Makefile](#makefile)
+* [Minimal Build](#minimal-build)
+* [Commands](#commands)
+  * [account (ac)](#account-ac)
+    * [activate](#activate)
+    * [inspect](#inspect)
+    * [list](#list)
+    * [login](#login)
+    * [logout](#logout)
+  * [function (sf)](#function-sf)
+    * [build](#build)
+    * [create](#create)
+    * [init](#init)
+    * [list](#list-1)
+    * [prop](#prop)
+    * [publish](#publish)
+    * [run](#run)
+    * [start](#start)
+    * [stop](#stop)
+    * [test](#test)
+  * [solution (sn)](#solution-sn)
+    * [create](#create-1)
+    * [list](#list-2)
+    * [publish](#publish-1)
+  * [workflow (wf)](#workflow-wf)
+    * [create](#create-2)
+    * [delete](#delete)
+    * [links add/rm](#links-addrm)
+    * [nodes add/rm](#nodes-addrm)
+  * [Workspace (ws)](#workspace-ws)
+    * [create](#create-3)
+    * [list](#list-3)
+  * [Workspace Flow (ws flow)](#workspace-flow-ws-flow)
+
 ## Makefile
 
 Building the project with its associated make file can install the application, its manual pages and associated
@@ -287,4 +321,12 @@ subsequent Account Management commands the list is used to instruct adding build
 
 ```bash
 genaiz ws list --help
+```
+
+### Workspace Flow (ws flow)
+
+Flow create is how a user instantiates a Solution he published into a Workspace for execution.
+
+```bash
+genaiz ws flow create --help
 ```

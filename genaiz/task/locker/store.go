@@ -17,26 +17,27 @@ import (
 )
 
 var (
-	errorLockerDataSourceConflict = task.NewError("datasource name is used in multiple sources")
-	errorDataSourceExist          = task.NewError("data source exists")
-	errorDataSourceUnknown        = task.NewError("update called with no data source")
-	errorDataSourceLinkUnknown    = task.NewError("data source data link is unknown")
+	errorLockerDataStoreConflict = task.NewError("datastore name is used in multiple stores")
+	errorDataStoreExist          = task.NewError("data store exists")
+	errorDataStoreLinkUnknown    = task.NewError("update called with no data store")
+	errorDataStoreUnknown        = task.NewError("update called with no data store")
 )
 
-type SourceAddParams struct {
+type StoreAddParams struct {
 	BaseParams
 	LinkParams
 	broker.Broker
 }
 
-type SourceFindParams struct {
+type StoreFindParams struct {
 	BaseParams
 	*broker.DataLinkParams
-	SourceName string
-	client     broker.Client
+	StoreName string
+
+	client broker.Client
 }
 
-func (sfp SourceFindParams) GetClient() (broker.Client, error) {
+func (sfp StoreFindParams) GetClient() (broker.Client, error) {
 	if sfp.client == nil {
 		return sfp.Broker.GetClient()
 	}
@@ -44,7 +45,7 @@ func (sfp SourceFindParams) GetClient() (broker.Client, error) {
 	return sfp.client, nil
 }
 
-type SourcePublishParams struct {
+type StorePublishParams struct {
 	BaseParams
 	broker.Broker
 	Name        string
@@ -54,7 +55,7 @@ type SourcePublishParams struct {
 	client broker.Client
 }
 
-func (spp SourcePublishParams) GetClient() (broker.Client, error) {
+func (spp StorePublishParams) GetClient() (broker.Client, error) {
 	if spp.client == nil {
 		return spp.Broker.GetClient()
 	}
@@ -62,70 +63,80 @@ func (spp SourcePublishParams) GetClient() (broker.Client, error) {
 	return spp.client, nil
 }
 
-type SourceUpdateParams struct {
-	*SourceFindParams
+type StoreUpdateParams struct {
+	*StoreFindParams
 	PropertyParams
 }
 
-func NewSourceAddTask() *task.Task[SourceAddParams] {
-	return &task.Task[SourceAddParams]{
-		Name:       "source-add",
-		OnPrepare:  handleSourceAddContext,
-		OnComplete: handleSourceAddComplete,
-		OnPretend:  handleSourceAddPretend,
+func NewStoreAddTask() *task.Task[StoreAddParams] {
+	return &task.Task[StoreAddParams]{
+		Name:       "store-add",
+		OnPrepare:  handleStoreAddContext,
+		OnComplete: handleStoreAddComplete,
+		OnPretend:  handleStoreAddPretend,
 	}
 }
 
-func NewSourceFindTask() *task.Task[SourceFindParams] {
-	return &task.Task[SourceFindParams]{
-		Name:         "source-find",
-		OnPrepare:    handleSourceFindContext,
-		OnComplete:   handleSourceFindComplete,
-		OnIncomplete: handleSourceFindIncomplete,
-		OnPretend:    handleSourceFindPretend,
+func NewStoreFindTask() *task.Task[StoreFindParams] {
+	return &task.Task[StoreFindParams]{
+		Name:         "store-find",
+		OnPrepare:    handleStoreFindContext,
+		OnComplete:   handleStoreFindComplete,
+		OnIncomplete: handleStoreFindIncomplete,
+		OnPretend:    handleStoreFindPretend,
 	}
 }
 
-func NewSourcePublishTask() *task.Task[SourcePublishParams] {
-	return &task.Task[SourcePublishParams]{
-		Name:         "source-publish",
-		OnPrepare:    handleSourcePublishContext,
-		OnComplete:   handleSourcePublishCreate,
-		OnIncomplete: handleSourcePublishUpdate,
-		OnPretend:    handleSourcePublishPretend,
+func NewStorePublishTask() *task.Task[StorePublishParams] {
+	return &task.Task[StorePublishParams]{
+		Name:         "store-publish",
+		OnPrepare:    handleStorePublishContext,
+		OnComplete:   handleStorePublishCreate,
+		OnIncomplete: handleStorePublishUpdate,
+		OnPretend:    handleStorePublishPretend,
 	}
 }
 
-func NewSourceSyncTask() *task.Task[SourceFindParams] {
-	return &task.Task[SourceFindParams]{
-		Name:       "source-sync",
-		OnPrepare:  handleSourceSyncContext,
-		OnComplete: handleSourceSyncComplete,
-		OnPretend:  handleSourceSyncPretend,
+func NewStoreSyncTask() *task.Task[StoreFindParams] {
+	return &task.Task[StoreFindParams]{
+		Name:       "store-sync",
+		OnPrepare:  handleStoreSyncContext,
+		OnComplete: handleStoreSyncComplete,
+		OnPretend:  handleStoreSyncPretend,
 	}
 }
 
-func NewSourceUpdateTask() *task.Task[SourceUpdateParams] {
-	return &task.Task[SourceUpdateParams]{
-		Name:       "source-update",
-		OnPrepare:  handleSourceUpdateContext,
-		OnComplete: handleSourceUpdateComplete,
-		OnPretend:  handleSourceUpdatePretend,
+func NewStoreUpdateTask() *task.Task[StoreUpdateParams] {
+	return &task.Task[StoreUpdateParams]{
+		Name:       "store-update",
+		OnPrepare:  handleStoreUpdateContext,
+		OnComplete: handleStoreUpdateComplete,
+		OnPretend:  handleStoreUpdatePretend,
 	}
 }
 
-func handleSourceAddComplete(params *SourceAddParams, state *task.State) error {
+func handleStateStoreInstanceList(links []broker.DataLinkInstance, state *task.State) error {
+	if len(links) > 1 {
+		return errorLockerDataStoreConflict
+	} else if len(links) == 1 {
+		state.Internal = links[0]
+	}
+
+	return nil
+}
+
+func handleStoreAddComplete(params *StoreAddParams, state *task.State) error {
 	if state.Output != "" {
 		var brokerClient broker.Client
 		var err error
 
-		state.Logger.Debugf("Adding source [%s] to locker [%s]", params.LockerHandle, params.LockerPath)
+		state.Logger.Debugf("Adding store [%s] to locker [%s]", params.LockerHandle, params.LockerPath)
 
 		if brokerClient, err = params.GetClient(); err == nil {
 			var lockerState = NewSecuredLockerState(state)
 			var accountUrl = brokerClient.GetHostAddr()
 
-			state.Logger.Debugf("Adding data source to account [%s]", accountUrl)
+			state.Logger.Debugf("Adding data Store to account [%s]", accountUrl)
 
 			if err = lockerState.Read(params.LockerPath, params.Passphrase); err == nil {
 				var link = &lockerLink{
@@ -135,9 +146,9 @@ func handleSourceAddComplete(params *SourceAddParams, state *task.State) error {
 					LinkVersion:  params.Version,
 				}
 
-				if err = lockerState.addSource(accountUrl, link); err == nil {
+				if err = lockerState.addStore(accountUrl, link); err == nil {
 					if err = lockerState.Write(params.LockerPath, params.Passphrase); err == nil {
-						state.Reportf("Added data source %s to locker %s", params.LockerHandle, params.LockerPath)
+						state.Reportf("Added data Store %s to locker %s", params.LockerHandle, params.LockerPath)
 						state.Output = ""
 						return nil
 					}
@@ -155,11 +166,11 @@ func handleSourceAddComplete(params *SourceAddParams, state *task.State) error {
 	return errorLockerPathInvalid
 }
 
-func handleSourceAddContext(params *SourceAddParams, state *task.State) error {
+func handleStoreAddContext(params *StoreAddParams, state *task.State) error {
 	return handleBaseAddContext(&params.BaseParams, state)
 }
 
-func handleSourceAddPretend(params *SourceAddParams, state *task.State) error {
+func handleStoreAddPretend(params *StoreAddParams, state *task.State) error {
 	if state.Output != "" {
 		var brokerClient broker.Client
 		var err error
@@ -167,8 +178,8 @@ func handleSourceAddPretend(params *SourceAddParams, state *task.State) error {
 		if brokerClient, err = params.GetClient(); err == nil {
 			var accountUrl = brokerClient.GetHostAddr()
 
-			state.Logger.Debugf("Pretending to add data source [%s] to account [%s]", params.LockerHandle, accountUrl)
-			state.Logger.Debugf("Data source added for link [%s/%s:%s]", params.Oem, params.Handle, params.Version)
+			state.Logger.Debugf("Pretending to add data store [%s] to account [%s]", params.LockerHandle, accountUrl)
+			state.Logger.Debugf("Data store added for link [%s/%s:%s]", params.Oem, params.Handle, params.Version)
 			state.Output = ""
 			return nil
 		}
@@ -179,7 +190,7 @@ func handleSourceAddPretend(params *SourceAddParams, state *task.State) error {
 	return errorLockerPathInvalid
 }
 
-func handleSourceFindComplete(params *SourceFindParams, state *task.State) error {
+func handleStoreFindComplete(params *StoreFindParams, state *task.State) error {
 	if state.Output != "" {
 		var brokerClient broker.Client
 		var err error
@@ -187,12 +198,12 @@ func handleSourceFindComplete(params *SourceFindParams, state *task.State) error
 		if brokerClient, err = params.GetClient(); err == nil {
 			var lockerState = NewSecuredLockerState(state)
 
-			state.Logger.Debugf("Finding source from locker [%s]", params.LockerPath)
+			state.Logger.Debugf("Finding store from locker [%s]", params.LockerPath)
 
 			if err = lockerState.Read(params.LockerPath, params.Passphrase); err == nil {
 				var link RemoteLink
 
-				if link, err = lockerState.LookupSource(brokerClient.GetHostAddr(), state.Output); err == nil {
+				if link, err = lockerState.LookupStore(brokerClient.GetHostAddr(), state.Output); err == nil {
 					var oem, handle, ver = link.GetPublishing()
 
 					params.DataLinkParams.DataLink = &broker.DataLink{
@@ -217,15 +228,15 @@ func handleSourceFindComplete(params *SourceFindParams, state *task.State) error
 	return errorLockerDataLinkInvalid
 }
 
-func handleSourceFindContext(params *SourceFindParams, state *task.State) error {
+func handleStoreFindContext(params *StoreFindParams, state *task.State) error {
 	return handleBaseFindContext(&params.BaseParams, params.DataLinkParams, state)
 }
 
-func handleSourceFindIncomplete(params *SourceFindParams, state *task.State) error {
+func handleStoreFindIncomplete(params *StoreFindParams, state *task.State) error {
 	return handleBaseFindIncomplete(params.DataLinkParams, state)
 }
 
-func handleSourceFindPretend(params *SourceFindParams, state *task.State) error {
+func handleStoreFindPretend(params *StoreFindParams, state *task.State) error {
 	if state.Output != "" {
 		var brokerClient broker.Client
 		var err error
@@ -233,10 +244,10 @@ func handleSourceFindPretend(params *SourceFindParams, state *task.State) error 
 		if brokerClient, err = params.GetClient(); err == nil {
 			var lockerState = NewSecuredLockerState(state)
 
-			state.Logger.Debugf("Finding source from locker [%s]", params.LockerPath)
+			state.Logger.Debugf("Finding store from locker [%s]", params.LockerPath)
 
 			if err = lockerState.Read(params.LockerPath, params.Passphrase); err == nil {
-				state.Logger.Debugf("Pretending to lookup a source [%s] under account [%s]",
+				state.Logger.Debugf("Pretending to lookup a store [%s] under account [%s]",
 					params.LockerHandle, brokerClient.GetHostAddr())
 				state.Output = ""
 				return nil
@@ -253,7 +264,7 @@ func handleSourceFindPretend(params *SourceFindParams, state *task.State) error 
 	return errorLockerDataLinkInvalid
 }
 
-func handleSourcePublishContext(params *SourcePublishParams, state *task.State) error {
+func handleStorePublishContext(params *StorePublishParams, state *task.State) error {
 	if state.Output == "" {
 		var ok bool
 
@@ -265,19 +276,19 @@ func handleSourcePublishContext(params *SourcePublishParams, state *task.State) 
 
 		if state.Internal != nil {
 			if _, ok = state.Internal.(broker.DataLinkInstance); ok {
-				return errorDataSourceExist
+				return errorDataStoreExist
 			} else if _, ok = state.Internal.(broker.DataLink); ok {
 				return nil
 			}
 		}
 
-		return errorDataSourceLinkUnknown
+		return errorDataStoreLinkUnknown
 	}
 
 	return nil
 }
 
-func handleSourcePublishCreate(params *SourcePublishParams, state *task.State) error {
+func handleStorePublishCreate(params *StorePublishParams, state *task.State) error {
 	if state.Internal != nil {
 		var dataLink = state.Internal.(broker.DataLink)
 		var brokerClient broker.Client
@@ -287,15 +298,15 @@ func handleSourcePublishCreate(params *SourcePublishParams, state *task.State) e
 			var lockerState = NewSecuredLockerState(state)
 			var account = brokerClient.GetHostAddr()
 
-			state.Logger.Debugf("Creating data source for data link [%d] on account [%s]", *dataLink.Id, account)
+			state.Logger.Debugf("Creating data store for data link [%d] on account [%s]", *dataLink.Id, account)
 
 			if err = lockerState.Read(params.LockerPath, params.Passphrase); err == nil {
 				var props map[string]string
 
 				defer lockerState.Destroy()
-				state.Logger.Debugf("Pushing data source handle [%s] onto name [%s]", params.LockerHandle, params.Name)
+				state.Logger.Debugf("Pushing data store handle [%s] onto name [%s]", params.LockerHandle, params.Name)
 
-				if props, err = lockerState.GetSourceProps(account, params.LockerHandle, params.Passphrase); err == nil {
+				if props, err = lockerState.GetStoreProps(account, params.LockerHandle, params.Passphrase); err == nil {
 					var updated *broker.DataLinkInstance
 					var instance = &broker.DataLinkInstance{
 						Name:        params.Name,
@@ -304,8 +315,8 @@ func handleSourcePublishCreate(params *SourcePublishParams, state *task.State) e
 						DataLinkId:  dataLink.Id,
 					}
 
-					if updated, err = brokerClient.CreateDataSource(instance, props); err == nil {
-						state.Reportf("Created data source [%s], id: [%d]", params.LockerHandle, *updated.Id)
+					if updated, err = brokerClient.CreateDataStore(instance, props); err == nil {
+						state.Reportf("Created data store [%s], id: [%d]", params.LockerHandle, *updated.Id)
 						return nil
 					}
 				}
@@ -315,17 +326,17 @@ func handleSourcePublishCreate(params *SourcePublishParams, state *task.State) e
 		return err
 	}
 
-	return errorDataSourceUnknown
+	return errorDataStoreUnknown
 }
 
-func handleSourcePublishPretend(params *SourcePublishParams, state *task.State) error {
-	if errors.Is(state.Error, errorDataSourceExist) {
+func handleStorePublishPretend(params *StorePublishParams, state *task.State) error {
+	if errors.Is(state.Error, errorDataStoreExist) {
 		var instance = state.Internal.(broker.DataLinkInstance)
 		var brokerClient broker.Client
 		var err error
 
 		if brokerClient, err = params.GetClient(); err == nil {
-			state.Logger.Debugf("Pretending to update a data source with name [%s]", instance.Name)
+			state.Logger.Debugf("Pretending to update a data store with name [%s]", instance.Name)
 			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
 			fmt.Printf("  -G -d id=\"%d\"\\\n", *instance.Id)
@@ -335,7 +346,7 @@ func handleSourcePublishPretend(params *SourcePublishParams, state *task.State) 
 			fmt.Printf("  -d visibility=\"%s\"\\\n", params.Visibility)
 			fmt.Printf("  -d active=\"%s\"\\\n", cast.ToString(true))
 			fmt.Println("  -d props=\"{...}\"")
-			fmt.Printf("%s\n", brokerClient.UpdateDataSourceUrl())
+			fmt.Printf("%s\n", brokerClient.UpdateDataStoreUrl())
 			return nil
 		}
 
@@ -346,7 +357,7 @@ func handleSourcePublishPretend(params *SourcePublishParams, state *task.State) 
 		var err error
 
 		if brokerClient, err = params.GetClient(); err == nil {
-			state.Logger.Debugf("Pretending to create a data source with name [%s]", params.Name)
+			state.Logger.Debugf("Pretending to create a data store with name [%s]", params.Name)
 			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
 			fmt.Printf("  -G -d name=\"%s\"\\\n", url.QueryEscape(params.Name))
@@ -355,7 +366,7 @@ func handleSourcePublishPretend(params *SourcePublishParams, state *task.State) 
 			fmt.Printf("  -d visibility=\"%s\"\\\n", params.Visibility)
 			fmt.Printf("  -d active=\"%s\"\\\n", cast.ToString(true))
 			fmt.Println("  -d props=\"{...}\"")
-			fmt.Printf("%s\n", brokerClient.CreateDataSourceUrl())
+			fmt.Printf("%s\n", brokerClient.CreateDataStoreUrl())
 			return nil
 		}
 
@@ -365,10 +376,10 @@ func handleSourcePublishPretend(params *SourcePublishParams, state *task.State) 
 	return state.Error
 }
 
-func handleSourcePublishUpdate(params *SourcePublishParams, state *task.State) error {
+func handleStorePublishUpdate(params *StorePublishParams, state *task.State) error {
 	state.Completed = true
 
-	if errors.Is(state.Error, errorDataSourceExist) {
+	if errors.Is(state.Error, errorDataStoreExist) {
 		if state.Internal != nil {
 			var instance = state.Internal.(broker.DataLinkInstance)
 			var brokerClient broker.Client
@@ -378,19 +389,19 @@ func handleSourcePublishUpdate(params *SourcePublishParams, state *task.State) e
 				var lockerState = NewSecuredLockerState(state)
 				var account = brokerClient.GetHostAddr()
 
-				state.Logger.Debugf("Updating data source [%d] from locker [%s]", *instance.Id, params.LockerPath)
+				state.Logger.Debugf("Updating data store [%d] from locker [%s]", *instance.Id, params.LockerPath)
 
 				if err = lockerState.Read(params.LockerPath, params.Passphrase); err == nil {
 					var props map[string]string
 
 					defer lockerState.Destroy()
-					state.Logger.Debugf("Pushing data source handle [%s] onto name [%s]", params.LockerHandle, instance.Name)
+					state.Logger.Debugf("Pushing data store handle [%s] onto name [%s]", params.LockerHandle, instance.Name)
 
-					if props, err = lockerState.GetSourceProps(account, params.LockerHandle, params.Passphrase); err == nil {
+					if props, err = lockerState.GetStoreProps(account, params.LockerHandle, params.Passphrase); err == nil {
 						var updated *broker.DataLinkInstance
 
-						if updated, err = brokerClient.UpdateDataSource(&instance, props); err == nil {
-							state.Reportf("Updated data source [%s], id: [%d]", params.LockerHandle, *updated.Id)
+						if updated, err = brokerClient.UpdateDataStore(&instance, props); err == nil {
+							state.Reportf("Updated data store [%s], id: [%d]", params.LockerHandle, *updated.Id)
 							return nil
 						}
 					}
@@ -400,39 +411,39 @@ func handleSourcePublishUpdate(params *SourcePublishParams, state *task.State) e
 			return err
 		}
 
-		return errorDataSourceUnknown
+		return errorDataStoreUnknown
 	}
 
 	return state.Error
 }
 
-func handleSourceSyncComplete(params *SourceFindParams, state *task.State) error {
+func handleStoreSyncComplete(params *StoreFindParams, state *task.State) error {
 	if state.Output != "" {
 		var brokerClient broker.Client
 		var err error
 
-		state.Logger.Debugf("Retrieving data source [%s] for data link [%s]", params.LockerHandle, state.Output)
+		state.Logger.Debugf("Retrieving data store [%s] for data link [%s]", params.LockerHandle, state.Output)
 
 		if brokerClient, err = params.GetClient(); err == nil {
-			var sources []broker.DataLinkInstance
+			var stores []broker.DataLinkInstance
 
-			if sources, err = brokerClient.ListDataSources(); err == nil {
+			if stores, err = brokerClient.ListDataStores(); err == nil {
 				state.Output = ""
 
-				if len(sources) > 0 {
-					var filtered = slicez.Filter(sources, func(instance broker.DataLinkInstance) bool {
+				if len(stores) > 0 {
+					var filtered = slicez.Filter(stores, func(instance broker.DataLinkInstance) bool {
 						return instance.HasLink(params.DataLink)
 					})
 
-					if params.SourceName != "" {
+					if params.StoreName != "" {
 						var named = slicez.Filter(filtered, func(instance broker.DataLinkInstance) bool {
-							return strings.EqualFold(params.SourceName, instance.Name)
+							return strings.EqualFold(params.StoreName, instance.Name)
 						})
 
-						return handleStateSourceInstanceList(named, state)
+						return handleStateStoreInstanceList(named, state)
 					}
 
-					return handleStateSourceInstanceList(filtered, state)
+					return handleStateStoreInstanceList(filtered, state)
 				}
 
 				return nil
@@ -445,23 +456,23 @@ func handleSourceSyncComplete(params *SourceFindParams, state *task.State) error
 	return errorLockerDataLinkInvalid
 }
 
-func handleSourceSyncContext(params *SourceFindParams, state *task.State) error {
+func handleStoreSyncContext(params *StoreFindParams, state *task.State) error {
 	return handleBaseSyncContext(params.DataLinkParams, state)
 }
 
-func handleSourceSyncPretend(params *SourceFindParams, state *task.State) error {
+func handleStoreSyncPretend(params *StoreFindParams, state *task.State) error {
 	if state.Output != "" {
 		var brokerClient broker.Client
 		var err error
 
 		if brokerClient, err = params.GetClient(); err == nil {
-			state.Logger.Debugf("Pretending finding data source [%s] for account [%s]",
+			state.Logger.Debugf("Pretending finding data store [%s] for account [%s]",
 				params.LockerHandle, brokerClient.GetHostAddr())
 
 			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
-			fmt.Printf("%s\n", brokerClient.ListDataSourcesUrl())
-			state.Logger.Debugf("Filtering data sources for data link [%s]", params.DataLinkParams.ToPublished())
+			fmt.Printf("%s\n", brokerClient.ListDataStoresUrl())
+			state.Logger.Debugf("Filtering data stores for data link [%s]", params.DataLinkParams.ToPublished())
 			return nil
 		}
 
@@ -471,12 +482,12 @@ func handleSourceSyncPretend(params *SourceFindParams, state *task.State) error 
 	return errorLockerDataLinkInvalid
 }
 
-func handleSourceUpdateComplete(params *SourceUpdateParams, state *task.State) error {
+func handleStoreUpdateComplete(params *StoreUpdateParams, state *task.State) error {
 	if state.Output != "" {
 		var brokerClient broker.Client
 		var err error
 
-		state.Logger.Debugf("Updating source [%s] from locker [%s]", params.LockerHandle, params.LockerPath)
+		state.Logger.Debugf("Updating store [%s] from locker [%s]", params.LockerHandle, params.LockerPath)
 
 		if brokerClient, err = params.GetClient(); err == nil {
 			var lockerState = NewSecuredLockerState(state)
@@ -494,9 +505,9 @@ func handleSourceUpdateComplete(params *SourceUpdateParams, state *task.State) e
 					valueEnclave = newEmptyEnclave()
 				}
 
-				if err = lockerState.updateSource(accountUrl, params.LockerHandle, params.Key, valueEnclave, params.Passphrase); err == nil {
+				if err = lockerState.updateStore(accountUrl, params.LockerHandle, params.Key, valueEnclave, params.Passphrase); err == nil {
 					if err = lockerState.Write(params.LockerPath, params.Passphrase); err == nil {
-						state.Reportf("Updated property key [%s] for source [%s] on account [%s]",
+						state.Reportf("Updated property key [%s] for store [%s] on account [%s]",
 							params.Key, params.LockerHandle, accountUrl)
 						return nil
 					}
@@ -514,7 +525,7 @@ func handleSourceUpdateComplete(params *SourceUpdateParams, state *task.State) e
 	return errorLockerPathInvalid
 }
 
-func handleSourceUpdateContext(params *SourceUpdateParams, state *task.State) error {
+func handleStoreUpdateContext(params *StoreUpdateParams, state *task.State) error {
 	if state.Output == "" {
 		var err error
 
@@ -547,7 +558,7 @@ func handleSourceUpdateContext(params *SourceUpdateParams, state *task.State) er
 	return nil
 }
 
-func handleSourceUpdatePretend(params *SourceUpdateParams, state *task.State) error {
+func handleStoreUpdatePretend(params *StoreUpdateParams, state *task.State) error {
 	if state.Output != "" {
 		var brokerClient broker.Client
 		var err error
@@ -555,8 +566,8 @@ func handleSourceUpdatePretend(params *SourceUpdateParams, state *task.State) er
 		if brokerClient, err = params.GetClient(); err == nil {
 			var accountUrl = brokerClient.GetHostAddr()
 
-			state.Logger.Debugf("Pretending to update data source [%s] from account [%s]", params.LockerHandle, accountUrl)
-			state.Logger.Debugf("Data source property [%s] updated for link [%s/%s:%s]", params.Key, params.Oem, params.Handle, params.Version)
+			state.Logger.Debugf("Pretending to update data store [%s] from account [%s]", params.LockerHandle, accountUrl)
+			state.Logger.Debugf("Data store property [%s] updated for link [%s/%s:%s]", params.Key, params.Oem, params.Handle, params.Version)
 			state.Output = ""
 			return nil
 		}
@@ -565,14 +576,4 @@ func handleSourceUpdatePretend(params *SourceUpdateParams, state *task.State) er
 	}
 
 	return errorLockerPathInvalid
-}
-
-func handleStateSourceInstanceList(links []broker.DataLinkInstance, state *task.State) error {
-	if len(links) > 1 {
-		return errorLockerDataSourceConflict
-	} else if len(links) == 1 {
-		state.Internal = links[0]
-	}
-
-	return nil
 }

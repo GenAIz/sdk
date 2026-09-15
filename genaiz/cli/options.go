@@ -614,6 +614,27 @@ var (
 					WithValidator(config.AnyOfEnumerated(broker.Visibilities))
 			},
 		},
+		Stores: storeOptions{
+			Description: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("description").
+					WithUsage("description of the data store").
+					WithValidator(config.Validation.Blob)
+			},
+			Name: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithUsage("name of the data store").
+					WithValidator(config.Validation.RequiredName)
+			},
+			Visibility: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("visibility").
+					WithUsage("who can use the data store, private data stores can only be viewed by their owners").
+					WithUsage("supported values are PRIVATE and ORGANIZATION").
+					WithValidator(config.AnyOfEnumerated(broker.Visibilities))
+			},
+		},
 		Workflows: workflowOptions{
 			mgmtOptions: mgmtOptions{
 				Account: func() OptionBuilder {
@@ -784,6 +805,7 @@ type cliOptions struct {
 	PropSpecs  propSpecsOptions
 	Solutions  solutionOptions
 	Sources    sourceOptions
+	Stores     storeOptions
 	Workflows  workflowOptions
 	Workspaces workspaceOptions
 }
@@ -913,6 +935,12 @@ type solutionOptions struct {
 }
 
 type sourceOptions struct {
+	Description func() OptionBuilder
+	Name        func() OptionBuilder
+	Visibility  func() OptionBuilder
+}
+
+type storeOptions struct {
 	Description func() OptionBuilder
 	Name        func() OptionBuilder
 	Visibility  func() OptionBuilder

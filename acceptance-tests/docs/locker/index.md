@@ -14,6 +14,10 @@ require a valid [datalink](../datalink/index.md) from a session established befo
     * [Data Source Update](#data-source-update)
     * [Data Source Update for a Secret](#data-source-update-for-a-secret)
     * [Data Source Publish](#data-source-publish)
+    * [Data Store Addition](#data-store-addition)
+    * [Data Store Update](#data-store-update)
+    * [Data Store Update for a Secret](#data-store-update-for-a-secret)
+    * [Data Store Publish](#data-store-publish)
 * [Test Cases](#test-cases)
 * [Commands](#commands)
 * [Validation](#validation)
@@ -69,7 +73,7 @@ flowchart LR
 ### Data Source Update
 
 The data source update activity is the localized update of an existing data source under an existing locker file. The
-activity does not require a request to any [Account](../account/index.md), but still requires to know under which
+activity should not require a request to any [Account](../account/index.md), but still requires to know under which
 account to look for a data source handle. The data sources already enshrined inside a locker are considered valid until
 the [Data Source Publish](#data-source-publish) activity is invoked.
 
@@ -107,7 +111,7 @@ flowchart LR
 
 ### Data Source Publish
 
-Data source publishing is the final activity involving working with data sources with the objective of using the data
+Data source publishing is the final activity involving working with data sources with the objective of using a data
 source with a user [workspace](../workspace/index.md). The activity implies that a data source which already exists can
 be updated to new property values.
 
@@ -132,12 +136,103 @@ flowchart LR
     publishDataSource --> updateDataSource([update<br>data source])
 ```
 
+### Data Store Addition
+
+The data store addition activity is the localized update of an existing locker file. The activity requires a request
+done to an Orchestration [Account](../account/index.md). A data store is always added for a
+specific [Datalink](../datalink/index.md), which needs to be validated from the list of links available to the account
+session.
+
+```mermaid
+---
+title: Data Store Addition
+config:
+    flowchart:
+        titleTopMargin: 50 
+---
+flowchart LR
+    user>user] --> lkInit([init locker])
+    user --> login([account<br>login])
+    lkInit --> addDataStore([add<br>data store])
+    login --> lsDataLink([list<br>datalinks])
+    lsDataLink --> addDataStore
+```
+
+### Data Store Update
+
+The data store update activity is the localized update of an existing data store under an existing locker file. The
+activity should not require a request to any [Account](../account/index.md), but still requires to know under which
+account to look for a data store handle. The data stores already enshrined inside a locker are considered valid until
+the [Data Store Publish](#data-store-publish) activity is invoked.
+
+```mermaid
+---
+title: Data Store Update
+config:
+    flowchart:
+        titleTopMargin: 50 
+---
+flowchart LR
+    user>user] --> updateDataStore([update<br>data store])
+```
+
+### Data Store Update for a Secret
+
+The data store update activity above can not be used to update secret properties from text-based sources like the
+command line. Secrets must live unencrypted for the shortest amount of time possible when an update or when
+a [Data Store Publish](#data-store-publish) activity is performed. Secrets can only be read through
+STDIN when the update command is invoked.
+
+The recommended activity for updating a secret is as follows:
+
+```mermaid
+---
+title: Data Store Update for a Secret
+config:
+    flowchart:
+        titleTopMargin: 50 
+---
+flowchart LR
+    user>user] --> gpgDecrypt([gpg decrypt])
+    gpgDecrypt --> updateDataStoreSecret([update<br>data store secret])
+```
+
+### Data Store Publish
+
+Data store publishing is the final activity involving working with data stores with the objective of using a data
+store with a user [workspace](../workspace/index.md). The activity implies that a data source which already exists can
+be updated to new property values.
+
+The user can perform any amount of updates with [data store update](#data-store-update)
+or [data store secret update](#data-store-update-for-a-secret). When the publishing is invoked, the command will
+determine if an update or a creation is necessary for it to complete the activity.
+
+```mermaid
+---
+title: Data Store Publish
+---
+flowchart LR
+    user>user] --> login([account<br>login])
+    user --> lkInit([init locker])
+    login --> lsDataLink([list<br>datalinks])
+    lkInit --> addDataStore([add<br>data store])
+    lsDataLink --> addDataStore([add<br>data store])
+    addDataStore --> updateProperties([update<br>properties])
+    updateProperties --> updateProperties
+    updateProperties --> publishDataStore([publish<br>data stores])
+    publishDataStore --> createDataStore([create<br>data store])
+    publishDataStore --> updateDataStore([update<br>data store])
+```
+
 ## Test Cases
 
 * [Add data source to locker](../../features/locker/add_data_source_to_locker.feature)
+* [Add data store to locker](../../features/locker/add_data_store_to_locker.feature)
 * [Initialize locker](../../features/locker/init_locker.feature)
 * [Publish data source to account](../../features/locker/publish_data_source_to_account.feature)
+* [Publish data store to account]()
 * [Update data source secret](../../features/locker/update_data_source_secret.feature)
+* [Update data store secret](../../features/locker/update_data_store_secret.feature)
 
 ## Commands
 

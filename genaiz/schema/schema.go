@@ -286,14 +286,6 @@ type Document struct {
 			Path      Keys
 			Update    Keys
 		}
-		Add struct {
-			Account Keys
-			Locker  Keys
-		}
-		Update struct {
-			Account Keys
-			Locker  Keys
-		}
 	}
 	Solution struct {
 		Create struct {
@@ -331,12 +323,37 @@ type Document struct {
 		}
 	}
 	Source struct {
+		Add struct {
+			Account Keys
+			Locker  Keys
+		}
 		Publish struct {
 			Account     Keys
 			Description Keys
 			Locker      Keys
 			Name        Keys
 			Visibility  Keys
+		}
+		Update struct {
+			Account Keys
+			Locker  Keys
+		}
+	}
+	Store struct {
+		Add struct {
+			Account Keys
+			Locker  Keys
+		}
+		Publish struct {
+			Account     Keys
+			Description Keys
+			Locker      Keys
+			Name        Keys
+			Visibility  Keys
+		}
+		Update struct {
+			Account Keys
+			Locker  Keys
 		}
 	}
 	Workflow struct {
@@ -717,13 +734,9 @@ func init() {
 	Genaiz.Function.Test.NoPropSync = newKeys("Function.Test.NoPropSync", "SF_TEST_NO_PROP_SYNC", "Sf.Test.NoPropSync")
 	Genaiz.Function.Test.Prefix = newKeys("Function.Test.Prefix", "SF_RUN_CONTAINER_PREFIX", "Sf.Test.Prefix")
 
-	Genaiz.Locker.Add.Account = newKeys("Locker.Add.Account", "LK_ADD_ACCOUNT", "Lk.Add.Account")
-	Genaiz.Locker.Add.Locker = newKeys("Locker.Add.Locker", "LK_ADD_LOCKER", "Lk.Add.Locker")
 	Genaiz.Locker.Init.Overwrite = newKeys("Locker.Init.Overwrite", "LK_INIT_OVERWRITE", "Lk.Init.Overwrite")
 	Genaiz.Locker.Init.Path = newKeys("Locker.Init.Path", "LK_INIT_PATH", "Lk.Init.Path")
 	Genaiz.Locker.Init.Update = newKeys("Locker.Init.Update", "LK_INIT_UPDATE", "Lk.Init.Update")
-	Genaiz.Locker.Update.Account = newKeys("Locker.Update.Account", "LK_UPDATE_ACCOUNT", "Lk.Update.Account")
-	Genaiz.Locker.Update.Locker = newKeys("Locker.Update.Locker", "LK_UPDATE_LOCKER", "Lk.Update.Locker")
 
 	Genaiz.Solution.Create.ConfigType = newKeys("Solution.Create.ConfigType", "SN_CREATE_CONFIG_TYPE", "Sn.Create.ConfigType")
 	Genaiz.Solution.Create.Description = newKeys("Solution.Create.Description", "SN_CREATE_DESCRIPTION", "Sn.Create.Description")
@@ -751,11 +764,25 @@ func init() {
 	Genaiz.Solution.Publish.Printer = newKeys("Solution.Publish.Printer", "SN_PUBLISH_PRINTER", "Sn.Publish.Printer")
 	Genaiz.Solution.Publish.Version = newKeys("Solution.Publish.Version", "SN_PUBLISH_VERSION", "Sn.Publish.Version")
 
+	Genaiz.Source.Add.Account = newKeys("DataSource.Add.Account", "SRC_ADD_ACCOUNT", "Src.Add.Account")
+	Genaiz.Source.Add.Locker = newKeys("DataSource.Add.Locker", "SRC_ADD_LOCKER", "Src.Add.Locker")
 	Genaiz.Source.Publish.Account = newKeys("DataSource.Publish.Account", "SRC_PUBLISH_ACCOUNT", "Src.Publish.Account")
 	Genaiz.Source.Publish.Description = newKeys("DataSource.Publish.Description", "SRC_PUBLISH_DESCRIPTION", "Src.Publish.Description")
 	Genaiz.Source.Publish.Locker = newKeys("DataSource.Publish.Locker", "SRC_PUBLISH_LOCKER", "Src.Publish.Locker")
 	Genaiz.Source.Publish.Name = newKeys("DataSource.Publish.Name", "SRC_PUBLISH_NAME", "Src.Publish.Name")
 	Genaiz.Source.Publish.Visibility = newKeys("DataSource.Publish.Visibility", "SRC_PUBLISH_VISIBILITY", "Src.Publish.Visibility")
+	Genaiz.Source.Update.Account = newKeys("DataSource.Update.Account", "SRC_UPDATE_ACCOUNT", "Src.Update.Account")
+	Genaiz.Source.Update.Locker = newKeys("DataSource.Update.Locker", "SRC_UPDATE_LOCKER", "Src.Update.Locker")
+
+	Genaiz.Store.Add.Account = newKeys("DataStore.Add.Account", "STR_ADD_ACCOUNT", "Str.Add.Account")
+	Genaiz.Store.Add.Locker = newKeys("DataStore.Add.Locker", "STR_ADD_LOCKER", "Str.Add.Locker")
+	Genaiz.Store.Publish.Account = newKeys("DataStore.Publish.Account", "STR_PUBLISH_ACCOUNT", "Str.Publish.Account")
+	Genaiz.Store.Publish.Description = newKeys("DataStore.Publish.Description", "STR_PUBLISH_DESCRIPTION", "Str.Publish.Description")
+	Genaiz.Store.Publish.Locker = newKeys("DataStore.Publish.Locker", "STR_PUBLISH_LOCKER", "Str.Publish.Locker")
+	Genaiz.Store.Publish.Name = newKeys("DataStore.Publish.Name", "STR_PUBLISH_NAME", "Str.Publish.Name")
+	Genaiz.Store.Publish.Visibility = newKeys("DataStore.Publish.Visibility", "STR_PUBLISH_VISIBILITY", "Str.Publish.Visibility")
+	Genaiz.Store.Update.Account = newKeys("DataStore.Update.Account", "STR_UPDATE_ACCOUNT", "Str.Update.Account")
+	Genaiz.Store.Update.Locker = newKeys("DataStore.Update.Locker", "STR_UPDATE_LOCKER", "Str.Update.Locker")
 
 	Genaiz.Workflow.Create.ConfigType = newKeys("Workflow.Create.ConfigType", "WF_CREATE_CONFIG_TYPE", "Wf.Create.ConfigType")
 	Genaiz.Workflow.Create.Description = newKeys("Workflow.Create.Description", "WF_CREATE_DESCRIPTION", "Wf.Create.Description")

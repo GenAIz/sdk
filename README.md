@@ -1,6 +1,6 @@
 # GenAIz CLI
 
-<sub>Genaiz Version 1.0.1</sub>
+<sub>Genaiz Version 1.0.2</sub>
 
 The GenAIz CLI is a tool for creating, building and publishing Smart Functions to the GenAIz Orchestration platform. It
 also provides toolkits to manage Orchestrated Workspaces and execute their Workflows.
@@ -188,6 +188,19 @@ pipeline in need of calling the genaiz cli.
 ### Workspace Management
 
 #### Creating a Workspace
+
+The GenAIz CLI provides commands to help manage workspaces associated with an account on a GenAIz Orchestration service.
+
+```bash
+genaiz workspace create myWorkspace
+```
+
+A Workspace is the root for all Solution executions. Once a Workspace is created, Solution Workflows need to be
+instantiated in terms of Workspace Flows.
+
+```bash
+genaiz workspace flow create myWorkspace com.genaiz/mySolution:1.0.0 myWorkflowHandle
+```
 
 ### Credentials Management
 

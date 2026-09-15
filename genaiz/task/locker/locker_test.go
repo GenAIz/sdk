@@ -33,6 +33,14 @@ func (s stubClient) CreateDataSourceUrl() string {
 	return s.decoratedClient.CreateDataSourceUrl()
 }
 
+func (s stubClient) CreateDataStore(*broker.DataLinkInstance, map[string]string) (*broker.DataLinkInstance, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) CreateDataStoreUrl() string {
+	return s.decoratedClient.CreateDataStoreUrl()
+}
+
 func (s stubClient) CreateWorkspace(*broker.Workspace) (*broker.Workspace, error) {
 	panic("unimplemented")
 }
@@ -115,6 +123,14 @@ func (s stubClient) ListDataSources() ([]broker.DataLinkInstance, error) {
 
 func (s stubClient) ListDataSourcesUrl() string {
 	return s.decoratedClient.ListDataSourcesUrl()
+}
+
+func (s stubClient) ListDataStores() ([]broker.DataLinkInstance, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) ListDataStoresUrl() string {
+	return s.decoratedClient.ListDataStoresUrl()
 }
 
 func (s stubClient) ListSolutions(string) ([]broker.Solution, error) {
@@ -233,6 +249,14 @@ func (s stubClient) UpdateDataSourceUrl() string {
 	return s.decoratedClient.UpdateDataSourceUrl()
 }
 
+func (s stubClient) UpdateDataStore(*broker.DataLinkInstance, map[string]string) (*broker.DataLinkInstance, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) UpdateDataStoreUrl() string {
+	return s.decoratedClient.UpdateDataStoreUrl()
+}
+
 func (s stubClient) WithAccount(*broker.AuthAccount) (broker.Client, error) {
 	panic("unimplemented")
 }
@@ -286,6 +310,34 @@ func TestLockerAccount_withSource(t *testing.T) {
 	actual := testAccount.withSource(expectedSource)
 	assert.NotNil(t, actual)
 	assert.Contains(t, actual.DataSources, *expectedSource)
+}
+
+func TestLockerAccount_withStore(t *testing.T) {
+	var expectedStore = &lockerLink{
+		LockerHandle: "replaced",
+		LinkOem:      "replacedOem",
+		LinkHandle:   "replacedHandle",
+		LinkVersion:  "replacedVersion",
+		Properties:   "replacedProperties",
+	}
+	var testAccount = &lockerAccount{
+		DataStores: []lockerLink{
+			{
+				LockerHandle: "keep",
+			},
+			{
+				LockerHandle: "replaced",
+				LinkOem:      "oldOem",
+				LinkHandle:   "oldHandle",
+				LinkVersion:  "oldVersion",
+				Properties:   "oldProperties",
+			},
+		},
+	}
+
+	actual := testAccount.withStore(expectedStore)
+	assert.NotNil(t, actual)
+	assert.Contains(t, actual.DataStores, *expectedStore)
 }
 
 func TestLockerBody_withAccount(t *testing.T) {
@@ -479,6 +531,69 @@ func TestLockerLink_refreshSources_encodeError(t *testing.T) {
 	assert.Fail(t, err.Error())
 }
 
+func TestLockerLink_refreshStores(t *testing.T) {
+	var testOldPass = memguard.NewEnclave([]byte("old"))
+	var testPass = memguard.NewEnclave([]byte("new"))
+	var testLink = &lockerLink{}
+	var testProps = map[string]string{"key": "value"}
+	var err error
+
+	if testLink.Properties, err = testLink.encodeProperties(testProps, testOldPass); err == nil {
+		var testAccount = &lockerAccount{
+			DataStores: []lockerLink{
+				*testLink,
+			},
+		}
+		var links []lockerLink
+
+		links, err = testAccount.refreshStores(testOldPass, testPass)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(links))
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func TestLockerLink_refreshStores_decodeError(t *testing.T) {
+	var testAccount = &lockerAccount{
+		DataStores: []lockerLink{
+			{
+				Properties: "$",
+			},
+		},
+	}
+
+	actual, err := testAccount.refreshStores(nil, nil)
+	assert.ErrorAs(t, err, new(base64.CorruptInputError))
+	assert.Empty(t, actual)
+}
+
+func TestLockerLink_refreshStores_encodeError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testOldPass = memguard.NewEnclave([]byte("old"))
+	var testPass = &stubEnclave{openError: expectedError}
+	var testLink = &lockerLink{}
+	var testProps = map[string]string{"key": "value"}
+	var err error
+
+	if testLink.Properties, err = testLink.encodeProperties(testProps, testOldPass); err == nil {
+		var testAccount = &lockerAccount{
+			DataStores: []lockerLink{
+				*testLink,
+			},
+		}
+		var links []lockerLink
+
+		links, err = testAccount.refreshStores(testOldPass, testPass)
+		assert.ErrorIs(t, err, expectedError)
+		assert.Empty(t, links)
+		return
+	}
+
+	assert.Fail(t, err.Error())
+}
+
 func TestNewSecuredLockerState(t *testing.T) {
 	var expectedBuffer = memguard.NewBufferFromBytes([]byte("expected"))
 	var expectedPath = t.TempDir()
@@ -576,7 +691,7 @@ func TestSecuredLockerTracking_Update(t *testing.T) {
 	var testPassPhrase Enclave
 	var err error
 
-	if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, testLink, nil); err == nil {
+	if testPassPhrase, err = writeTestSourceLocker(testLockerPath, testUrl, testLink, nil); err == nil {
 		var testState = NewSecuredLockerState(&task.State{})
 
 		if err = testState.Read(testLockerPath, testPassPhrase); err == nil {
@@ -597,7 +712,7 @@ func TestSecuredLockerTracking_Update_NoAccounts(t *testing.T) {
 	var testPassPhrase Enclave
 	var err error
 
-	if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, nil, nil); err == nil {
+	if testPassPhrase, err = writeTestSourceLocker(testLockerPath, testUrl, nil, nil); err == nil {
 		var testState = NewSecuredLockerState(&task.State{})
 
 		if err = testState.Read(testLockerPath, testPassPhrase); err == nil {
@@ -611,7 +726,7 @@ func TestSecuredLockerTracking_Update_NoAccounts(t *testing.T) {
 	assert.Fail(t, err.Error())
 }
 
-func TestSecuredLockerTracking_Update_RefreshError(t *testing.T) {
+func TestSecuredLockerTracking_Update_RefreshSourceError(t *testing.T) {
 	var testDir = t.TempDir()
 	var testLockerPath = filepath.Join(testDir, "locker.bin")
 	var testUrl = "testUrl"
@@ -627,7 +742,38 @@ func TestSecuredLockerTracking_Update_RefreshError(t *testing.T) {
 	var testPassPhrase Enclave
 	var err error
 
-	if testPassPhrase, err = writeTestLocker(testLockerPath, testUrl, testLink, testProps); err == nil {
+	if testPassPhrase, err = writeTestSourceLocker(testLockerPath, testUrl, testLink, testProps); err == nil {
+		var testState = NewSecuredLockerState(&task.State{})
+
+		if err = testState.Read(testLockerPath, testPassPhrase); err == nil {
+			var newPassPhrase = memguard.NewEnclave([]byte("wut"))
+
+			// inverted params
+			assert.Error(t, testState.Update(testPassPhrase, newPassPhrase))
+			return
+		}
+	}
+
+	assert.Fail(t, err.Error())
+}
+
+func TestSecuredLockerTracking_Update_RefreshStoreError(t *testing.T) {
+	var testDir = t.TempDir()
+	var testLockerPath = filepath.Join(testDir, "locker.bin")
+	var testUrl = "testUrl"
+	var testLink = &lockerLink{
+		LockerHandle: "testHandle",
+		LinkOem:      "expectedOem",
+		LinkHandle:   "expectedHandle",
+		LinkVersion:  "expectedVersion",
+	}
+	var testProps = map[string]string{
+		"key": "value",
+	}
+	var testPassPhrase Enclave
+	var err error
+
+	if testPassPhrase, err = writeTestStoreLocker(testLockerPath, testUrl, testLink, testProps); err == nil {
 		var testState = NewSecuredLockerState(&task.State{})
 
 		if err = testState.Read(testLockerPath, testPassPhrase); err == nil {
@@ -943,7 +1089,7 @@ func writeTestJsonError(lockerPath string) (Enclave, error) {
 	return nil, err
 }
 
-func writeTestLocker(lockerPath, testUrl string, link *lockerLink, properties map[string]string) (Enclave, error) {
+func writeTestSourceLocker(lockerPath, testUrl string, link *lockerLink, properties map[string]string) (Enclave, error) {
 	var lockerState = NewSecuredLockerState(&task.State{})
 	var testPassphrase = memguard.NewEnclave([]byte("test"))
 	var err error
@@ -955,6 +1101,34 @@ func writeTestLocker(lockerPath, testUrl string, link *lockerLink, properties ma
 					var valueEnclave = memguard.NewEnclave([]byte(v))
 
 					if err = lockerState.updateSource(testUrl, link.LockerHandle, k, valueEnclave, testPassphrase); err != nil {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if err == nil {
+		if err = lockerState.Write(lockerPath, testPassphrase); err == nil {
+			return testPassphrase, nil
+		}
+	}
+
+	return nil, err
+}
+
+func writeTestStoreLocker(lockerPath, testUrl string, link *lockerLink, properties map[string]string) (Enclave, error) {
+	var lockerState = NewSecuredLockerState(&task.State{})
+	var testPassphrase = memguard.NewEnclave([]byte("test"))
+	var err error
+
+	if testUrl != "" && link != nil {
+		if err = lockerState.addStore(testUrl, link); err == nil {
+			if len(properties) > 0 {
+				for k, v := range properties {
+					var valueEnclave = memguard.NewEnclave([]byte(v))
+
+					if err = lockerState.updateStore(testUrl, link.LockerHandle, k, valueEnclave, testPassphrase); err != nil {
 						break
 					}
 				}

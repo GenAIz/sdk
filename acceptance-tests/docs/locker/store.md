@@ -1,40 +1,40 @@
-# Locker Source
+# Locker Store
 
-The source sub-command of `locker` is used to add and update data source properties to a locker file. The properties are
-used subsequently from the [publish](#source-publish) command or from [run](../function/run.md),
+The store sub-command of `locker` is used to add and update data store properties to a locker file. The properties are
+used subsequently from the [publish](#store-publish) command or from [run](../function/run.md),
 [start](../function/start.md) and [test](../function/test.md).
 
-If the `locker source` commands can not find a locker file to manipulate, they return an error:
+If the `locker store` commands can not find a locker file to manipulate, they return an error:
 `Error: no accessible locker found, run init first?`
 
 The locker file used by default is always `$HOME/.config/genaiz/locker.bin`, all commands support the `--locker`
 option.
 
-## source add
+## store add
 
 ```
-genaiz lk source add HANDLE FQDN:VERSION[-rc-N] \
+genaiz lk store add HANDLE FQDN:VERSION[-rc-N] \
   --account=[[<user>@]host] \
   --locker=LOCKER_PATH
 ```
 
-Using the source add command requires a valid [Account](../account/index.md) session with an Orchestration. If no
+Using the store add command requires a valid [Account](../account/index.md) session with an Orchestration. If no
 account is found or specified the command will return an error: `Error: client not authenticated`
 
-When adding a data source, the [handle](#handle) argument is always used within the context of the user's local
+When adding a data store, the [handle](#handle) argument is always used within the context of the user's local
 development environment. The handles are not shared across locker files and are not made unique by any Orchestration
 Account.
 
-Adding data sources for links which have no properties defined will fail with an error:
+Adding data stores for links which have no properties defined will fail with an error:
 `Error: datalink property set is empty, is it incomplete?`
 
 ### HANDLE
 
-The value of handle may be used by the [Locker Source Publish](#source-publish) command to populate the
-required name field of a Data Source.
+The value of handle may be used by the [Locker Store Publish](#store-publish) command to populate the
+required name field of a Data Store.
 
-* if the value of handle is duplicated within the locker's account sources, the command will return an error:
-  `Error: data source [...] for account [...] is already defined`
+* if the value of handle is duplicated within the locker's account stores, the command will return an error:
+  `Error: data store [...] for account [...] is already defined`
 * if the value of handle is not a valid [handle](../index.md#handle-and-oem), the command will fail with error:
   `Error: value [...] is not a valid handle`
 
@@ -68,10 +68,10 @@ When the user wishes to use a different locker file, this option expects a valid
 * if the value points to a locker that can not be read, the command will return an error:
   `Error: locker [...] can not be read`
 
-## source update
+## store update
 
 ```
-genaiz lk source update HANDLE MyKey [MyValue] \
+genaiz lk store update HANDLE MyKey [MyValue] \
   --account=[[<user>@]host]
   --locker=LOCKER_PATH
 ```
@@ -82,14 +82,14 @@ genaiz lk source update HANDLE MyKey [MyValue] \
 
 ### HANDLE
 
-The value of handle is matched under the locker's account data sources for updating the properties contained within
+The value of handle is matched under the locker's account data stores for updating the properties contained within
 
-* if the value of handle is not found within the locker's account sources, the command will return an error:
-  `Error: data source [...] for account [...] does not exist`
+* if the value of handle is not found within the locker's account stores, the command will return an error:
+  `Error: data store [...] for account [...] does not exist`
 
 ### MyKey
 
-All keys specified must be members of the [Prop Specs](../datalink/prop.md) of the associated Datalink with the source.
+All keys specified must be members of the [Prop Specs](../datalink/prop.md) of the associated Datalink with the store.
 Secret keys can only be updated through STDIN.
 
 * if the key specified is not a valid Prop Spec key, the command will return an error:
@@ -111,56 +111,56 @@ When the user wishes to use a different locker file, this option expects a valid
 * if the value points to a locker that can not be read, the command will return an error:
   `Error: locker [...] can not be read`
 
-## source publish
+## store publish
 
 ```
-genaiz lk source publish HANDLE \
+genaiz lk store publish HANDLE \
   --name=NAME --description=DESCRIPTION --visibility=[PRIVATE|ORG]
   --account=[[<user>@]host]
   --locker=LOCKER_PATH
 ```
 
-The publish command will create a data source with [name](#name) set to [HANDLE](#handle-2) if it isn't provided. The
-data source will be created on the specified [account](#account-1) or the currently active account.
+The publish command will create a data store with [name](#name) set to [HANDLE](#handle-2) if it isn't provided. The
+data store will be created on the specified [account](#account-1) or the currently active account.
 
 Publish will ask for a passphrase to open the specified [locker](#locker-2), if the passphrase can not be used to
 decrypt the locker, the command returns an error: `Error: the passphrase failed decryption`
 
-Publish does not necessarily error out if a data source with the same name already exists. It will check if the datalink
+Publish does not necessarily error out if a data store with the same name already exists. It will check if the datalink
 coordinates are the same, before deciding if there is a conflict. it should also be able to update the data link id on
-the source, if the version has a newer release candidate.
+the store, if the version has a newer release candidate.
 
 ### HANDLE
 
-* if the value provided does not correspond to an existing data source in the specified [locker](#locker-2), the command
-  returns and error: `Error: the data source [...] is unknown`
+* if the value provided does not correspond to an existing data store in the specified [locker](#locker-2), the command
+  returns and error: `Error: the data store [...] is unknown`
 * if the handle or the name already exists for the user creating it, but with a different data link, the command will
-  fail with an error: `Error: incompatible datalinks found for data source [...], locker [...] has [...]`
+  fail with an error: `Error: incompatible datalinks found for data store [...], locker [...] has [...]`
 
 ### name
 
 * if the value of name is not specified, the handle string will be used instead.
 * if name does not match a valid name string, (see [name validity](../index.md#name)), the command will return an error
-  with the field and the shortened value: `value [...] for option [datasource.publish.name] is invalid`
+  with the field and the shortened value: `value [...] for option [datastore.publish.name] is invalid`
 
 ### description
 
 * if description does not match a valid description, (see [description validity](../index.md#description)), the command
   will return an error with the field and the shortened value:
-  `value [...] for option [datasource.publish.description] is invalid`
+  `value [...] for option [datastore.publish.description] is invalid`
 
 ### visibility
 
-Visibility affects which users can access and manage the data source. A `PRIVATE` data source can only be managed by its
-owner, while an `ORGANIZATION` data source should be visible to users of the same organization as the owner.
+Visibility affects which users can access and manage the data store. A `PRIVATE` data store can only be managed by its
+owner, while an `ORGANIZATION` data store should be visible to users of the same organization as the owner.
 
-* by default, all data source published with the publish command are flagged as `PRIVATE`
+* by default, all data store published with the publish command are flagged as `PRIVATE`
 * if the value of visibility is not `PRIVATE` or `ORGANIZATION`, case-insensitive, the command will return an error:
-  `Error: value [...] for option [datasource.publish.visibility] is invalid`
+  `Error: value [...] for option [datastore.publish.visibility] is invalid`
 
 ### account
 
-The account under which to create the data source.
+The account under which to create the data store.
 
 * if the value of the account does not evaluate to a Host address, the command returns an error:
   `Error: could not elect a session`

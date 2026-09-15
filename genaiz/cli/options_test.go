@@ -934,6 +934,37 @@ func Test_OptionsSourcesVisibility(t *testing.T) {
 	assert.True(t, testOption.Validator(broker.VisibilityPrivate))
 }
 
+func Test_OptionsStoresDescription(t *testing.T) {
+	var testOption = Options.Stores.Description().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.Empty(t, testOption.DefaultValue)
+	assert.NotNil(t, testOption.Validator)
+}
+
+func Test_OptionsStoresName(t *testing.T) {
+	var testOption = Options.Stores.Name().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.Empty(t, testOption.DefaultValue)
+	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
+}
+
+func Test_OptionsStoresVisibility(t *testing.T) {
+	var testOption = Options.Stores.Visibility().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, testOption.Validator("notValid"))
+	assert.True(t, testOption.Validator(broker.VisibilityOrg))
+	assert.True(t, testOption.Validator(broker.VisibilityPrivate))
+}
+
 func Test_OptionsWorkflowAccount(t *testing.T) {
 	var testOption = Options.Workflows.Account().BuildStringOption()
 
