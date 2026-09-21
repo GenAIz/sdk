@@ -1,9 +1,9 @@
-Feature: list account data sources
-  To be able to list data sources available to an account
+Feature: list account data stores
+  To be able to list data stores available to an account
   As an authenticated user
   I should be able to login to a broker, create and publish a DataLink
-  I should be able to initialize a locker and add a data source for the Datalink
-  I should be able to publish the locker source and list it from the broker
+  I should be able to initialize a locker and add a data store for the Datalink
+  I should be able to publish the locker store and list it from the broker
 
   Scenario: create data link
     Given the following parameters
@@ -29,7 +29,7 @@ Feature: list account data sources
     When I run the command "dk prop add <oem>/<handle>:<version> <key> --secret"
     Then I should have a "<type>" secret property spec under "<configFile>", for a datalink with handle "<handle>", oem "<oem>" and version "<version>", with key "<key>"
 
-  Scenario: login account data sources
+  Scenario: login account data stores
     Given the orchestrator is running with condition: "service_healthy"
     And the environment contains "GENAIZ_PASSWORD=<password>"
     And the following parameters
@@ -47,7 +47,7 @@ Feature: list account data sources
     When I run the command "dk publish <oem>/<handle>:<version>"
     Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<version>"
 
-  Scenario: init data source locker
+  Scenario: init data store locker
     Given the following parameters
       | path         | password |
       | myLocker.bin | SIzlR0a$ |
@@ -55,51 +55,51 @@ Feature: list account data sources
     When I run the command "lk init <path>"
     Then I should have a non-empty locker file initialized under "<path>"
 
-  Scenario: add data source for data link
+  Scenario: add data store for data link
     Given the scenario "publish data link" ran with condition "service_completed_successfully"
-    And the scenario "init data source locker" ran with condition "service_completed_successfully"
+    And the scenario "init data store locker" ran with condition "service_completed_successfully"
     And the following parameters
       | path         | password | handle      | dataLinkFqdn               | dataLinkVersion | mtime |
-      | myLocker.bin | SIzlR0a$ | myLockerSrc | com.genaiz.test/datalink-1 | 1.0.0           |       |
+      | myLocker.bin | SIzlR0a$ | myLockerStr | com.genaiz.test/datalink-1 | 1.0.0           |       |
     And the modification time of "<path>" known as parameter "mtime"
     And the environment contains "GENAIZ_LK_PASSWORD=<password>"
-    When I run the command "lk src add <handle> <dataLinkFqdn>:<dataLinkVersion> --locker=<path>"
+    When I run the command "lk str add <handle> <dataLinkFqdn>:<dataLinkVersion> --locker=<path>"
     Then I should have a locker file under "<path>" with a modification time different than "<mtime>"
 
-  Scenario: update data source property
-    Given the scenario "add data source for data link" ran with condition "service_completed_successfully"
+  Scenario: update data store property
+    Given the scenario "add data str for data link" ran with condition "service_completed_successfully"
     And the following parameters
       | path         | handle      | key    | value      |
-      | myLocker.bin | myLockerSrc | TENANT | some Value |
+      | myLocker.bin | myLockerStr | TENANT | some Value |
     And the modification time of "<path>" known as parameter "mtime"
     And the environment contains "GENAIZ_LK_PASSWORD=<password>"
-    When I run the command "lk src update <handle> <key> '<value>' --locker=<path>"
+    When I run the command "lk str update <handle> <key> '<value>' --locker=<path>"
     Then I should have a locker file under "<path>" with a modification time different than "<mtime>"
 
-  Scenario: update data source secret property
-    Given the scenario "update data source property" ran with condition "service_completed_successfully"
+  Scenario: update data store secret property
+    Given the scenario "update data store property" ran with condition "service_completed_successfully"
     And the following parameters
       | path         | password | localHandle | gpgPath  | gpgPassword | key        |
-      | myLocker.bin | SIzlR0a$ | myLockerSrc | test.gpg | gpgPass     | SECRET_KEY |
+      | myLocker.bin | SIzlR0a$ | myLockerStr | test.gpg | gpgPass     | SECRET_KEY |
     And a gpg encrypted file copied on "<gpgPath>"
     And the environment contains "GENAIZ_LK_PASSWORD=<password>"
     # that's gonna need some special way of invoking the genaiz command from the docker image
-    When I run the entrypoint "gpg --quiet --decrypt <gpgPath> 2>/dev/null | genaiz lk src update <localHandle> <key> --locker=<path>"
+    When I run the entrypoint "gpg --quiet --decrypt <gpgPath> 2>/dev/null | genaiz lk str update <localHandle> <key> --locker=<path>"
     Then I should have a locker file under "<path>" with a modification time different than "<mtime>"
 
-  Scenario: create data source for account
-    Given the scenario "update data source secret property" ran with condition "service_completed_successfully"
+  Scenario: create data store for account
+    Given the scenario "update data store secret property" ran with condition "service_completed_successfully"
     And the following parameters
       | path         | password   | handle      | name         |
-      | myLocker.bin | Testing37$ | myLockerSrc | Locker Src 1 |
+      | myLocker.bin | Testing37$ | myLockerStr | Locker Str 1 |
     And the environment contains "GENAIZ_LK_PASSWORD=<password>"
-    When I run the command "lk src publish <handle> --name='<name>' --locker=<path>"
-    Then I should have a data source named "<name>" created under account "<orchestrator>"
+    When I run the command "lk str publish <handle> --name='<name>' --locker=<path>"
+    Then I should have a data store named "<name>" created under account "<orchestrator>"
 
-  Scenario: list data sources for account
-    Given the scenario "create data source for account"
+  Scenario: list data stores for account
+    Given the scenario "create data store for account"
     And the following parameters
       | oem             | handle     | version | name         |
-      | com.genaiz.test | datalink-1 | 1.0.0   | Locker src 1 |
-    When I run the command "dt src list <oem>/<handle>:<version>"
-    Then I should have a data source list with first item listed named "<name>" for datalink "<oem>/<handle>:<version>" with "1" property
+      | com.genaiz.test | datalink-1 | 1.0.0   | Locker Str 1 |
+    When I run the command "dt str list <oem>/<handle>:<version>"
+    Then I should have a data store list with first item listed named "<name>" for datalink "<oem>/<handle>:<version>" with "1" property

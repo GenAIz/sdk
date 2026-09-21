@@ -9,9 +9,9 @@ import (
 	"genaiz.com/genaiz/task/broker"
 )
 
-func TestUserDataSourcesFacade_Filtering(t *testing.T) {
+func TestUserDataStoresFacade_Filtering(t *testing.T) {
 	var expectedFilter = "filter"
-	var testProvider = NewUserDataSourceFacade().
+	var testProvider = NewUserDataStoreFacade().
 		WithLogger(logrus.New()).
 		Filtering(expectedFilter)
 
@@ -19,8 +19,8 @@ func TestUserDataSourcesFacade_Filtering(t *testing.T) {
 	assert.NotNil(t, testProvider)
 }
 
-func TestUserDataSourcesFacade_Provider(t *testing.T) {
-	var testProvider = NewUserDataSourceFacade().
+func TestUserDataStoresFacade_Provider(t *testing.T) {
+	var testProvider = NewUserDataStoreFacade().
 		WithParams(&broker.DataInstanceListParams{}).
 		Provider()
 

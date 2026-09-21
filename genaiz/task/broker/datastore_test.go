@@ -13,8 +13,8 @@ import (
 	"genaiz.com/genaiz/task"
 )
 
-func TestNewDataSourceListTask(t *testing.T) {
-	var testTask = NewDataSourceListTask()
+func TestNewDataStoreListTask(t *testing.T) {
+	var testTask = NewDataStoreListTask()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotNil(t, testTask.OnPrepare)
@@ -22,7 +22,7 @@ func TestNewDataSourceListTask(t *testing.T) {
 	assert.NotNil(t, testTask.OnPretend)
 }
 
-func Test_handleDataSourceListComplete(t *testing.T) {
+func Test_handleDataStoreListComplete(t *testing.T) {
 	var expectedInstance = []DataLinkInstance{
 		{
 			Id: new(int64(37)),
@@ -42,23 +42,24 @@ func Test_handleDataSourceListComplete(t *testing.T) {
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
 		return &stubDataShareClient{
-			listDataSources: expectedInstance,
+			listDataStores: expectedInstance,
 		}, nil
 	}
 
-	assert.NoError(t, handleDataSourceListComplete(testParams, testState))
+	assert.NoError(t, handleDataStoreListComplete(testParams, testState))
 	actual, ok := testState.Internal.([]DataLinkInstance)
 	assert.True(t, ok)
 	assert.Equal(t, expectedInstance, actual)
 }
 
-func Test_handleDataSourceListComplete_FilterOem(t *testing.T) {
+func Test_handleDataStoreListComplete_FilterOem(t *testing.T) {
 	var expectedOem = "expectedOem"
 	var expectedInstances = []DataLinkInstance{
 		{
 			Id: new(int64(37)),
 			DataLink: DataLink{
-				Oem: expectedOem,
+				Oem:    expectedOem,
+				Handle: "someHandle",
 			},
 		},
 		{
@@ -87,18 +88,18 @@ func Test_handleDataSourceListComplete_FilterOem(t *testing.T) {
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
 		return &stubDataShareClient{
-			listDataSources: expectedInstances,
+			listDataStores: expectedInstances,
 		}, nil
 	}
 
-	assert.NoError(t, handleDataSourceListComplete(testParams, testState))
+	assert.NoError(t, handleDataStoreListComplete(testParams, testState))
 	actual, ok := testState.Internal.([]DataLinkInstance)
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(actual))
 	assert.Equal(t, expectedInstances[0], actual[0])
 }
 
-func Test_handleDataSourceListComplete_FilterOemHandle(t *testing.T) {
+func Test_handleDataStoreListComplete_FilterOemHandle(t *testing.T) {
 	var expectedOem = "expectedOem"
 	var expectedHandle = "expectedHandle"
 	var expectedInstances = []DataLinkInstance{
@@ -143,18 +144,18 @@ func Test_handleDataSourceListComplete_FilterOemHandle(t *testing.T) {
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
 		return &stubDataShareClient{
-			listDataSources: expectedInstances,
+			listDataStores: expectedInstances,
 		}, nil
 	}
 
-	assert.NoError(t, handleDataSourceListComplete(testParams, testState))
+	assert.NoError(t, handleDataStoreListComplete(testParams, testState))
 	actual, ok := testState.Internal.([]DataLinkInstance)
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(actual))
 	assert.Equal(t, expectedInstances[2], actual[0])
 }
 
-func Test_handleDataSourceListComplete_FilterOemHandleVersion(t *testing.T) {
+func Test_handleDataStoreListComplete_FilterOemHandleVersion(t *testing.T) {
 	var expectedOem = "expectedOem"
 	var expectedHandle = "expectedHandle"
 	var expectedVersion = "expectedVersion"
@@ -204,18 +205,18 @@ func Test_handleDataSourceListComplete_FilterOemHandleVersion(t *testing.T) {
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
 		return &stubDataShareClient{
-			listDataSources: expectedInstances,
+			listDataStores: expectedInstances,
 		}, nil
 	}
 
-	assert.NoError(t, handleDataSourceListComplete(testParams, testState))
+	assert.NoError(t, handleDataStoreListComplete(testParams, testState))
 	actual, ok := testState.Internal.([]DataLinkInstance)
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(actual))
 	assert.Equal(t, expectedInstances[2], actual[0])
 }
 
-func Test_handleDataSourceListComplete_ListError(t *testing.T) {
+func Test_handleDataStoreListComplete_ListError(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testParams = &DataInstanceListParams{
 		Broker: Broker{
@@ -231,15 +232,15 @@ func Test_handleDataSourceListComplete_ListError(t *testing.T) {
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
 		return &stubDataShareClient{
-			listDataSourcesError: expectedError,
+			listDataStoresError: expectedError,
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleDataSourceListComplete(testParams, testState), expectedError)
+	assert.ErrorIs(t, handleDataStoreListComplete(testParams, testState), expectedError)
 	assert.Nil(t, testState.Internal)
 }
 
-func Test_handleDataSourceListComplete_SessionError(t *testing.T) {
+func Test_handleDataStoreListComplete_SessionError(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testParams = &DataInstanceListParams{
 		Broker: Broker{
@@ -256,32 +257,32 @@ func Test_handleDataSourceListComplete_SessionError(t *testing.T) {
 		return nil, expectedError
 	}
 
-	assert.ErrorIs(t, handleDataSourceListComplete(testParams, &task.State{}), expectedError)
+	assert.ErrorIs(t, handleDataStoreListComplete(testParams, &task.State{}), expectedError)
 }
 
-func Test_handleDataSourceListContext(t *testing.T) {
-	assert.NoError(t, handleDataSourceListContext(&DataInstanceListParams{}, &task.State{}))
+func Test_handleDataStoreListContext(t *testing.T) {
+	assert.NoError(t, handleDataStoreListContext(&DataInstanceListParams{}, &task.State{}))
 }
 
-func Test_handleDataSourceListContext_InvalidFilter(t *testing.T) {
+func Test_handleDataStoreListContext_InvalidFilter(t *testing.T) {
 	var testParams = &DataInstanceListParams{
 		DataLink: &DataLink{
 			Handle: "handleWithNoOem",
 		},
 	}
 
-	assert.Error(t, handleDataSourceListContext(testParams, &task.State{}), errorDataShareOemRequired)
+	assert.Error(t, handleDataStoreListContext(testParams, &task.State{}), errorDataShareOemRequired)
 }
 
-func Test_handleDataSourceListContext_OutputKnown(t *testing.T) {
+func Test_handleDataStoreListContext_OutputKnown(t *testing.T) {
 	var testState = &task.State{
 		Output: "known",
 	}
 
-	assert.NoError(t, handleDataSourceListContext(&DataInstanceListParams{}, testState))
+	assert.NoError(t, handleDataStoreListContext(&DataInstanceListParams{}, testState))
 }
 
-func Test_handleDataSourceListContext_WithLink(t *testing.T) {
+func Test_handleDataStoreListContext_WithLink(t *testing.T) {
 	var testState = &task.State{
 		Logger: logrus.New(),
 	}
@@ -292,11 +293,11 @@ func Test_handleDataSourceListContext_WithLink(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, handleDataSourceListContext(testParams, testState))
+	assert.NoError(t, handleDataStoreListContext(testParams, testState))
 	assert.Equal(t, cast.ToString(*testParams.DataLink.Id), testState.Output)
 }
 
-func Test_handleDataSourceListPretend(t *testing.T) {
+func Test_handleDataStoreListPretend(t *testing.T) {
 	var testParams = &DataInstanceListParams{
 		Broker: Broker{
 			AuthFile: "file",
@@ -325,7 +326,7 @@ func Test_handleDataSourceListPretend(t *testing.T) {
 		}, nil
 	}
 
-	assert.NoError(t, handleDataSourceListPretend(testParams, testState))
+	assert.NoError(t, handleDataStoreListPretend(testParams, testState))
 
 	_ = w.Close()
 	b, _ := io.ReadAll(r)
@@ -333,7 +334,7 @@ func Test_handleDataSourceListPretend(t *testing.T) {
 	assert.Contains(t, output, testParams.Broker.HostAddr)
 }
 
-func Test_handleDataSourceListPretend_WithId(t *testing.T) {
+func Test_handleDataStoreListPretend_WithId(t *testing.T) {
 	var testParams = &DataInstanceListParams{
 		Broker: Broker{
 			AuthFile: "file",
@@ -365,7 +366,7 @@ func Test_handleDataSourceListPretend_WithId(t *testing.T) {
 		}, nil
 	}
 
-	assert.NoError(t, handleDataSourceListPretend(testParams, testState))
+	assert.NoError(t, handleDataStoreListPretend(testParams, testState))
 
 	_ = w.Close()
 	b, _ := io.ReadAll(r)
@@ -374,7 +375,7 @@ func Test_handleDataSourceListPretend_WithId(t *testing.T) {
 	assert.Contains(t, output, cast.ToString(*testParams.DataLink.Id))
 }
 
-func Test_handleDataSourceListPretend_SessionError(t *testing.T) {
+func Test_handleDataStoreListPretend_SessionError(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testParams = &DataInstanceListParams{
 		Broker: Broker{
@@ -391,5 +392,5 @@ func Test_handleDataSourceListPretend_SessionError(t *testing.T) {
 		return nil, expectedError
 	}
 
-	assert.ErrorIs(t, handleDataSourceListPretend(testParams, &task.State{}), expectedError)
+	assert.ErrorIs(t, handleDataStoreListPretend(testParams, &task.State{}), expectedError)
 }

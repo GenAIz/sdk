@@ -1,13 +1,18 @@
 package mgmt
 
 import (
+	"cmp"
 	"encoding/json"
+	"slices"
 
 	"github.com/spf13/cast"
 
 	"genaiz.com/genaiz-lib/lang/stringz"
+	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
+
+type DataInstanceListTaskFactory func() *task.Task[broker.DataInstanceListParams]
 
 // UserLinkInstance is an adapter for broker.DataLinkInstance used to display both DataStores and DataSources, which share the same definition
 type UserLinkInstance struct {
@@ -109,4 +114,42 @@ func ToUserLinkInstance(dli *broker.DataLinkInstance) *UserLinkInstance {
 	}
 
 	return result
+}
+
+type userLinkInstancesProvider struct {
+	task.Plan
+	filter                      string
+	params                      *broker.DataInstanceListParams
+	dataInstanceListTaskFactory DataInstanceListTaskFactory
+}
+
+func (udp *userLinkInstancesProvider) Get() ([]UserLinkInstance, task.Error) {
+	var instances []broker.DataLinkInstance
+	var workers []task.Worker
+	var failure interface{}
+
+	udp.OnReturn = func(i interface{}) { instances = i.([]broker.DataLinkInstance) }
+	udp.OnFailure = func(i interface{}) { failure = i }
+	workers = append(workers, task.NewWorker(udp.params, udp.dataInstanceListTaskFactory()))
+	udp.Sequence(workers...)
+
+	if failure == nil {
+		var result = make([]UserLinkInstance, 0)
+
+		for _, ds := range instances {
+			var instance = ToUserLinkInstance(&ds)
+
+			result = append(result, *instance)
+		}
+
+		if len(result) > 1 {
+			slices.SortFunc(result, func(a, b UserLinkInstance) int {
+				return cmp.Compare(b.Created, a.Created)
+			})
+		}
+
+		return result, nil
+	}
+
+	return nil, task.NewFailure(failure)
 }

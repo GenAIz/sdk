@@ -10,29 +10,29 @@ import (
 	ver "genaiz.com/genaiz/version"
 )
 
-func NewDataSourceListTask() *task.Task[DataInstanceListParams] {
+func NewDataStoreListTask() *task.Task[DataInstanceListParams] {
 	return &task.Task[DataInstanceListParams]{
-		Name:       "data-source-list",
-		OnPrepare:  handleDataSourceListContext,
-		OnComplete: handleDataSourceListComplete,
-		OnPretend:  handleDataSourceListPretend,
+		Name:       "data-store-list",
+		OnPrepare:  handleDataStoreListContext,
+		OnComplete: handleDataStoreListComplete,
+		OnPretend:  handleDataStoreListPretend,
 	}
 }
 
-func handleDataSourceListComplete(params *DataInstanceListParams, state *task.State) error {
+func handleDataStoreListComplete(params *DataInstanceListParams, state *task.State) error {
 	var err error
 	var brokerClient Client
 
 	if brokerClient, err = params.GetClient(); err == nil {
-		var sources []DataLinkInstance
+		var stores []DataLinkInstance
 
-		handleDataSourceFilterDebugging(params, state.Logger)
+		handleDataStoreFilterDebugging(params, state.Logger)
 
-		if sources, err = brokerClient.ListDataSources(); err == nil {
+		if stores, err = brokerClient.ListDataStores(); err == nil {
 			if params.hasDataLinkFilter() {
-				state.Internal = params.filter(sources)
+				state.Internal = params.filter(stores)
 			} else {
-				state.Internal = sources
+				state.Internal = stores
 			}
 
 			return nil
@@ -42,14 +42,14 @@ func handleDataSourceListComplete(params *DataInstanceListParams, state *task.St
 	return err
 }
 
-func handleDataSourceListContext(params *DataInstanceListParams, state *task.State) error {
+func handleDataStoreListContext(params *DataInstanceListParams, state *task.State) error {
 	if state.Output == "" {
 		if err := params.validateDataLinkFilter(); err != nil {
 			return err
 		}
 
 		if id := params.getLinkId(); id != nil {
-			state.Logger.Debugf("Listing data sources for data link [%d]", *id)
+			state.Logger.Debugf("Listing data stores for data link [%d]", *id)
 			state.Logger.Warnf("Filtering by id is not supported in version [%s]", ver.GetVersion())
 			state.Output = cast.ToString(*id)
 		}
@@ -58,13 +58,13 @@ func handleDataSourceListContext(params *DataInstanceListParams, state *task.Sta
 	return nil
 }
 
-func handleDataSourceListPretend(params *DataInstanceListParams, state *task.State) error {
+func handleDataStoreListPretend(params *DataInstanceListParams, state *task.State) error {
 	var brokerClient Client
 	var err error
 
 	if brokerClient, err = params.GetClient(); err == nil {
-		state.Logger.Debugf("Pretending to list data source for account [%s]", brokerClient.GetHostAddr())
-		handleDataSourceFilterDebugging(params, state.Logger)
+		state.Logger.Debugf("Pretending to list data store for account [%s]", brokerClient.GetHostAddr())
+		handleDataStoreFilterDebugging(params, state.Logger)
 		fmt.Printf("curl -X GET -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
 		fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
 
@@ -72,15 +72,15 @@ func handleDataSourceListPretend(params *DataInstanceListParams, state *task.Sta
 			fmt.Printf("  -G -d id=%d\\\n", *id)
 		}
 
-		fmt.Printf("%s\n", brokerClient.ListDataSourcesUrl())
+		fmt.Printf("%s\n", brokerClient.ListDataStoresUrl())
 	}
 
 	return err
 }
 
-func handleDataSourceFilterDebugging(params *DataInstanceListParams, logger *logrus.Logger) {
+func handleDataStoreFilterDebugging(params *DataInstanceListParams, logger *logrus.Logger) {
 	if params.hasDataLinkFilter() {
-		logger.Debugf("Filtering data sources for oem [%s]", params.Oem)
+		logger.Debugf("Filtering data stores for oem [%s]", params.Oem)
 
 		if params.Handle != "" {
 			logger.Debugf("With handle [%s]", params.Handle)

@@ -942,6 +942,14 @@ func Test_OptionsSourcesVisibility(t *testing.T) {
 	assert.True(t, testOption.Validator(broker.VisibilityPrivate))
 }
 
+func Test_OptionsStoresAccount(t *testing.T) {
+	var testOption = Options.Stores.Account().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
 func Test_OptionsStoresDescription(t *testing.T) {
 	var testOption = Options.Stores.Description().BuildStringOption()
 

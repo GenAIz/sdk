@@ -598,7 +598,7 @@ var (
 				Account: func() OptionBuilder {
 					return NewOptionBuilder().
 						WithParam("account").
-						WithUsage("account managing the data source")
+						WithUsage("account managing the data sources")
 				},
 			},
 			Description: func() OptionBuilder {
@@ -622,6 +622,13 @@ var (
 			},
 		},
 		Stores: storeOptions{
+			mgmtOptions: mgmtOptions{
+				Account: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("account").
+						WithUsage("account managing the data stores")
+				},
+			},
 			Description: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("description").
@@ -949,6 +956,7 @@ type sourceOptions struct {
 }
 
 type storeOptions struct {
+	mgmtOptions
 	Description func() OptionBuilder
 	Name        func() OptionBuilder
 	Visibility  func() OptionBuilder

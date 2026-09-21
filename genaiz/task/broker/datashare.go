@@ -1,6 +1,11 @@
 package broker
 
-import "genaiz.com/genaiz/task"
+import (
+	"strings"
+
+	"genaiz.com/genaiz-lib/lang/slicez"
+	"genaiz.com/genaiz/task"
+)
 
 var (
 	errorDataShareLinkInvalid    = task.NewError("can not query for inactive links")
@@ -12,6 +17,27 @@ var (
 type DataInstanceListParams struct {
 	Broker
 	*DataLink
+}
+
+func (dsl DataInstanceListParams) filter(instances []DataLinkInstance) []DataLinkInstance {
+	return slicez.Filter(instances, func(instance DataLinkInstance) bool {
+		if instance.HasLink(dsl.DataLink) {
+			return dsl.Seq == nil || (*dsl.Seq == *instance.DataLink.Seq)
+		}
+
+		// Case where we only filter by oem
+		if strings.EqualFold(dsl.Oem, instance.DataLink.Oem) {
+			if dsl.Handle != "" {
+				// Case where we filter by oem and handle
+				return strings.EqualFold(dsl.Handle, instance.DataLink.Handle)
+			}
+
+			// If params had a version, HasLink would return true
+			return true
+		}
+
+		return false
+	})
 }
 
 func (dsl DataInstanceListParams) getLinkId() *int64 {

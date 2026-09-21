@@ -43,6 +43,12 @@ type Document struct {
 				Printer Keys
 			}
 		}
+		Store struct {
+			List struct {
+				Account Keys
+				Printer Keys
+			}
+		}
 	}
 	DataLink struct {
 		Create struct {
@@ -537,6 +543,9 @@ func init() {
 
 	Genaiz.Data.Source.List.Account = newKeys("Data.Source.List.Account", "DT_SRC_LIST_ACCOUNT", "Dt.Source.List.Account")
 	Genaiz.Data.Source.List.Printer = newKeys("Data.Source.List.Printer", "DT_SRC_LIST_PRINTER", "Dt.Source.List.Printer")
+
+	Genaiz.Data.Store.List.Account = newKeys("Data.Store.List.Account", "DT_STR_LIST_ACCOUNT", "Dt.Store.List.Account")
+	Genaiz.Data.Store.List.Printer = newKeys("Data.Store.List.Printer", "DT_STR_LIST_PRINTER", "Dt.Store.List.Printer")
 
 	Genaiz.DataLink.Create.ConfigType = newKeys("DataLink.Create.ConfigType", "DK_CREATE_CONFIG_TYPE", "Dk.Create.ConfigType")
 	Genaiz.DataLink.Create.Description = newKeys("DataLink.Create.Description", "DK_CREATE_DESC", "Dk.Create.Description")

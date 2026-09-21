@@ -2,8 +2,7 @@
 
 Source is a command group of workspace which targets data sources available to a workspace flow nodes or that are used
 by flow nodes. Managing node sources is split between source and [node](../workspace/node.md). The source command is
-strictly for
-listing source instances.
+strictly for listing source instances.
 
 ## source list
 

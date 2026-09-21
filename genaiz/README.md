@@ -5,6 +5,7 @@
 * [Minimal Build](#minimal-build)
 * [Commands](#commands)
     * [account (ac)](#account-ac)
+    * [data (dt)](#data-dt)
     * [datalink (dk)](#datalink-dk)
     * [locker (lk)](#locker-lk)
     * [function (sf)](#function-sf)
@@ -216,6 +217,32 @@ Sync is a command for importing a datalink definition from an Orchestration brok
 
 ```shell
 genaiz dk sync --help
+```
+
+### data (dt)
+
+#### source
+
+The data source command group is used to interact with data sources in a read only manner. It is the only way to view
+properties, as lockers do not allow any displayed reads.
+
+Currently, the CLI only allows listing data sources in generic fashion to allow usage with other commands.
+
+```shell
+genaiz dt --help
+genaiz dt src --help
+```
+
+#### store
+
+The data store command group is used to interact with data stores in a read only manner. It is the only way to view
+properties, as lockers do not allow any displayed reads.
+
+Currently, the CLI only allows listing data stores in generic fashion to allow usage with other commands.
+
+```shell
+genaiz dt --help
+genaiz dt str --help
 ```
 
 ### locker (lk)
@@ -501,7 +528,8 @@ genaiz ws list --help
 
 #### node
 
-The node command group allows individual nodes of workspace flows to be targeted to be able to configure data sets, sources, stores and proxies.
+The node command group allows individual nodes of workspace flows to be targeted to be able to configure data sets,
+sources, stores and proxies.
 
 ```shell
 genaiz ws node --help

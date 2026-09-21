@@ -14,10 +14,10 @@ import (
 	"genaiz.com/genaiz/task"
 )
 
-func TestSourceListExecutor_List(t *testing.T) {
+func TestStoreListExecutor_List(t *testing.T) {
 	var expectedArg = "oem/handle:version-rc-2"
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
-	var testOptions = NewSourceListOptions()
+	var testOptions = NewStoreListOptions()
 	var testPrinter = &stubPrinter{}
 	var testListFacade = &stubUserLinkInstanceFacade{
 		getInstances: []mgmt.UserLinkInstance{
@@ -26,15 +26,15 @@ func TestSourceListExecutor_List(t *testing.T) {
 			},
 		},
 	}
-	var testExecutor = &SourceListExecutor{
+	var testExecutor = &StoreListExecutor{
 		BaseListExecutor: BaseListExecutor{
 			ledger:        testLedger,
 			accountParams: config.NewAccountParams(testLedger, testOptions.optionAccount),
 			printerParams: &stubPrinterParametric{printer: testPrinter},
 		},
-		SourceListOptions: testOptions,
+		StoreListOptions: testOptions,
 
-		userDataSourceFacadeProvider: func() mgmt.UserDataSourceFacade {
+		userDataStoreFacadeProvider: func() mgmt.UserDataStoreFacade {
 			return testListFacade
 		},
 	}
@@ -45,30 +45,30 @@ func TestSourceListExecutor_List(t *testing.T) {
 	if actual, ok := testPrinter.printOut.([]mgmt.UserLinkInstance); ok {
 		assert.Equal(t, testListFacade.getInstances, actual)
 	} else {
-		assert.Fail(t, "did not receive the sources")
+		assert.Fail(t, "did not receive the stores")
 	}
 }
 
-func TestSourceListExecutor_List_GetError(t *testing.T) {
+func TestStoreListExecutor_List_GetError(t *testing.T) {
 	var expectedArg = "oem/handle:version"
 	var expectedError = task.NewError("expected")
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
-	var testOptions = NewSourceListOptions()
+	var testOptions = NewStoreListOptions()
 	var testPrinter = &stubPrinter{
 		err: expectedError,
 	}
 	var testListFacade = &stubUserLinkInstanceFacade{
 		getError: expectedError,
 	}
-	var testExecutor = &SourceListExecutor{
+	var testExecutor = &StoreListExecutor{
 		BaseListExecutor: BaseListExecutor{
 			ledger:        testLedger,
 			accountParams: config.NewAccountParams(testLedger, testOptions.optionAccount),
 			printerParams: &stubPrinterParametric{printer: testPrinter},
 		},
-		SourceListOptions: testOptions,
+		StoreListOptions: testOptions,
 
-		userDataSourceFacadeProvider: func() mgmt.UserDataSourceFacade {
+		userDataStoreFacadeProvider: func() mgmt.UserDataStoreFacade {
 			return testListFacade
 		},
 	}
@@ -83,9 +83,9 @@ func TestSourceListExecutor_List_GetError(t *testing.T) {
 	}
 }
 
-func TestSourceListExecutor_List_NoArg(t *testing.T) {
+func TestStoreListExecutor_List_NoArg(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(viper.New()).Build()
-	var testOptions = NewSourceListOptions()
+	var testOptions = NewStoreListOptions()
 	var testPrinter = &stubPrinter{}
 	var testListFacade = &stubUserLinkInstanceFacade{
 		getInstances: []mgmt.UserLinkInstance{
@@ -94,15 +94,15 @@ func TestSourceListExecutor_List_NoArg(t *testing.T) {
 			},
 		},
 	}
-	var testExecutor = &SourceListExecutor{
+	var testExecutor = &StoreListExecutor{
 		BaseListExecutor: BaseListExecutor{
 			ledger:        testLedger,
 			accountParams: config.NewAccountParams(testLedger, testOptions.optionAccount),
 			printerParams: &stubPrinterParametric{printer: testPrinter},
 		},
-		SourceListOptions: testOptions,
+		StoreListOptions: testOptions,
 
-		userDataSourceFacadeProvider: func() mgmt.UserDataSourceFacade {
+		userDataStoreFacadeProvider: func() mgmt.UserDataStoreFacade {
 			return testListFacade
 		},
 	}
@@ -113,20 +113,20 @@ func TestSourceListExecutor_List_NoArg(t *testing.T) {
 	if actual, ok := testPrinter.printOut.([]mgmt.UserLinkInstance); ok {
 		assert.Equal(t, testListFacade.getInstances, actual)
 	} else {
-		assert.Fail(t, "did not receive the sources")
+		assert.Fail(t, "did not receive the stores")
 	}
 }
 
-func TestSourceListExecutor_List_SeqError(t *testing.T) {
+func TestStoreListExecutor_List_SeqError(t *testing.T) {
 	var expectedArg = "oem/handle:version-rc-F"
 	var testOutput = new(bytes.Buffer)
 	var testLedger = config.NewBuilder().
 		WithViper(viper.New()).
 		WithOutput(io.Writer(testOutput)).
 		Build()
-	var testOptions = NewSourceListOptions()
+	var testOptions = NewStoreListOptions()
 	var testCmd = &cobra.Command{}
-	var testExecutor = newSourceListExecutorFactory(testLedger, testOptions)(testCmd)
+	var testExecutor = newStoreListExecutorFactory(testLedger, testOptions)(testCmd)
 
 	assert.ErrorIs(t, testExecutor.List(expectedArg), errorLinkSeqInvalid)
 }

@@ -21,6 +21,7 @@ are described plainly in [Gherkin](https://cucumber.io/docs/gherkin/) format.
 ## [Data](data/index.md)
 
 * [genaiz data source](data/source.md)
+* [genaiz data store](data/store.md)
 
 ## [Datalinks](datalink/index.md)
 

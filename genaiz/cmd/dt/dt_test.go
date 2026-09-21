@@ -79,5 +79,5 @@ func TestNewDt(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewDt(testLedger)
 
-	assert.Equal(t, 1, len(testCmd.Commands()))
+	assert.Equal(t, 2, len(testCmd.Commands()))
 }

@@ -10,10 +10,16 @@ type stubDataShareClient struct {
 	client
 	listDataSources      []DataLinkInstance
 	listDataSourcesError error
+	listDataStores       []DataLinkInstance
+	listDataStoresError  error
 }
 
 func (dsc stubDataShareClient) ListDataSources() ([]DataLinkInstance, error) {
 	return dsc.listDataSources, dsc.listDataSourcesError
+}
+
+func (dsc stubDataShareClient) ListDataStores() ([]DataLinkInstance, error) {
+	return dsc.listDataStores, dsc.listDataStoresError
 }
 
 func TestDataInstanceListParams_getId(t *testing.T) {

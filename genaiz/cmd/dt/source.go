@@ -1,31 +1,19 @@
 package dt
 
 import (
-	"strconv"
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
-	"genaiz.com/genaiz/cmd/dk"
 	"genaiz.com/genaiz/cmd/dt/source"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/mgmt"
 	"genaiz.com/genaiz/schema"
-	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
 
-var (
-	errorSourceSeqInvalid = task.NewError("sequence number is invalid")
-)
-
 type SourceListExecutor struct {
+	BaseListExecutor
 	*SourceListOptions
-	ledger *config.Ledger
-
-	accountParams                config.AccountParametric
-	printerParams                cli.PrinterParametric
 	userDataSourceFacadeProvider func() mgmt.UserDataSourceFacade
 }
 
@@ -33,7 +21,7 @@ func (sle SourceListExecutor) List(arg string) error {
 	var listParams *broker.DataInstanceListParams
 	var err error
 
-	if listParams, err = sle.newSourceListParams(arg); err == nil {
+	if listParams, err = sle.newDataInstanceListParams(arg); err == nil {
 		var dataSourceList = sle.userDataSourceFacadeProvider()
 		var printer = sle.printerParams.Printer()
 		var sources []mgmt.UserLinkInstance
@@ -51,39 +39,6 @@ func (sle SourceListExecutor) List(arg string) error {
 	}
 
 	return err
-}
-
-func (sle SourceListExecutor) newSourceListParams(arg string) (*broker.DataInstanceListParams, error) {
-	var oem, handle, vn = dk.ParseDataLinkArgument(arg)
-	var result = &broker.DataInstanceListParams{
-		Broker: *sle.accountParams.BrokerParams(),
-	}
-	var sequence *int
-
-	if vn != "" {
-		if ts := strings.SplitN(vn, "-rc-", 2); len(ts) > 1 {
-			var err error
-			var ti int
-
-			if ti, err = strconv.Atoi(ts[1]); err != nil {
-				return nil, errorSourceSeqInvalid
-			}
-
-			vn = ts[0]
-			sequence = &ti
-		}
-	}
-
-	if oem != "" {
-		result.DataLink = &broker.DataLink{
-			Oem:     oem,
-			Handle:  handle,
-			Version: vn,
-			Seq:     sequence,
-		}
-	}
-
-	return result, nil
 }
 
 type SourceListOptions struct {
@@ -104,7 +59,7 @@ func NewSource(ledger *config.Ledger) *cobra.Command {
 	var srcCmd = &cobra.Command{
 		Use:     "source",
 		Aliases: []string{"src"},
-		Short:   "Manages data source for an account",
+		Short:   "Manages data sources for an account",
 	}
 
 	srcCmd.AddCommand(listCmd)
@@ -115,11 +70,13 @@ func NewSource(ledger *config.Ledger) *cobra.Command {
 
 func NewSourceListExecutor(ledger *config.Ledger, options *SourceListOptions) *SourceListExecutor {
 	return &SourceListExecutor{
+		BaseListExecutor: BaseListExecutor{
+			ledger:        ledger,
+			accountParams: config.NewAccountParams(ledger, options.optionAccount),
+			printerParams: cli.NewPrinterParam(ledger, options.optionJsonPrinter),
+		},
 		SourceListOptions: options,
-		ledger:            ledger,
 
-		accountParams:                config.NewAccountParams(ledger, options.optionAccount),
-		printerParams:                cli.NewPrinterParam(ledger, options.optionJsonPrinter),
 		userDataSourceFacadeProvider: mgmt.NewUserDataSourceFacade,
 	}
 }

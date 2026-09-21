@@ -1,9 +1,6 @@
 package mgmt
 
 import (
-	"cmp"
-	"slices"
-
 	"github.com/sirupsen/logrus"
 
 	"genaiz.com/genaiz/task"
@@ -20,13 +17,13 @@ type userDataSourcesFacade struct {
 }
 
 func (udf userDataSourcesFacade) Filtering(filter string) Provider[[]UserLinkInstance] {
-	return &userDataSourcesProvider{
+	return &userLinkInstancesProvider{
 		Plan: task.Plan{
 			Logger: udf.logger,
 		},
-		filter:                    filter,
-		params:                    udf.params,
-		listDataSourceTaskFactory: broker.NewDataSourceListTask,
+		filter:                      filter,
+		params:                      udf.params,
+		dataInstanceListTaskFactory: broker.NewDataSourceListTask,
 	}
 }
 
@@ -42,44 +39,6 @@ func (udf userDataSourcesFacade) WithLogger(logger *logrus.Logger) Facade[[]User
 func (udf userDataSourcesFacade) WithParams(params *broker.DataInstanceListParams) Facade[[]UserLinkInstance, broker.DataInstanceListParams] {
 	udf.params = params
 	return udf
-}
-
-type userDataSourcesProvider struct {
-	task.Plan
-	filter                    string
-	params                    *broker.DataInstanceListParams
-	listDataSourceTaskFactory ListDataSourceTaskFactory
-}
-
-func (udp *userDataSourcesProvider) Get() ([]UserLinkInstance, task.Error) {
-	var dataSources []broker.DataLinkInstance
-	var workers []task.Worker
-	var failure interface{}
-
-	udp.OnReturn = func(i interface{}) { dataSources = i.([]broker.DataLinkInstance) }
-	udp.OnFailure = func(i interface{}) { failure = i }
-	workers = append(workers, task.NewWorker(udp.params, udp.listDataSourceTaskFactory()))
-	udp.Sequence(workers...)
-
-	if failure == nil {
-		var result = make([]UserLinkInstance, 0)
-
-		for _, ds := range dataSources {
-			var dataSource = ToUserLinkInstance(&ds)
-
-			result = append(result, *dataSource)
-		}
-
-		if len(result) > 1 {
-			slices.SortFunc(result, func(a, b UserLinkInstance) int {
-				return cmp.Compare(b.Created, a.Created)
-			})
-		}
-
-		return result, nil
-	}
-
-	return nil, task.NewFailure(failure)
 }
 
 func NewUserDataSourceFacade() UserDataSourceFacade {
