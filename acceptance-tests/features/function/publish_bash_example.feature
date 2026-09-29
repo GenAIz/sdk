@@ -11,42 +11,48 @@ Feature: function publish with the bash example
     Then I should have a function under "<handle>" named "<name>" with oem "<oem>", version "<version>" and type "<type>"
 
   Scenario: publish bash example bad oem
-    Given the following parameters
+    Given the scenario "create bash example" ran with condition "service_completed_successfully"
+    And the following parameters
       | handle          | oem       | version |
       | my-bash-example | --invalid | 0.1.2   |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --oem=<oem> --version=<version>"
     Then I should have an error for field "function.publish.oem"
 
   Scenario: publish bash example bad handle
-    Given the following parameters
+    Given the scenario "create bash example" ran with condition "service_completed_successfully"
+    And the following parameters
       | handle    | oem             | version |
       | --invalid | com.genaiz.test | 0.1.2   |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --handle=<handle> --version=<version>"
     Then I should have an error for field "function.publish.handle"
 
   Scenario: publish bash example bad version
-    Given the following parameters
+    Given the scenario "create bash example" ran with condition "service_completed_successfully"
+    And the following parameters
       | handle          | oem             | version |
       | my-bash-example | com.genaiz.test | 00.0.1  |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version>"
     Then I should have an error for field "function.publish.version"
 
   Scenario: publish bash example bad name
-    Given the following parameters
+    Given the scenario "create bash example" ran with condition "service_completed_successfully"
+    And the following parameters
       | handle          | oem             | name                                                                                                                                                                                                                                                                          |
       | my-bash-example | com.genaiz.test | a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long a string too long |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --name='<name>'"
     Then I should have an error for field "function.publish.name"
 
   Scenario: publish bash example bad type
-    Given the following parameters
+    Given the scenario "create bash example" ran with condition "service_completed_successfully"
+    And the following parameters
       | handle          | oem             | version | type    |
       | my-bash-example | com.genaiz.test | 0.1.2   | invalid |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version> --type<type>"
     Then I should have an error for field "function.publish.type"
 
   Scenario: publish bash example bad arch
-    Given the following parameters
+    Given the scenario "create bash example" ran with condition "service_completed_successfully"
+    And the following parameters
       | handle          | oem             | version | arch    |
       | my-bash-example | com.genaiz.test | 0.1.2   | invalid |
     When I run the command "sf publish --broker=<orchestrator> --context=<handle> --version=<version> --arch=<arch>"

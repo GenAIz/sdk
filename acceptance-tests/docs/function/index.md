@@ -1,6 +1,109 @@
 # Smart Function Command Specs
 
-## Test Features
+The function command provides functionality for creating, initializing, building and publish Smart Functions to the
+GenAIz Orchestrated platform. It also provides means of running and testing the functions locally and managing their
+runtime properties at large.
+
+* [Features](#features)
+    * [Function Creation](#function-creation)
+    * [Function Initialization](#function-initialization)
+    * [Function Build](#function-build)
+    * [Function Publishing](#function-publishing)
+* [Commands](#commands)
+* [Test Cases](#test-cases)
+* [Environment:](#environment)
+* [Validation](#validation)
+
+## Features
+
+### Function Creation
+
+The function creation activity is a simple user command which creates a function from scratch, using a folder or
+creating a new one. Create does not allow overwriting a folder with a `Genaiz` configuration file already present. The
+activity involves several scenarios detailed
+under [Create bash example](../../features/function/create_bash_example.feature)
+and [Create child connector](../../features/function/create_child_connector.feature).
+
+```mermaid
+---
+title: Function Creation Activity
+---
+flowchart LR
+    user>user] --> wsCreate([create<br>function])
+```
+
+### Function Initialization
+
+The function initialization activity is a command used to initialize the values of an existing Function or functional
+code that was already created. The activity requires the existence of a `Dockerfile` as all Smart Functions are
+published within a Docker Image.
+
+In terms of Git activity it can be visualized as:
+
+```mermaid
+---
+title: Function Creation Activity
+---
+flowchart LR
+    user>user] --> gitClone([git clone])
+    gitClone --> gitAdd([add Dockerfile])
+    gitAdd --> wsInit([init<br>function])
+    gitClone --> wsInit
+    wsInit --> gitCommit([git commit])
+```
+
+### Function Build
+
+The function building activity is pre-cursor to [Function Publishing](#function-publishing) and also to the more
+complex [Solution Publishing](../solution/index.md#solution-publishing). Build will rely on the user's environment,
+using the provided `Dockerfile` and the meta-data under the `Genaiz` configuration file, and package a `Docker Image` of
+the Smart Function.
+
+From the point of view of [Function Init](#function-initialization), it can be visualized as:
+
+```mermaid
+---
+title: Function Build Activity
+---
+flowchart LR
+    user>user] --> sfInit([init<br>function])
+    sfInit --> sfBuild([build<br>function])
+```
+
+### Function Publishing
+
+The Function Publishing activity can be invoked individually to fix potential issues in solution publishing, but also to
+test Docker `registry` deployments in component tests. It involves several scenarios under test
+cases [Publish bash example](../../features/function/publish_bash_example.feature)
+and [Publish connector example](../../features/function/publish_bash_connector.feature).
+
+```mermaid
+---
+title: Function Publishing Activity
+---
+flowchart LR
+    user>user] --> sfInit([init<br>function])
+    user --> sfBuild([build<br>function])
+    sfInit --> sfBuild
+    sfBuild --> sfPublish([publish<br>function])
+```
+
+## Commands
+
+* [build](build.md)
+* [create](create.md)
+* [data](data.md)
+* [init](init.md)
+* [list](list.md)
+* [prop](prop.md)
+* [proxy](proxy.md)
+* [publish](publish.md)
+* [run](run.md)
+* [start](start.md)
+* [stop](stop.md)
+* [test](test.md)
+
+## Test Cases
 
 * [Build bash example](../../features/function/build_bash_example.feature)
 * [Create bash example](../../features/function/create_bash_example.feature)
@@ -21,21 +124,6 @@
 * [Start bash example](../../features/function/start_bash_example.feature)
 * [Stop bash example](../../features/function/stop_bash_example.feature)
 * [Test bash example](../../features/function/test_bash_example.feature)
-
-## Commands
-
-* [build](build.md)
-* [create](create.md)
-* [data](data.md)
-* [init](init.md)
-* [list](list.md)
-* [prop](prop.md)
-* [proxy](proxy.md)
-* [publish](publish.md)
-* [run](run.md)
-* [start](start.md)
-* [stop](stop.md)
-* [test](test.md)
 
 ## Environment:
 

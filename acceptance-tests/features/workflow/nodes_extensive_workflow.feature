@@ -38,7 +38,7 @@ Feature: function nodes for an extensive workflow
     And the workdir changes to "<folder>"
     When I run the command "wf nodes add <workflowHandle> <nodeHandle> --sf=<oem>/<functionHandle>:<version>"
     Then I should have a node under "<folder>" and workflow "<workflowHandle> named "<nodeHandle>" and handle "<nodeHandle>"
-    And I should have a smart function under "<folder>", workflow "<workflowHandle>", node "<nodeHandle>" with oem "<oem>", handle "<functionFolder>" and version "<version>"
+    And I should have a smart function under "<folder>", workflow "<workflowHandle>", node "<nodeHandle>" with oem "<oem>", handle "<functionHandle>" and version "<version>"
 
   Scenario: add external node
     Given the scenario "add serialized node" ran with condition "service_completed_successfully"
