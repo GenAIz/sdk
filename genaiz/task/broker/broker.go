@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cast"
 
+	"genaiz.com/genaiz-lib/lang/slicez"
 	"genaiz.com/genaiz/lang/enumz"
 	"genaiz.com/genaiz/task/shared"
 )
@@ -428,7 +429,7 @@ type Error struct {
 }
 
 type Function struct {
-	Id              int        `json:"id,omitempty"`
+	Id              int64      `json:"id,omitempty"`
 	Flags           int        `json:"flags,omitempty"`
 	Seq             *int       `json:"seq,omitempty"`
 	Name            string     `json:"name,omitempty"`
@@ -512,7 +513,7 @@ func (f Function) GetDataStoreLinks() []DataLink {
 
 func (f Function) asIdentity() *shared.Identity {
 	return &shared.Identity{
-		Id:      strconv.Itoa(f.Id),
+		Id:      strconv.FormatInt(f.Id, 10),
 		Flags:   f.Flags,
 		Hash:    f.Digest,
 		Path:    f.Img,
@@ -1199,15 +1200,51 @@ type workspaceFlowFlags struct {
 }
 
 type WorkspaceNode struct {
-	Id              int64 `json:"id"`
-	WorkspaceId     int64 `json:"workspaceId"`
-	WorkspaceFlowId int64 `json:"workspaceFlowId"`
-	WorkflowNodeId  int64 `json:"workflowNodeId"`
-	SmartFunctionId int64 `json:"smartFunctionId"`
-	Flags           *int  `json:"flags,omitempty"`
+	Id              int64   `json:"id"`
+	WorkspaceId     int64   `json:"workspaceId"`
+	WorkspaceFlowId int64   `json:"workspaceFlowId"`
+	WorkflowNodeId  int64   `json:"workflowNodeId"`
+	DataSourceIds   []int64 `json:"dataSourceIds,omitempty"`
+	DataStoreIds    []int64 `json:"dataStoreIds,omitempty"`
+	SmartFunctionId int64   `json:"smartFunctionId"`
+	Flags           *int    `json:"flags,omitempty"`
 
 	SmartFunction *Function     `json:"-"`
 	WorkflowNode  *WorkflowNode `json:"-"`
+}
+
+func (wn WorkspaceNode) AddDataSource(dataSourceId int64) *WorkspaceNode {
+	var newIds = append(wn.DataSourceIds, dataSourceId)
+
+	return &WorkspaceNode{
+		Id:              wn.Id,
+		WorkspaceId:     wn.WorkspaceId,
+		WorkspaceFlowId: wn.WorkspaceFlowId,
+		WorkflowNodeId:  wn.WorkflowNodeId,
+		WorkflowNode:    wn.WorkflowNode,
+		DataSourceIds:   newIds,
+		SmartFunctionId: wn.SmartFunctionId,
+		SmartFunction:   wn.SmartFunction,
+		Flags:           wn.Flags,
+	}
+}
+
+func (wn WorkspaceNode) RemoveDataSource(dataSourceId int64) *WorkspaceNode {
+	var newIds = slicez.Filter(wn.DataSourceIds, func(i int64) bool {
+		return i != dataSourceId
+	})
+
+	return &WorkspaceNode{
+		Id:              wn.Id,
+		WorkspaceId:     wn.WorkspaceId,
+		WorkspaceFlowId: wn.WorkspaceFlowId,
+		WorkflowNodeId:  wn.WorkflowNodeId,
+		WorkflowNode:    wn.WorkflowNode,
+		DataSourceIds:   newIds,
+		SmartFunctionId: wn.SmartFunctionId,
+		SmartFunction:   wn.SmartFunction,
+		Flags:           wn.Flags,
+	}
 }
 
 func (wn WorkspaceNode) withFunction(fn *Function) WorkspaceNode {

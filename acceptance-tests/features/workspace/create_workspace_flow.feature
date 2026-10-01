@@ -83,4 +83,4 @@ Feature: create workspace flow
       | workspaceName  | oem             | solutionHandle | solutionVersion | wfHandle   |
       | test_workspace | com.genaiz.test | my-solution    | 1.0.0           | workflow-1 |
     When I run the command "ws flow create <workspaceName> <oem>/<solutionHandle>:<solutionVersion> <wfHandle> --json"
-    Then I should have a workspace flow for workflow "<workflow-1>" and solution "<oem>/<solutionHandle>:<solutionVersion>"
+    Then I should have a workspace flow for workflow "<wfHandle>" and solution "<oem>/<solutionHandle>:<solutionVersion>"

@@ -13,3 +13,14 @@ func Filter[S ~[]E, E any](s S, filter func(E) bool) S {
 
 	return result
 }
+
+// Transform returns a slice of the elements transformed by the provided function
+func Transform[S ~[]E, E any, P any](s S, transform func(E) P) []P {
+	var result []P
+
+	for _, element := range s {
+		result = append(result, transform(element))
+	}
+
+	return result
+}

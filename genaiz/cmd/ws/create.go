@@ -66,7 +66,7 @@ func (ce CreateExecutor) Proceed() {
 			Build()
 	}
 
-	task.Single(plan, createParams, ce.workspaceCreateTaskFactory())
+	plan.Sequence(task.NewWorker(createParams, ce.workspaceCreateTaskFactory()))
 }
 
 func (ce CreateExecutor) newCreateParams(brokerParams *broker.Broker) *broker.WorkspaceCreateParams {

@@ -93,6 +93,14 @@ func (s stubClient) GetHostAddr() string {
 	return s.decoratedClient.GetHostAddr()
 }
 
+func (s stubClient) GetNode(int64) (*broker.WorkspaceNode, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) GetNodeUrl() string {
+	panic("unimplemented")
+}
+
 func (s stubClient) GetSolution(int64) (*broker.Solution, error) {
 	panic("unimplemented")
 }
@@ -255,6 +263,14 @@ func (s stubClient) UpdateDataStore(*broker.DataLinkInstance, map[string]string)
 
 func (s stubClient) UpdateDataStoreUrl() string {
 	return s.decoratedClient.UpdateDataStoreUrl()
+}
+
+func (s stubClient) UpdateNode(*broker.WorkspaceNode) (*broker.WorkspaceNode, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) UpdateNodeUrl() string {
+	panic("unimplemented")
 }
 
 func (s stubClient) WithAccount(*broker.AuthAccount) (broker.Client, error) {

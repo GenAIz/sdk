@@ -4,8 +4,11 @@ import (
 	"cmp"
 	"encoding/json"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cast"
+	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/task"
@@ -30,6 +33,8 @@ type UserLinkInstance struct {
 	Created     int64 `cli:"Created"`
 	Modified    int64
 	Active      bool `cli:"Active?"`
+
+	matched string
 }
 
 func (uli UserLinkInstance) MarshalJSON() ([]byte, error) {
@@ -89,6 +94,55 @@ func (uli UserLinkInstance) MarshalSlice() ([]string, error) {
 	}, nil
 }
 
+func (uli UserLinkInstance) Match(filter string) *UserLinkInstance {
+	var result *UserLinkInstance
+
+	if filter != "" {
+		var lowFilter = strings.ToLower(filter)
+
+		if _, err := strconv.Atoi(filter); err == nil {
+			if strings.HasPrefix(cast.ToString(uli.Id), filter) {
+				return &uli
+			}
+		}
+
+		if strings.HasPrefix(uli.Name, lowFilter) {
+			return &UserLinkInstance{
+				Id:          uli.Id,
+				Name:        uli.Name,
+				Description: uli.Description,
+				Oem:         uli.Oem,
+				Handle:      uli.Handle,
+				Fqdn:        uli.Fqdn,
+				Version:     uli.Version,
+				Sequence:    uli.Sequence,
+				Flags:       uli.Flags,
+				Visibility:  uli.Visibility,
+				Properties:  uli.Properties,
+				Created:     uli.Created,
+				Modified:    uli.Modified,
+				Active:      uli.Active,
+				matched:     uli.Name,
+			}
+		}
+	}
+
+	return result
+}
+
+func (uli UserLinkInstance) Matched() string {
+	if uli.matched == "" {
+		return cobra.CompletionWithDesc(cast.ToString(uli.Id), uli.Name)
+	}
+
+	if _, err := strconv.Atoi(uli.matched); err == nil {
+		return cobra.CompletionWithDesc(uli.matched, uli.Name)
+	}
+
+	return cobra.CompletionWithDesc(uli.matched, cast.ToString(uli.Id))
+
+}
+
 func ToUserLinkInstance(dli *broker.DataLinkInstance) *UserLinkInstance {
 	var result = &UserLinkInstance{
 		Id:          dli.Id,
@@ -139,7 +193,11 @@ func (udp *userLinkInstancesProvider) Get() ([]UserLinkInstance, task.Error) {
 		for _, ds := range instances {
 			var instance = ToUserLinkInstance(&ds)
 
-			result = append(result, *instance)
+			if udp.filter == "" {
+				result = append(result, *instance)
+			} else if matched := instance.Match(udp.filter); matched != nil {
+				result = append(result, *matched)
+			}
 		}
 
 		if len(result) > 1 {

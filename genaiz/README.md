@@ -534,4 +534,8 @@ sources, stores and proxies.
 ```shell
 genaiz ws node --help
 genaiz ws node list --help
+genaiz ws node data --help
+genaiz ws node data src --help
+genaiz ws node data src add --help
+genaiz ws node data src rm --help
 ```

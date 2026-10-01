@@ -21,6 +21,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz-lib/lang/secretz"
+	"genaiz.com/genaiz-lib/lang/slicez"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 	"genaiz.com/genaiz/version/env"
@@ -43,6 +44,7 @@ const (
 	pathSolution      path    = "solution"
 	pathWorkspace     path    = "workspace"
 	pathWorkspaceFlow path    = "workspace/flow"
+	pathWorkspaceNode path    = "workspace/flow/node"
 )
 
 var (
@@ -61,7 +63,7 @@ var (
 	errorSessionExpired     = task.NewRequestError("broker session is expired", 401)
 	errorUnauthorized       = task.NewRequestError("unauthorized, please login", 401)
 
-	errorWorkspaceFlowInvalid = task.NewRequestError("workspace flow slices provided are invalid", 501)
+	errorWorkspaceFlowSlicesInvalid = task.NewRequestError("workspace flow slices provided are invalid", 501)
 
 	clientByHost = map[string]Client{}
 	clientErrors = map[int]error{
@@ -116,6 +118,10 @@ type Client interface {
 	GetFunctionUrl() string
 
 	GetHostAddr() string
+
+	GetNode(int64) (*WorkspaceNode, error)
+
+	GetNodeUrl() string
 
 	GetSolution(int64) (*Solution, error)
 
@@ -198,6 +204,10 @@ type Client interface {
 	UpdateDataStore(*DataLinkInstance, map[string]string) (*DataLinkInstance, error)
 
 	UpdateDataStoreUrl() string
+
+	UpdateNode(*WorkspaceNode) (*WorkspaceNode, error)
+
+	UpdateNodeUrl() string
 
 	WithAccount(*AuthAccount) (Client, error)
 }
@@ -442,11 +452,11 @@ func (wfs workspaceFlowsSlices) graph() []WorkspaceFlow {
 	var ok bool
 
 	if _, ok = solutionMap[-1]; ok {
-		panic(errorWorkspaceFlowInvalid)
+		panic(errorWorkspaceFlowSlicesInvalid)
 	}
 
 	if _, ok = workflowMap[-1]; ok {
-		panic(errorWorkspaceFlowInvalid)
+		panic(errorWorkspaceFlowSlicesInvalid)
 	}
 
 	for _, flow := range wfs.WorkspaceFlows {
@@ -455,11 +465,11 @@ func (wfs workspaceFlowsSlices) graph() []WorkspaceFlow {
 		var wfCopy Workflow
 
 		if solCopy, ok = solutionMap[flow.SolutionId]; !ok {
-			panic(errorWorkspaceFlowInvalid)
+			panic(errorWorkspaceFlowSlicesInvalid)
 		}
 
 		if wfCopy, ok = workflowMap[flow.WorkflowId]; !ok {
-			panic(errorWorkspaceFlowInvalid)
+			panic(errorWorkspaceFlowSlicesInvalid)
 		}
 
 		flowCopy.Solution = &solCopy
@@ -474,13 +484,22 @@ type workspaceNodeSlices struct {
 	WorkspaceFlow      *WorkspaceFlow  `json:"workspaceFlow"`
 	WorkspaceFlowNodes []WorkspaceNode `json:"workspaceFlowNodes"`
 	Solution           *Solution       `json:"solution"`
+	SmartFunctions     []Function      `json:"smartFunctions"`
 }
 
 func (wns workspaceNodeSlices) graph() []WorkspaceNode {
-	//var result []WorkspaceNode
+	var sfById = mapz.MappedInt64(wns.SmartFunctions, func(function Function) int64 {
+		return function.Id
+	})
+	var result []WorkspaceNode
 
-	//TODO: if the call ever returns SmartFunctions and Workflows
-	return wns.WorkspaceFlowNodes
+	for _, node := range wns.WorkspaceFlowNodes {
+		if sf, ok := sfById[node.SmartFunctionId]; ok {
+			result = append(result, node.withFunction(&sf))
+		}
+	}
+
+	return result
 }
 
 func (c *client) CreateDataSource(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -824,6 +843,46 @@ func (c *client) GetFunctionUrl() string {
 
 func (c *client) GetHostAddr() string {
 	return c.HostAddr
+}
+
+func (c *client) GetNode(id int64) (*WorkspaceNode, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspaceNode, "get"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *WorkspaceNode
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[WorkspaceNode]{}).
+				QueryParams(map[string]string{
+					"id": cast.ToString(id),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *WorkspaceNode {
+					var payload = resp.Result().(*clientPayload[WorkspaceNode])
+
+					return &payload.Data
+				}); err == nil {
+					return result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) GetNodeUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "get")
 }
 
 func (c *client) GetSolution(id int64) (*Solution, error) {
@@ -1651,6 +1710,48 @@ func (c *client) UpdateDataStore(instance *DataLinkInstance, props map[string]st
 
 func (c *client) UpdateDataStoreUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "update")
+}
+
+func (c *client) UpdateNode(node *WorkspaceNode) (*WorkspaceNode, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspaceNode, "update"); err == nil {
+			var dataSourceIds = slicez.Transform(node.DataSourceIds, intz.Int64ToString)
+			var dataStoreIds = slicez.Transform(node.DataStoreIds, intz.Int64ToString)
+			var rb = c.requestBridge()
+			var resp responseBridge
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[WorkspaceNode]{}).
+				FormData(map[string]string{
+					"id":              cast.ToString(node.Id),
+					"dataSourceIds":   strings.Join(dataSourceIds, ","),
+					"dataStoreIds":    strings.Join(dataStoreIds, ","),
+					"smartFunctionId": cast.ToString(node.SmartFunctionId),
+				}).
+				Post(url)
+
+			if err == nil {
+				return resultOrError(resp, func(body any) *WorkspaceNode {
+					var payload = resp.Result().(*clientPayload[WorkspaceNode])
+
+					return &payload.Data
+				})
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) UpdateNodeUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "update")
 }
 
 func (c *client) WithAccount(account *AuthAccount) (Client, error) {

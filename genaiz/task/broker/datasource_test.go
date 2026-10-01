@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
@@ -20,6 +21,275 @@ func TestNewDataSourceListTask(t *testing.T) {
 	assert.NotNil(t, testTask.OnPrepare)
 	assert.NotNil(t, testTask.OnComplete)
 	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestNewDataSourceResolveTask(t *testing.T) {
+	var testTask = NewDataSourceResolveTask()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func Test_handleDataSourceResolveComplete(t *testing.T) {
+	var expectedName = "myName"
+	var expectedId = int64(73)
+	var testInstances = []DataLinkInstance{
+		{
+			Id:   new(int64(37)),
+			Name: "myname",
+		},
+		{
+			Id:   new(expectedId),
+			Name: expectedName,
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "someName",
+	}
+	var testParams = &DataSourceResolveParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataSourceName: "myName",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubDataShareClient{
+			listDataSources: testInstances,
+		}, nil
+	}
+
+	assert.NoError(t, handleDataSourceResolveComplete(testParams, testState))
+	assert.Equal(t, expectedId, *testParams.DataSourceId)
+}
+
+func Test_handleDataSourceResolveComplete_ClientError(t *testing.T) {
+	var expectedError = errors.New("error")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "someName",
+	}
+	var testParams = &DataSourceResolveParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleDataSourceResolveComplete(testParams, testState), expectedError)
+}
+
+func Test_handleDataSourceResolveComplete_ListError(t *testing.T) {
+	var expectedError = errors.New("error")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "someName",
+	}
+	var testParams = &DataSourceResolveParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubDataShareClient{
+			listDataSourcesError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleDataSourceResolveComplete(testParams, testState), expectedError)
+}
+
+func Test_handleDataSourceResolveComplete_NoResults(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "someName",
+	}
+	var testParams = &DataSourceResolveParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataSourceName: "myName",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubDataShareClient{}, nil
+	}
+
+	assert.NoError(t, handleDataSourceResolveComplete(testParams, testState))
+	assert.Nil(t, testParams.DataSourceId)
+}
+
+func Test_handleDataSourceResolveComplete_OutputError(t *testing.T) {
+	assert.ErrorIs(t, handleDataSourceResolveComplete(&DataSourceResolveParams{}, &task.State{}), errorDataSourceRequired)
+}
+
+func Test_handleDataSourceResolveContext(t *testing.T) {
+	var testParams = &DataSourceResolveParams{
+		DataSourceName: "aName",
+	}
+
+	assert.NoError(t, handleDataSourceResolveContext(testParams, &task.State{}))
+}
+
+func Test_handleDataSourceResolveContext_IdKnown(t *testing.T) {
+	var testParams = &DataSourceResolveParams{
+		DataSourceId: new(int64(37)),
+	}
+
+	assert.ErrorIs(t, handleDataSourceResolveContext(testParams, &task.State{}), errorDataSourceKnown)
+}
+
+func Test_handleDataSourceResolveContext_NameRequiredError(t *testing.T) {
+	assert.ErrorIs(t, handleDataSourceResolveContext(&DataSourceResolveParams{}, &task.State{}), errorDataSourceRequired)
+}
+
+func Test_handleDataSourceResolveContext_OutputKnown(t *testing.T) {
+	var testState = &task.State{Output: "output"}
+
+	assert.NoError(t, handleDataSourceResolveContext(&DataSourceResolveParams{}, testState))
+}
+
+func Test_handleDataSourceResolveIncomplete(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Error:  errorDataSourceKnown,
+	}
+	var testParams = &DataSourceResolveParams{
+		DataSourceId: new(int64(37)),
+	}
+
+	assert.NoError(t, handleDataSourceResolveIncomplete(testParams, testState))
+	assert.True(t, testState.Completed)
+}
+
+func Test_handleDataSourceResolveIncomplete_StateError(t *testing.T) {
+	var expectedError = errors.New("error")
+	var testState = &task.State{
+		Error: expectedError,
+	}
+
+	assert.ErrorIs(t, handleDataSourceResolveIncomplete(&DataSourceResolveParams{}, testState), expectedError)
+	assert.False(t, testState.Completed)
+}
+
+func Test_handleDataSourceResolvePretend(t *testing.T) {
+	var expectedError = errors.New("error")
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &DataSourceResolveParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataSourceId: new(int64(37)),
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+		os.Stdout = stdoutRestore
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubDataShareClient{
+			client: client{
+				HostAddr: testParams.HostAddr,
+			},
+		}, nil
+	}
+
+	assert.NoError(t, handleDataSourceResolvePretend(testParams, testState), expectedError)
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+	assert.Contains(t, output, testParams.Broker.HostAddr)
+}
+
+func Test_handleDataSourceResolvePretend_ClientError(t *testing.T) {
+	var expectedError = errors.New("error")
+	var testLogger, testHook = test.NewNullLogger()
+	var testState = &task.State{
+		Logger: testLogger,
+	}
+	var testParams = &DataSourceResolveParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		DataSourceId: new(int64(37)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.ErrorIs(t, handleDataSourceResolvePretend(testParams, testState), expectedError)
+	assert.Equal(t, 0, len(testHook.Entries))
+}
+
+func Test_handleDataSourceResolvePretend_KnownError(t *testing.T) {
+	var testLogger, testHook = test.NewNullLogger()
+	var testState = &task.State{
+		Error:  errorDataSourceKnown,
+		Logger: testLogger,
+	}
+	var testParams = &DataSourceResolveParams{
+		DataSourceId: new(int64(37)),
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.NoError(t, handleDataSourceResolvePretend(testParams, testState))
+	assert.Equal(t, 1, len(testHook.Entries))
+}
+
+func Test_handleDataSourceResolvePretend_StateError(t *testing.T) {
+	var expectedError = errors.New("error")
+	var testLogger, testHook = test.NewNullLogger()
+	var testState = &task.State{
+		Error:  expectedError,
+		Logger: testLogger,
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.ErrorIs(t, handleDataSourceResolvePretend(&DataSourceResolveParams{}, testState), expectedError)
+	assert.Equal(t, 0, len(testHook.Entries))
 }
 
 func Test_handleDataSourceListComplete(t *testing.T) {
@@ -315,7 +585,6 @@ func Test_handleDataSourceListPretend(t *testing.T) {
 	defer func() {
 		clientFactory.Get = restoredFactory
 		os.Stdout = stdoutRestore
-
 	}()
 	clientFactory.Get = func(authFile, addr string) (Client, error) {
 		return &stubDataShareClient{

@@ -454,6 +454,16 @@ type Document struct {
 				Printer   Keys
 				ReadyOnly Keys
 			}
+			Source struct {
+				Add struct {
+					Account Keys
+					Printer Keys
+				}
+				Remove struct {
+					Account Keys
+					Printer Keys
+				}
+			}
 		}
 	}
 }
@@ -857,6 +867,11 @@ func init() {
 	Genaiz.Workspace.Node.List.Account = newKeys("Workspace.Node.Account", "WS_NODE_ACCOUNT", "Ws.Node.Account")
 	Genaiz.Workspace.Node.List.Printer = newKeys("Workspace.Node.Printer", "WS_NODE_PRINTER", "Ws.Node.Printer")
 	Genaiz.Workspace.Node.List.ReadyOnly = newKeys("Workspace.Node.ReadyOnly", "WS_NODE_READY_ONLY", "Ws.Node.ReadyOnly")
+
+	Genaiz.Workspace.Node.Source.Add.Account = newKeys("Workspace.Node.Src.Add.Account", "WS_NODE_SRC_ADD_ACCOUNT", "Ws.Node.Src.Add.Account")
+	Genaiz.Workspace.Node.Source.Add.Printer = newKeys("Workspace.Node.Src.Add.Printer", "WS_NODE_SRC_ADD_PRINTER", "Ws.Node.Src.Add.Printer")
+	Genaiz.Workspace.Node.Source.Remove.Account = newKeys("Workspace.Node.Src.Remove.Account", "WS_NODE_SRC_RM_ACCOUNT", "Ws.Node.Src.Rm.Account")
+	Genaiz.Workspace.Node.Source.Remove.Printer = newKeys("Workspace.Node.Src.Remove.Printer", "WS_NODE_SRC_RM_PRINTER", "Ws.Node.Src.Rm.Printer")
 }
 
 func newKeys(docKey, envKey string, pseudonyms ...string) Keys {

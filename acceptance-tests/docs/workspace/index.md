@@ -9,6 +9,7 @@ invoke a Workflow on a groups of Agents managed by the Broker.
     * [Workspace Flow Creation](#workspace-flow-creation)
     * [Workspace Listing](#workspace-listing)
     * [Workspace Node listing](#workspace-node-listing)
+    * [Workspace Node Source](#workspace-node-source)
 * [By Command](#commands)
 * [By Test Cases](#test-cases)
 
@@ -25,7 +26,7 @@ under [create simple workspace](../../features/workspace/create_simple_workspace
 title: Workspace Creation Activity
 ---
 flowchart LR
-    use>user] --> login([account<br>login])
+    user>user] --> login([account<br>login])
     login --> wsCreate([create<br>workspace])
 ```
 
@@ -40,7 +41,7 @@ under [create workspace flow](../../features/workspace/create_workspace_flow.fea
 title: Workspace Flow Creation Activity
 ---
 flowchart LR
-    use>user] --> login([account<br>login])
+    user>user] --> login([account<br>login])
     login --> wsList([workspace<br>list])
     login --> wsCreate([workspace<br>create])
     login --> snList([solution<br>list])
@@ -62,7 +63,7 @@ under [list simple use workspaces](../../features/workspace/list_simple_user_wor
 title: Workspace Listing Activity
 ---
 flowchart LR
-    use>user] --> login([account<br>login])
+    user>user] --> login([account<br>login])
     login --> wsCreate([create<br>workspace])
     login --> wsList([list<br>workspaces])
     wsCreate <--> wsList
@@ -79,14 +80,37 @@ under [list workspace nodes](../../features/workspace/list_workspace_nodes.featu
 
 ```mermaid
 ---
-title: Workfspace Node Listing Activity
+title: Workspace Node Listing Activity
 ---
 flowchart LR
-    use>user] --> login([account<br>login])
+    user>user] --> login([account<br>login])
     login --> nodeList([list workspace<br>nodes])
     login --> wsCreate([create<br>workspace])
     wsCreate --> flowCreate([flow<br>create])
     flowCreate --> nodeList
+```
+
+### Workspace Node Source
+
+With Workspace Flow Nodes discoverable, it becomes possible to extend the activity by assigning a previously
+published [Data Source](../data/index.md#source-listing) to a Flow Node. This activity depends
+on [Locker Publishing](../locker/index.md#data-source-publish), not detailed in the diagram, but still a necessary set of
+scenarios detailed under [Add workspace node source](../../features/workspace/add_workspace_node_source.feature).
+
+```mermaid
+---
+title: Workspace Node Source Activity
+---
+flowchart LR
+    user>user] --> login([account<br>login])
+    login --> srcPublish([publish<br>locker src])
+    login --> wsCreate([create<br>workspace])
+    login --> snPublish([publish<br>solution])
+    wsCreate --> flowCreate([flow<br>create])
+    snPublish --> flowCreate
+    flowCreate --> nodeList([list workspace<br>nodes])
+    srcPublish --> nodeSrc([update node<br>data src])
+    nodeList --> nodeSrc
 ```
 
 ## Commands
@@ -98,7 +122,8 @@ flowchart LR
 
 ## Test Cases
 
-* [Create Simple Workspace](../../features/workspace/create_simple_workspace.feature)
-* [Create Workspace Flow](../../features/workspace/create_workspace_flow.feature)
-* [List Simple User Workspaces](../../features/workspace/list_simple_user_workspaces.feature)
-* [List Workspace Nodes](../../features/workspace/list_workspace_nodes.feature)
+* [Add workspace node source](../../features/workspace/add_workspace_node_source.feature)
+* [Create simple workspace](../../features/workspace/create_simple_workspace.feature)
+* [Create workspace flow](../../features/workspace/create_workspace_flow.feature)
+* [List simple user workspaces](../../features/workspace/list_simple_user_workspaces.feature)
+* [List workspace nodes](../../features/workspace/list_workspace_nodes.feature)

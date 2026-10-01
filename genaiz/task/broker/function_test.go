@@ -195,7 +195,7 @@ func Test_handleFunctionGetComplete_GetFunctionError(t *testing.T) {
 			AuthFile: filepath.Join(t.TempDir(), "file"),
 			HostAddr: "hostAddr",
 		},
-		Id: new(37),
+		Id: new(int64(37)),
 	}
 	var restoredFactory = clientFactory.Get
 
@@ -251,7 +251,7 @@ func Test_handleFunctionGetComplete_NoSession(t *testing.T) {
 }
 
 func Test_handleFunctionGetContext(t *testing.T) {
-	var testParams = &GetParams{Id: new(37)}
+	var testParams = &GetParams{Id: new(int64(37))}
 
 	assert.NoError(t, handleFunctionGetContext(testParams, &task.State{}))
 }
@@ -285,7 +285,7 @@ func Test_handleFunctionGetPretend(t *testing.T) {
 			AuthFile: filepath.Join(t.TempDir(), "file"),
 			HostAddr: "hostAddr",
 		},
-		Id: new(37),
+		Id: new(int64(37)),
 	}
 	var restoredFactory = clientFactory.Get
 

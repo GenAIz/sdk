@@ -114,14 +114,15 @@ func (nle *NodeListExecutor) newNodeListParams(brokerParams *broker.Broker) *bro
 func NewNode(ledger *config.Ledger, wsCli *Cli) *cobra.Command {
 	var listOptions = node.NewListOptions()
 	var listFactory = newNodeListExecutorFactory(ledger, wsCli, listOptions)
-	var flowCmd = &cobra.Command{
+	var nodeCmd = &cobra.Command{
 		Use:     "node",
 		Aliases: []string{"nd"},
 		Short:   "Manages nodes under workspace flows",
 	}
 
-	flowCmd.AddCommand(node.NewList(ledger, listOptions, listFactory))
-	return flowCmd
+	nodeCmd.AddCommand(node.NewList(ledger, listOptions, listFactory))
+	nodeCmd.AddCommand(NewData(ledger, wsCli))
+	return nodeCmd
 }
 
 func NewNodeListExecutor(ctx context.Context, ledger *config.Ledger, wsCli *Cli, options *node.ListOptions) *NodeListExecutor {

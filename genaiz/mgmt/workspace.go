@@ -437,6 +437,24 @@ type UserWorkspaceNode struct {
 	SmartFunctionVersion string `cli:"Version"`
 	WorkflowNodeId       int64
 	WorkflowNodeHandle   string `cli:"Workflow Node"`
+
+	matched string
+}
+
+func (un UserWorkspaceNode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		Id              int64 `json:"id"`
+		WorkspaceId     int64 `json:"workspaceId"`
+		WorkspaceFlowId int64 `json:"workspaceFlowId"`
+		WorkflowNodeId  int64 `json:"workflowNodeId"`
+		SmartFunctionId int64 `json:"smartFunctionId"`
+	}{
+		Id:              un.Id,
+		WorkspaceId:     un.WorkspaceId,
+		WorkspaceFlowId: un.WorkspaceFlowId,
+		WorkflowNodeId:  un.WorkflowNodeId,
+		SmartFunctionId: un.SmartFunctionId,
+	})
 }
 
 func (un UserWorkspaceNode) MarshalSlice() ([]string, error) {
@@ -452,6 +470,49 @@ func (un UserWorkspaceNode) MarshalSlice() ([]string, error) {
 		sfVersion,
 		nodeHandle,
 	}, nil
+}
+
+func (un UserWorkspaceNode) Match(filter string) *UserWorkspaceNode {
+	var idString = cast.ToString(un.Id)
+	var matched string
+
+	if strings.EqualFold(idString, filter) ||
+		strings.HasPrefix(idString, filter) {
+		matched = idString
+	} else if strings.EqualFold(un.SmartFunctionHandle, filter) ||
+		strings.HasPrefix(un.SmartFunctionHandle, filter) {
+		matched = un.SmartFunctionHandle
+	}
+
+	if matched == "" {
+		return nil
+	}
+
+	return &UserWorkspaceNode{
+		Id:                   un.Id,
+		WorkspaceId:          un.WorkspaceId,
+		WorkspaceFlowId:      un.WorkspaceFlowId,
+		SmartFunctionId:      un.SmartFunctionId,
+		SmartFunctionOem:     un.SmartFunctionOem,
+		SmartFunctionHandle:  un.SmartFunctionHandle,
+		SmartFunctionVersion: un.SmartFunctionVersion,
+		WorkflowNodeId:       un.WorkflowNodeId,
+		WorkflowNodeHandle:   un.WorkflowNodeHandle,
+
+		matched: matched,
+	}
+}
+
+func (un UserWorkspaceNode) Matched() cobra.Completion {
+	if un.matched == "" {
+		return cobra.CompletionWithDesc(cast.ToString(un.Id), un.SmartFunctionHandle)
+	}
+
+	if _, err := strconv.Atoi(un.matched); err == nil {
+		return cobra.CompletionWithDesc(un.matched, un.SmartFunctionHandle)
+	}
+
+	return cobra.CompletionWithDesc(un.matched, cast.ToString(un.Id))
 }
 
 type userWorkspaceNodesFacade struct {
@@ -518,7 +579,11 @@ func (uwn userWorkspaceNodesProvider) Get() ([]UserWorkspaceNode, task.Error) {
 				userNode.SmartFunctionVersion = nd.SmartFunction.GetFullVersion()
 			}
 
-			result = append(result, *userNode)
+			if uwn.filter == "" {
+				result = append(result, *userNode)
+			} else if matched := userNode.Match(uwn.filter); matched != nil {
+				result = append(result, *matched)
+			}
 		}
 
 		return result, nil
