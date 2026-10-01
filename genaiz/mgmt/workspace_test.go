@@ -774,6 +774,31 @@ func TestUserWorkspaceFlowsProvider_Get_NoSolution(t *testing.T) {
 	assert.Fail(t, "expected a list of results")
 }
 
+func TestUserWorkspaceNode_MarshalJSON(t *testing.T) {
+	var testNode = &UserWorkspaceNode{
+		Id:              37,
+		WorkspaceId:     int64(1337),
+		WorkspaceFlowId: int64(73),
+		WorkflowNodeId:  int64(42),
+		SmartFunctionId: int64(69),
+	}
+	var bytes []byte
+	var err error
+
+	if bytes, err = testNode.MarshalJSON(); err == nil {
+		assert.NoError(t, err)
+		assert.NotEmpty(t, bytes)
+		actual := string(bytes)
+		assert.Contains(t, actual, fmt.Sprintf("\"id\":%d", testNode.Id))
+		assert.Contains(t, actual, fmt.Sprintf("\"workspaceId\":%d", testNode.WorkspaceId))
+		assert.Contains(t, actual, fmt.Sprintf("\"workspaceFlowId\":%d", testNode.WorkspaceFlowId))
+		assert.Contains(t, actual, fmt.Sprintf("\"workflowNodeId\":%d", testNode.WorkflowNodeId))
+		assert.Contains(t, actual, fmt.Sprintf("\"smartFunctionId\":%d", testNode.SmartFunctionId))
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
 func TestUserWorkspaceNode_MarshalSlice(t *testing.T) {
 	var testWorkspaceNode = &UserWorkspaceNode{
 		Id:                   37,
@@ -800,6 +825,58 @@ func TestUserWorkspaceNode_MarshalSlice(t *testing.T) {
 	} else {
 		assert.Fail(t, err.Error())
 	}
+}
+
+func TestUserWorkspaceNode_Match(t *testing.T) {
+	var testWorkspaceNode = &UserWorkspaceNode{
+		Id:                   37,
+		WorkspaceId:          42,
+		WorkspaceFlowId:      1337,
+		SmartFunctionId:      69,
+		SmartFunctionOem:     "expectedOem",
+		SmartFunctionHandle:  "expectedHandle",
+		SmartFunctionVersion: "expectedVersion",
+		WorkflowNodeId:       31337,
+		WorkflowNodeHandle:   "expectedNodeHandle",
+	}
+
+	if actual := testWorkspaceNode.Match("3"); actual != nil {
+		assert.Equal(t, cast.ToString(testWorkspaceNode.Id), actual.matched)
+	} else {
+		assert.Fail(t, "could not match node")
+	}
+}
+
+func TestUserWorkspaceNode_Matched(t *testing.T) {
+	var testNode = &UserWorkspaceNode{
+		Id:                  int64(37),
+		SmartFunctionHandle: "handle",
+	}
+	var expected = fmt.Sprintf("%d\t%s", testNode.Id, testNode.SmartFunctionHandle)
+
+	assert.Equal(t, expected, testNode.Matched())
+}
+
+func TestUserWorkspaceNode_Matched_Custom(t *testing.T) {
+	var testNode = &UserWorkspaceNode{
+		Id:                  int64(37),
+		SmartFunctionHandle: "handle",
+		matched:             "custom",
+	}
+	var expected = fmt.Sprintf("%s\t%d", testNode.matched, testNode.Id)
+
+	assert.Equal(t, expected, testNode.Matched())
+}
+
+func TestUserWorkspaceNode_Matched_Id(t *testing.T) {
+	var testNode = &UserWorkspaceNode{
+		Id:                  int64(37),
+		SmartFunctionHandle: "handle",
+		matched:             "1337",
+	}
+	var expected = fmt.Sprintf("%s\t%s", testNode.matched, testNode.SmartFunctionHandle)
+
+	assert.Equal(t, expected, testNode.Matched())
 }
 
 func TestUserWorkspaceNodesFacade_Filtering(t *testing.T) {
@@ -888,6 +965,57 @@ func TestUserWorkspaceNodesProvider_Get_Failure(t *testing.T) {
 
 	assert.Empty(t, actual)
 	assert.Equal(t, err.Error(), expectedError.Error())
+}
+
+func TestUserWorkspaceNodesProvider_Get_Filtered(t *testing.T) {
+	var calledParams broker.WorkspaceNodeListParams
+	var testNodes = []broker.WorkspaceNode{
+		{
+			Id:              37,
+			WorkspaceId:     73,
+			WorkspaceFlowId: 1337,
+			WorkflowNodeId:  42,
+			SmartFunctionId: 69,
+			Flags:           new(10),
+		},
+		{
+			Id:              42,
+			SmartFunctionId: 645,
+			SmartFunction: &broker.Function{
+				Oem:     "expectedOem",
+				Handle:  "expectedHandle",
+				Version: "expectedVersion",
+			},
+			Flags: new(10),
+		},
+		{
+			Id:              371,
+			WorkspaceId:     731,
+			WorkspaceFlowId: 13371,
+			WorkflowNodeId:  421,
+			SmartFunctionId: 691,
+		},
+	}
+	var testParams = &broker.WorkspaceNodeListParams{}
+	var testProvider = &userWorkspaceNodesProvider{
+		Plan: task.Plan{
+			Logger: logrus.New(),
+		},
+		filter:                       "exp",
+		params:                       testParams,
+		workspaceNodeListTaskFactory: newWorkspaceNodeListTaskCompleteCapture(&calledParams, testNodes),
+	}
+	var actual []UserWorkspaceNode
+	var err error
+
+	if actual, err = testProvider.Get(); err == nil {
+		assert.Equal(t, 1, len(actual))
+		assert.Equal(t, testNodes[1].Id, actual[0].Id)
+		assert.Equal(t, testNodes[1].SmartFunctionId, actual[0].SmartFunctionId)
+		return
+	}
+
+	assert.Fail(t, "expected a list of results")
 }
 
 func TestUserWorkspaceNodesProvider_Get_NoResults(t *testing.T) {

@@ -142,6 +142,54 @@ func TestUserLinkInstance_MarshalSlice_NoCreate(t *testing.T) {
 	}
 }
 
+func TestUserLinkInstance_Match(t *testing.T) {
+	var testInstance = &UserLinkInstance{
+		Id: new(int64(1337)),
+	}
+
+	assert.Equal(t, testInstance, testInstance.Match("13"))
+}
+
+func TestUserLinkInstance_Match_NoFilter(t *testing.T) {
+	var testInstance = &UserLinkInstance{
+		Id: new(int64(1337)),
+	}
+
+	assert.Nil(t, testInstance.Match(""))
+}
+
+func TestUserLinkInstance_Matched(t *testing.T) {
+	var testInstance = &UserLinkInstance{
+		Id:   new(int64(1337)),
+		Name: "expectedName",
+	}
+	var expected = fmt.Sprintf("%d\t%s", *testInstance.Id, testInstance.Name)
+
+	assert.Equal(t, expected, testInstance.Matched())
+}
+
+func TestUserLinkInstance_Matched_Custom(t *testing.T) {
+	var testInstance = &UserLinkInstance{
+		Id:      new(int64(1337)),
+		Name:    "expectedName",
+		matched: "custom",
+	}
+	var expected = fmt.Sprintf("%s\t%d", testInstance.matched, *testInstance.Id)
+
+	assert.Equal(t, expected, testInstance.Matched())
+}
+
+func TestUserLinkInstance_Matched_Id(t *testing.T) {
+	var testInstance = &UserLinkInstance{
+		Id:      new(int64(1337)),
+		Name:    "expectedName",
+		matched: "73",
+	}
+	var expected = fmt.Sprintf("%s\t%s", testInstance.matched, testInstance.Name)
+
+	assert.Equal(t, expected, testInstance.Matched())
+}
+
 func TestToUserLinkInstance(t *testing.T) {
 	var testLink = &broker.DataLinkInstance{
 		Id:          new(int64(37)),
@@ -258,6 +306,38 @@ func TestUserLinkInstancesProvider_Get(t *testing.T) {
 		assert.Equal(t, *testDatalinks[3].Id, *actual[1].Id)
 		assert.Equal(t, *testDatalinks[1].Id, *actual[2].Id)
 		assert.Equal(t, *testDatalinks[0].Id, *actual[3].Id)
+		return
+	}
+
+	assert.Fail(t, "expected a list of results")
+}
+
+func TestUserLinkInstancesProvider_Get_Filtered(t *testing.T) {
+	var calledParams broker.DataInstanceListParams
+	var testDatalinks = []broker.DataLinkInstance{
+		{
+			Id:    new(int64(37)),
+			Name:  "expected",
+			Flags: new(10),
+		},
+	}
+	var testParams = &broker.DataInstanceListParams{}
+	var testProvider = &userLinkInstancesProvider{
+		Plan: task.Plan{
+			Logger: logrus.New(),
+		},
+		filter:                      "exp",
+		params:                      testParams,
+		dataInstanceListTaskFactory: newDataInstanceListTaskCompleteCapture(&calledParams, testDatalinks),
+	}
+	var actual []UserLinkInstance
+	var err error
+
+	if actual, err = testProvider.Get(); err == nil {
+		assert.Equal(t, 1, len(actual))
+		assert.Equal(t, *testDatalinks[0].Id, *actual[0].Id)
+		assert.Equal(t, testDatalinks[0].Name, actual[0].Name)
+		assert.Equal(t, testDatalinks[0].Flags, actual[0].Flags)
 		return
 	}
 

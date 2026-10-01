@@ -32,7 +32,7 @@ var (
 
 type GetParams struct {
 	Broker
-	Id      *int
+	Id      *int64
 	Oem     string
 	Handle  string
 	Version string
@@ -159,7 +159,7 @@ func handleFunctionGetComplete(params *GetParams, state *task.State) error {
 
 			state.Logger.Debugf("Get Function on id [%d]", params.Id)
 
-			if fn, err = brokerClient.GetFunction(int64(*params.Id)); err == nil {
+			if fn, err = brokerClient.GetFunction(*params.Id); err == nil {
 				state.Internal = fn
 				state.Output = ""
 				return nil

@@ -834,6 +834,68 @@ func TestClient_GetFunction_UrlError(t *testing.T) {
 	assert.ErrorIs(t, err, testBridge.err)
 }
 
+func TestClient_GetNode(t *testing.T) {
+	var expectedToken = "token"
+	var expectedNode = &WorkspaceNode{Id: int64(37)}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[WorkspaceNode]{
+				Data: *expectedNode,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.GetNode(expectedNode.Id)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedNode, actual)
+}
+
+func TestClient_GetNode_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.GetNode(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_GetNode_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.GetNode(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_GetNode_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.GetNode(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_GetNode_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.GetNode(int64(37))
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
 func TestClient_GetSolution(t *testing.T) {
 	var expectedToken = "token"
 	var expectedSolution = &Solution{Id: new(int64(37))}
@@ -1403,6 +1465,11 @@ func TestClient_ListWorkspaceNodes(t *testing.T) {
 			result: &clientPayload[*workspaceNodeSlices]{
 				Data: &workspaceNodeSlices{
 					WorkspaceFlowNodes: []WorkspaceNode{*expectedNode},
+					SmartFunctions: []Function{
+						{
+							Id: expectedNode.SmartFunctionId,
+						},
+					},
 				},
 			},
 		},
@@ -1854,7 +1921,7 @@ func TestClient_OidcTokenUrl_UrlError(t *testing.T) {
 }
 
 func TestClient_ProvisionFunction(t *testing.T) {
-	var expectedId = 37
+	var expectedId = int64(37)
 	var expectedAuth = "auth"
 	var expectedToken = "token"
 	var testBridge = &stubBridge{
@@ -2394,6 +2461,70 @@ func TestClient_UpdateDataStoreUrl(t *testing.T) {
 	var testClient = &client{HostAddr: expectedHost}
 
 	assert.Contains(t, testClient.UpdateDataStoreUrl(), expectedHost)
+}
+
+func TestClient_UpdateNode(t *testing.T) {
+	var expectedToken = "token"
+	var expectedNode = &WorkspaceNode{
+		Id: int64(37),
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[WorkspaceNode]{
+				Data: *expectedNode,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UpdateNode(expectedNode)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedNode, actual)
+}
+
+func TestClient_UpdateNode_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.UpdateNode(&WorkspaceNode{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_UpdateNode_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UpdateNode(&WorkspaceNode{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_UpdateNode_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.UpdateNode(&WorkspaceNode{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_UpdateNode_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UpdateNode(&WorkspaceNode{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
 }
 
 func TestActiveClient(t *testing.T) {

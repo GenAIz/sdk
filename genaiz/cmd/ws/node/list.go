@@ -1,17 +1,13 @@
 package node
 
 import (
-	"strconv"
-
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/cmd/ws/auto"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
-	"genaiz.com/genaiz/mgmt"
 	"genaiz.com/genaiz/schema"
-	"genaiz.com/genaiz/task/broker"
 )
 
 type ListExecutor interface {
@@ -35,11 +31,8 @@ func (lo ListOptions) allDefiners() []config.Definer {
 }
 
 type ListAutoBridge struct {
-	ledger      *config.Ledger
-	readyOption *config.BoolOption
-	workspaces  auto.Bridge
-
-	workspaceFlowFacadeProvider func() mgmt.UserWorkspaceFlowsFacade
+	workspaces     auto.Bridge
+	workspaceFlows auto.WorkspaceBridge
 }
 
 func (lab ListAutoBridge) bridgeArguments(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
@@ -53,52 +46,12 @@ func (lab ListAutoBridge) bridgeArguments(cmd *cobra.Command, args []string, toC
 		results, directive = lab.workspaces.Bridge(toComplete)
 	} else if argsCount == 1 {
 		// In the case where the toComplete string refers to a workflowId or workflowHandle, we still use workspace flows
-		results, directive = lab.bridgeFlows(args[0], toComplete)
+		results, directive = lab.workspaceFlows.WithWorkspace(args[0]).Bridge(toComplete)
 	} else {
 		directive = cobra.ShellCompDirectiveNoFileComp
 	}
 
 	return results, directive
-}
-
-func (lab ListAutoBridge) bridgeFlows(workspaceArg string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
-	var resolveParams = &broker.WorkspaceFlowResolveParams{
-		WorkspaceFlowCreateParams: &broker.WorkspaceFlowCreateParams{
-			Broker: &broker.Broker{
-				AuthFile: lab.ledger.AuthFile,
-			},
-		},
-	}
-	var params = &broker.WorkspaceFlowListParams{
-		WorkspaceFlowResolveParams: resolveParams,
-		ReadyOnly:                  lab.ledger.GetBool(lab.readyOption),
-	}
-	var facade = lab.workspaceFlowFacadeProvider().
-		WithParams(params).
-		WithLogger(lab.ledger.Logger).
-		Filtering(toComplete)
-
-	if id, err := strconv.Atoi(workspaceArg); err == nil {
-		resolveParams.WorkspaceId = new(int64(id))
-	} else {
-		resolveParams.WorkspaceName = workspaceArg
-	}
-
-	if flows, err := facade.Get(); err == nil {
-		if len(flows) > 0 {
-			var results []cobra.Completion
-
-			for _, fl := range flows {
-				results = append(results, fl.Matched())
-			}
-
-			return results, cobra.ShellCompDirectiveKeepOrder
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return nil, cobra.ShellCompDirectiveError
 }
 
 func NewList(ledger *config.Ledger, options *ListOptions, factory ListExecutorFactory) *cobra.Command {
@@ -122,13 +75,11 @@ func NewList(ledger *config.Ledger, options *ListOptions, factory ListExecutorFa
 	return listCmd
 }
 
-func NewListAuto(ledger *config.Ledger, readyOption *config.BoolOption) *ListAutoBridge {
+func NewListAuto(ledger *config.Ledger, readOnlyOption *config.BoolOption) *ListAutoBridge {
 	return &ListAutoBridge{
-		readyOption: readyOption,
-		ledger:      ledger,
-		workspaces:  auto.NewWorkspaceBridge(ledger),
-
-		workspaceFlowFacadeProvider: mgmt.NewUserWorkspaceFlowsFacade,
+		workspaces: auto.NewWorkspaceBridge(ledger),
+		workspaceFlows: auto.NewWorkspaceFlowBridge(ledger).
+			WithReadyOnly(readOnlyOption),
 	}
 }
 

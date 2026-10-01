@@ -479,7 +479,7 @@ func TestFunction_asIdentity(t *testing.T) {
 	}
 
 	actual = function.asIdentity()
-	assert.Equal(t, function.Id, cast.ToInt(actual.Id))
+	assert.Equal(t, function.Id, cast.ToInt64(actual.Id))
 	assert.Equal(t, function.Digest, actual.Hash)
 	assert.Equal(t, function.Img, actual.Path)
 	assert.Equal(t, function.Version, actual.Version)
@@ -1308,14 +1308,9 @@ func TestWorkspaceFlow_IsReady(t *testing.T) {
 	assert.False(t, testFlow.IsReady())
 }
 
-func TestWorkspaceNode_withFunction(t *testing.T) {
-	var testFunction = &Function{
-		Id:      37,
-		Oem:     "expectedOem",
-		Handle:  "expectedHandle",
-		Version: "expectedVersion",
-	}
-	var testFlow = &WorkspaceNode{
+func TestWorkspaceNode_AddDataSource(t *testing.T) {
+	var expectedId = int64(4443)
+	var testNode = &WorkspaceNode{
 		Id:              42,
 		WorkspaceId:     1337,
 		WorkspaceFlowId: 31337,
@@ -1324,13 +1319,49 @@ func TestWorkspaceNode_withFunction(t *testing.T) {
 		Flags:           new(3),
 	}
 
-	actual := testFlow.withFunction(testFunction)
+	assert.Contains(t, testNode.AddDataSource(expectedId).DataSourceIds, expectedId)
+	assert.Equal(t, 0, len(testNode.DataSourceIds))
+}
+
+func TestWorkspaceNode_RemoveDataSource(t *testing.T) {
+	var expectedId = int64(4443)
+	var testNode = &WorkspaceNode{
+		Id:              42,
+		WorkspaceId:     1337,
+		WorkspaceFlowId: 31337,
+		WorkflowNodeId:  69,
+		SmartFunctionId: 38,
+		DataSourceIds:   []int64{expectedId, int64(5557)},
+		Flags:           new(3),
+	}
+
+	assert.NotContains(t, testNode.RemoveDataSource(expectedId).DataSourceIds, expectedId)
+	assert.Equal(t, 2, len(testNode.DataSourceIds))
+}
+
+func TestWorkspaceNode_withFunction(t *testing.T) {
+	var testFunction = &Function{
+		Id:      37,
+		Oem:     "expectedOem",
+		Handle:  "expectedHandle",
+		Version: "expectedVersion",
+	}
+	var testNode = &WorkspaceNode{
+		Id:              42,
+		WorkspaceId:     1337,
+		WorkspaceFlowId: 31337,
+		WorkflowNodeId:  69,
+		SmartFunctionId: 38,
+		Flags:           new(3),
+	}
+
+	actual := testNode.withFunction(testFunction)
 	assert.NotNil(t, actual)
-	assert.Equal(t, testFlow.Id, actual.Id)
-	assert.Equal(t, testFlow.WorkspaceId, actual.WorkspaceId)
-	assert.Equal(t, testFlow.WorkspaceFlowId, actual.WorkspaceFlowId)
-	assert.Equal(t, testFlow.WorkflowNodeId, actual.WorkflowNodeId)
-	assert.Equal(t, testFlow.SmartFunctionId, actual.SmartFunctionId)
+	assert.Equal(t, testNode.Id, actual.Id)
+	assert.Equal(t, testNode.WorkspaceId, actual.WorkspaceId)
+	assert.Equal(t, testNode.WorkspaceFlowId, actual.WorkspaceFlowId)
+	assert.Equal(t, testNode.WorkflowNodeId, actual.WorkflowNodeId)
+	assert.Equal(t, testNode.SmartFunctionId, actual.SmartFunctionId)
 	assert.Equal(t, testFunction.Id, actual.SmartFunction.Id)
 	assert.Equal(t, testFunction.Oem, actual.SmartFunction.Oem)
 	assert.Equal(t, testFunction.Handle, actual.SmartFunction.Handle)

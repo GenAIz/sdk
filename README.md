@@ -1,6 +1,6 @@
 # GenAIz CLI
 
-<sub>Genaiz Version 1.0.5</sub>
+<sub>Genaiz Version 1.0.6</sub>
 
 The GenAIz CLI is a tool for creating, building and publishing Smart Functions to the GenAIz Orchestration platform. It
 also provides toolkits to manage Orchestrated Workspaces and execute their Workflows.
@@ -143,7 +143,7 @@ Auto-completion in Bash and other shell types can be achieved by generating the 
 it inside the terminal session:
 
 ```bash
-gennaiz completion --help
+genaiz completion --help
 genaiz completion bash > ~/.config/genaiz/completion.sh
 source ~/.config/genaiz/completion.sh
 ```

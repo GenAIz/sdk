@@ -3,6 +3,7 @@ package intz
 import (
 	"testing"
 
+	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,4 +17,8 @@ func TestInt64ToDefault_Default(t *testing.T) {
 	var expectedDefault = int64(37)
 
 	assert.Equal(t, expectedDefault, Int64ToDefault(nil, expectedDefault))
+}
+
+func TestInt64ToString(t *testing.T) {
+	assert.Equal(t, cast.ToString(int64(37)), Int64ToString(int64(37)))
 }
