@@ -26,7 +26,6 @@ var (
 	errorWorkflowFileInvalid       = task.NewError("workflow config is invalid")
 	errorWorkflowFileNotFound      = task.NewError("workflow config file not found")
 	errorWorkflowListInvalidParams = task.NewError("workflow list requires oem, handle and version of a solution")
-	errorWorkflowNotFound          = task.NewError("workflow not found")
 	errorWorkflowPropIncomplete    = task.NewError("workflow prop specs are empty")
 
 	errorInvalidNodeProp = func(key, handle string) error {
@@ -488,7 +487,7 @@ func handleSolutionUpdateConfig(writer SolutionWriter, params *SolutionParams, s
 
 		if params.HasWorkflows() {
 			// Remove existing workflows from createConfig, we can not overwrite them with solution update
-			slices.DeleteFunc(params.Workflows, func(wf Workflow) bool {
+			_ = slices.DeleteFunc(params.Workflows, func(wf Workflow) bool {
 				var _, err2 = writer.GetWorkflowByHandle(wf.Handle)
 
 				return err2 == nil
@@ -632,7 +631,7 @@ func handleWorkflowDeletePretend(params *WorkflowParams, state *task.State) erro
 				return "solution.workflows[]", "name", name
 			})
 		} else {
-			return errorWorkflowNotFound
+			return ErrorWorkflowNotFound
 		}
 
 		return nil

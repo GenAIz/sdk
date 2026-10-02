@@ -1,11 +1,11 @@
-Feature: add data source to workspace node
-  To be able to add a data source to a workspace node
+Feature: add data store to workspace node
+  To be able to add a data store to a workspace node
   As an authenticated user,
   I need to be able to create a solution with a connector function, and add the function to the solution default workflow.
   I need to be able to create a datalink, add properties to it, login to an orchestrator and publish it.
-  I need to be able to add a data source to the function with the datalink and publish the solution
-  I need to be able to create a locker, add the datalink to it as data source, update the properties to test values, and publish it.
-  I need to be able to create a workspace with the workflow of the solution, list the single node and add the data source to it.
+  I need to be able to add a data store to the function with the datalink and publish the solution
+  I need to be able to create a locker, add the datalink to it as data store, update the properties to test values, and publish it.
+  I need to be able to create a workspace with the workflow of the solution, list the single node and add the data store to it.
 
   Scenario: create workspace solution
     Given the following parameters
@@ -68,21 +68,21 @@ Feature: add data source to workspace node
     When I run the command "dk publish <oem>/<handle>:<version>"
     Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<version>"
 
-  Scenario: add datalink for function as data source
+  Scenario: add datalink for function as data store
     Given the scenario "publish datalink for function" ran with condition "service_completed_successfully"
     And the scenario "create solution function" ran with condition "service_completed_successfully"
     And the following parameters
       | path                    | oem             | handle     | version |
       | my-solution/my-function | com.genaiz.test | datalink-1 | 1.0.0   |
     And the workdir changes to "<path>"
-    When I run the command "sf data src add <oem>/<handle>:<version>"
-    Then I should have a data source under "<path>" with datalink "<oem>/<handle>:<version>"
+    When I run the command "sf data str add <oem>/<handle>:<version>"
+    Then I should have a data store under "<path>" with datalink "<oem>/<handle>:<version>"
 
   Scenario: build function for solution
-    Given the scenario "add datalink for function as data source" ran with condition "service_completed_successfully"
+    Given the scenario "add datalink for function as data store" ran with condition "service_completed_successfully"
     And the following parameters
-      | solution    | folder      |  oem             |
-      | my-solution | my-function |  com.genaiz.test |
+      | solution    | folder      | oem             |
+      | my-solution | my-function | com.genaiz.test |
     And the workdir changes to "<solution>/<folder>"
     When I run the command "sf build"
     Then I should have a docker image tagged "<oem>/<handle>:latest"
@@ -99,41 +99,41 @@ Feature: add data source to workspace node
 
   Scenario: create a data locker
     Given the following parameters
-      | path         | password   |
-      | myLocker.bin | data$0urCE |
+      | path         | password  |
+      | myLocker.bin | data$T0rE |
     And the environment contains "GENAIZ_LK_PASSWORD='<password>'"
     When I run the command "lk init <path>"
     Then I should have a locker file under "<path>"
 
-  Scenario: add data source to data locker
+  Scenario: add data store to data locker
     Given the scenario "create a data locker" ran with condition "service_completed_successfully"
     And the scenario "publish datalink for function" ran with condition "service_completed_successfully"
     And the following parameters
-      | path         | password   | handle      | dataLinkFqdn               | dataLinkVersion | mtime |
-      | myLocker.bin | data$0urCE | myLockerSrc | com.genaiz.test/datalink-1 | 1.0.0           |       |
+      | path         | password  | handle      | dataLinkFqdn               | dataLinkVersion | mtime |
+      | myLocker.bin | data$T0rE | myLockerStr | com.genaiz.test/datalink-1 | 1.0.0           |       |
     And the modification time of "<path>" known as parameter "mtime"
     And the environment contains "GENAIZ_LK_PASSWORD='<password>'"
-    When I run the command "lk src add <handle> <dataLinkFqdn>:<dataLinkVersion> --locker=<path>"
+    When I run the command "lk str add <handle> <dataLinkFqdn>:<dataLinkVersion> --locker=<path>"
     Then I should have a locker file under "<path>" with a modification time different than "<mtime>"
 
-  Scenario: update data source property
-    Given the scenario "add data source to data locker" ran with condition "service_completed_successfully"
+  Scenario: update data store property
+    Given the scenario "add data store to data locker" ran with condition "service_completed_successfully"
     And the following parameters
-      | path         | password   | handle      | key        | value         |
-      | myLocker.bin | data$0urCE | myLockerSrc | IP_ADDRESS | 192.168.1.101 |
+      | path         | password  | handle      | key        | value         |
+      | myLocker.bin | data$T0rE | myLockerStr | IP_ADDRESS | 192.168.1.101 |
     And the modification time of "<path>" known as parameter "mtime"
     And the environment contains "GENAIZ_LK_PASSWORD='<password>'"
-    When I run the command "lk src update <handle> <key> <value> --locker=<path>"
+    When I run the command "lk str update <handle> <key> <value> --locker=<path>"
     Then I should have a locker file under "<path>" with a modification time different than "<mtime>"
 
-  Scenario: publish data source to account
-    Given the scenario "update data source property" ran with condition "service_completed_successfully"
+  Scenario: publish data store to account
+    Given the scenario "update data store property" ran with condition "service_completed_successfully"
     And the following parameters
-      | path         | password   | handle      |
-      | myLocker.bin | data$0urCE | myLockerSrc |
+      | path         | password  | handle      |
+      | myLocker.bin | data$T0rE | myLockerStr |
     And the environment contains "GENAIZ_LK_PASSWORD='<password>'"
-    When I run the command "lk src publish <handle> --locker=<path>"
-    Then I should have a data source named "<handle>" created under account "<orchestrator>"
+    When I run the command "lk str publish <handle> --locker=<path>"
+    Then I should have a data store named "<handle>" created under account "<orchestrator>"
 
   Scenario: create workspace for solution
     Given the scenario "login to orchestrator" ran with condition "service_completed_successfully"
@@ -160,19 +160,19 @@ Feature: add data source to workspace node
     When I run the command "ws node list <workspaceName> <wfHandle> --json"
     Then I should have a list of nodes with a node named "<nodeHandle>" and handle "<nodeHandle>"
 
-  Scenario: attach data source to workspace flow node
+  Scenario: attach data store to workspace flow node
     Given the scenario "create workspace flow for solution" ran with condition "service_completed_successfully"
-    And the scenario "publish data source to account" ran with condition "service_completed_successfully"
+    And the scenario "publish data store to account" ran with condition "service_completed_successfully"
     And the following parameters
       | workspaceName         | workflowHandle | nodeHandle       | dsName      |
-      | my-solution-workspace | default        | my-function-node | myLockerSrc |
-    When I run the command "ws node data src add <workspaceName> <workflowHandle> <nodeHandle> <dsName>"
-    Then I should have a data source named "<dsName>" attached to workspace "<workspaceName>" on flow node "<workflowHandle>/<nodeHandle>"
+      | my-solution-workspace | default        | my-function-node | myLockerStr |
+    When I run the command "ws node data str add <workspaceName> <workflowHandle> <nodeHandle> <dsName>"
+    Then I should have a data store named "<dsName>" attached to workspace "<workspaceName>" on flow node "<workflowHandle>/<nodeHandle>"
 
-  Scenario: detach data source to workspace flow node
-    Given the scenario "attach data source to workspace flow node" ran with condition "service_completed_successfully"
+  Scenario: detach data store to workspace flow node
+    Given the scenario "attach data store to workspace flow node" ran with condition "service_completed_successfully"
     And the following parameters
       | workspaceName         | workflowHandle | nodeHandle       | dsName      |
-      | my-solution-workspace | default        | my-function-node | myLockerSrc |
-    When I run the command "ws node data src rm <workspaceName> <workflowHandle> <nodeHandle> <dsName>"
-    Then I should not have any data sources on flow node "<workflowHandle>/<nodeHandle>"
+      | my-solution-workspace | default        | my-function-node | myLockerStr |
+    When I run the command "ws node data str rm <workspaceName> <workflowHandle> <nodeHandle> <dsName>"
+    Then I should not have any data stores on flow node "<workflowHandle>/<nodeHandle>"

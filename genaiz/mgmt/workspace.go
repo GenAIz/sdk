@@ -343,8 +343,8 @@ func (uwf userWorkspaceFlowsFacade) Filtering(filter string) Provider[[]UserWork
 		filter: filter,
 		params: uwf.params,
 
-		workspaceResolveTaskFactory:  broker.NewWorkspaceFlowResolveTask,
-		workspaceFlowListTaskFactory: broker.NewWorkspaceFlowListTask,
+		workspaceFlowResolveTaskFactory: broker.NewWorkspaceFlowResolveTask,
+		workspaceFlowListTaskFactory:    broker.NewWorkspaceFlowListTask,
 	}
 }
 
@@ -367,8 +367,8 @@ type userWorkspaceFlowsProvider struct {
 	filter string
 	params *broker.WorkspaceFlowListParams
 
-	workspaceResolveTaskFactory  WorkspaceFlowResolveTaskFactory
-	workspaceFlowListTaskFactory WorkspaceFlowListTaskFactory
+	workspaceFlowResolveTaskFactory WorkspaceFlowResolveTaskFactory
+	workspaceFlowListTaskFactory    WorkspaceFlowListTaskFactory
 }
 
 func (uwp userWorkspaceFlowsProvider) Get() ([]UserWorkspaceFlow, task.Error) {
@@ -380,7 +380,7 @@ func (uwp userWorkspaceFlowsProvider) Get() ([]UserWorkspaceFlow, task.Error) {
 	uwp.OnFailure = func(i interface{}) { failure = i }
 
 	if uwp.params.GetWorkspaceId() == nil {
-		workers = append(workers, task.NewWorker(uwp.params.WorkspaceFlowResolveParams, uwp.workspaceResolveTaskFactory()))
+		workers = append(workers, task.NewWorker(uwp.params.WorkspaceFlowResolveParams, uwp.workspaceFlowResolveTaskFactory()))
 	}
 
 	workers = append(workers, task.NewWorker(uwp.params, uwp.workspaceFlowListTaskFactory()))

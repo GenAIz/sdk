@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
@@ -10,12 +11,33 @@ import (
 	ver "genaiz.com/genaiz/version"
 )
 
+var (
+	errorDataStoreKnown    = task.NewError("data store has been resolved")
+	errorDataStoreRequired = task.NewError("data store id or name is required")
+)
+
+type DataStoreResolveParams struct {
+	Broker
+	DataStoreId   *int64
+	DataStoreName string
+}
+
 func NewDataStoreListTask() *task.Task[DataInstanceListParams] {
 	return &task.Task[DataInstanceListParams]{
 		Name:       "data-store-list",
 		OnPrepare:  handleDataStoreListContext,
 		OnComplete: handleDataStoreListComplete,
 		OnPretend:  handleDataStoreListPretend,
+	}
+}
+
+func NewDataStoreResolveTask() *task.Task[DataStoreResolveParams] {
+	return &task.Task[DataStoreResolveParams]{
+		Name:         "resolve-data-store",
+		OnPrepare:    handleDataStoreResolveContext,
+		OnComplete:   handleDataStoreResolveComplete,
+		OnIncomplete: handleDataStoreResolveIncomplete,
+		OnPretend:    handleDataStoreResolvePretend,
 	}
 }
 
@@ -90,4 +112,83 @@ func handleDataStoreFilterDebugging(params *DataInstanceListParams, logger *logr
 			logger.Debugf("And version [%s]", params.DataLink.GetVersion())
 		}
 	}
+}
+
+func handleDataStoreResolveComplete(params *DataStoreResolveParams, state *task.State) error {
+	if state.Output != "" {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var stores []DataLinkInstance
+
+			state.Logger.Debugf("Listing data stores for account [%s]", brokerClient.GetHostAddr())
+
+			if stores, err = brokerClient.ListDataStores(); err == nil {
+				for _, ds := range stores {
+					if ds.Name == params.DataStoreName {
+						params.DataStoreId = ds.Id
+						break
+					}
+				}
+
+				state.Output = ""
+				return nil
+			}
+		}
+
+		return err
+	}
+
+	return errorDataStoreRequired
+}
+
+func handleDataStoreResolveContext(params *DataStoreResolveParams, state *task.State) error {
+	if state.Output == "" {
+		if params.DataStoreId != nil {
+			return errorDataStoreKnown
+		}
+
+		if params.DataStoreName == "" {
+			return errorDataStoreRequired
+		}
+
+		state.Output = params.DataStoreName
+	}
+
+	return nil
+}
+
+func handleDataStoreResolveIncomplete(params *DataStoreResolveParams, state *task.State) error {
+	if errors.Is(state.Error, errorDataStoreKnown) {
+		state.Logger.Debugf("Data store id provided [%d], skipping resolution", *params.DataStoreId)
+		state.Completed = true
+		return nil
+	}
+
+	return state.Error
+}
+
+func handleDataStoreResolvePretend(params *DataStoreResolveParams, state *task.State) error {
+	if state.Error == nil {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			state.Logger.Debugf("Pretending to find a data store named: [%s]", params.DataStoreName)
+			fmt.Printf("curl -X GET \\\n")
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+			fmt.Printf("%s\n", brokerClient.ListDataStoresUrl())
+			return nil
+		}
+
+		return err
+	}
+
+	if errors.Is(state.Error, errorDataStoreKnown) {
+		state.Logger.Debugf("Data store id provided [%d], skipping resolution", *params.DataStoreId)
+		return nil
+	}
+
+	return state.Error
 }

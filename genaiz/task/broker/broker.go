@@ -13,6 +13,7 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/slicez"
 	"genaiz.com/genaiz/lang/enumz"
+	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -65,13 +66,13 @@ var (
 		PropSpecTypeEnum, PropSpecTypeInt, PropSpecTypeString)
 	Visibilities = enumz.NewEnumType(VisibilityPrivate, VisibilityOrg)
 
-	ErrorDataPortNotFound     = errors.New("data port not found")
-	ErrorPropIllegalBool      = errors.New("illegal default value for bool type")
-	ErrorPropIllegalDouble    = errors.New("illegal default value for double type")
-	ErrorPropIllegalInt       = errors.New("illegal default value for int type")
-	ErrorPropIllegalEnum      = errors.New("illegal default value for enum type")
-	ErrorWorkflowNotFound     = errors.New("workflow not found")
-	ErrorWorkflowNodeNotFound = errors.New("workflow node not found")
+	ErrorDataPortNotFound     = task.NewError("data port not found")
+	ErrorPropIllegalBool      = task.NewError("illegal default value for bool type")
+	ErrorPropIllegalDouble    = task.NewError("illegal default value for double type")
+	ErrorPropIllegalInt       = task.NewError("illegal default value for int type")
+	ErrorPropIllegalEnum      = task.NewError("illegal default value for enum type")
+	ErrorWorkflowNotFound     = task.NewError("workflow not found")
+	ErrorWorkflowNodeNotFound = task.NewError("workflow node not found")
 )
 
 type Broker struct {
@@ -1223,6 +1224,24 @@ func (wn WorkspaceNode) AddDataSource(dataSourceId int64) *WorkspaceNode {
 		WorkflowNodeId:  wn.WorkflowNodeId,
 		WorkflowNode:    wn.WorkflowNode,
 		DataSourceIds:   newIds,
+		DataStoreIds:    wn.DataStoreIds,
+		SmartFunctionId: wn.SmartFunctionId,
+		SmartFunction:   wn.SmartFunction,
+		Flags:           wn.Flags,
+	}
+}
+
+func (wn WorkspaceNode) AddDataStore(dataStoreId int64) *WorkspaceNode {
+	var newIds = append(wn.DataStoreIds, dataStoreId)
+
+	return &WorkspaceNode{
+		Id:              wn.Id,
+		WorkspaceId:     wn.WorkspaceId,
+		WorkspaceFlowId: wn.WorkspaceFlowId,
+		WorkflowNodeId:  wn.WorkflowNodeId,
+		WorkflowNode:    wn.WorkflowNode,
+		DataSourceIds:   wn.DataSourceIds,
+		DataStoreIds:    newIds,
 		SmartFunctionId: wn.SmartFunctionId,
 		SmartFunction:   wn.SmartFunction,
 		Flags:           wn.Flags,
@@ -1241,6 +1260,26 @@ func (wn WorkspaceNode) RemoveDataSource(dataSourceId int64) *WorkspaceNode {
 		WorkflowNodeId:  wn.WorkflowNodeId,
 		WorkflowNode:    wn.WorkflowNode,
 		DataSourceIds:   newIds,
+		DataStoreIds:    wn.DataStoreIds,
+		SmartFunctionId: wn.SmartFunctionId,
+		SmartFunction:   wn.SmartFunction,
+		Flags:           wn.Flags,
+	}
+}
+
+func (wn WorkspaceNode) RemoveDataStore(dataStoreId int64) *WorkspaceNode {
+	var newIds = slicez.Filter(wn.DataStoreIds, func(i int64) bool {
+		return i != dataStoreId
+	})
+
+	return &WorkspaceNode{
+		Id:              wn.Id,
+		WorkspaceId:     wn.WorkspaceId,
+		WorkspaceFlowId: wn.WorkspaceFlowId,
+		WorkflowNodeId:  wn.WorkflowNodeId,
+		WorkflowNode:    wn.WorkflowNode,
+		DataSourceIds:   wn.DataSourceIds,
+		DataStoreIds:    newIds,
 		SmartFunctionId: wn.SmartFunctionId,
 		SmartFunction:   wn.SmartFunction,
 		Flags:           wn.Flags,

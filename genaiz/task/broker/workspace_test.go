@@ -2960,7 +2960,7 @@ func Test_handleWorkspaceNodeSourceContext_DataSourceRequiredError(t *testing.T)
 		NodeId:                  new(int64(37)),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeSourceContext(testParams, &task.State{}), errorWorkspaceNodeDsRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeSourceContext(testParams, &task.State{}), errorWorkspaceNodeSourceRequired)
 }
 
 func Test_handleWorkspaceNodeSourceContext_NodeRequiredError(t *testing.T) {
@@ -3049,7 +3049,7 @@ func Test_handleWorkspaceNodeSourceAddComplete_GetError(t *testing.T) {
 }
 
 func Test_handleWorkspaceNodeSourceAddComplete_OutputError(t *testing.T) {
-	assert.ErrorIs(t, handleWorkspaceNodeSourceAddComplete(&WorkspaceNodeSourceParams{}, &task.State{}), errorWorkspaceNodeDsRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeSourceAddComplete(&WorkspaceNodeSourceParams{}, &task.State{}), errorWorkspaceNodeSourceRequired)
 }
 
 func Test_handleWorkspaceNodeSourceAddComplete_NoAssigned(t *testing.T) {
@@ -3193,7 +3193,7 @@ func Test_handleWorkspaceNodeSourcePretend(t *testing.T) {
 }
 
 func Test_handleWorkspaceNodeSourcePretend_OutputError(t *testing.T) {
-	assert.ErrorIs(t, handleWorkspaceNodeSourcePretend(&WorkspaceNodeSourceParams{}, &task.State{}), errorWorkspaceNodeDsRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeSourcePretend(&WorkspaceNodeSourceParams{}, &task.State{}), errorWorkspaceNodeSourceRequired)
 }
 
 func Test_handleWorkspaceNodeSourcePretend_SessionError(t *testing.T) {
@@ -3295,7 +3295,7 @@ func Test_handleWorkspaceNodeSourceRemoveComplete_GetError(t *testing.T) {
 func Test_handleWorkspaceNodeSourceRemoveComplete_OutputError(t *testing.T) {
 	var testTask = &task.State{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeSourceRemoveComplete(&WorkspaceNodeSourceParams{}, testTask), errorWorkspaceNodeDsRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeSourceRemoveComplete(&WorkspaceNodeSourceParams{}, testTask), errorWorkspaceNodeSourceRequired)
 }
 
 func Test_handleWorkspaceNodeSourceRemoveComplete_NotAssigned(t *testing.T) {
@@ -3395,4 +3395,460 @@ func Test_handleWorkspaceNodeSourceRemoveComplete_UpdateError(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleWorkspaceNodeSourceRemoveComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeStoreContext(t *testing.T) {
+	var testState = &task.State{}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			DataStoreId: new(int64(73)),
+		},
+		NodeId: new(int64(37)),
+	}
+
+	assert.NoError(t, handleWorkspaceNodeStoreContext(testParams, testState))
+	assert.Equal(t, cast.ToString(*testParams.DataStoreId), testState.Output)
+}
+
+func Test_handleWorkspaceNodeStoreContext_DataStoreRequiredError(t *testing.T) {
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{},
+		NodeId:                 new(int64(37)),
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStoreContext(testParams, &task.State{}), errorWorkspaceNodeStoreRequired)
+}
+
+func Test_handleWorkspaceNodeStoreContext_NodeRequiredError(t *testing.T) {
+	var testParams = &WorkspaceNodeStoreParams{}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStoreContext(testParams, &task.State{}), errorWorkspaceNodeRequired)
+}
+
+func Test_handleWorkspaceNodeStoreContext_OutputKnown(t *testing.T) {
+	var testState = &task.State{
+		Output: "output",
+	}
+
+	assert.NoError(t, handleWorkspaceNodeStoreContext(&WorkspaceNodeStoreParams{}, testState))
+}
+
+func Test_handleWorkspaceNodeStoreAddComplete(t *testing.T) {
+	var expectedDsId = int64(37)
+	var expectedNode = &WorkspaceNode{
+		Id:            int64(42),
+		DataSourceIds: []int64{int64(42)},
+	}
+	var modifiedNode = expectedNode.AddDataStore(expectedDsId)
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: cast.ToString(expectedDsId),
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: &expectedDsId,
+		},
+		NodeId: new(int64(73)),
+	}
+	var stubClient = &stubWorkspaceClient{
+		getNode:    expectedNode,
+		updateNode: modifiedNode,
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return stubClient, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeStoreAddComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.(WorkspaceNode); !ok {
+		assert.Fail(t, "expected a workspace node")
+	} else {
+		assert.Equal(t, *modifiedNode, actual)
+	}
+}
+
+func Test_handleWorkspaceNodeStoreAddComplete_GetError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testTask = &task.State{
+		Logger: logrus.New(),
+		Output: "37",
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: new(int64(37)),
+		},
+		NodeId: new(int64(73)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			getNodeError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStoreAddComplete(testParams, testTask), expectedError)
+}
+
+func Test_handleWorkspaceNodeStoreAddComplete_OutputError(t *testing.T) {
+	assert.ErrorIs(t, handleWorkspaceNodeStoreAddComplete(&WorkspaceNodeStoreParams{}, &task.State{}), errorWorkspaceNodeStoreRequired)
+}
+
+func Test_handleWorkspaceNodeStoreAddComplete_NoAssigned(t *testing.T) {
+	var expectedNode = &WorkspaceNode{
+		Id:           int64(42),
+		DataStoreIds: []int64{int64(37)},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "37",
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: new(int64(37)),
+		},
+		NodeId: new(int64(73)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			getNode: expectedNode,
+		}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeStoreAddComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.(WorkspaceNode); ok {
+		assert.Equal(t, *expectedNode, actual)
+	} else {
+		assert.Fail(t, "expected workspace node")
+	}
+}
+
+func Test_handleWorkspaceNodeStoreAddComplete_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testTask = &task.State{
+		Logger: logrus.New(),
+		Output: "37",
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: new(int64(37)),
+		},
+		NodeId: new(int64(73)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStoreAddComplete(testParams, testTask), expectedError)
+}
+
+func Test_handleWorkspaceNodeStoreAddComplete_UpdateError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var expectedNode = &WorkspaceNode{
+		Id: int64(42),
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "37",
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: new(int64(37)),
+		},
+		NodeId: new(int64(73)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			getNode:         expectedNode,
+			updateNodeError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStoreAddComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeStorePretend(t *testing.T) {
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+		NodeId: new(int64(37)),
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+		os.Stdout = stdoutRestore
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			client: client{
+				HostAddr: testParams.Broker.HostAddr,
+			},
+		}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeStorePretend(testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+	assert.Contains(t, output, "-X GET")
+	assert.Contains(t, output, "-X POST")
+	assert.Contains(t, output, testParams.Broker.HostAddr)
+}
+
+func Test_handleWorkspaceNodeStorePretend_OutputError(t *testing.T) {
+	assert.ErrorIs(t, handleWorkspaceNodeStorePretend(&WorkspaceNodeStoreParams{}, &task.State{}), errorWorkspaceNodeStoreRequired)
+}
+
+func Test_handleWorkspaceNodeStorePretend_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				AuthFile: "file",
+				HostAddr: "hostAddr",
+			},
+		},
+	}
+	var testState = &task.State{
+		Output: "output",
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStorePretend(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeStoreRemoveComplete(t *testing.T) {
+	var expectedDsId = int64(37)
+	var expectedNode = &WorkspaceNode{
+		Id:           int64(42),
+		DataStoreIds: []int64{expectedDsId},
+	}
+	var modifiedNode = expectedNode.RemoveDataStore(expectedDsId)
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: cast.ToString(expectedDsId),
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: new(expectedDsId),
+		},
+		NodeId: new(int64(73)),
+	}
+	var stubClient = &stubWorkspaceClient{
+		getNode:    expectedNode,
+		updateNode: modifiedNode,
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return stubClient, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeStoreRemoveComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.(WorkspaceNode); !ok {
+		assert.Fail(t, "expected a workspace node")
+	} else {
+		assert.Equal(t, *modifiedNode, actual)
+	}
+}
+
+func Test_handleWorkspaceNodeStoreRemoveComplete_GetError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testTask = &task.State{
+		Logger: logrus.New(),
+		Output: "37",
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: new(int64(37)),
+		},
+		NodeId: new(int64(73)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			getNodeError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStoreRemoveComplete(testParams, testTask), expectedError)
+}
+
+func Test_handleWorkspaceNodeStoreRemoveComplete_OutputError(t *testing.T) {
+	var testTask = &task.State{}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStoreRemoveComplete(&WorkspaceNodeStoreParams{}, testTask), errorWorkspaceNodeStoreRequired)
+}
+
+func Test_handleWorkspaceNodeStoreRemoveComplete_NotAssigned(t *testing.T) {
+	var expectedNode = &WorkspaceNode{
+		Id:           int64(42),
+		DataStoreIds: []int64{int64(1337)},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "37",
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: new(int64(37)),
+		},
+		NodeId: new(int64(73)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			getNode: expectedNode,
+		}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeStoreRemoveComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.(WorkspaceNode); !ok {
+		assert.Fail(t, "expected a workspace node")
+	} else {
+		assert.Equal(t, *expectedNode, actual)
+	}
+}
+
+func Test_handleWorkspaceNodeStoreRemoveComplete_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testTask = &task.State{
+		Logger: logrus.New(),
+		Output: "37",
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: new(int64(37)),
+		},
+		NodeId: new(int64(73)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStoreRemoveComplete(testParams, testTask), expectedError)
+}
+
+func Test_handleWorkspaceNodeStoreRemoveComplete_UpdateError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var expectedNode = &WorkspaceNode{
+		Id:           int64(42),
+		DataStoreIds: []int64{int64(37)},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "37",
+	}
+	var testParams = &WorkspaceNodeStoreParams{
+		DataStoreResolveParams: &DataStoreResolveParams{
+			Broker: Broker{
+				HostAddr: "hostAddr",
+			},
+			DataStoreId: new(int64(37)),
+		},
+		NodeId: new(int64(73)),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			getNode:         expectedNode,
+			updateNodeError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeStoreRemoveComplete(testParams, testState), expectedError)
 }

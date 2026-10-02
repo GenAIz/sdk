@@ -538,4 +538,7 @@ genaiz ws node data --help
 genaiz ws node data src --help
 genaiz ws node data src add --help
 genaiz ws node data src rm --help
+genaiz ws node data str --help
+genaiz ws node data str add --help
+genaiz ws node data str rm --help
 ```
