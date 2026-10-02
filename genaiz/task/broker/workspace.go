@@ -32,10 +32,11 @@ var (
 	errorWorkspaceIdRequired           = task.NewError("workspace id is required")
 	errorWorkspaceNameRequired         = task.NewError("workspace name is required")
 	errorWorkspaceNotFound             = task.NewError("workspace could not be found")
-	errorWorkspaceNodeDsRequired       = task.NewError("workspace node datasource is required")
 	errorWorkspaceNodeKnown            = task.NewError("workspace node is already known")
 	errorWorkspaceNodeRequired         = task.NewError("workspace node can not be located")
 	errorWorkspaceNodeSfHandleRequired = task.NewError("smart function handle is required")
+	errorWorkspaceNodeSourceRequired   = task.NewError("workspace node data source is required")
+	errorWorkspaceNodeStoreRequired    = task.NewError("workspace node data store is required")
 	errorWorkspaceVisibility           = task.NewError("workspace visibility is required")
 )
 
@@ -137,6 +138,11 @@ type WorkspaceNodeSourceParams struct {
 	NodeId *int64
 }
 
+type WorkspaceNodeStoreParams struct {
+	*DataStoreResolveParams
+	NodeId *int64
+}
+
 func NewWorkspaceCreateTask() *task.Task[WorkspaceCreateParams] {
 	return &task.Task[WorkspaceCreateParams]{
 		Name:       "workspace-create",
@@ -184,6 +190,15 @@ func NewWorkspaceFlowSolutionTask() *task.Task[WorkspaceFlowResolveParams] {
 	}
 }
 
+func NewWorkspaceListTask() *task.Task[WorkspaceListParams] {
+	return &task.Task[WorkspaceListParams]{
+		Name:       "workspace-list",
+		OnPrepare:  handleWorkspaceListContext,
+		OnComplete: handleWorkspaceListComplete,
+		OnPretend:  handleWorkspaceListPretend,
+	}
+}
+
 func NewWorkspaceNodeListTask() *task.Task[WorkspaceNodeListParams] {
 	return &task.Task[WorkspaceNodeListParams]{
 		Name:         "workspace-node-list",
@@ -222,12 +237,21 @@ func NewWorkspaceNodeSourceRemoveTask() *task.Task[WorkspaceNodeSourceParams] {
 	}
 }
 
-func NewWorkspaceListTask() *task.Task[WorkspaceListParams] {
-	return &task.Task[WorkspaceListParams]{
-		Name:       "workspace-list",
-		OnPrepare:  handleWorkspaceListContext,
-		OnComplete: handleWorkspaceListComplete,
-		OnPretend:  handleWorkspaceListPretend,
+func NewWorkspaceNodeStoreAddTask() *task.Task[WorkspaceNodeStoreParams] {
+	return &task.Task[WorkspaceNodeStoreParams]{
+		Name:       "workspace-node-store-add",
+		OnPrepare:  handleWorkspaceNodeStoreContext,
+		OnComplete: handleWorkspaceNodeStoreAddComplete,
+		OnPretend:  handleWorkspaceNodeStorePretend,
+	}
+}
+
+func NewWorkspaceNodeStoreRemoveTask() *task.Task[WorkspaceNodeStoreParams] {
+	return &task.Task[WorkspaceNodeStoreParams]{
+		Name:       "workspace-node-store-remove",
+		OnPrepare:  handleWorkspaceNodeStoreContext,
+		OnComplete: handleWorkspaceNodeStoreRemoveComplete,
+		OnPretend:  handleWorkspaceNodeStorePretend,
 	}
 }
 
@@ -1060,7 +1084,7 @@ func handleWorkspaceNodeSourceAddComplete(params *WorkspaceNodeSourceParams, sta
 		return err
 	}
 
-	return errorWorkspaceNodeDsRequired
+	return errorWorkspaceNodeSourceRequired
 }
 
 func handleWorkspaceNodeSourceContext(params *WorkspaceNodeSourceParams, state *task.State) error {
@@ -1070,7 +1094,7 @@ func handleWorkspaceNodeSourceContext(params *WorkspaceNodeSourceParams, state *
 		}
 
 		if params.DataSourceId == nil {
-			return errorWorkspaceNodeDsRequired
+			return errorWorkspaceNodeSourceRequired
 		}
 
 		state.Output = cast.ToString(*params.DataSourceId)
@@ -1102,7 +1126,7 @@ func handleWorkspaceNodeSourcePretend(params *WorkspaceNodeSourceParams, state *
 		return err
 	}
 
-	return errorWorkspaceNodeDsRequired
+	return errorWorkspaceNodeSourceRequired
 }
 
 func handleWorkspaceNodeSourceRemoveComplete(params *WorkspaceNodeSourceParams, state *task.State) error {
@@ -1138,5 +1162,119 @@ func handleWorkspaceNodeSourceRemoveComplete(params *WorkspaceNodeSourceParams, 
 		return err
 	}
 
-	return errorWorkspaceNodeDsRequired
+	return errorWorkspaceNodeSourceRequired
+}
+
+func handleWorkspaceNodeStoreAddComplete(params *WorkspaceNodeStoreParams, state *task.State) error {
+	if state.Output != "" {
+		var brokerClient Client
+		var err error
+
+		state.Logger.Debugf("Updating node [%d] adding data store [%d]", *params.NodeId, *params.DataStoreId)
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var currentNode *WorkspaceNode
+
+			if currentNode, err = brokerClient.GetNode(*params.NodeId); err == nil {
+				if !slices.Contains(currentNode.DataStoreIds, *params.DataStoreId) {
+					var updated = currentNode.AddDataStore(*params.DataStoreId)
+
+					if updated, err = brokerClient.UpdateNode(updated); err != nil {
+						return err
+					}
+
+					state.Logger.Debugf("Updated node [%d]", *params.NodeId)
+					state.Reportf("Added data store [%d] from node [%d]", *params.DataStoreId, *params.NodeId)
+					state.Internal = *updated
+					return nil
+				}
+
+				state.Logger.Warnf("Data store [%d] is already configured for node [%d]", *params.DataStoreId, *params.NodeId)
+				state.Internal = *currentNode
+				return nil
+			}
+		}
+
+		return err
+	}
+
+	return errorWorkspaceNodeStoreRequired
+}
+
+func handleWorkspaceNodeStoreContext(params *WorkspaceNodeStoreParams, state *task.State) error {
+	if state.Output == "" {
+		if params.NodeId == nil {
+			return errorWorkspaceNodeRequired
+		}
+
+		if params.DataStoreId == nil {
+			return errorWorkspaceNodeStoreRequired
+		}
+
+		state.Output = cast.ToString(*params.DataStoreId)
+	}
+
+	return nil
+}
+
+func handleWorkspaceNodeStorePretend(params *WorkspaceNodeStoreParams, state *task.State) error {
+	if state.Output != "" {
+		var brokerClient Client
+		var err error
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			state.Logger.Debugf("Pretending to get workspace node id: [%d]", *params.NodeId)
+			fmt.Printf("curl -X GET \\\n")
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+			fmt.Printf("  -G -d id=%d \\\n", *params.NodeId)
+			fmt.Printf("%s\n", brokerClient.GetNodeUrl())
+			state.Logger.Debugf("Pretending to update workspace node id: [%d]", *params.NodeId)
+			fmt.Printf("curl -X POST -H \"Content-Type: application/x-www-form-urlencoded\" \\\n")
+			fmt.Printf("  --cookie=\"s=%s\"\\\n", brokerClient.GetAuthToken())
+			fmt.Printf("  -G -d id=%d \\\n", *params.NodeId)
+			fmt.Println("   -d dataSourceIds=$STORE_IDS \\")
+			fmt.Printf("%s\n", brokerClient.UpdateNodeUrl())
+			return nil
+		}
+
+		return err
+	}
+
+	return errorWorkspaceNodeStoreRequired
+}
+
+func handleWorkspaceNodeStoreRemoveComplete(params *WorkspaceNodeStoreParams, state *task.State) error {
+	if state.Output != "" {
+		var brokerClient Client
+		var err error
+
+		state.Logger.Debugf("Updating node [%d] removing data store [%d]", *params.NodeId, *params.DataStoreId)
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var currentNode *WorkspaceNode
+
+			if currentNode, err = brokerClient.GetNode(*params.NodeId); err == nil {
+				if slices.Contains(currentNode.DataStoreIds, *params.DataStoreId) {
+					var updated = currentNode.RemoveDataStore(*params.DataStoreId)
+
+					if updated, err = brokerClient.UpdateNode(updated); err != nil {
+						return err
+					}
+
+					state.Logger.Debugf("Updated node [%d]", *params.NodeId)
+					state.Reportf("Removed data store [%d] from node [%d]", *params.DataStoreId, *params.NodeId)
+					state.Internal = *updated
+					return nil
+				}
+
+				state.Logger.Warnf("Data store [%d] is not configured for node [%d]", *params.DataStoreId, *params.NodeId)
+				state.Internal = *currentNode
+				return nil
+			}
+		}
+
+		return err
+	}
+
+	return errorWorkspaceNodeStoreRequired
 }

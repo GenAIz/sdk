@@ -40,5 +40,6 @@ func NewData(ledger *config.Ledger, wsCli *Cli) *cobra.Command {
 	}
 
 	dataCmd.AddCommand(NewDataSource(ledger, wsCli))
+	dataCmd.AddCommand(NewDataStore(ledger, wsCli))
 	return dataCmd
 }

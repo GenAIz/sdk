@@ -10,6 +10,7 @@ invoke a Workflow on a groups of Agents managed by the Broker.
     * [Workspace Listing](#workspace-listing)
     * [Workspace Node listing](#workspace-node-listing)
     * [Workspace Node Source](#workspace-node-source)
+    * [Workspace Node Store](#workspace-node-store)
 * [By Command](#commands)
 * [By Test Cases](#test-cases)
 
@@ -113,16 +114,40 @@ flowchart LR
     nodeList --> nodeSrc
 ```
 
+### Workspace Node Store
+
+With Workspace Flow Nodes discoverable, it becomes possible to extend the activity by assigning a previously
+published [Data Store](../data/index.md#store-listing) to a Flow Node. This activity depends
+on [Locker Publishing](../locker/index.md#data-source-publish), not detailed in the diagram, but still a necessary set of
+scenarios detailed under [Add workspace node store](../../features/workspace/add_workspace_node_store.feature).
+
+```mermaid
+---
+title: Workspace Node Store Activity
+---
+flowchart LR
+    user>user] --> login([account<br>login])
+    login --> strPublish([publish<br>locker str])
+    login --> wsCreate([create<br>workspace])
+    login --> snPublish([publish<br>solution])
+    wsCreate --> flowCreate([flow<br>create])
+    snPublish --> flowCreate
+    flowCreate --> nodeList([list workspace<br>nodes])
+    strPublish --> nodeStr([update node<br>data str])
+    nodeList --> nodeStr
+```
+
 ## Commands
 
 * [create](create.md)
 * [flow](flow.md)
 * [list](list.md)
-* [node](node.md)
+* [node](node.md#workspace-node)
 
 ## Test Cases
 
 * [Add workspace node source](../../features/workspace/add_workspace_node_source.feature)
+* [Add workspace node store](../../features/workspace/add_workspace_node_store.feature)
 * [Create simple workspace](../../features/workspace/create_simple_workspace.feature)
 * [Create workspace flow](../../features/workspace/create_workspace_flow.feature)
 * [List simple user workspaces](../../features/workspace/list_simple_user_workspaces.feature)

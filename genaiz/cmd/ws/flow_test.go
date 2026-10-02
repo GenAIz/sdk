@@ -47,6 +47,36 @@ func TestFlowCreateExecutor_Create(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`workflow id:[\s\t]*`+expectedWorkflowId), actual)
 }
 
+func TestFlowCreateExecutor_Create_NoIds(t *testing.T) {
+	var testOutput = new(bytes.Buffer)
+	var testLedger = config.NewBuilder().
+		WithViper(viper.New()).
+		WithOutput(io.Writer(testOutput)).
+		Build()
+	var testOptions = flow.NewCreateOptions()
+	var testExecutor = &FlowCreateExecutor{
+		BaseExecutor: BaseExecutor{
+			Cli: &Cli{
+				BaseCli: cli.BaseCli{
+					Dry: func(*config.Ledger) bool { return true },
+				},
+			},
+			Ledger: testLedger,
+		},
+		CreateOptions: testOptions,
+
+		accountParams: config.NewAccountParams(testLedger, testOptions.OptionAccount),
+	}
+	var expectedWorkflowHandle = "workflowHandle"
+	var expectedWorkspaceName = "workspaceName"
+
+	// Case where the command was entered with specific ids
+	assert.NoError(t, testExecutor.Create(expectedWorkspaceName, "", expectedWorkflowHandle))
+	actual := testOutput.String()
+	assert.Regexp(t, regexp.MustCompile(`workspace name:[\s\t]*`+expectedWorkspaceName), actual)
+	assert.Regexp(t, regexp.MustCompile(`workflow handle:[\s\t]*`+expectedWorkflowHandle), actual)
+}
+
 func TestFlowCreateExecutor_Display(t *testing.T) {
 	var testOutput = new(bytes.Buffer)
 	var testViper = viper.New()
