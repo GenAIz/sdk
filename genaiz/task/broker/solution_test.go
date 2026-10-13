@@ -1338,7 +1338,7 @@ func Test_handleWorkflowDeletePretend_NoWorkflow(t *testing.T) {
 		Output: "output.yaml",
 	}
 
-	assert.ErrorIs(t, handleWorkflowDeletePretend(&WorkflowParams{}, testState), errorWorkflowNotFound)
+	assert.ErrorIs(t, handleWorkflowDeletePretend(&WorkflowParams{}, testState), ErrorWorkflowNotFound)
 }
 
 func Test_handleWorkflowListComplete(t *testing.T) {

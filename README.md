@@ -1,6 +1,6 @@
 # GenAIz CLI
 
-<sub>Genaiz Version 1.0.6</sub>
+<sub>Genaiz Version 1.0.7</sub>
 
 The GenAIz CLI is a tool for creating, building and publishing Smart Functions to the GenAIz Orchestration platform. It
 also provides toolkits to manage Orchestrated Workspaces and execute their Workflows.
@@ -235,6 +235,22 @@ instantiated in terms of Workspace Flows.
 genaiz workspace flow create myWorkspace com.genaiz/mySolution:1.0.0 myWorkflowHandle
 ```
 
+#### Updating Workspace Nodes
+
+With a workspace created and a solution workflow assigned to a workspace flow, a user can
+assign [previously published](#publishing-from-a-data-locker) Data sources and stores.
+
+```bash
+genaiz workspace node data source add myWorkspace myWorkflowHandle \
+  mySmartFunctionHandle myDsName
+genaiz workspace node data source rm myWorkspace myWorkflowHandle \
+  mySmartFunctionHandle myDsName
+genaiz workspace node data store add myWorkspace myWorkflowHandle \ 
+  mySmartFunctionHandle myDsName
+genaiz workspace node data store rm myWorkspace myWorkflowHandle \
+  mySmartFunctionHandle myDsName
+```
+
 ### Credentials Management
 
 The GenAIz CLI provides a way to manage Data Sources and Data Stores which would be used either with a Workspace on an
@@ -254,29 +270,14 @@ genaiz locker source update myLocalHandle MyKey MyValue
 gpg --decrypt myKeyfile.gpg | genaiz locker source update myLocalHandle MySecretKey
 ```
 
-#### Orchestration with Data Lockers
+#### Publishing from a Data Locker
 
-The locker can be used to create a DataSource on the same account used to define the Datalink. Lockers can only ever be
-used in the context of a Workspace to avoid orphaned Active definitions to remain on server.
-
-```bash
-genaiz workspace data source link my-workspace \
-  my-workflow-handle my-node-handle myLocalHandle
-```
-
-And removed from the workspace flow later:
-
-```bash
-genaiz workspace data source unlink my-workspace \
-  my-workflow-handle myLocalHandle
-```
-
-#### Local runs with Data Lockers
-
-Locally, the locker should be used when invoking the Smart Function run, start and test commands:
+For Sources or Stores, a user can publish his configuration to an account on
+previously [established session](#account-management).
 
 ```shell
-genaiz sf run --env-locked=myLocalHandle --locker=myFilePath
+genaiz locker source publish myLocalHandle
+genaiz locker store publish myLocalHandle --locker=myLockerFile.bin
 ```
 
 ## Development Guide

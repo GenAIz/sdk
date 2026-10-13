@@ -2,7 +2,8 @@
 
 ```
 genaiz ws create NAME --account=[[<user>@]host] \
-    --description=DESC --rc-enabled[=true|false] --visibility=[PRIVATE|ORG] \
+    --description=DESC --rc-enabled[=true|false] \
+    --visibility=[PRIVATE|ORG] \
     --json[=true|false]
 ```
 

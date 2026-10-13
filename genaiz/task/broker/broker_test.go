@@ -1316,11 +1316,32 @@ func TestWorkspaceNode_AddDataSource(t *testing.T) {
 		WorkspaceFlowId: 31337,
 		WorkflowNodeId:  69,
 		SmartFunctionId: 38,
+		DataStoreIds:    []int64{321},
 		Flags:           new(3),
 	}
 
-	assert.Contains(t, testNode.AddDataSource(expectedId).DataSourceIds, expectedId)
+	actual := testNode.AddDataSource(expectedId)
+	assert.Contains(t, actual.DataSourceIds, expectedId)
+	assert.Equal(t, testNode.DataStoreIds, actual.DataStoreIds)
 	assert.Equal(t, 0, len(testNode.DataSourceIds))
+}
+
+func TestWorkspaceNode_AddDataStore(t *testing.T) {
+	var expectedId = int64(4443)
+	var testNode = &WorkspaceNode{
+		Id:              42,
+		WorkspaceId:     1337,
+		WorkspaceFlowId: 31337,
+		WorkflowNodeId:  69,
+		SmartFunctionId: 38,
+		DataSourceIds:   []int64{321},
+		Flags:           new(3),
+	}
+
+	actual := testNode.AddDataStore(expectedId)
+	assert.Contains(t, actual.DataStoreIds, expectedId)
+	assert.Equal(t, testNode.DataSourceIds, actual.DataSourceIds)
+	assert.Equal(t, 0, len(testNode.DataStoreIds))
 }
 
 func TestWorkspaceNode_RemoveDataSource(t *testing.T) {
@@ -1332,11 +1353,34 @@ func TestWorkspaceNode_RemoveDataSource(t *testing.T) {
 		WorkflowNodeId:  69,
 		SmartFunctionId: 38,
 		DataSourceIds:   []int64{expectedId, int64(5557)},
+		DataStoreIds:    []int64{321},
 		Flags:           new(3),
 	}
 
-	assert.NotContains(t, testNode.RemoveDataSource(expectedId).DataSourceIds, expectedId)
+	actual := testNode.RemoveDataSource(expectedId)
+	assert.NotContains(t, actual.DataSourceIds, expectedId)
+	assert.Equal(t, testNode.DataStoreIds, actual.DataStoreIds)
 	assert.Equal(t, 2, len(testNode.DataSourceIds))
+
+}
+
+func TestWorkspaceNode_RemoveDataStore(t *testing.T) {
+	var expectedId = int64(4443)
+	var testNode = &WorkspaceNode{
+		Id:              42,
+		WorkspaceId:     1337,
+		WorkspaceFlowId: 31337,
+		WorkflowNodeId:  69,
+		SmartFunctionId: 38,
+		DataSourceIds:   []int64{321},
+		DataStoreIds:    []int64{expectedId, int64(5557)},
+		Flags:           new(3),
+	}
+
+	actual := testNode.RemoveDataStore(expectedId)
+	assert.NotContains(t, actual.DataStoreIds, expectedId)
+	assert.Equal(t, testNode.DataSourceIds, actual.DataSourceIds)
+	assert.Equal(t, 2, len(testNode.DataStoreIds))
 }
 
 func TestWorkspaceNode_withFunction(t *testing.T) {

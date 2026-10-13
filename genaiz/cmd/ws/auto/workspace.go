@@ -82,6 +82,7 @@ func (fab WorkspaceFlowAutoBridge) Bridge(toComplete string) ([]cobra.Completion
 				AuthFile: fab.ledger.AuthFile,
 			},
 		},
+		RcEnabled: true,
 	}
 	var params = &broker.WorkspaceFlowListParams{
 		WorkspaceFlowResolveParams: resolveParams,

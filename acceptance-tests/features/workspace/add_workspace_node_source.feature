@@ -166,5 +166,13 @@ Feature: add data source to workspace node
     And the following parameters
       | workspaceName         | workflowHandle | nodeHandle       | dsName      |
       | my-solution-workspace | default        | my-function-node | myLockerSrc |
-    When I run the command "ws node data src <workspaceName> <workflowHandle> <nodeHandle> <dsName>"
+    When I run the command "ws node data src add <workspaceName> <workflowHandle> <nodeHandle> <dsName>"
     Then I should have a data source named "<dsName>" attached to workspace "<workspaceName>" on flow node "<workflowHandle>/<nodeHandle>"
+
+  Scenario: detach data source to workspace flow node
+    Given the scenario "attach data source to workspace flow node" ran with condition "service_completed_successfully"
+    And the following parameters
+      | workspaceName         | workflowHandle | nodeHandle       | dsName      |
+      | my-solution-workspace | default        | my-function-node | myLockerSrc |
+    When I run the command "ws node data src rm <workspaceName> <workflowHandle> <nodeHandle> <dsName>"
+    Then I should not have any data sources on flow node "<workflowHandle>/<nodeHandle>"

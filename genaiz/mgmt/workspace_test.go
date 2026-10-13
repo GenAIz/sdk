@@ -607,9 +607,9 @@ func TestUserWorkspaceFlowsProvider_Get(t *testing.T) {
 		Plan: task.Plan{
 			Logger: logrus.New(),
 		},
-		params:                       testParams,
-		workspaceFlowListTaskFactory: newWorkspaceFlowListTaskCompleteCapture(&calledListParams, testWorkspaceFlows),
-		workspaceResolveTaskFactory:  newWorkspaceFlowResolveTaskCompleteCapture(&calledResolveParams, expectedWorkspaceId),
+		params:                          testParams,
+		workspaceFlowListTaskFactory:    newWorkspaceFlowListTaskCompleteCapture(&calledListParams, testWorkspaceFlows),
+		workspaceFlowResolveTaskFactory: newWorkspaceFlowResolveTaskCompleteCapture(&calledResolveParams, expectedWorkspaceId),
 	}
 	var actual []UserWorkspaceFlow
 	var err error
@@ -685,10 +685,10 @@ func TestUserWorkspaceFlowsProvider_Get_Filtered(t *testing.T) {
 		Plan: task.Plan{
 			Logger: logrus.New(),
 		},
-		params:                       testParams,
-		filter:                       "exp",
-		workspaceFlowListTaskFactory: newWorkspaceFlowListTaskCompleteCapture(&calledListParams, testWorkspaceFlows),
-		workspaceResolveTaskFactory:  newWorkspaceFlowResolveTaskCompleteCapture(&calledResolveParams, expectedWorkspaceId),
+		params:                          testParams,
+		filter:                          "exp",
+		workspaceFlowListTaskFactory:    newWorkspaceFlowListTaskCompleteCapture(&calledListParams, testWorkspaceFlows),
+		workspaceFlowResolveTaskFactory: newWorkspaceFlowResolveTaskCompleteCapture(&calledResolveParams, expectedWorkspaceId),
 	}
 	var actual []UserWorkspaceFlow
 	var err error
@@ -757,10 +757,10 @@ func TestUserWorkspaceFlowsProvider_Get_NoSolution(t *testing.T) {
 		Plan: task.Plan{
 			Logger: logrus.New(),
 		},
-		params:                       testParams,
-		filter:                       "exp",
-		workspaceFlowListTaskFactory: newWorkspaceFlowListTaskCompleteCapture(&calledListParams, testWorkspaceFlows),
-		workspaceResolveTaskFactory:  newWorkspaceFlowResolveTaskCompleteCapture(&calledResolveParams, expectedWorkspaceId),
+		params:                          testParams,
+		filter:                          "exp",
+		workspaceFlowListTaskFactory:    newWorkspaceFlowListTaskCompleteCapture(&calledListParams, testWorkspaceFlows),
+		workspaceFlowResolveTaskFactory: newWorkspaceFlowResolveTaskCompleteCapture(&calledResolveParams, expectedWorkspaceId),
 	}
 	var actual []UserWorkspaceFlow
 	var err error

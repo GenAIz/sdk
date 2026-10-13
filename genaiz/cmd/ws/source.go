@@ -254,6 +254,7 @@ func NewDataSource(ledger *config.Ledger, wsCli *Cli) *cobra.Command {
 	ledger.Register(addCommand, addOptions.allDefiners()...)
 	ledger.Register(rmCommand, rmOptions.allDefiners()...)
 	addCommand.ValidArgsFunction = sourceAuto.bridgeArguments
+	rmCommand.ValidArgsFunction = sourceAuto.bridgeArguments
 	return srcCmd
 }
 

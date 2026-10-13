@@ -140,6 +140,8 @@ func (cfe *FlowCreateExecutor) newResolveParams(workspace, solution, workflow st
 
 	if workflowId, err := strconv.Atoi(workflow); err == nil {
 		result.WorkflowId = new(int64(workflowId))
+	} else {
+		result.WorkflowHandle = workflow
 	}
 
 	return result
