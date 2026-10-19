@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -153,6 +154,34 @@ func TestRestyBridge_Resulting(t *testing.T) {
 
 	testBridge.Resulting(&expectedVariable)
 	assert.Equal(t, expectedVariable, cast.ToString(testBridge.request.Result))
+}
+
+func TestRestyBridge_SetFile(t *testing.T) {
+	var expectedPath = filepath.Join(t.TempDir(), "config.json")
+	var expectedName = "name"
+	var testResty = resty.New()
+	var testBridge = &restyBridge{
+		client:  testResty,
+		request: testResty.R(),
+	}
+
+	testBridge.SetFile(expectedName, expectedPath)
+	assert.Empty(t, testBridge.request.FormData)
+}
+
+func TestRestyBridge_SetMultipartFormData(t *testing.T) {
+	var expectedKey = "expected"
+	var expectedFormData = map[string]string{
+		expectedKey: "value",
+	}
+	var testResty = resty.New()
+	var testBridge = &restyBridge{
+		client:  testResty,
+		request: testResty.R(),
+	}
+
+	testBridge.SetMultipartFormData(expectedFormData)
+	assert.Equal(t, expectedFormData[expectedKey], testBridge.request.FormData[expectedKey][0])
 }
 
 func TestRestyBridge_Timeout(t *testing.T) {

@@ -15,20 +15,19 @@ import (
 	"genaiz.com/genaiz/task/broker"
 )
 
-type workspaceFlowCreateTaskFactory func() *task.Task[broker.WorkspaceFlowCreateParams]
-type workspaceFlowResolveTaskFactory func() *task.Task[broker.WorkspaceFlowResolveParams]
 type workspaceFlowSolutionTaskFactory func() *task.Task[broker.WorkspaceFlowResolveParams]
 
 type FlowCreateExecutor struct {
 	BaseExecutor
 	*flow.CreateOptions
 
-	accountParams           config.AccountParametric
-	printerParams           cli.PrinterParametric
-	resolveParams           *broker.WorkspaceFlowResolveParams
-	flowCreateTaskFactory   workspaceFlowCreateTaskFactory
-	flowResolveTaskFactory  workspaceFlowResolveTaskFactory
-	flowSolutionTaskFactory workspaceFlowSolutionTaskFactory
+	accountParams config.AccountParametric
+	printerParams cli.PrinterParametric
+	resolveParams *broker.WorkspaceFlowResolveParams
+
+	flowCreateTaskFactory       broker.WorkspaceFlowCreateTaskFactory
+	flowResolveTaskFactory      workspaceFlowSolutionTaskFactory
+	workspaceResolveTaskFactory broker.WorkspaceResolveTaskFactory
 }
 
 func (cfe *FlowCreateExecutor) Create(workspace, solution, workflow string) error {
@@ -74,11 +73,11 @@ func (cfe *FlowCreateExecutor) Pretend() {
 	var workers []task.Worker
 
 	if cfe.resolveParams.WorkspaceId == nil {
-		workers = append(workers, task.NewPretender(cfe.resolveParams, cfe.flowResolveTaskFactory()))
+		workers = append(workers, task.NewPretender(cfe.resolveParams, cfe.workspaceResolveTaskFactory()))
 	}
 
 	if cfe.resolveParams.WorkflowId == nil {
-		workers = append(workers, task.NewPretender(cfe.resolveParams, cfe.flowSolutionTaskFactory()))
+		workers = append(workers, task.NewPretender(cfe.resolveParams, cfe.flowResolveTaskFactory()))
 	}
 
 	workers = append(workers, task.NewPretender(cfe.resolveParams.WorkspaceFlowCreateParams, cfe.flowCreateTaskFactory()))
@@ -102,11 +101,11 @@ func (cfe *FlowCreateExecutor) Proceed() {
 	}
 
 	if cfe.resolveParams.WorkspaceId == nil {
-		workers = append(workers, task.NewWorker(cfe.resolveParams, cfe.flowResolveTaskFactory()))
+		workers = append(workers, task.NewWorker(cfe.resolveParams, cfe.workspaceResolveTaskFactory()))
 	}
 
 	if cfe.resolveParams.WorkflowId == nil {
-		workers = append(workers, task.NewWorker(cfe.resolveParams, cfe.flowSolutionTaskFactory()))
+		workers = append(workers, task.NewWorker(cfe.resolveParams, cfe.flowResolveTaskFactory()))
 	}
 
 	workers = append(workers, task.NewWorker(cfe.resolveParams.WorkspaceFlowCreateParams, cfe.flowCreateTaskFactory()))
@@ -172,9 +171,9 @@ func NewFlowCreateExecutor(ctx context.Context, ledger *config.Ledger, wsCli *Cl
 		accountParams: config.NewAccountParams(ledger, options.OptionAccount),
 		printerParams: cli.NewPrinterParam(ledger, options.OptionJsonPrinter),
 
-		flowCreateTaskFactory:   broker.NewWorkspaceFlowCreateTask,
-		flowResolveTaskFactory:  broker.NewWorkspaceFlowResolveTask,
-		flowSolutionTaskFactory: broker.NewWorkspaceFlowSolutionTask,
+		flowCreateTaskFactory:       broker.WorkspaceTasks.CreateFlowTaskFactory,
+		flowResolveTaskFactory:      broker.WorkspaceTasks.ResolveFlowTaskFactory,
+		workspaceResolveTaskFactory: broker.WorkspaceTasks.ResolveTaskFactory,
 	}
 }
 

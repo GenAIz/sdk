@@ -7,6 +7,35 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEagerErrors_SetOrReturn(t *testing.T) {
+	var expectedError = NewError("expected")
+	var testInjector = &EagerErrors{}
+	var testError Error
+	var actual = testInjector.SetOrReturn(&testError, func() Error {
+		return expectedError
+	})
+
+	assert.Equal(t, expectedError, actual)
+	actual = testInjector.SetOrReturn(&testError, MakeErrorProvider("not expected"))
+	assert.Equal(t, expectedError, actual)
+}
+
+func TestEagerErrors_SetOrReturn_NilRef(t *testing.T) {
+	var testInjector = &EagerErrors{}
+	var actual = testInjector.SetOrReturn(nil, func() Error {
+		return nil
+	})
+
+	assert.Nil(t, actual)
+}
+
+func TestMakeErrorProvider(t *testing.T) {
+	var expectedMsg = "testing"
+	var testProvider = MakeErrorProvider(expectedMsg)
+
+	assert.Equal(t, expectedMsg, testProvider().Error())
+}
+
 func TestNewError(t *testing.T) {
 	var expectedMessage = "message"
 	var testError = NewError(expectedMessage)

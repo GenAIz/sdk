@@ -32,6 +32,12 @@ const (
 )
 
 var (
+	DataSetFlags = &dataSetFlags{
+		Active:       1 << 0,
+		HasMoreFiles: 1 << 1,
+		IsOpen:       1 << 2,
+		UserCreated:  1 << 3,
+	}
 	DataLinkFlags = &dataLinkFlags{
 		Active:   1 << 0,
 		Released: 1 << 1,
@@ -398,6 +404,70 @@ func ListDataPorts(ports any) []DataPort {
 	}
 
 	return result
+}
+
+type DataSet struct {
+	Id              *int64   `json:"id,omitempty"`
+	Created         *int64   `json:"nco,omitempty"`
+	Modified        *int64   `json:"nms,omitempty"`
+	WorkspaceId     int64    `json:"workspaceId"`
+	WorkflowId      *int64   `json:"workflowId,omitempty"`
+	WorkflowNodeId  *int64   `json:"workflowNodeId,omitempty"`
+	SmartFunctionId *int64   `json:"smartFunctionId,omitempty"`
+	RunId           *int64   `json:"runId,omitempty"`
+	RunJobId        *int64   `json:"runJobId,omitempty"`
+	UserId          *int64   `json:"userId,omitempty"`
+	TotalSize       *int64   `json:"totalSize,omitempty"`
+	TotalFiles      *int     `json:"totalFiles,omitempty"`
+	Flags           *int     `json:"flags"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description,omitempty"`
+	Handle          string   `json:"handle,omitempty"`
+	Digest          string   `json:"digest,omitempty"`
+	Formats         []string `json:"formats,omitempty"`
+	Files           []string `json:"files,omitempty"`
+	Mimes           []string `json:"mimes,omitempty"`
+}
+
+func (ds DataSet) IsActive() bool {
+	if ds.Flags == nil {
+		return false
+	}
+
+	return (*ds.Flags & DataSetFlags.Active) == DataSetFlags.Active
+}
+
+func (ds DataSet) IsSealed() bool {
+	if ds.Flags == nil {
+		return false
+	}
+
+	return (*ds.Flags & DataSetFlags.IsOpen) != DataSetFlags.IsOpen
+}
+
+type DataSetFile struct {
+	Name     string `json:"name"`
+	Size     int64  `json:"size"`
+	Format   string
+	Mime     string
+	Modified int64 `json:"nms"`
+}
+
+func (dsf DataSetFile) With(format, mime string) *DataSetFile {
+	return &DataSetFile{
+		Name:     dsf.Name,
+		Size:     dsf.Size,
+		Format:   format,
+		Mime:     mime,
+		Modified: dsf.Modified,
+	}
+}
+
+type dataSetFlags struct {
+	Active       int
+	HasMoreFiles int
+	IsOpen       int
+	UserCreated  int
 }
 
 type DeviceAuth struct {
@@ -1201,14 +1271,15 @@ type workspaceFlowFlags struct {
 }
 
 type WorkspaceNode struct {
-	Id              int64   `json:"id"`
-	WorkspaceId     int64   `json:"workspaceId"`
-	WorkspaceFlowId int64   `json:"workspaceFlowId"`
-	WorkflowNodeId  int64   `json:"workflowNodeId"`
-	DataSourceIds   []int64 `json:"dataSourceIds,omitempty"`
-	DataStoreIds    []int64 `json:"dataStoreIds,omitempty"`
-	SmartFunctionId int64   `json:"smartFunctionId"`
-	Flags           *int    `json:"flags,omitempty"`
+	Id              int64               `json:"id"`
+	WorkspaceId     int64               `json:"workspaceId"`
+	WorkspaceFlowId int64               `json:"workspaceFlowId"`
+	WorkflowNodeId  int64               `json:"workflowNodeId"`
+	SmartFunctionId int64               `json:"smartFunctionId"`
+	Flags           *int                `json:"flags,omitempty"`
+	DataSourceIds   []int64             `json:"dataSourceIds,omitempty"`
+	DataStoreIds    []int64             `json:"dataStoreIds,omitempty"`
+	InputPorts      []WorkspaceNodePort `json:"inputPorts"`
 
 	SmartFunction *Function     `json:"-"`
 	WorkflowNode  *WorkflowNode `json:"-"`
@@ -1246,6 +1317,16 @@ func (wn WorkspaceNode) AddDataStore(dataStoreId int64) *WorkspaceNode {
 		SmartFunction:   wn.SmartFunction,
 		Flags:           wn.Flags,
 	}
+}
+
+func (wn WorkspaceNode) FindInputPort(portHandle string) *WorkspaceNodePort {
+	if i := slices.IndexFunc(wn.InputPorts, func(port WorkspaceNodePort) bool {
+		return port.PortHandle == portHandle
+	}); i >= 0 {
+		return &wn.InputPorts[i]
+	}
+
+	return nil
 }
 
 func (wn WorkspaceNode) RemoveDataSource(dataSourceId int64) *WorkspaceNode {
@@ -1295,6 +1376,22 @@ func (wn WorkspaceNode) withFunction(fn *Function) WorkspaceNode {
 		SmartFunctionId: wn.SmartFunctionId,
 		Flags:           wn.Flags,
 		SmartFunction:   fn,
+	}
+}
+
+type WorkspaceNodePort struct {
+	DataSetId  *int64 `json:"dataSetId,omitempty"`
+	PortHandle string `json:"handle"`
+
+	DataSet       *DataSet  `json:"-"`
+	SmartFunction *Function `json:"-"`
+}
+
+func (np WorkspaceNodePort) WithDataSetId(dataSetId int64) *WorkspaceNodePort {
+	return &WorkspaceNodePort{
+		DataSetId:  &dataSetId,
+		PortHandle: np.PortHandle,
+		DataSet:    nil,
 	}
 }
 

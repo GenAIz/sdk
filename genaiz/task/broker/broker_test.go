@@ -407,6 +407,42 @@ func TestDataLinkInstance_IsActive(t *testing.T) {
 	assert.True(t, testInstance.IsActive())
 }
 
+func TestDataSet_IsActive(t *testing.T) {
+	var testDataSet = &DataSet{}
+
+	assert.False(t, testDataSet.IsActive())
+	testDataSet.Flags = new(DataSetFlags.Active)
+	assert.True(t, testDataSet.IsActive())
+}
+
+func TestDataSet_IsSealed(t *testing.T) {
+	var testDataSet = &DataSet{}
+
+	assert.False(t, testDataSet.IsSealed())
+	testDataSet.Flags = new(DataSetFlags.IsOpen)
+	assert.False(t, testDataSet.IsSealed())
+	testDataSet.Flags = new(DataSetFlags.Active)
+	assert.True(t, testDataSet.IsSealed())
+}
+
+func TestDataSetFile_With(t *testing.T) {
+	var expectedFormat = "format"
+	var expectedMime = "mime"
+	var testDataSetFile = &DataSetFile{
+		Name:     "name",
+		Size:     1337,
+		Modified: 31337,
+	}
+
+	actual := testDataSetFile.With(expectedFormat, expectedMime)
+	assert.NotNil(t, actual)
+	assert.Equal(t, testDataSetFile.Name, actual.Name)
+	assert.Equal(t, testDataSetFile.Size, actual.Size)
+	assert.Equal(t, testDataSetFile.Modified, actual.Modified)
+	assert.Equal(t, expectedFormat, actual.Format)
+	assert.Equal(t, expectedMime, actual.Mime)
+}
+
 func TestFunction_FindDataPortByHandle(t *testing.T) {
 	var testHandle = "handle"
 	var testFunction = &Function{}
@@ -1344,6 +1380,39 @@ func TestWorkspaceNode_AddDataStore(t *testing.T) {
 	assert.Equal(t, 0, len(testNode.DataStoreIds))
 }
 
+func TestWorkspaceNode_FindInputPort(t *testing.T) {
+	var expectedNodePort = &WorkspaceNodePort{
+		DataSetId:  new(int64(37)),
+		PortHandle: "port",
+	}
+	var testNode = &WorkspaceNode{
+		InputPorts: []WorkspaceNodePort{
+			{
+				PortHandle: "another",
+			},
+			*expectedNodePort,
+		},
+	}
+
+	if actual := testNode.FindInputPort(expectedNodePort.PortHandle); actual == nil {
+		assert.Fail(t, "expected a workspace node port")
+	} else {
+		assert.Equal(t, expectedNodePort, actual)
+	}
+}
+
+func TestWorkspaceNode_FindInputPort_Empty(t *testing.T) {
+	var testNode = &WorkspaceNode{
+		InputPorts: []WorkspaceNodePort{
+			{
+				PortHandle: "another",
+			},
+		},
+	}
+
+	assert.Nil(t, testNode.FindInputPort("nothing"))
+}
+
 func TestWorkspaceNode_RemoveDataSource(t *testing.T) {
 	var expectedId = int64(4443)
 	var testNode = &WorkspaceNode{
@@ -1410,6 +1479,20 @@ func TestWorkspaceNode_withFunction(t *testing.T) {
 	assert.Equal(t, testFunction.Oem, actual.SmartFunction.Oem)
 	assert.Equal(t, testFunction.Handle, actual.SmartFunction.Handle)
 	assert.Equal(t, testFunction.Version, actual.SmartFunction.Version)
+}
+
+func TestWorkspaceNodePort_WithDataSetId(t *testing.T) {
+	var expectedId = int64(42)
+	var testPort = &WorkspaceNodePort{
+		PortHandle: "handle",
+		DataSet: &DataSet{
+			Id: new(int64(37)),
+		},
+	}
+
+	actual := testPort.WithDataSetId(expectedId)
+	assert.Equal(t, &expectedId, actual.DataSetId)
+	assert.Nil(t, actual.DataSet)
 }
 
 func TestParseFqdnVersion(t *testing.T) {

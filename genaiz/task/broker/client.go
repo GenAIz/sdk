@@ -22,6 +22,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz-lib/lang/secretz"
 	"genaiz.com/genaiz-lib/lang/slicez"
+	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 	"genaiz.com/genaiz/version/env"
@@ -34,6 +35,8 @@ const (
 
 	apiVersion1       version = "v1"
 	pathDataLink      path    = "datalink"
+	pathDataSet       path    = "dataset"
+	pathDataSetFile   path    = "dataset/file"
 	pathDataSource    path    = "datasource"
 	pathDataStore     path    = "datastore"
 	pathFunction      path    = "sf"
@@ -85,6 +88,10 @@ type path string
 type version string
 
 type Client interface {
+	CreateDataSet(*DataSet) (*DataSet, error)
+
+	CreateDataSetUrl() string
+
 	CreateDataSource(*DataLinkInstance, map[string]string) (*DataLinkInstance, error)
 
 	CreateDataSourceUrl() string
@@ -131,9 +138,17 @@ type Client interface {
 
 	GetUserId() int
 
+	InspectNode(int64) (*WorkspaceNode, error)
+
+	InspectNodeUrl() string
+
 	ListDataLinks(string, string, int) ([]DataLink, error)
 
 	ListDataLinksUrl() string
+
+	ListDataSetFiles(int64, string) ([]DataSetFile, error)
+
+	ListDataSetFilesUrl() string
 
 	ListDataSources() ([]DataLinkInstance, error)
 
@@ -208,6 +223,14 @@ type Client interface {
 	UpdateNode(*WorkspaceNode) (*WorkspaceNode, error)
 
 	UpdateNodeUrl() string
+
+	UpdateNodeInput(int64, int64, string) (*WorkspaceNode, error)
+
+	UpdateNodeInputUrl() string
+
+	UploadDataSetFile(int64, string, string, string) (*DataSet, error)
+
+	UploadDataSetFileUrl() string
 
 	WithAccount(*AuthAccount) (Client, error)
 }
@@ -481,13 +504,72 @@ func (wfs workspaceFlowsSlices) graph() []WorkspaceFlow {
 }
 
 type workspaceNodeSlices struct {
+	WorkspaceFlowNode WorkspaceNode `json:"workspaceFlowNode"`
+	WorkflowNode      *WorkflowNode `json:"workflowNode"`
+	SmartFunction     *Function     `json:"sf"`
+	DataSets          []DataSet     `json:"dataSets"`
+}
+
+func (wns workspaceNodeSlices) graph() *WorkspaceNode {
+	var dataSetById = mapz.MappedInt64(wns.DataSets, func(set DataSet) int64 {
+		if set.Id != nil {
+			return *set.Id
+		}
+
+		return -1
+	})
+	var dataPorts []WorkspaceNodePort
+
+	for _, port := range wns.WorkspaceFlowNode.InputPorts {
+		if port.DataSetId != nil {
+			if ds, ok := dataSetById[*port.DataSetId]; ok {
+				dataPorts = append(dataPorts, WorkspaceNodePort{
+					DataSetId:     port.DataSetId,
+					PortHandle:    port.PortHandle,
+					DataSet:       &ds,
+					SmartFunction: wns.SmartFunction,
+				})
+			}
+		}
+	}
+
+	if wns.SmartFunction != nil {
+		for _, port := range wns.SmartFunction.InputPorts {
+			if !slices.ContainsFunc(dataPorts, func(p WorkspaceNodePort) bool {
+				return p.PortHandle == port.Handle
+			}) {
+				dataPorts = append(dataPorts, WorkspaceNodePort{
+					// make sure we have an entry for all InputPorts of the associated SF
+					PortHandle:    port.Handle,
+					SmartFunction: wns.SmartFunction,
+				})
+			}
+		}
+	}
+
+	return &WorkspaceNode{
+		Id:              wns.WorkspaceFlowNode.Id,
+		WorkspaceId:     wns.WorkspaceFlowNode.WorkspaceId,
+		WorkspaceFlowId: wns.WorkspaceFlowNode.WorkspaceFlowId,
+		WorkflowNodeId:  wns.WorkspaceFlowNode.WorkflowNodeId,
+		SmartFunctionId: wns.WorkspaceFlowNode.WorkflowNodeId,
+		Flags:           wns.WorkspaceFlowNode.Flags,
+		DataSourceIds:   wns.WorkspaceFlowNode.DataSourceIds,
+		DataStoreIds:    wns.WorkspaceFlowNode.DataStoreIds,
+		InputPorts:      dataPorts,
+		SmartFunction:   wns.SmartFunction,
+		WorkflowNode:    wns.WorkflowNode,
+	}
+}
+
+type workspaceNodesSlices struct {
 	WorkspaceFlow      *WorkspaceFlow  `json:"workspaceFlow"`
 	WorkspaceFlowNodes []WorkspaceNode `json:"workspaceFlowNodes"`
 	Solution           *Solution       `json:"solution"`
 	SmartFunctions     []Function      `json:"smartFunctions"`
 }
 
-func (wns workspaceNodeSlices) graph() []WorkspaceNode {
+func (wns workspaceNodesSlices) graph() []WorkspaceNode {
 	var sfById = mapz.MappedInt64(wns.SmartFunctions, func(function Function) int64 {
 		return function.Id
 	})
@@ -500,6 +582,46 @@ func (wns workspaceNodeSlices) graph() []WorkspaceNode {
 	}
 
 	return result
+}
+
+func (c *client) CreateDataSet(dataSet *DataSet) (*DataSet, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathDataSet, "create"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[DataSet]{}).
+				FormData(map[string]string{
+					"workspaceId": cast.ToString(dataSet.WorkspaceId),
+					"name":        dataSet.Name,
+					"description": dataSet.Description,
+					"handle":      dataSet.Handle,
+				}).
+				Post(url)
+
+			if err == nil {
+				return resultOrError(resp, func(body any) *DataSet {
+					var payload = resp.Result().(*clientPayload[DataSet])
+
+					return &payload.Data
+				})
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) CreateDataSetUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSet, "create")
 }
 
 func (c *client) CreateDataSource(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -935,6 +1057,46 @@ func (c *client) GetUserId() int {
 	return c.UserId
 }
 
+func (c *client) InspectNode(id int64) (*WorkspaceNode, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspaceNode, "read"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *WorkspaceNode
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[workspaceNodeSlices]{}).
+				QueryParams(map[string]string{
+					"id": cast.ToString(id),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *WorkspaceNode {
+					var payload = resp.Result().(*clientPayload[workspaceNodeSlices])
+
+					return payload.Data.graph()
+				}); err == nil {
+					return result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) InspectNodeUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "read")
+}
+
 func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error) {
 	if c.AuthToken != "" {
 		var url string
@@ -975,6 +1137,47 @@ func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error
 
 func (c *client) ListDataLinksUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "list")
+}
+
+func (c *client) ListDataSetFiles(id int64, path string) ([]DataSetFile, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathDataSetFile, "list"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *[]DataSetFile
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[[]DataSetFile]{}).
+				QueryParams(map[string]string{
+					"id":   cast.ToString(id),
+					"path": stringz.FirstNonEmpty(path, "/"),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *[]DataSetFile {
+					var payload = resp.Result().(*clientPayload[[]DataSetFile])
+
+					return &payload.Data
+				}); err == nil {
+					return *result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) ListDataSetFilesUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSetFile, "list")
 }
 
 func (c *client) ListDataSources() ([]DataLinkInstance, error) {
@@ -1151,7 +1354,7 @@ func (c *client) ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error) {
 			defer c.closeSilently(rb)
 			resp, err = rb.Json().
 				Cookie(c.makeCookie()).
-				Resulting(&clientPayload[*workspaceNodeSlices]{}).
+				Resulting(&clientPayload[*workspaceNodesSlices]{}).
 				QueryParams(map[string]string{
 					"id": cast.ToString(flowId),
 				}).
@@ -1159,7 +1362,7 @@ func (c *client) ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error) {
 
 			if err == nil {
 				if result, err = resultOrError(resp, func(body any) *[]WorkspaceNode {
-					var payload = resp.Result().(*clientPayload[*workspaceNodeSlices])
+					var payload = resp.Result().(*clientPayload[*workspaceNodesSlices])
 					var flows = payload.Data.graph()
 
 					return &flows
@@ -1752,6 +1955,92 @@ func (c *client) UpdateNode(node *WorkspaceNode) (*WorkspaceNode, error) {
 
 func (c *client) UpdateNodeUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "update")
+}
+
+func (c *client) UpdateNodeInput(nodeId, dataSetId int64, portHandle string) (*WorkspaceNode, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspaceNode, "updateInputPort"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[WorkspaceNode]{}).
+				FormData(map[string]string{
+					"id":        cast.ToString(nodeId),
+					"handle":    portHandle,
+					"dataSetId": cast.ToString(dataSetId),
+				}).
+				Post(url)
+
+			if err == nil {
+				return resultOrError(resp, func(body any) *WorkspaceNode {
+					var payload = resp.Result().(*clientPayload[WorkspaceNode])
+
+					return &payload.Data
+				})
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) UpdateNodeInputUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "updateInputPort")
+}
+
+func (c *client) UploadDataSetFile(dataSetId int64, localPath string, renamed string, path string) (*DataSet, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathDataSetFile, "upload"); err == nil {
+			var rb = c.requestBridge()
+			var formData = map[string]string{
+				"id": cast.ToString(dataSetId),
+			}
+			var resp responseBridge
+
+			if renamed != "" {
+				formData["name"] = renamed
+			}
+
+			if path != "" {
+				formData["path"] = path
+			}
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[DataSet]{}).
+				SetFile("file", localPath).
+				SetMultipartFormData(formData).
+				Post(url)
+
+			if err == nil {
+				return resultOrError(resp, func(body any) *DataSet {
+					var payload = resp.Result().(*clientPayload[DataSet])
+
+					return &payload.Data
+				})
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) UploadDataSetFileUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSetFile, "upload")
 }
 
 func (c *client) WithAccount(account *AuthAccount) (Client, error) {

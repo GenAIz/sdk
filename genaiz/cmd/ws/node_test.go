@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -16,39 +15,22 @@ import (
 	"genaiz.com/genaiz/cmd/ws/node"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/mgmt"
+	"genaiz.com/genaiz/mgmt/workspaces"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
 
-type stubUserWorkspaceNodesFacade struct {
-	getNodes []mgmt.UserWorkspaceNode
+type stubUserWorkspaceNodesFactory struct {
+	mgmt.ProviderFactory[broker.WorkspaceNodeListParams, []workspaces.UserWorkspaceNode]
+}
+
+type stubUserWorkspaceNodesProvider struct {
+	nodes    []workspaces.UserWorkspaceNode
 	getError task.Error
-	filter   string
-	logger   *logrus.Logger
-	params   *broker.WorkspaceNodeListParams
 }
 
-func (s *stubUserWorkspaceNodesFacade) Filtering(filter string) mgmt.Provider[[]mgmt.UserWorkspaceNode] {
-	s.filter = filter
-	return s
-}
-
-func (s *stubUserWorkspaceNodesFacade) Get() ([]mgmt.UserWorkspaceNode, task.Error) {
-	return s.getNodes, s.getError
-}
-
-func (s *stubUserWorkspaceNodesFacade) Provider() mgmt.Provider[[]mgmt.UserWorkspaceNode] {
-	return s
-}
-
-func (s *stubUserWorkspaceNodesFacade) WithLogger(logger *logrus.Logger) mgmt.Facade[[]mgmt.UserWorkspaceNode, broker.WorkspaceNodeListParams] {
-	s.logger = logger
-	return s
-}
-
-func (s *stubUserWorkspaceNodesFacade) WithParams(params *broker.WorkspaceNodeListParams) mgmt.Facade[[]mgmt.UserWorkspaceNode, broker.WorkspaceNodeListParams] {
-	s.params = params
-	return s
+func (s stubUserWorkspaceNodesProvider) Get() ([]workspaces.UserWorkspaceNode, task.Error) {
+	return s.nodes, s.getError
 }
 
 func TestNodeListExecutor_Display(t *testing.T) {
@@ -137,14 +119,15 @@ func TestNodeListExecutor_Proceed(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testPrinter = &stubPrinter{}
-	var testWorkspacesFacade = &stubUserWorkspaceNodesFacade{
-		getNodes: []mgmt.UserWorkspaceNode{
+	var testProvider = &stubUserWorkspaceNodesProvider{
+		nodes: []workspaces.UserWorkspaceNode{
 			{
 				Id:                 37,
 				WorkflowNodeHandle: "nodeHandle",
 			},
 		},
 	}
+	var testFactory = &stubUserWorkspaceNodesFactory{}
 	var testOptions = node.NewListOptions()
 	var testExecutor = &NodeListExecutor{
 		BaseExecutor: BaseExecutor{
@@ -154,17 +137,19 @@ func TestNodeListExecutor_Proceed(t *testing.T) {
 
 		accountParams: config.NewAccountParams(testLedger, testOptions.OptionAccount),
 		printerParams: &stubPrinterParametric{printer: testPrinter},
-		workspaceNodeFacadeProvider: func() mgmt.UserWorkspaceNodesFacade {
-			return testWorkspacesFacade
-		},
+
+		workspaceNodesFactory: testFactory.WithProvider(
+			func(workspaces.UserWorkspaceNodesProviderFactory) workspaces.UserWorkspaceNodesProvider {
+				return testProvider
+			}),
 	}
 
 	testExecutor.Proceed()
 
-	if actual, ok := testPrinter.printOut.([]mgmt.UserWorkspaceNode); ok {
+	if actual, ok := testPrinter.printOut.([]workspaces.UserWorkspaceNode); ok {
 		assert.Equal(t, 1, len(actual))
-		assert.Equal(t, testWorkspacesFacade.getNodes[0].Id, actual[0].Id)
-		assert.Equal(t, testWorkspacesFacade.getNodes[0].WorkflowNodeHandle, actual[0].WorkflowNodeHandle)
+		assert.Equal(t, testProvider.nodes[0].Id, actual[0].Id)
+		assert.Equal(t, testProvider.nodes[0].WorkflowNodeHandle, actual[0].WorkflowNodeHandle)
 	} else {
 		assert.Fail(t, "did not receive the workspace nodes")
 	}
@@ -174,9 +159,10 @@ func TestNodeListExecutor_Proceed_Error(t *testing.T) {
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testPrinter = &stubPrinter{}
-	var testWorkspaceNodesFacade = &stubUserWorkspaceNodesFacade{
+	var testProvider = &stubUserWorkspaceNodesProvider{
 		getError: task.NewError("expected"),
 	}
+	var testFactory = &stubUserWorkspaceNodesFactory{}
 	var testOptions = node.NewListOptions()
 	var testExecutor = &NodeListExecutor{
 		BaseExecutor: BaseExecutor{
@@ -189,15 +175,17 @@ func TestNodeListExecutor_Proceed_Error(t *testing.T) {
 
 		accountParams: config.NewAccountParams(testLedger, testOptions.OptionAccount),
 		printerParams: &stubPrinterParametric{printer: testPrinter},
-		workspaceNodeFacadeProvider: func() mgmt.UserWorkspaceNodesFacade {
-			return testWorkspaceNodesFacade
-		},
+
+		workspaceNodesFactory: testFactory.WithProvider(
+			func(workspaces.UserWorkspaceNodesProviderFactory) workspaces.UserWorkspaceNodesProvider {
+				return testProvider
+			}),
 	}
 
 	testExecutor.Proceed()
 
 	if actual, ok := testPrinter.printError.(task.Error); ok {
-		assert.ErrorIs(t, actual, testWorkspaceNodesFacade.getError)
+		assert.ErrorIs(t, actual, testProvider.getError)
 	} else {
 		assert.Fail(t, "did not receive the error")
 	}
@@ -228,7 +216,7 @@ func TestNewNodeListExecutor(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`flow:[\s\t]*`+expectedFlowId), actual)
 }
 
-func newNodeListTaskPretendStub(flag *bool) workspaceNodeListTaskFactory {
+func newNodeListTaskPretendStub(flag *bool) broker.WorkspaceNodeListTaskFactory {
 	return func() *task.Task[broker.WorkspaceNodeListParams] {
 		return &task.Task[broker.WorkspaceNodeListParams]{
 			OnPrepare: func(params *broker.WorkspaceNodeListParams, state *task.State) error {
@@ -236,6 +224,20 @@ func newNodeListTaskPretendStub(flag *bool) workspaceNodeListTaskFactory {
 			},
 			OnPretend: func(params *broker.WorkspaceNodeListParams, state *task.State) error {
 				*flag = true
+				return nil
+			},
+		}
+	}
+}
+
+func newWorkspaceNodeResolveProceedCapture(capture *broker.WorkspaceNodeResolveParams) broker.WorkspaceNodeResolveTaskFactory {
+	return func() *task.Task[broker.WorkspaceNodeResolveParams] {
+		return &task.Task[broker.WorkspaceNodeResolveParams]{
+			OnPrepare: func(params *broker.WorkspaceNodeResolveParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *broker.WorkspaceNodeResolveParams, state *task.State) error {
+				*capture = *params
 				return nil
 			},
 		}

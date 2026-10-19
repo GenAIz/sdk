@@ -29,6 +29,10 @@ type requestBridge interface {
 
 	Post(string) (responseBridge, error)
 
+	SetFile(string, string) requestBridge
+
+	SetMultipartFormData(map[string]string) requestBridge
+
 	Timeout() time.Duration
 }
 
@@ -61,8 +65,8 @@ func (r *restyBridge) Form() requestBridge {
 	return r
 }
 
-func (r *restyBridge) FormData(params map[string]string) requestBridge {
-	r.request.SetFormData(params)
+func (r *restyBridge) FormData(fields map[string]string) requestBridge {
+	r.request.SetFormData(fields)
 	return r
 }
 
@@ -88,6 +92,16 @@ func (r *restyBridge) QueryParams(args map[string]string) requestBridge {
 
 func (r *restyBridge) Resulting(ref any) requestBridge {
 	r.request.SetResult(ref)
+	return r
+}
+
+func (r *restyBridge) SetFile(name, path string) requestBridge {
+	r.request.SetFile(name, path)
+	return r
+}
+
+func (r *restyBridge) SetMultipartFormData(fields map[string]string) requestBridge {
+	r.request.SetMultipartFormData(fields)
 	return r
 }
 

@@ -28,16 +28,18 @@ type emptyClient struct {
 }
 
 type stubBridge struct {
-	formRequest bool
-	jsonRequest bool
-	cookie      *http.Cookie
-	err         error
-	formData    map[string]string
-	queryParams map[string]string
-	result      any
-	response    responseBridge
-	timeout     time.Duration
-	url         string
+	formRequest   bool
+	jsonRequest   bool
+	cookie        *http.Cookie
+	err           error
+	fileData      map[string]string
+	formData      map[string]string
+	multiFormData map[string]string
+	queryParams   map[string]string
+	result        any
+	response      responseBridge
+	timeout       time.Duration
+	url           string
 }
 
 func (s *stubBridge) Close() error {
@@ -81,6 +83,20 @@ func (s *stubBridge) QueryParams(queryParams map[string]string) requestBridge {
 
 func (s *stubBridge) Resulting(result any) requestBridge {
 	s.result = result
+	return s
+}
+
+func (s *stubBridge) SetFile(name, path string) requestBridge {
+	if s.fileData == nil {
+		s.fileData = map[string]string{}
+	}
+
+	s.fileData[name] = path
+	return s
+}
+
+func (s *stubBridge) SetMultipartFormData(fields map[string]string) requestBridge {
+	s.multiFormData = fields
 	return s
 }
 
@@ -192,6 +208,168 @@ func TestWorkspaceFlowsSlices_graph_OrphanedWorkflow(t *testing.T) {
 	}
 
 	assert.Panics(t, func() { testSlices.graph() })
+}
+
+func TestWorkspaceNodeSlices_graph(t *testing.T) {
+	var expectedDsId = int64(37)
+	var expectedPortHandle = "port"
+	var expectedPortUnassigned = "unassigned"
+	var testSlices = &workspaceNodeSlices{
+		WorkspaceFlowNode: WorkspaceNode{
+			InputPorts: []WorkspaceNodePort{
+				{
+					DataSetId:  &expectedDsId,
+					PortHandle: expectedPortHandle,
+				},
+				{
+					// Should never happen
+					DataSetId:  new(int64(42)),
+					PortHandle: "notExpected",
+				},
+				{
+					// Should never happen
+					PortHandle: "noDataSetAttached",
+				},
+			},
+		},
+		DataSets: []DataSet{
+			{
+				Handle: "invalid",
+			},
+			{
+				Id:     &expectedDsId,
+				Handle: "dataSet",
+			},
+		},
+		SmartFunction: &Function{
+			InputPorts: []DataPort{
+				{
+					Handle: expectedPortUnassigned,
+				},
+			},
+		},
+	}
+
+	actual := testSlices.graph()
+	assert.Equal(t, 2, len(actual.InputPorts))
+	assert.Equal(t, &expectedDsId, actual.InputPorts[0].DataSetId)
+	assert.Equal(t, expectedPortHandle, actual.InputPorts[0].PortHandle)
+	assert.Equal(t, testSlices.SmartFunction, actual.InputPorts[0].SmartFunction)
+	assert.Equal(t, &testSlices.DataSets[1], actual.InputPorts[0].DataSet)
+	assert.Equal(t, expectedPortUnassigned, actual.InputPorts[1].PortHandle)
+	assert.Equal(t, testSlices.SmartFunction, actual.InputPorts[1].SmartFunction)
+}
+
+func TestWorkspaceNodeSlices_graph_NoSmartFunction(t *testing.T) {
+	var expectedDsId = int64(37)
+	var expectedPortHandle = "port"
+	var testSlices = &workspaceNodeSlices{
+		WorkspaceFlowNode: WorkspaceNode{
+			InputPorts: []WorkspaceNodePort{
+				{
+					DataSetId:  &expectedDsId,
+					PortHandle: expectedPortHandle,
+				},
+				{
+					// Should never happen
+					DataSetId:  new(int64(42)),
+					PortHandle: "notExpected",
+				},
+				{
+					// Should never happen
+					PortHandle: "noDataSetAttached",
+				},
+			},
+		},
+		DataSets: []DataSet{
+			{
+				Handle: "invalid",
+			},
+			{
+				Id:     &expectedDsId,
+				Handle: "dataSet",
+			},
+		},
+	}
+
+	actual := testSlices.graph()
+	assert.Equal(t, 1, len(actual.InputPorts))
+	assert.Equal(t, &expectedDsId, actual.InputPorts[0].DataSetId)
+	assert.Equal(t, expectedPortHandle, actual.InputPorts[0].PortHandle)
+	assert.Equal(t, testSlices.SmartFunction, actual.InputPorts[0].SmartFunction)
+	assert.Equal(t, &testSlices.DataSets[1], actual.InputPorts[0].DataSet)
+}
+
+func TestClient_CreateDataSet(t *testing.T) {
+	var expectedToken = "token"
+	var expectedDataSet = &DataSet{
+		Id:   new(int64(37)),
+		Name: "name",
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[DataSet]{
+				Data: *expectedDataSet,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateDataSet(expectedDataSet)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDataSet, actual)
+}
+
+func TestClient_CreateDataSet_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.CreateDataSet(&DataSet{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_CreateDataSet_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateDataSet(&DataSet{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_CreateDataSet_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.CreateDataSet(&DataSet{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_CreateDataSet_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.CreateDataSet(&DataSet{})
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_CreateDataSetUrl(t *testing.T) {
+	var expectedHost = "host"
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.CreateDataSetUrl(), expectedHost)
 }
 
 func TestClient_CreateDataSource(t *testing.T) {
@@ -664,7 +842,7 @@ func TestClient_FindSolution(t *testing.T) {
 		{
 			Id:              new(int64(4)),
 			WorkflowId:      expectedWorkflows[0].Id,
-			SmartFunctionId: new(int64(expectedFunctions[0].Id)),
+			SmartFunctionId: new(expectedFunctions[0].Id),
 			Handle:          "expectedSfNode",
 		},
 		{
@@ -785,7 +963,7 @@ func TestClient_GetFunction(t *testing.T) {
 	}
 	var testClient = newTestClient(testBridge, expectedToken)
 
-	actual, err := testClient.GetFunction(int64(expectedFunction.Id))
+	actual, err := testClient.GetFunction(expectedFunction.Id)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedFunction, actual)
 }
@@ -968,6 +1146,85 @@ func TestClient_GetSolutionUrl(t *testing.T) {
 	assert.True(t, strings.HasPrefix(actual, "https://"))
 }
 
+func TestClient_InspectNode(t *testing.T) {
+	var expectedToken = "token"
+	var expectedSlices = &workspaceNodeSlices{
+		WorkspaceFlowNode: WorkspaceNode{
+			Id: int64(37),
+		},
+		DataSets: []DataSet{
+			{
+				Id: new(int64(37)),
+			},
+		},
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[workspaceNodeSlices]{
+				Data: *expectedSlices,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.InspectNode(37)
+	assert.NoError(t, err)
+	assert.Equal(t, &expectedSlices.WorkspaceFlowNode, actual)
+
+}
+
+func TestClient_InspectNode_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.InspectNode(37)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_InspectNode_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.InspectNode(37)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_InspectNode_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.InspectNode(37)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_InspectNode_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.InspectNode(37)
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_InspectNodeUrl(t *testing.T) {
+	var expectedHost = "host"
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.InspectNodeUrl(), expectedHost)
+}
+
 func TestClient_ListDataLinks(t *testing.T) {
 	var expectedToken = "token"
 	var expectedDataLinks = []DataLink{
@@ -1040,6 +1297,86 @@ func TestClient_ListDataLinksUrl(t *testing.T) {
 	var testClient = &client{HostAddr: expectedHost}
 
 	assert.Contains(t, testClient.ListDataLinksUrl(), fmt.Sprintf("%s/%s", expectedPrefix, expectedHost))
+}
+
+func TestClient_ListDataSetFiles(t *testing.T) {
+	var expectedToken = "token"
+	var expectedFiles = []DataSetFile{
+		{
+			Name:     "config.json",
+			Modified: 1,
+			Size:     2,
+		},
+		{
+			Name:     "alternate.json",
+			Modified: 2,
+			Size:     37,
+		},
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[[]DataSetFile]{
+				Data: expectedFiles,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListDataSetFiles(37, "/")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedFiles, actual)
+}
+
+func TestClient_ListDataSetFiles_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.ListDataSetFiles(37, "/")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_ListDataSetFiles_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListDataSetFiles(37, "/")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_ListDataSetFiles_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.ListDataSetFiles(37, "/")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_ListDataSetFiles_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.ListDataSetFiles(37, "/")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_ListDataSetFilesUrl(t *testing.T) {
+	var expectedHost = "host"
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.ListDataSetFilesUrl(), expectedHost)
 }
 
 func TestClient_ListDataSources(t *testing.T) {
@@ -1462,8 +1799,8 @@ func TestClient_ListWorkspaceNodes(t *testing.T) {
 	var testBridge = &stubBridge{
 		response: stubResponse{
 			success: true,
-			result: &clientPayload[*workspaceNodeSlices]{
-				Data: &workspaceNodeSlices{
+			result: &clientPayload[*workspaceNodesSlices]{
+				Data: &workspaceNodesSlices{
 					WorkspaceFlowNodes: []WorkspaceNode{*expectedNode},
 					SmartFunctions: []Function{
 						{
@@ -2525,6 +2862,180 @@ func TestClient_UpdateNode_UrlError(t *testing.T) {
 	actual, err := testClient.UpdateNode(&WorkspaceNode{})
 	assert.Empty(t, actual)
 	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_UpdateNodeInput(t *testing.T) {
+	var expectedToken = "token"
+	var expectedNode = &WorkspaceNode{
+		Id: int64(37),
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[WorkspaceNode]{
+				Data: *expectedNode,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UpdateNodeInput(37, 42, "port")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedNode, actual)
+}
+
+func TestClient_UpdateNodeInput_NoAuth(t *testing.T) {
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.UpdateNodeInput(37, 42, "port")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_UpdateNodeInput_RequestError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UpdateNodeInput(37, 42, "port")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_UpdateNodeInput_UnknownHost(t *testing.T) {
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.UpdateNodeInput(37, 42, "port")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_UpdateNodeInput_UrlError(t *testing.T) {
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UpdateNodeInput(37, 42, "port")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_UpdateNodeInputUrl(t *testing.T) {
+	var expectedHost = "host"
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.UpdateNodeInputUrl(), expectedHost)
+}
+
+func TestClient_UploadDataSetFile(t *testing.T) {
+	var testPath = filepath.Join(t.TempDir(), "config.json")
+	var expectedToken = "token"
+	var expectedDataSet = &DataSet{
+		Id:     new(int64(37)),
+		Handle: "dsHandle",
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[DataSet]{
+				Data: *expectedDataSet,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UploadDataSetFile(37, testPath, "", "")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDataSet, actual)
+}
+
+func TestClient_UploadDataSetFile_NoAuth(t *testing.T) {
+	var testPath = filepath.Join(t.TempDir(), "config.json")
+	var testClient = &client{HostAddr: ""}
+
+	actual, err := testClient.UploadDataSetFile(37, testPath, "", "")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNoAuth)
+}
+
+func TestClient_UploadDataSetFile_RequestError(t *testing.T) {
+	var testPath = filepath.Join(t.TempDir(), "config.json")
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success:    false,
+			statusCode: 400,
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UploadDataSetFile(37, testPath, "", "")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorBadRequest)
+}
+
+func TestClient_UploadDataSetFile_UnknownHost(t *testing.T) {
+	var testPath = filepath.Join(t.TempDir(), "config.json")
+	var expectedToken = "token"
+	var testClient = &client{HostAddr: "", AuthToken: expectedToken}
+
+	actual, err := testClient.UploadDataSetFile(37, testPath, "", "")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorInvalidHost)
+}
+
+func TestClient_UploadDataSetFile_UrlError(t *testing.T) {
+	var testPath = filepath.Join(t.TempDir(), "config.json")
+	var expectedToken = "token"
+	var testBridge = &stubBridge{
+		err: errors.New("expected error"),
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UploadDataSetFile(37, testPath, "", "")
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, testBridge.err)
+}
+
+func TestClient_UploadDataSetFile_WithRenamedPath(t *testing.T) {
+	var testPath = filepath.Join(t.TempDir(), "config.json")
+	var expectedName = "newName"
+	var expectedPath = "newPath"
+	var expectedToken = "token"
+	var expectedDataSet = &DataSet{
+		Id:     new(int64(37)),
+		Handle: "dsHandle",
+	}
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[DataSet]{
+				Data: *expectedDataSet,
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge, expectedToken)
+
+	actual, err := testClient.UploadDataSetFile(37, testPath, expectedName, expectedPath)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDataSet, actual)
+	assert.Equal(t, testBridge.multiFormData["name"], expectedName)
+	assert.Equal(t, testBridge.multiFormData["path"], expectedPath)
+}
+
+func TestClient_UploadDataSetFileUrl(t *testing.T) {
+	var expectedHost = "host"
+	var testClient = &client{HostAddr: expectedHost}
+
+	assert.Contains(t, testClient.UploadDataSetFileUrl(), expectedHost)
 }
 
 func TestActiveClient(t *testing.T) {

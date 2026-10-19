@@ -11,8 +11,6 @@ import (
 	"genaiz.com/genaiz/task/broker"
 )
 
-type WorkspaceCreateTaskFactory func() *task.Task[broker.WorkspaceCreateParams]
-
 type CreateExecutor struct {
 	BaseExecutor
 	*CreateOptions
@@ -20,7 +18,7 @@ type CreateExecutor struct {
 	accountParams              config.AccountParametric
 	printerParams              cli.PrinterParametric
 	workspaceName              string
-	workspaceCreateTaskFactory WorkspaceCreateTaskFactory
+	workspaceCreateTaskFactory broker.WorkspaceCreateTaskFactory
 }
 
 func (ce CreateExecutor) Display() {
@@ -130,7 +128,7 @@ func NewCreateExecutor(cmd *cobra.Command, ledger *config.Ledger, wsCli *Cli, na
 		accountParams:              config.NewAccountParams(ledger, options.optionAccount),
 		printerParams:              cli.NewPrinterParam(ledger, options.optionJsonPrinter),
 		workspaceName:              nameArg,
-		workspaceCreateTaskFactory: broker.NewWorkspaceCreateTask,
+		workspaceCreateTaskFactory: broker.WorkspaceTasks.CreateTaskFactory,
 	}
 }
 

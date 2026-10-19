@@ -449,6 +449,22 @@ type Document struct {
 			RcEnabled   Keys
 		}
 		Node struct {
+			Data struct {
+				Set struct {
+					Account     Keys
+					Destination Keys
+					Filename    Keys
+					Overwrite   Keys
+					SetHandle   Keys
+					SetName     Keys
+					SetDesc     Keys
+					Printer     Keys
+				}
+				List struct {
+					Account Keys
+					Printer Keys
+				}
+			}
 			List struct {
 				Account   Keys
 				Printer   Keys
@@ -873,6 +889,18 @@ func init() {
 	Genaiz.Workspace.List.OwnerOnly = newKeys("Workspace.List.OwnerOnly", "WS_LIST_OWNER_ONLY", "Ws.List.OwnerOnly")
 	Genaiz.Workspace.List.Printer = newKeys("Workspace.List.Printer", "WS_LIST_PRINTER", "Ws.List.Printer")
 	Genaiz.Workspace.List.RcEnabled = newKeys("Workspace.List.RcEnabled", "WS_LIST_RC_ENABLED", "Ws.List.RcEnabled")
+
+	Genaiz.Workspace.Node.Data.Set.Account = newKeys("Workspace.Node.Data.Set.Account", "WS_NODE_DATASET_ACCOUNT", "Ws.Node.Data.Set.Account")
+	Genaiz.Workspace.Node.Data.Set.Destination = newKeys("Workspace.Node.Data.Set.Dest", "WS_NODE_DATASET_DEST", "Ws.Node.Data.Set.Dest")
+	Genaiz.Workspace.Node.Data.Set.Filename = newKeys("Workspace.Node.Data.Set.Filename", "WS_NODE_DATASET_FILENAME", "Ws.Node.Data.Set.Filename")
+	Genaiz.Workspace.Node.Data.Set.Overwrite = newKeys("Workspace.Node.Data.Set.Overwrite", "WS_NODE_DATASET_OVERWRITE", "Ws.Node.Data.Set.Overwrite")
+	Genaiz.Workspace.Node.Data.Set.Printer = newKeys("Workspace.Node.Data.Set.Printer", "WS_NODE_DATASET_PRINTER", "Ws.Node.Data.Set.Printer")
+	Genaiz.Workspace.Node.Data.Set.SetDesc = newKeys("Workspace.Node.Data.Set.Desc", "WS_NODE_DATASET_DESC", "Ws.Node.Data.Set.Desc")
+	Genaiz.Workspace.Node.Data.Set.SetHandle = newKeys("Workspace.Node.Data.Set.Handle", "WS_NODE_DATASET_HANDLE", "Ws.Node.Data.Set.Handle")
+	Genaiz.Workspace.Node.Data.Set.SetName = newKeys("Workspace.Node.Data.Set.Name", "WS_NODE_DATASET_NAME", "Ws.Node.Data.Set.Name")
+
+	Genaiz.Workspace.Node.Data.List.Account = newKeys("Workspace.Node.Data.List.Account", "WS_NODE_DATA_LIST_ACCOUNT", "Ws.Node.Data.List.Account")
+	Genaiz.Workspace.Node.Data.List.Printer = newKeys("Workspace.Node.Data.List.Printer", "WS_NODE_DATA_LIST_PRINTER", "Ws.Node.Data.List.Printer")
 
 	Genaiz.Workspace.Node.List.Account = newKeys("Workspace.Node.Account", "WS_NODE_ACCOUNT", "Ws.Node.Account")
 	Genaiz.Workspace.Node.List.Printer = newKeys("Workspace.Node.Printer", "WS_NODE_PRINTER", "Ws.Node.Printer")
