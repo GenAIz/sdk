@@ -12,6 +12,7 @@ import (
 
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/mgmt"
+	"genaiz.com/genaiz/mgmt/workspaces"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
@@ -86,38 +87,16 @@ func (s stubUserWorkspaceFlowsProvider) Get() ([]mgmt.UserWorkspaceFlow, task.Er
 	return s.flows, s.getError
 }
 
-type stubUserWorkspaceNodesFacade struct {
-	filter   string
-	logger   *logrus.Logger
-	params   *broker.WorkspaceNodeListParams
-	provider mgmt.Provider[[]mgmt.UserWorkspaceNode]
-}
-
-func (s *stubUserWorkspaceNodesFacade) Filtering(filter string) mgmt.Provider[[]mgmt.UserWorkspaceNode] {
-	s.filter = filter
-	return s.provider
-}
-
-func (s *stubUserWorkspaceNodesFacade) Provider() mgmt.Provider[[]mgmt.UserWorkspaceNode] {
-	return s.provider
-}
-
-func (s *stubUserWorkspaceNodesFacade) WithLogger(logger *logrus.Logger) mgmt.Facade[[]mgmt.UserWorkspaceNode, broker.WorkspaceNodeListParams] {
-	s.logger = logger
-	return s
-}
-
-func (s *stubUserWorkspaceNodesFacade) WithParams(params *broker.WorkspaceNodeListParams) mgmt.Facade[[]mgmt.UserWorkspaceNode, broker.WorkspaceNodeListParams] {
-	s.params = params
-	return s
+type stubUserWorkspaceNodesFactory struct {
+	mgmt.ProviderFactory[broker.WorkspaceNodeListParams, []workspaces.UserWorkspaceNode]
 }
 
 type stubUserWorkspaceNodesProvider struct {
-	nodes    []mgmt.UserWorkspaceNode
+	nodes    []workspaces.UserWorkspaceNode
 	getError task.Error
 }
 
-func (s stubUserWorkspaceNodesProvider) Get() ([]mgmt.UserWorkspaceNode, task.Error) {
+func (s stubUserWorkspaceNodesProvider) Get() ([]workspaces.UserWorkspaceNode, task.Error) {
 	return s.nodes, s.getError
 }
 
@@ -314,22 +293,22 @@ func TestWorkspaceNodeAutoBridge_Bridge(t *testing.T) {
 		WithViper(viper.New()).
 		Build()
 	var testProvider = stubUserWorkspaceNodesProvider{
-		nodes: []mgmt.UserWorkspaceNode{
+		nodes: []workspaces.UserWorkspaceNode{
 			{
 				Id:                  expectedId,
 				SmartFunctionHandle: expectedHandle,
 			},
 		},
 	}
+	var testFactory = &stubUserWorkspaceNodesFactory{}
 	var testAuto = &WorkspaceNodeAutoBridge{
 		ledger:    testLedger,
 		flow:      "flow",
 		workspace: "workspace",
-		workspaceNodeFacadeProvider: func() mgmt.UserWorkspaceNodesFacade {
-			return &stubUserWorkspaceNodesFacade{
-				provider: testProvider,
-			}
-		},
+		workspaceNodesFactory: testFactory.WithProvider(
+			func(workspaces.UserWorkspaceNodesProviderFactory) workspaces.UserWorkspaceNodesProvider {
+				return testProvider
+			}),
 	}
 	var testCompletable = "37"
 
@@ -349,15 +328,15 @@ func TestWorkspaceNodeAutoBridge_Bridge_GetError(t *testing.T) {
 	var testProvider = stubUserWorkspaceNodesProvider{
 		getError: expectedError,
 	}
+	var testFactory = stubUserWorkspaceNodesFactory{}
 	var testAuto = &WorkspaceNodeAutoBridge{
 		ledger:    testLedger,
 		flow:      cast.ToString(37),
 		workspace: "workspace",
-		workspaceNodeFacadeProvider: func() mgmt.UserWorkspaceNodesFacade {
-			return &stubUserWorkspaceNodesFacade{
-				provider: testProvider,
-			}
-		},
+		workspaceNodesFactory: testFactory.WithProvider(
+			func(workspaces.UserWorkspaceNodesProviderFactory) workspaces.UserWorkspaceNodesProvider {
+				return testProvider
+			}),
 	}
 	var testCompletable = "37"
 
@@ -373,15 +352,15 @@ func TestWorkspaceNodeAutoBridge_Bridge_NoNodes(t *testing.T) {
 		WithViper(viper.New()).
 		Build()
 	var testProvider = stubUserWorkspaceNodesProvider{}
+	var testFactory = stubUserWorkspaceNodesFactory{}
 	var testAuto = &WorkspaceNodeAutoBridge{
 		ledger:    testLedger,
 		flow:      "flow",
 		workspace: cast.ToString(37),
-		workspaceNodeFacadeProvider: func() mgmt.UserWorkspaceNodesFacade {
-			return &stubUserWorkspaceNodesFacade{
-				provider: testProvider,
-			}
-		},
+		workspaceNodesFactory: testFactory.WithProvider(
+			func(workspaces.UserWorkspaceNodesProviderFactory) workspaces.UserWorkspaceNodesProvider {
+				return testProvider
+			}),
 	}
 	var testCompletable = "37"
 

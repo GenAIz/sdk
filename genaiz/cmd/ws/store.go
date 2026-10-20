@@ -4,10 +4,10 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/ws/args"
 	"genaiz.com/genaiz/cmd/ws/auto"
 	"genaiz.com/genaiz/cmd/ws/store"
 	"genaiz.com/genaiz/config"
@@ -17,8 +17,6 @@ import (
 )
 
 type DataStoreResolveTaskFactory func() *task.Task[broker.DataStoreResolveParams]
-type WorkspaceNodeStoreAddTaskFactory func() *task.Task[broker.WorkspaceNodeStoreParams]
-type WorkspaceNodeStoreRemoveTaskFactory func() *task.Task[broker.WorkspaceNodeStoreParams]
 
 type DataStoreAutoBridge struct {
 	workspaces     auto.Bridge
@@ -54,51 +52,26 @@ type DataStoreExecutor struct {
 
 	addDataStore string
 	rmDataStore  string
-	flow         string
-	node         string
-	workspace    string
 
 	dataStoreResolveTaskFactory DataStoreResolveTaskFactory
-	nodeStoreAddTaskFactory     WorkspaceNodeStoreAddTaskFactory
-	nodeStoreRemoveTaskFactory  WorkspaceNodeStoreRemoveTaskFactory
+	nodeStoreAddTaskFactory     broker.WorkspaceNodeStoreAddTaskFactory
+	nodeStoreRemoveTaskFactory  broker.WorkspaceNodeStoreRemoveTaskFactory
 }
 
-func (dse *DataStoreExecutor) Add(workspaceArg, flowArg, nodeArg, dsArg string) error {
+func (dse *DataStoreExecutor) Add(ws, fl, nd, dsArg string) error {
+	dse.nodeArguments = args.NewNodeResolution(ws, fl, nd)
 	dse.addDataStore = dsArg
-	dse.flow = flowArg
-	dse.node = nodeArg
-	dse.workspace = workspaceArg
 	dse.Cli.Exec(dse.Ledger, dse)
 	return nil
 }
 
 func (dse *DataStoreExecutor) Display() {
-	var optionMap = make(map[string]string)
-	var brokerParams = dse.accountParams.BrokerParams()
-	var resolveParams = dse.newNodeResolveParams(brokerParams)
+	var optionMap = dse.nodeArguments.MakeOptionMap()
 
 	if dse.addDataStore != "" {
 		optionMap["add data store"] = dse.addDataStore
 	} else if dse.rmDataStore != "" {
 		optionMap["rm data store"] = dse.rmDataStore
-	}
-
-	if resolveParams.WorkspaceId == nil {
-		optionMap["workspace name"] = cast.ToString(resolveParams.WorkspaceName)
-	} else {
-		optionMap["workspace id"] = cast.ToString(resolveParams.WorkspaceId)
-	}
-
-	if resolveParams.FlowId == nil {
-		optionMap["workflow handle"] = resolveParams.WorkflowHandle
-	} else {
-		optionMap["workspace flow id"] = cast.ToString(resolveParams.FlowId)
-	}
-
-	if resolveParams.NodeId == nil {
-		optionMap["smart function handle"] = resolveParams.FnHandle
-	} else {
-		optionMap["node id"] = cast.ToString(resolveParams.NodeId)
 	}
 
 	dse.Ledger.DisplayOptionsWithMap(
@@ -109,7 +82,7 @@ func (dse *DataStoreExecutor) Display() {
 
 func (dse *DataStoreExecutor) Pretend() {
 	var brokerParams = dse.accountParams.BrokerParams()
-	var resolveParams = dse.newNodeResolveParams(brokerParams)
+	var resolveParams = dse.nodeArguments.ResolveNodeParams(brokerParams)
 	var workers []task.Worker
 	var plan *task.Plan
 
@@ -140,7 +113,7 @@ func (dse *DataStoreExecutor) Pretend() {
 
 func (dse *DataStoreExecutor) Proceed() {
 	var brokerParams = dse.accountParams.BrokerParams()
-	var resolveParams = dse.newNodeResolveParams(brokerParams)
+	var resolveParams = dse.nodeArguments.ResolveNodeParams(brokerParams)
 	var workers []task.Worker
 	var plan *task.Plan
 
@@ -181,11 +154,9 @@ func (dse *DataStoreExecutor) Proceed() {
 	plan.Sequence(workers...)
 }
 
-func (dse *DataStoreExecutor) Remove(workspaceArg, flowArg, nodeArg, dsArg string) error {
-	dse.rmDataStore = dsArg
-	dse.flow = flowArg
-	dse.node = nodeArg
-	dse.workspace = workspaceArg
+func (dse *DataStoreExecutor) Remove(ws, fl, nd, ds string) error {
+	dse.nodeArguments = args.NewNodeResolution(ws, fl, nd)
+	dse.rmDataStore = ds
 	dse.Cli.Exec(dse.Ledger, dse)
 	return nil
 }
@@ -199,32 +170,6 @@ func (dse *DataStoreExecutor) newDataStoreResolveParams(brokerParams *broker.Bro
 		result.DataStoreId = new(dsId)
 	} else {
 		result.DataStoreName = dataStore
-	}
-
-	return result
-}
-
-func (dse *DataStoreExecutor) newNodeResolveParams(brokerParams *broker.Broker) *broker.WorkspaceNodeResolveParams {
-	var result = &broker.WorkspaceNodeResolveParams{
-		Broker: *brokerParams,
-	}
-
-	if wsId, err := strconv.ParseInt(dse.workspace, 10, 64); err == nil {
-		result.WorkspaceId = new(wsId)
-	} else {
-		result.WorkspaceName = dse.workspace
-	}
-
-	if flId, err := strconv.ParseInt(dse.flow, 10, 64); err == nil {
-		result.FlowId = new(flId)
-	} else {
-		result.WorkflowHandle = dse.flow
-	}
-
-	if ndId, err := strconv.ParseInt(dse.node, 10, 64); err == nil {
-		result.NodeId = new(ndId)
-	} else {
-		result.FnHandle = dse.node
 	}
 
 	return result
@@ -255,6 +200,8 @@ func NewDataStore(ledger *config.Ledger, wsCli *Cli) *cobra.Command {
 	ledger.Register(rmCommand, rmOptions.allDefiners()...)
 	addCommand.ValidArgsFunction = storeAuto.bridgeArguments
 	rmCommand.ValidArgsFunction = storeAuto.bridgeArguments
+	cli.AutoBridge.Accounts().Option(addCommand, ledger, addOptions.optionAccount)
+	cli.AutoBridge.Accounts().Option(rmCommand, ledger, rmOptions.optionAccount)
 	return strCmd
 }
 
@@ -270,12 +217,12 @@ func NewDataStoreExecutor(ctx context.Context, ledger *config.Ledger, wsCli *Cli
 
 			accountParams:          config.NewAccountParams(ledger, options.optionAccount),
 			printerParams:          cli.NewPrinterParam(ledger, options.optionJsonPrinter),
-			nodeResolveTaskFactory: broker.NewWorkspaceNodeResolveTask,
+			nodeResolveTaskFactory: broker.WorkspaceTasks.ResolveNodeTaskFactory,
 		},
 
 		dataStoreResolveTaskFactory: broker.NewDataStoreResolveTask,
-		nodeStoreAddTaskFactory:     broker.NewWorkspaceNodeStoreAddTask,
-		nodeStoreRemoveTaskFactory:  broker.NewWorkspaceNodeStoreRemoveTask,
+		nodeStoreAddTaskFactory:     broker.WorkspaceTasks.AddStoreNodeTaskFactory,
+		nodeStoreRemoveTaskFactory:  broker.WorkspaceTasks.RemoveStoreNodeTaskFactory,
 	}
 }
 

@@ -10,12 +10,9 @@ import (
 	"genaiz.com/genaiz/cmd/ws/node"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
-	"genaiz.com/genaiz/mgmt"
-	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/mgmt/workspaces"
 	"genaiz.com/genaiz/task/broker"
 )
-
-type workspaceNodeListTaskFactory func() *task.Task[broker.WorkspaceNodeListParams]
 
 type NodeListExecutor struct {
 	BaseExecutor
@@ -26,8 +23,8 @@ type NodeListExecutor struct {
 
 	accountParams                config.AccountParametric
 	printerParams                cli.PrinterParametric
-	workspaceNodeFacadeProvider  func() mgmt.UserWorkspaceNodesFacade
-	workspaceNodeListTaskFactory workspaceNodeListTaskFactory
+	workspaceNodesFactory        workspaces.UserWorkspaceNodesFactory
+	workspaceNodeListTaskFactory broker.WorkspaceNodeListTaskFactory
 }
 
 func (nle *NodeListExecutor) Display() {
@@ -70,7 +67,7 @@ func (nle *NodeListExecutor) Proceed() {
 	var brokerParams = nle.accountParams.BrokerParams()
 	var nodeParams = nle.newNodeListParams(brokerParams)
 	var printer = nle.printerParams.Printer()
-	var workspaceNodes, err = nle.workspaceNodeFacadeProvider().
+	var workspaceNodes, err = nle.workspaceNodesFactory.
 		WithLogger(nle.Ledger.Logger).
 		WithParams(nodeParams).
 		Provider().
@@ -137,8 +134,8 @@ func NewNodeListExecutor(ctx context.Context, ledger *config.Ledger, wsCli *Cli,
 		accountParams: config.NewAccountParams(ledger, options.OptionAccount),
 		printerParams: cli.NewPrinterParam(ledger, options.OptionJsonPrinter),
 
-		workspaceNodeFacadeProvider:  mgmt.NewUserWorkspaceNodesFacade,
-		workspaceNodeListTaskFactory: broker.NewWorkspaceNodeListTask,
+		workspaceNodesFactory:        workspaces.NewUserWorkspaceNodesFactory(),
+		workspaceNodeListTaskFactory: broker.WorkspaceTasks.ListNodeTaskFactory,
 	}
 }
 

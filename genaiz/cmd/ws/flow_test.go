@@ -135,9 +135,9 @@ func TestFlowCreateExecutor_Pretend(t *testing.T) {
 		},
 		CreateOptions: flow.NewCreateOptions(),
 
-		flowCreateTaskFactory:   newFlowCreateTaskPretendStub(&calledCreate),
-		flowResolveTaskFactory:  newFlowResolveTaskPretendStub(&calledResolve),
-		flowSolutionTaskFactory: newFlowSolutionTaskPretendStub(&calledSolution),
+		flowCreateTaskFactory:       newFlowCreateTaskPretendStub(&calledCreate),
+		workspaceResolveTaskFactory: newFlowResolveTaskPretendStub(&calledResolve),
+		flowResolveTaskFactory:      newFlowSolutionTaskPretendStub(&calledSolution),
 	}
 
 	testExecutor.resolveParams = &broker.WorkspaceFlowResolveParams{
@@ -164,9 +164,9 @@ func TestFlowCreateExecutor_Pretend_NoWorkflowId(t *testing.T) {
 		},
 		CreateOptions: flow.NewCreateOptions(),
 
-		flowCreateTaskFactory:   newFlowCreateTaskPretendStub(&calledCreate),
-		flowResolveTaskFactory:  newFlowResolveTaskPretendStub(&calledResolve),
-		flowSolutionTaskFactory: newFlowSolutionTaskPretendStub(&calledSolution),
+		flowCreateTaskFactory:       newFlowCreateTaskPretendStub(&calledCreate),
+		workspaceResolveTaskFactory: newFlowResolveTaskPretendStub(&calledResolve),
+		flowResolveTaskFactory:      newFlowSolutionTaskPretendStub(&calledSolution),
 	}
 
 	testExecutor.resolveParams = &broker.WorkspaceFlowResolveParams{
@@ -192,9 +192,9 @@ func TestFlowCreateExecutor_Pretend_NoWorkspaceId(t *testing.T) {
 		},
 		CreateOptions: flow.NewCreateOptions(),
 
-		flowCreateTaskFactory:   newFlowCreateTaskPretendStub(&calledCreate),
-		flowResolveTaskFactory:  newFlowResolveTaskPretendStub(&calledResolve),
-		flowSolutionTaskFactory: newFlowSolutionTaskPretendStub(&calledSolution),
+		flowCreateTaskFactory:       newFlowCreateTaskPretendStub(&calledCreate),
+		workspaceResolveTaskFactory: newFlowResolveTaskPretendStub(&calledResolve),
+		flowResolveTaskFactory:      newFlowSolutionTaskPretendStub(&calledSolution),
 	}
 
 	testExecutor.resolveParams = &broker.WorkspaceFlowResolveParams{
@@ -230,9 +230,9 @@ func TestFlowCreateExecutor_Proceed(t *testing.T) {
 			printer:        testPrinter,
 		},
 
-		flowCreateTaskFactory:   newFlowCreateTaskCompleteCapture(&captureCreate),
-		flowResolveTaskFactory:  newFlowResolveTaskCompleteCapture(&captureResolve),
-		flowSolutionTaskFactory: newFlowSolutionTaskCompleteCapture(&captureSolution),
+		flowCreateTaskFactory:       newFlowCreateTaskCompleteCapture(&captureCreate),
+		workspaceResolveTaskFactory: newFlowResolveTaskCompleteCapture(&captureResolve),
+		flowResolveTaskFactory:      newFlowSolutionTaskCompleteCapture(&captureSolution),
 	}
 
 	testLedger.InitLogging()
@@ -271,9 +271,9 @@ func TestFlowCreateExecutor_Proceed_WithWorkflowId(t *testing.T) {
 			printer: testPrinter,
 		},
 
-		flowCreateTaskFactory:   newFlowCreateTaskCompleteStub(expectedFlow),
-		flowResolveTaskFactory:  newFlowResolveTaskCompleteCapture(&captureResolve),
-		flowSolutionTaskFactory: newFlowSolutionTaskCompleteCapture(&captureSolution),
+		flowCreateTaskFactory:       newFlowCreateTaskCompleteStub(expectedFlow),
+		workspaceResolveTaskFactory: newFlowResolveTaskCompleteCapture(&captureResolve),
+		flowResolveTaskFactory:      newFlowSolutionTaskCompleteCapture(&captureSolution),
 	}
 
 	testLedger.InitLogging()
@@ -312,9 +312,9 @@ func TestFlowCreateExecutor_Proceed_WithWorkspaceId(t *testing.T) {
 			printer: testPrinter,
 		},
 
-		flowCreateTaskFactory:   newFlowCreateTaskCompleteStub(expectedFlow),
-		flowResolveTaskFactory:  newFlowResolveTaskCompleteCapture(&captureResolve),
-		flowSolutionTaskFactory: newFlowSolutionTaskCompleteCapture(&captureSolution),
+		flowCreateTaskFactory:       newFlowCreateTaskCompleteStub(expectedFlow),
+		workspaceResolveTaskFactory: newFlowResolveTaskCompleteCapture(&captureResolve),
+		flowResolveTaskFactory:      newFlowSolutionTaskCompleteCapture(&captureSolution),
 	}
 
 	testLedger.InitLogging()
@@ -349,7 +349,7 @@ func TestNewFlowCreateExecutor(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`workspace name:[\s\t]*`+expectedName), actual)
 }
 
-func newFlowCreateTaskPretendStub(flag *bool) workspaceFlowCreateTaskFactory {
+func newFlowCreateTaskPretendStub(flag *bool) broker.WorkspaceFlowCreateTaskFactory {
 	return func() *task.Task[broker.WorkspaceFlowCreateParams] {
 		return &task.Task[broker.WorkspaceFlowCreateParams]{
 			OnPrepare: func(params *broker.WorkspaceFlowCreateParams, state *task.State) error {
@@ -363,7 +363,7 @@ func newFlowCreateTaskPretendStub(flag *bool) workspaceFlowCreateTaskFactory {
 	}
 }
 
-func newFlowResolveTaskPretendStub(flag *bool) workspaceFlowResolveTaskFactory {
+func newFlowResolveTaskPretendStub(flag *bool) broker.WorkspaceFlowResolveTaskFactory {
 	return func() *task.Task[broker.WorkspaceFlowResolveParams] {
 		return &task.Task[broker.WorkspaceFlowResolveParams]{
 			OnPrepare: func(params *broker.WorkspaceFlowResolveParams, state *task.State) error {
@@ -391,7 +391,7 @@ func newFlowSolutionTaskPretendStub(called *bool) workspaceFlowSolutionTaskFacto
 	}
 }
 
-func newFlowCreateTaskCompleteCapture(capture *broker.WorkspaceFlowCreateParams) workspaceFlowCreateTaskFactory {
+func newFlowCreateTaskCompleteCapture(capture *broker.WorkspaceFlowCreateParams) broker.WorkspaceFlowCreateTaskFactory {
 	return func() *task.Task[broker.WorkspaceFlowCreateParams] {
 		return &task.Task[broker.WorkspaceFlowCreateParams]{
 			OnPrepare: func(params *broker.WorkspaceFlowCreateParams, state *task.State) error {
@@ -405,7 +405,7 @@ func newFlowCreateTaskCompleteCapture(capture *broker.WorkspaceFlowCreateParams)
 	}
 }
 
-func newFlowCreateTaskCompleteStub(expected *broker.WorkspaceFlow) workspaceFlowCreateTaskFactory {
+func newFlowCreateTaskCompleteStub(expected *broker.WorkspaceFlow) broker.WorkspaceFlowCreateTaskFactory {
 	return func() *task.Task[broker.WorkspaceFlowCreateParams] {
 		return &task.Task[broker.WorkspaceFlowCreateParams]{
 			OnPrepare: func(params *broker.WorkspaceFlowCreateParams, state *task.State) error {
@@ -419,7 +419,7 @@ func newFlowCreateTaskCompleteStub(expected *broker.WorkspaceFlow) workspaceFlow
 	}
 }
 
-func newFlowResolveTaskCompleteCapture(capture *broker.WorkspaceFlowResolveParams) workspaceFlowResolveTaskFactory {
+func newFlowResolveTaskCompleteCapture(capture *broker.WorkspaceFlowResolveParams) broker.WorkspaceFlowResolveTaskFactory {
 	return func() *task.Task[broker.WorkspaceFlowResolveParams] {
 		return &task.Task[broker.WorkspaceFlowResolveParams]{
 			OnPrepare: func(params *broker.WorkspaceFlowResolveParams, state *task.State) error {

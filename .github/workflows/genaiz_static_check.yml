@@ -27,3 +27,4 @@ jobs:
           install-go: 'false'
           build-tags: 'prod'
           working-directory: 'genaiz'
+          checks: 'inherit,-S1021'

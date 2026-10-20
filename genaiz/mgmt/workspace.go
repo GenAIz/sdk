@@ -17,11 +17,6 @@ import (
 
 type UserWorkspacesFacade Facade[[]UserWorkspace, broker.WorkspaceListParams]
 type UserWorkspaceFlowsFacade Facade[[]UserWorkspaceFlow, broker.WorkspaceFlowListParams]
-type UserWorkspaceNodesFacade Facade[[]UserWorkspaceNode, broker.WorkspaceNodeListParams]
-type WorkspaceListTaskFactory func() *task.Task[broker.WorkspaceListParams]
-type WorkspaceFlowListTaskFactory func() *task.Task[broker.WorkspaceFlowListParams]
-type WorkspaceFlowResolveTaskFactory func() *task.Task[broker.WorkspaceFlowResolveParams]
-type WorkspaceNodeListTaskFactory func() *task.Task[broker.WorkspaceNodeListParams]
 
 type UserWorkspace struct {
 	Id          int64  `cli:"Id"`
@@ -147,7 +142,7 @@ func (uwf *userWorkspacesFacade) Filtering(filter string) Provider[[]UserWorkspa
 		},
 		filter:                   filter,
 		params:                   uwf.params,
-		workspaceListTaskFactory: broker.NewWorkspaceListTask,
+		workspaceListTaskFactory: broker.WorkspaceTasks.ListTaskFactory,
 	}
 }
 
@@ -169,21 +164,21 @@ type userWorkspacesProvider struct {
 	task.Plan
 	filter                   string
 	params                   *broker.WorkspaceListParams
-	workspaceListTaskFactory WorkspaceListTaskFactory
+	workspaceListTaskFactory broker.WorkspaceListTaskFactory
 }
 
 func (uwp userWorkspacesProvider) Get() ([]UserWorkspace, task.Error) {
-	var workspaces []broker.Workspace
+	var spaces []broker.Workspace
 	var failure interface{}
 
-	uwp.OnReturn = func(i interface{}) { workspaces = i.([]broker.Workspace) }
+	uwp.OnReturn = func(i interface{}) { spaces = i.([]broker.Workspace) }
 	uwp.OnFailure = func(i interface{}) { failure = i }
 	uwp.Sequence(task.NewWorker(uwp.params, uwp.workspaceListTaskFactory()))
 
 	if failure == nil {
 		var result = make([]UserWorkspace, 0)
 
-		for _, ws := range workspaces {
+		for _, ws := range spaces {
 			var userWorkspace = &UserWorkspace{
 				Id:          ws.Id,
 				Name:        ws.Name,
@@ -343,8 +338,8 @@ func (uwf userWorkspaceFlowsFacade) Filtering(filter string) Provider[[]UserWork
 		filter: filter,
 		params: uwf.params,
 
-		workspaceFlowResolveTaskFactory: broker.NewWorkspaceFlowResolveTask,
-		workspaceFlowListTaskFactory:    broker.NewWorkspaceFlowListTask,
+		workspaceFlowResolveTaskFactory: broker.WorkspaceTasks.ResolveTaskFactory,
+		workspaceFlowListTaskFactory:    broker.WorkspaceTasks.ListFlowTaskFactory,
 	}
 }
 
@@ -367,8 +362,8 @@ type userWorkspaceFlowsProvider struct {
 	filter string
 	params *broker.WorkspaceFlowListParams
 
-	workspaceFlowResolveTaskFactory WorkspaceFlowResolveTaskFactory
-	workspaceFlowListTaskFactory    WorkspaceFlowListTaskFactory
+	workspaceFlowResolveTaskFactory broker.WorkspaceResolveTaskFactory
+	workspaceFlowListTaskFactory    broker.WorkspaceFlowListTaskFactory
 }
 
 func (uwp userWorkspaceFlowsProvider) Get() ([]UserWorkspaceFlow, task.Error) {
@@ -427,171 +422,6 @@ func (uwp userWorkspaceFlowsProvider) Get() ([]UserWorkspaceFlow, task.Error) {
 	return nil, task.NewFailure(failure)
 }
 
-type UserWorkspaceNode struct {
-	Id                   int64 `cli:"Id"`
-	WorkspaceId          int64
-	WorkspaceFlowId      int64
-	SmartFunctionId      int64
-	SmartFunctionOem     string `cli:"OEM"`
-	SmartFunctionHandle  string `cli:"Smart Function"`
-	SmartFunctionVersion string `cli:"Version"`
-	WorkflowNodeId       int64
-	WorkflowNodeHandle   string `cli:"Workflow Node"`
-
-	matched string
-}
-
-func (un UserWorkspaceNode) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		Id              int64 `json:"id"`
-		WorkspaceId     int64 `json:"workspaceId"`
-		WorkspaceFlowId int64 `json:"workspaceFlowId"`
-		WorkflowNodeId  int64 `json:"workflowNodeId"`
-		SmartFunctionId int64 `json:"smartFunctionId"`
-	}{
-		Id:              un.Id,
-		WorkspaceId:     un.WorkspaceId,
-		WorkspaceFlowId: un.WorkspaceFlowId,
-		WorkflowNodeId:  un.WorkflowNodeId,
-		SmartFunctionId: un.SmartFunctionId,
-	})
-}
-
-func (un UserWorkspaceNode) MarshalSlice() ([]string, error) {
-	var nodeHandle = stringz.FirstNonEmpty(un.WorkflowNodeHandle, cast.ToString(un.WorkflowNodeId))
-	var sfOem = stringz.FirstNonEmpty(un.SmartFunctionOem, "???")
-	var sfHandle = stringz.FirstNonEmpty(un.SmartFunctionHandle, "???")
-	var sfVersion = stringz.FirstNonEmpty(un.SmartFunctionVersion, "???")
-
-	return []string{
-		cast.ToString(un.Id),
-		sfOem,
-		sfHandle,
-		sfVersion,
-		nodeHandle,
-	}, nil
-}
-
-func (un UserWorkspaceNode) Match(filter string) *UserWorkspaceNode {
-	var idString = cast.ToString(un.Id)
-	var matched string
-
-	if strings.EqualFold(idString, filter) ||
-		strings.HasPrefix(idString, filter) {
-		matched = idString
-	} else if strings.EqualFold(un.SmartFunctionHandle, filter) ||
-		strings.HasPrefix(un.SmartFunctionHandle, filter) {
-		matched = un.SmartFunctionHandle
-	}
-
-	if matched == "" {
-		return nil
-	}
-
-	return &UserWorkspaceNode{
-		Id:                   un.Id,
-		WorkspaceId:          un.WorkspaceId,
-		WorkspaceFlowId:      un.WorkspaceFlowId,
-		SmartFunctionId:      un.SmartFunctionId,
-		SmartFunctionOem:     un.SmartFunctionOem,
-		SmartFunctionHandle:  un.SmartFunctionHandle,
-		SmartFunctionVersion: un.SmartFunctionVersion,
-		WorkflowNodeId:       un.WorkflowNodeId,
-		WorkflowNodeHandle:   un.WorkflowNodeHandle,
-
-		matched: matched,
-	}
-}
-
-func (un UserWorkspaceNode) Matched() cobra.Completion {
-	if un.matched == "" {
-		return cobra.CompletionWithDesc(cast.ToString(un.Id), un.SmartFunctionHandle)
-	}
-
-	if _, err := strconv.Atoi(un.matched); err == nil {
-		return cobra.CompletionWithDesc(un.matched, un.SmartFunctionHandle)
-	}
-
-	return cobra.CompletionWithDesc(un.matched, cast.ToString(un.Id))
-}
-
-type userWorkspaceNodesFacade struct {
-	baseLoggingFacade
-	params *broker.WorkspaceNodeListParams
-}
-
-func (uwn userWorkspaceNodesFacade) Filtering(filter string) Provider[[]UserWorkspaceNode] {
-	return &userWorkspaceNodesProvider{
-		Plan: task.Plan{
-			Logger: uwn.logger,
-		},
-		filter:                       filter,
-		params:                       uwn.params,
-		workspaceNodeListTaskFactory: broker.NewWorkspaceNodeListTask,
-	}
-}
-
-func (uwn userWorkspaceNodesFacade) Provider() Provider[[]UserWorkspaceNode] {
-	return uwn.Filtering("")
-}
-
-func (uwn userWorkspaceNodesFacade) WithLogger(logger *logrus.Logger) Facade[[]UserWorkspaceNode, broker.WorkspaceNodeListParams] {
-	uwn.logger = logger
-	return uwn
-}
-
-func (uwn userWorkspaceNodesFacade) WithParams(params *broker.WorkspaceNodeListParams) Facade[[]UserWorkspaceNode, broker.WorkspaceNodeListParams] {
-	uwn.params = params
-	return uwn
-}
-
-type userWorkspaceNodesProvider struct {
-	task.Plan
-	filter string
-	params *broker.WorkspaceNodeListParams
-
-	workspaceNodeListTaskFactory WorkspaceNodeListTaskFactory
-}
-
-func (uwn userWorkspaceNodesProvider) Get() ([]UserWorkspaceNode, task.Error) {
-	var nodes []broker.WorkspaceNode
-	var failure interface{}
-
-	uwn.OnReturn = func(i interface{}) { nodes = i.([]broker.WorkspaceNode) }
-	uwn.OnFailure = func(i interface{}) { failure = i }
-	uwn.Sequence(task.NewWorker(uwn.params, uwn.workspaceNodeListTaskFactory()))
-
-	if failure == nil {
-		var result = make([]UserWorkspaceNode, 0)
-
-		for _, nd := range nodes {
-			var userNode = &UserWorkspaceNode{
-				Id:              nd.Id,
-				WorkspaceId:     nd.WorkspaceId,
-				WorkspaceFlowId: nd.WorkspaceFlowId,
-				WorkflowNodeId:  nd.WorkflowNodeId,
-				SmartFunctionId: nd.SmartFunctionId,
-			}
-
-			if nd.SmartFunction != nil {
-				userNode.SmartFunctionOem = nd.SmartFunction.Oem
-				userNode.SmartFunctionHandle = nd.SmartFunction.Handle
-				userNode.SmartFunctionVersion = nd.SmartFunction.GetFullVersion()
-			}
-
-			if uwn.filter == "" {
-				result = append(result, *userNode)
-			} else if matched := userNode.Match(uwn.filter); matched != nil {
-				result = append(result, *matched)
-			}
-		}
-
-		return result, nil
-	}
-
-	return nil, task.NewFailure(failure)
-}
-
 func NewUserWorkspacesFacade() UserWorkspacesFacade {
 	return &userWorkspacesFacade{
 		baseLoggingFacade: baseLoggingFacade{},
@@ -600,12 +430,6 @@ func NewUserWorkspacesFacade() UserWorkspacesFacade {
 
 func NewUserWorkspaceFlowsFacade() UserWorkspaceFlowsFacade {
 	return &userWorkspaceFlowsFacade{
-		baseLoggingFacade: baseLoggingFacade{},
-	}
-}
-
-func NewUserWorkspaceNodesFacade() UserWorkspaceNodesFacade {
-	return &userWorkspaceNodesFacade{
 		baseLoggingFacade: baseLoggingFacade{},
 	}
 }

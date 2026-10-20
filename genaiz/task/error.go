@@ -1,6 +1,21 @@
 package task
 
-import "genaiz.com/genaiz/lang"
+// EagerErrors eagerly builds "final" error references which can be used, although not encouraged, in runtime flow control.
+// The primary use of this pattern is running unit tests which will check the error types propagated out of specific units.
+type EagerErrors struct {
+}
+
+func (se EagerErrors) SetOrReturn(err *Error, provider ErrorProvider) Error {
+	if err != nil {
+		if *err == nil {
+			*err = provider()
+		}
+
+		return *err
+	}
+
+	return nil
+}
 
 // Error is a custom error interface used to frame the printing of hierarchical error information in various formats. To note: JSON
 type Error interface {
@@ -80,6 +95,14 @@ func (be *buildError) Build(message string) Error {
 	}
 }
 
+type ErrorProvider func() Error
+
+func MakeErrorProvider(msg string) ErrorProvider {
+	return func() Error {
+		return NewError(msg)
+	}
+}
+
 func NewErrorBuilder() ErrorBuilder {
 	return &buildError{}
 }
@@ -99,6 +122,6 @@ func NewFailure(i interface{}) Error {
 func NewRequestError(msg string, status int) Error {
 	return &baseError{
 		Message: msg,
-		Status:  lang.Ref(status),
+		Status:  new(status),
 	}
 }

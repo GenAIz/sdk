@@ -185,6 +185,67 @@ func Test_OptionsDataLinksVersion(t *testing.T) {
 	assert.False(t, testOption.Validator("1"))
 }
 
+func Test_OptionsDataSetsDescription(t *testing.T) {
+	var testOption = Options.DataSets.Description().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.NotNil(t, testOption.Validator)
+}
+
+func Test_OptionsDataSetsDestination(t *testing.T) {
+	var testOption = Options.DataSets.Destination().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, testOption.Validator("$%Wut"))
+}
+
+func Test_OptionsDataSetsFilename(t *testing.T) {
+	var testOption = Options.DataSets.Filename().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
+func Test_OptionsDataSetsHandle(t *testing.T) {
+	var testOption = Options.DataSets.Handle().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("test-handle_test.2"))
+	assert.False(t, testOption.Validator("-test-handle"))
+	assert.False(t, testOption.Validator("test-handle-"))
+	assert.False(t, testOption.Validator("test-handle."))
+	assert.False(t, testOption.Validator(".test-handle"))
+	assert.False(t, testOption.Validator("_test-handle"))
+	assert.False(t, testOption.Validator("test-handle_"))
+	assert.False(t, testOption.Validator(""))
+}
+
+func Test_OptionsDataSetsName(t *testing.T) {
+	var testOption = Options.DataSets.Name().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("a name"))
+	assert.False(t, testOption.Validator("a name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too longa name too long"))
+}
+
+func Test_OptionsDataSetsOverwrite(t *testing.T) {
+	var testOption = Options.DataSets.Overwrite().BuildStringOption()
+
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Short)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsDataPortsDesc(t *testing.T) {
 	var testOption = Options.DataPorts.Desc().BuildStringOption()
 

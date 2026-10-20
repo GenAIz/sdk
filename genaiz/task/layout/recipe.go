@@ -13,7 +13,7 @@ type RecipeParams struct {
 	Name         string            // Name of the recipe or a string contained in its name, the recipe.Book will try its best to find a match
 	InstanceName string            // InstanceName refers to the name of the entity created with the recipe
 	Type         recipe.Type       // Type dictates in which recipe.Book paths and variations the layout creator will look for the Name
-	Destination  string            // Destination is where the recipe is created, usually matching CreateParams.FolderPath
+	Destination  string            // Destination is where the recipe is created, usually matching CreateFields.FolderPath
 	Options      map[string]string // Options is a map of the keys used in configuration files, the keys may be used in templates
 	Parameters   map[string]string // Parameters is a map of the parameters used on the command line, the keys may be used in templates
 }

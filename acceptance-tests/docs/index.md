@@ -69,10 +69,10 @@ are described plainly in [Gherkin](https://cucumber.io/docs/gherkin/) format.
 
 ## [Workspaces](workspace/index.md)
 
-* [genaiz workspace create](workspace/create.md)
-* [genaiz workspace flow](workspace/flow.md)
-* [genaiz workspace list](workspace/list.md)
-* [genaiz workspace node](workspace/node.md)
+* [genaiz workspace create](workspace/create.md#workspace-create)
+* [genaiz workspace flow](workspace/flow.md#workspace-flow)
+* [genaiz workspace list](workspace/list.md#workspace-listing)
+* [genaiz workspace node](workspace/node.md#workspace-node)
 
 ## Model Validation
 

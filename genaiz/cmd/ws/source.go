@@ -4,10 +4,10 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/ws/args"
 	"genaiz.com/genaiz/cmd/ws/auto"
 	"genaiz.com/genaiz/cmd/ws/source"
 	"genaiz.com/genaiz/config"
@@ -17,8 +17,6 @@ import (
 )
 
 type DataSourceResolveTaskFactory func() *task.Task[broker.DataSourceResolveParams]
-type WorkspaceNodeSourceAddTaskFactory func() *task.Task[broker.WorkspaceNodeSourceParams]
-type WorkspaceNodeSourceRemoveTaskFactory func() *task.Task[broker.WorkspaceNodeSourceParams]
 
 type DataSourceAutoBridge struct {
 	workspaces     auto.Bridge
@@ -54,51 +52,26 @@ type DataSourceExecutor struct {
 
 	addDataSource string
 	rmDataSource  string
-	flow          string
-	node          string
-	workspace     string
 
 	dataSourceResolveTaskFactory DataSourceResolveTaskFactory
-	nodeSourceAddTaskFactory     WorkspaceNodeSourceAddTaskFactory
-	nodeSourceRemoveTaskFactory  WorkspaceNodeSourceRemoveTaskFactory
+	nodeSourceAddTaskFactory     broker.WorkspaceNodeSourceAddTaskFactory
+	nodeSourceRemoveTaskFactory  broker.WorkspaceNodeSourceRemoveTaskFactory
 }
 
-func (dse *DataSourceExecutor) Add(workspaceArg, flowArg, nodeArg, dsArg string) error {
-	dse.addDataSource = dsArg
-	dse.flow = flowArg
-	dse.node = nodeArg
-	dse.workspace = workspaceArg
+func (dse *DataSourceExecutor) Add(ws, fl, nd, ds string) error {
+	dse.nodeArguments = args.NewNodeResolution(ws, fl, nd)
+	dse.addDataSource = ds
 	dse.Cli.Exec(dse.Ledger, dse)
 	return nil
 }
 
 func (dse *DataSourceExecutor) Display() {
-	var optionMap = make(map[string]string)
-	var brokerParams = dse.accountParams.BrokerParams()
-	var resolveParams = dse.newNodeResolveParams(brokerParams)
+	var optionMap = dse.nodeArguments.MakeOptionMap()
 
 	if dse.addDataSource != "" {
 		optionMap["add data source"] = dse.addDataSource
 	} else if dse.rmDataSource != "" {
 		optionMap["rm data source"] = dse.rmDataSource
-	}
-
-	if resolveParams.WorkspaceId == nil {
-		optionMap["workspace name"] = cast.ToString(resolveParams.WorkspaceName)
-	} else {
-		optionMap["workspace id"] = cast.ToString(resolveParams.WorkspaceId)
-	}
-
-	if resolveParams.FlowId == nil {
-		optionMap["workflow handle"] = resolveParams.WorkflowHandle
-	} else {
-		optionMap["workspace flow id"] = cast.ToString(resolveParams.FlowId)
-	}
-
-	if resolveParams.NodeId == nil {
-		optionMap["smart function handle"] = resolveParams.FnHandle
-	} else {
-		optionMap["node id"] = cast.ToString(resolveParams.NodeId)
 	}
 
 	dse.Ledger.DisplayOptionsWithMap(
@@ -109,7 +82,7 @@ func (dse *DataSourceExecutor) Display() {
 
 func (dse *DataSourceExecutor) Pretend() {
 	var brokerParams = dse.accountParams.BrokerParams()
-	var resolveParams = dse.newNodeResolveParams(brokerParams)
+	var resolveParams = dse.nodeArguments.ResolveNodeParams(brokerParams)
 	var workers []task.Worker
 	var plan *task.Plan
 
@@ -140,7 +113,7 @@ func (dse *DataSourceExecutor) Pretend() {
 
 func (dse *DataSourceExecutor) Proceed() {
 	var brokerParams = dse.accountParams.BrokerParams()
-	var resolveParams = dse.newNodeResolveParams(brokerParams)
+	var resolveParams = dse.nodeArguments.ResolveNodeParams(brokerParams)
 	var workers []task.Worker
 	var plan *task.Plan
 
@@ -181,11 +154,9 @@ func (dse *DataSourceExecutor) Proceed() {
 	plan.Sequence(workers...)
 }
 
-func (dse *DataSourceExecutor) Remove(workspaceArg, flowArg, nodeArg, dsArg string) error {
-	dse.rmDataSource = dsArg
-	dse.flow = flowArg
-	dse.node = nodeArg
-	dse.workspace = workspaceArg
+func (dse *DataSourceExecutor) Remove(ws, fl, nd, ds string) error {
+	dse.nodeArguments = args.NewNodeResolution(ws, fl, nd)
+	dse.rmDataSource = ds
 	dse.Cli.Exec(dse.Ledger, dse)
 	return nil
 }
@@ -199,32 +170,6 @@ func (dse *DataSourceExecutor) newDataSourceResolveParams(brokerParams *broker.B
 		result.DataSourceId = new(dsId)
 	} else {
 		result.DataSourceName = dataSource
-	}
-
-	return result
-}
-
-func (dse *DataSourceExecutor) newNodeResolveParams(brokerParams *broker.Broker) *broker.WorkspaceNodeResolveParams {
-	var result = &broker.WorkspaceNodeResolveParams{
-		Broker: *brokerParams,
-	}
-
-	if wsId, err := strconv.ParseInt(dse.workspace, 10, 64); err == nil {
-		result.WorkspaceId = new(wsId)
-	} else {
-		result.WorkspaceName = dse.workspace
-	}
-
-	if flId, err := strconv.ParseInt(dse.flow, 10, 64); err == nil {
-		result.FlowId = new(flId)
-	} else {
-		result.WorkflowHandle = dse.flow
-	}
-
-	if ndId, err := strconv.ParseInt(dse.node, 10, 64); err == nil {
-		result.NodeId = new(ndId)
-	} else {
-		result.FnHandle = dse.node
 	}
 
 	return result
@@ -255,6 +200,8 @@ func NewDataSource(ledger *config.Ledger, wsCli *Cli) *cobra.Command {
 	ledger.Register(rmCommand, rmOptions.allDefiners()...)
 	addCommand.ValidArgsFunction = sourceAuto.bridgeArguments
 	rmCommand.ValidArgsFunction = sourceAuto.bridgeArguments
+	cli.AutoBridge.Accounts().Option(addCommand, ledger, addOptions.optionAccount)
+	cli.AutoBridge.Accounts().Option(rmCommand, ledger, rmOptions.optionAccount)
 	return srcCmd
 }
 
@@ -270,12 +217,12 @@ func NewDataSourceExecutor(ctx context.Context, ledger *config.Ledger, wsCli *Cl
 
 			accountParams:          config.NewAccountParams(ledger, options.optionAccount),
 			printerParams:          cli.NewPrinterParam(ledger, options.optionJsonPrinter),
-			nodeResolveTaskFactory: broker.NewWorkspaceNodeResolveTask,
+			nodeResolveTaskFactory: broker.WorkspaceTasks.ResolveNodeTaskFactory,
 		},
 
 		dataSourceResolveTaskFactory: broker.NewDataSourceResolveTask,
-		nodeSourceAddTaskFactory:     broker.NewWorkspaceNodeSourceAddTask,
-		nodeSourceRemoveTaskFactory:  broker.NewWorkspaceNodeSourceRemoveTask,
+		nodeSourceAddTaskFactory:     broker.WorkspaceTasks.AddSourceNodeTaskFactory,
+		nodeSourceRemoveTaskFactory:  broker.WorkspaceTasks.RemoveSourceNodeTaskFactory,
 	}
 }
 

@@ -41,6 +41,14 @@ func (s stubClient) CreateDataStoreUrl() string {
 	return s.decoratedClient.CreateDataStoreUrl()
 }
 
+func (s stubClient) CreateDataSet(*broker.DataSet) (*broker.DataSet, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) CreateDataSetUrl() string {
+	panic("unimplemented")
+}
+
 func (s stubClient) CreateWorkspace(*broker.Workspace) (*broker.Workspace, error) {
 	panic("unimplemented")
 }
@@ -117,11 +125,27 @@ func (s stubClient) GetUserId() int {
 	panic("unimplemented")
 }
 
+func (s stubClient) InspectNode(int64) (*broker.WorkspaceNode, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) InspectNodeUrl() string {
+	panic("unimplemented")
+}
+
 func (s stubClient) ListDataLinks(string, string, int) ([]broker.DataLink, error) {
 	panic("unimplemented")
 }
 
 func (s stubClient) ListDataLinksUrl() string {
+	panic("unimplemented")
+}
+
+func (s stubClient) ListDataSetFiles(int64, string) ([]broker.DataSetFile, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) ListDataSetFilesUrl() string {
 	panic("unimplemented")
 }
 
@@ -270,6 +294,22 @@ func (s stubClient) UpdateNode(*broker.WorkspaceNode) (*broker.WorkspaceNode, er
 }
 
 func (s stubClient) UpdateNodeUrl() string {
+	panic("unimplemented")
+}
+
+func (s stubClient) UpdateNodeInput(int64, int64, string) (*broker.WorkspaceNode, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) UpdateNodeInputUrl() string {
+	panic("unimplemented")
+}
+
+func (s stubClient) UploadDataSetFile(int64, string, string, string) (*broker.DataSet, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) UploadDataSetFileUrl() string {
 	panic("unimplemented")
 }
 

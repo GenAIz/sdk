@@ -7,6 +7,7 @@ import (
 
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/mgmt"
+	"genaiz.com/genaiz/mgmt/workspaces"
 	"genaiz.com/genaiz/task/broker"
 )
 
@@ -42,11 +43,11 @@ func (wab WorkspaceAutoBridge) Bridge(toComplete string) ([]cobra.Completion, co
 		WithLogger(wab.ledger.Logger).
 		Filtering(toComplete)
 
-	if workspaces, err := facade.Get(); err == nil {
-		if len(workspaces) > 0 {
+	if spaces, err := facade.Get(); err == nil {
+		if len(spaces) > 0 {
 			var results []cobra.Completion
 
-			for _, w := range workspaces {
+			for _, w := range spaces {
 				results = append(results, w.Matched())
 			}
 
@@ -150,7 +151,7 @@ type WorkspaceNodeAutoBridge struct {
 	flow      string
 	workspace string
 
-	workspaceNodeFacadeProvider func() mgmt.UserWorkspaceNodesFacade
+	workspaceNodesFactory workspaces.UserWorkspaceNodesFactory
 }
 
 func (nab WorkspaceNodeAutoBridge) Bridge(toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
@@ -159,10 +160,11 @@ func (nab WorkspaceNodeAutoBridge) Bridge(toComplete string) ([]cobra.Completion
 			AuthFile: nab.ledger.AuthFile,
 		},
 	}
-	var facade = nab.workspaceNodeFacadeProvider().
+	var workspaceNodes = nab.workspaceNodesFactory.
 		WithParams(nodeParams).
 		WithLogger(nab.ledger.Logger).
-		Filtering(toComplete)
+		WithFilter(toComplete).
+		Provider()
 
 	if id, err := strconv.ParseInt(nab.workspace, 10, 64); err == nil {
 		nodeParams.WorkspaceId = new(id)
@@ -176,7 +178,7 @@ func (nab WorkspaceNodeAutoBridge) Bridge(toComplete string) ([]cobra.Completion
 		nodeParams.WorkflowHandle = nab.flow
 	}
 
-	if nodes, err := facade.Get(); err == nil {
+	if nodes, err := workspaceNodes.Get(); err == nil {
 		if len(nodes) > 0 {
 			var results []cobra.Completion
 
@@ -199,7 +201,7 @@ func (nab WorkspaceNodeAutoBridge) WithWorkspaceFlow(workspace, flow string) Wor
 		flow:      flow,
 		workspace: workspace,
 
-		workspaceNodeFacadeProvider: nab.workspaceNodeFacadeProvider,
+		workspaceNodesFactory: nab.workspaceNodesFactory,
 	}
 }
 
@@ -207,6 +209,6 @@ func NewWorkspaceNodeAutoBridge(ledger *config.Ledger) *WorkspaceNodeAutoBridge 
 	return &WorkspaceNodeAutoBridge{
 		ledger: ledger,
 
-		workspaceNodeFacadeProvider: mgmt.NewUserWorkspaceNodesFacade,
+		workspaceNodesFactory: workspaces.NewUserWorkspaceNodesFactory(),
 	}
 }

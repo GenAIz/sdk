@@ -17,55 +17,59 @@ import (
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/broker/workspace"
 )
 
 type stubWorkspaceClient struct {
 	client
-	createFlowError       error
-	createFlowExpected    *WorkspaceFlow
-	createFlowWorkspaceId int64
-	createFlowName        string
-	createFlowDescription string
-	createWorkspaceError  error
-	createWorkspaceParam  *Workspace
-	createWorkspace       *Workspace
-	findSolutionError     error
-	findSolutionExpected  *Solution
-	findSolutionOem       string
-	findSolutionHandle    string
-	findSolutionVersion   string
-	getFunction           *Function
-	getFunctionError      error
-	getFunctionId         int64
-	getNode               *WorkspaceNode
-	getNodeError          error
-	getNodeId             int64
-	listFlows             []WorkspaceFlow
-	listFlowsError        error
-	listFlowsFlags        int
-	listFlowsMask         int
-	listFlowsWsId         int64
-	listNodes             []WorkspaceNode
-	listNodesError        error
-	listNodesFlowId       int64
-	listWorkspaceError    error
-	listWorkspaceMask     int
-	listWorkspaceFlags    int
-	listWorkspaces        []Workspace
-	liseWorkspacesUserId  int
-	updateNode            *WorkspaceNode
-	updateNodeError       error
-	updateNodeNode        *WorkspaceNode
+	createFlowError           error
+	createFlowExpected        *WorkspaceFlow
+	createFlowWorkspaceId     int64
+	createFlowName            string
+	createFlowDescription     string
+	createWorkspaceError      error
+	createWorkspaceParam      *Workspace
+	createWorkspace           *Workspace
+	findSolutionError         error
+	findSolutionExpected      *Solution
+	findSolutionOem           string
+	findSolutionHandle        string
+	findSolutionVersion       string
+	getFunction               *Function
+	getFunctionError          error
+	getFunctionId             int64
+	getNode                   *WorkspaceNode
+	getNodeError              error
+	getNodeId                 int64
+	inspectNode               *WorkspaceNode
+	inspectNodeError          error
+	inspectNodeId             int64
+	listFlows                 []WorkspaceFlow
+	listFlowsError            error
+	listFlowsFlags            int
+	listFlowsMask             int
+	listFlowsWsId             int64
+	listNodes                 []WorkspaceNode
+	listNodesError            error
+	listNodesFlowId           int64
+	listWorkspaceError        error
+	listWorkspaceMask         int
+	listWorkspaceFlags        int
+	listWorkspaces            []Workspace
+	liseWorkspacesUserId      int
+	updateNode                *WorkspaceNode
+	updateNodeError           error
+	updateNodeNode            *WorkspaceNode
+	updateNodeInput           *WorkspaceNode
+	updateNodeInputError      error
+	updateNodeInputNodeId     int64
+	updateNodeInputDataSetId  int64
+	updateNodeInputPortHandle string
 }
 
 func (swc *stubWorkspaceClient) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
 	swc.createWorkspaceParam = workspace
-
-	if swc.createWorkspace != nil {
-		return swc.createWorkspace, nil
-	}
-
-	return nil, swc.createWorkspaceError
+	return swc.createWorkspace, swc.createWorkspaceError
 }
 
 func (swc *stubWorkspaceClient) CreateWorkspaceFlow(wsId, wfId int64, name, description string) (*WorkspaceFlow, error) {
@@ -97,6 +101,11 @@ func (swc *stubWorkspaceClient) GetUserId() int {
 	return swc.liseWorkspacesUserId
 }
 
+func (swc *stubWorkspaceClient) InspectNode(id int64) (*WorkspaceNode, error) {
+	swc.inspectNodeId = id
+	return swc.inspectNode, swc.inspectNodeError
+}
+
 func (swc *stubWorkspaceClient) ListWorkspaces(mask, flags int) ([]Workspace, error) {
 	swc.listWorkspaceMask = mask
 	swc.listWorkspaceFlags = flags
@@ -120,27 +129,15 @@ func (swc *stubWorkspaceClient) UpdateNode(node *WorkspaceNode) (*WorkspaceNode,
 	return swc.updateNode, swc.updateNodeError
 }
 
-func TestNewWorkspaceCreateTask(t *testing.T) {
-	var testTask = NewWorkspaceCreateTask()
-
-	assert.NotEmpty(t, testTask.Name)
-	assert.NotNil(t, testTask.OnPrepare)
-	assert.NotNil(t, testTask.OnComplete)
-	assert.NotNil(t, testTask.OnPretend)
-	assert.Nil(t, testTask.OnIncomplete)
+func (swc *stubWorkspaceClient) UpdateNodeInput(nodeId, dataSetId int64, portHandle string) (*WorkspaceNode, error) {
+	swc.updateNodeInputNodeId = nodeId
+	swc.updateNodeInputDataSetId = dataSetId
+	swc.updateNodeInputPortHandle = portHandle
+	return swc.updateNodeInput, swc.updateNodeInputError
 }
 
-func TestNewWorkspaceFlowCreateTask(t *testing.T) {
-	var testTask = NewWorkspaceFlowCreateTask()
-
-	assert.NotEmpty(t, testTask.Name)
-	assert.NotNil(t, testTask.OnPrepare)
-	assert.NotNil(t, testTask.OnComplete)
-	assert.NotNil(t, testTask.OnPretend)
-}
-
-func TestNewWorkspaceFlowListTask(t *testing.T) {
-	var testTask = NewWorkspaceFlowListTask()
+func TestWorkspaceTasks_AddSourceNodeTask(t *testing.T) {
+	var testTask = WorkspaceTasks.AddSourceNodeTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotNil(t, testTask.OnPrepare)
@@ -149,8 +146,47 @@ func TestNewWorkspaceFlowListTask(t *testing.T) {
 	assert.NotNil(t, testTask.OnPretend)
 }
 
-func TestNewWorkspaceFlowResolveTask(t *testing.T) {
-	var testTask = NewWorkspaceFlowResolveTask()
+func TestWorkspaceTasks_AddStoreNodeTask(t *testing.T) {
+	var testTask = WorkspaceTasks.AddStoreNodeTaskFactory()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.Nil(t, testTask.OnIncomplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestWorkspaceTasks_CreateFlowTask(t *testing.T) {
+	var testTask = WorkspaceTasks.CreateFlowTaskFactory()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestWorkspaceTasks_CreateTask(t *testing.T) {
+	var testTask = WorkspaceTasks.CreateTaskFactory()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnPretend)
+	assert.Nil(t, testTask.OnIncomplete)
+}
+
+func TestWorkspaceTasks_ListFLowTask(t *testing.T) {
+	var testTask = WorkspaceTasks.ListFlowTaskFactory()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.Nil(t, testTask.OnIncomplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestWorkspaceTasks_ListNodeTask(t *testing.T) {
+	var testTask = WorkspaceTasks.ListNodeTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotNil(t, testTask.OnPrepare)
@@ -159,8 +195,27 @@ func TestNewWorkspaceFlowResolveTask(t *testing.T) {
 	assert.NotNil(t, testTask.OnPretend)
 }
 
-func TestNewWorkspaceFlowSolutionTask(t *testing.T) {
-	var testTask = NewWorkspaceFlowSolutionTask()
+func TestWorkspaceTasks_ListSetNodeTask(t *testing.T) {
+	var testTask = WorkspaceTasks.ListSetNodeTaskFactory()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestWorkspaceTasks_ListTask(t *testing.T) {
+	var testTask = WorkspaceTasks.ListTaskFactory()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnPretend)
+	assert.Nil(t, testTask.OnIncomplete)
+}
+
+func TestWorkspaceTasks_ResolveSetNodeTask(t *testing.T) {
+	var testTask = WorkspaceTasks.ResolveSetNodeTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotNil(t, testTask.OnPrepare)
@@ -169,8 +224,28 @@ func TestNewWorkspaceFlowSolutionTask(t *testing.T) {
 	assert.NotNil(t, testTask.OnPretend)
 }
 
-func TestNewWorkspaceNodeListTask(t *testing.T) {
-	var testTask = NewWorkspaceNodeListTask()
+func TestWorkspaceTasks_RemoveSourceNodeTask(t *testing.T) {
+	var testTask = WorkspaceTasks.RemoveSourceNodeTaskFactory()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.Nil(t, testTask.OnIncomplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestWorkspaceTasks_RemoveStoreNodeTask(t *testing.T) {
+	var testTask = WorkspaceTasks.RemoveStoreNodeTaskFactory()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.Nil(t, testTask.OnIncomplete)
+	assert.NotNil(t, testTask.OnPretend)
+}
+
+func TestWorkspaceTasks_ResolveFlowTask(t *testing.T) {
+	var testTask = WorkspaceTasks.ResolveFlowTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotNil(t, testTask.OnPrepare)
@@ -179,8 +254,8 @@ func TestNewWorkspaceNodeListTask(t *testing.T) {
 	assert.NotNil(t, testTask.OnPretend)
 }
 
-func TestNewWorkspaceNodeResolveTask(t *testing.T) {
-	var testTask = NewWorkspaceNodeResolveTask()
+func TestWorkspaceTasks_ResolveNodeTask(t *testing.T) {
+	var testTask = WorkspaceTasks.ResolveNodeTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotNil(t, testTask.OnPrepare)
@@ -189,34 +264,23 @@ func TestNewWorkspaceNodeResolveTask(t *testing.T) {
 	assert.NotNil(t, testTask.OnPretend)
 }
 
-func TestNewWorkspaceNodeSourceAddTask(t *testing.T) {
-	var testTask = NewWorkspaceNodeSourceAddTask()
+func TestWorkspaceTasks_ResolveTask(t *testing.T) {
+	var testTask = WorkspaceTasks.ResolveTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotNil(t, testTask.OnPrepare)
 	assert.NotNil(t, testTask.OnComplete)
-	assert.Nil(t, testTask.OnIncomplete)
+	assert.NotNil(t, testTask.OnIncomplete)
 	assert.NotNil(t, testTask.OnPretend)
 }
 
-func TestNewWorkspaceNodeSourceRemoveTask(t *testing.T) {
-	var testTask = NewWorkspaceNodeSourceRemoveTask()
-
-	assert.NotEmpty(t, testTask.Name)
-	assert.NotNil(t, testTask.OnPrepare)
-	assert.NotNil(t, testTask.OnComplete)
-	assert.Nil(t, testTask.OnIncomplete)
-	assert.NotNil(t, testTask.OnPretend)
-}
-
-func TestNewWorkspaceListTask(t *testing.T) {
-	var testTask = NewWorkspaceListTask()
+func TestWorkspaceTasks_UpdateSetNodeTask(t *testing.T) {
+	var testTask = WorkspaceTasks.UpdateSetNodeTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotNil(t, testTask.OnPrepare)
 	assert.NotNil(t, testTask.OnComplete)
 	assert.NotNil(t, testTask.OnPretend)
-	assert.Nil(t, testTask.OnIncomplete)
 }
 
 func Test_handleWorkspaceCreateContext(t *testing.T) {
@@ -263,14 +327,16 @@ func Test_handleWorkspaceCreateContext_EmptyVisibility(t *testing.T) {
 		Workspace: &Workspace{},
 	}
 
-	assert.ErrorIs(t, handleWorkspaceCreateContext(testParams, testState), errorWorkspaceVisibility)
+	assert.ErrorIs(t, handleWorkspaceCreateContext(testParams, testState),
+		workspace.Errors.WorkspaceVisibilityRequired())
 }
 
 func Test_handleWorkspaceCreateContext_EmptyWorkspace(t *testing.T) {
 	var testState = &task.State{Logger: logrus.New()}
 	var testParams = &WorkspaceCreateParams{}
 
-	assert.ErrorIs(t, handleWorkspaceCreateContext(testParams, testState), errorWorkspaceEmpty)
+	assert.ErrorIs(t, handleWorkspaceCreateContext(testParams, testState),
+		workspace.Errors.WorkspaceDefInvalid())
 }
 
 func Test_handleWorkspaceCreateContext_RcDisabled(t *testing.T) {
@@ -347,7 +413,8 @@ func Test_handleWorkspaceCreateComplete_EmptyWorkspace(t *testing.T) {
 	var testParams = &WorkspaceCreateParams{}
 	var testState = &task.State{}
 
-	assert.ErrorIs(t, handleWorkspaceCreateComplete(testParams, testState), errorWorkspaceEmpty)
+	assert.ErrorIs(t, handleWorkspaceCreateComplete(testParams, testState),
+		workspace.Errors.WorkspaceDefInvalid())
 }
 
 func Test_handleWorkspaceCreateComplete_NoSession(t *testing.T) {
@@ -417,7 +484,8 @@ func Test_handleWorkspaceCreatePretend_EmptyWorkspace(t *testing.T) {
 	var testParams = &WorkspaceCreateParams{}
 	var testState = &task.State{}
 
-	assert.ErrorIs(t, handleWorkspaceCreatePretend(testParams, testState), errorWorkspaceEmpty)
+	assert.ErrorIs(t, handleWorkspaceCreatePretend(testParams, testState),
+		workspace.Errors.WorkspaceDefInvalid())
 }
 
 func Test_handleWorkspaceCreatePretend_NoSession(t *testing.T) {
@@ -456,7 +524,8 @@ func Test_handleWorkspaceFlowCreateContext_NoWorkflowId(t *testing.T) {
 		WorkspaceId: new(int64(37)),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowCreateContext(testParams, &task.State{}), errorWorkflowIdRequired)
+	assert.ErrorIs(t, handleWorkspaceFlowCreateContext(testParams, &task.State{}),
+		workspace.Errors.WorkflowIdRequired())
 }
 
 func Test_handleWorkspaceFlowCreateContext_NoWorkspaceId(t *testing.T) {
@@ -464,7 +533,8 @@ func Test_handleWorkspaceFlowCreateContext_NoWorkspaceId(t *testing.T) {
 		WorkflowId: new(int64(43)),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowCreateContext(testParams, &task.State{}), errorWorkspaceIdRequired)
+	assert.ErrorIs(t, handleWorkspaceFlowCreateContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceIdRequired())
 }
 
 func Test_handleWorkspaceFlowCreateContext_OutputCheck(t *testing.T) {
@@ -543,7 +613,8 @@ func Test_handleWorkspaceFlowCreateComplete_InvalidParams(t *testing.T) {
 		WorkspaceId: new(int64(37)),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowCreateComplete(testParams, &task.State{}), errorWorkspaceFlowInvalid)
+	assert.ErrorIs(t, handleWorkspaceFlowCreateComplete(testParams, &task.State{}),
+		workspace.Errors.WorkspaceFlowDefInvalid())
 }
 
 func Test_handleWorkspaceFlowCreateComplete_NoSession(t *testing.T) {
@@ -614,7 +685,8 @@ func Test_handleWorkspaceFlowCreatePretend_InvalidParams(t *testing.T) {
 		WorkspaceId: new(int64(37)),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowCreatePretend(testParams, &task.State{}), errorWorkspaceFlowInvalid)
+	assert.ErrorIs(t, handleWorkspaceFlowCreatePretend(testParams, &task.State{}),
+		workspace.Errors.WorkspaceFlowDefInvalid())
 }
 
 func Test_handleWorkspaceFlowCreatePretend_NoSession(t *testing.T) {
@@ -693,7 +765,8 @@ func Test_handleWorkspaceFlowListComplete(t *testing.T) {
 func Test_handleWorkspaceFlowListComplete_InvalidParams(t *testing.T) {
 	var testParams = &WorkspaceFlowListParams{}
 
-	assert.ErrorIs(t, handleWorkspaceFlowListComplete(testParams, &task.State{}), errorWorkspaceIdRequired)
+	assert.ErrorIs(t, handleWorkspaceFlowListComplete(testParams, &task.State{}),
+		workspace.Errors.WorkspaceIdRequired())
 }
 
 func Test_handleWorkspaceFlowListComplete_ListError(t *testing.T) {
@@ -774,7 +847,8 @@ func Test_handleWorkspaceFlowListContext_InvalidWorkspace(t *testing.T) {
 		WorkspaceFlowResolveParams: &WorkspaceFlowResolveParams{},
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowListContext(testParams, &task.State{}), errorWorkspaceIdRequired)
+	assert.ErrorIs(t, handleWorkspaceFlowListContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceIdRequired())
 }
 
 func Test_handleWorkspaceFlowListPretend(t *testing.T) {
@@ -818,7 +892,8 @@ func Test_handleWorkspaceFlowListPretend(t *testing.T) {
 }
 
 func Test_handleWorkspaceFlowListPretend_InvalidParams(t *testing.T) {
-	assert.ErrorIs(t, handleWorkspaceFlowListPretend(&WorkspaceFlowListParams{}, &task.State{}), errorWorkspaceIdRequired)
+	assert.ErrorIs(t, handleWorkspaceFlowListPretend(&WorkspaceFlowListParams{}, &task.State{}),
+		workspace.Errors.WorkspaceIdRequired())
 }
 
 func Test_handleWorkspaceFlowListPretend_NoSession(t *testing.T) {
@@ -877,7 +952,7 @@ func Test_handleWorkspaceFlowResolveComplete(t *testing.T) {
 		return testClient, nil
 	}
 
-	assert.NoError(t, handleWorkspaceFlowResolveComplete(testParams, testState))
+	assert.NoError(t, handleWorkspaceResolveComplete(testParams, testState))
 	assert.Equal(t, expectedId, *testParams.WorkspaceId)
 }
 
@@ -903,7 +978,7 @@ func Test_handleWorkspaceFlowResolveComplete_ListError(t *testing.T) {
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowResolveComplete(testParams, testState), expectedError)
+	assert.ErrorIs(t, handleWorkspaceResolveComplete(testParams, testState), expectedError)
 }
 
 func Test_handleWorkspaceFlowResolveComplete_NoSession(t *testing.T) {
@@ -926,7 +1001,7 @@ func Test_handleWorkspaceFlowResolveComplete_NoSession(t *testing.T) {
 		return nil, expectedError
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowResolveComplete(testParams, testState), expectedError)
+	assert.ErrorIs(t, handleWorkspaceResolveComplete(testParams, testState), expectedError)
 }
 
 func Test_handleWorkspaceFlowResolveComplete_WorkspaceId(t *testing.T) {
@@ -936,7 +1011,7 @@ func Test_handleWorkspaceFlowResolveComplete_WorkspaceId(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, handleWorkspaceFlowResolveComplete(testParams, &task.State{}))
+	assert.NoError(t, handleWorkspaceResolveComplete(testParams, &task.State{}))
 }
 
 func Test_handleWorkspaceFlowResolveContext(t *testing.T) {
@@ -947,7 +1022,7 @@ func Test_handleWorkspaceFlowResolveContext(t *testing.T) {
 		Logger: logrus.New(),
 	}
 
-	assert.NoError(t, handleWorkspaceFlowResolveContext(testParams, testState))
+	assert.NoError(t, handleWorkspaceResolveContext(testParams, testState))
 }
 
 func Test_handleWorkspaceFlowResolveContext_NoName(t *testing.T) {
@@ -958,13 +1033,14 @@ func Test_handleWorkspaceFlowResolveContext_NoName(t *testing.T) {
 		Logger: logrus.New(),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowResolveContext(testParams, testState), errorWorkspaceNameRequired)
+	assert.ErrorIs(t, handleWorkspaceResolveContext(testParams, testState),
+		workspace.Errors.WorkspaceNameRequired())
 }
 
 func Test_handleWorkspaceFlowResolveContext_OutputCheck(t *testing.T) {
 	var testState = &task.State{Output: "check"}
 
-	assert.NoError(t, handleWorkspaceFlowResolveContext(&WorkspaceFlowResolveParams{}, testState))
+	assert.NoError(t, handleWorkspaceResolveContext(&WorkspaceFlowResolveParams{}, testState))
 }
 
 func Test_handleWorkspaceFlowResolveContext_WorkspaceId(t *testing.T) {
@@ -977,7 +1053,8 @@ func Test_handleWorkspaceFlowResolveContext_WorkspaceId(t *testing.T) {
 		Logger: logrus.New(),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowResolveContext(testParams, testState), errorWorkspaceIdKnown)
+	assert.ErrorIs(t, handleWorkspaceResolveContext(testParams, testState),
+		workspace.Errors.WorkspaceIdKnown())
 }
 
 func Test_handleWorkspaceFlowResolveIncomplete(t *testing.T) {
@@ -985,13 +1062,13 @@ func Test_handleWorkspaceFlowResolveIncomplete(t *testing.T) {
 		Error: errors.New("expected"),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowResolveIncomplete(&WorkspaceFlowResolveParams{}, testState), testState.Error)
+	assert.ErrorIs(t, handleWorkspaceResolveIncomplete(&WorkspaceFlowResolveParams{}, testState), testState.Error)
 	assert.False(t, testState.Completed)
 }
 
 func Test_handleWorkspaceFlowResolveIncomplete_KnownId(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkspaceIdKnown,
+		Error:  workspace.Errors.WorkspaceIdKnown(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceFlowResolveParams{
@@ -1000,7 +1077,7 @@ func Test_handleWorkspaceFlowResolveIncomplete_KnownId(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, handleWorkspaceFlowResolveIncomplete(testParams, testState))
+	assert.NoError(t, handleWorkspaceResolveIncomplete(testParams, testState))
 	assert.True(t, testState.Completed)
 }
 
@@ -1031,7 +1108,7 @@ func Test_handleWorkspaceFlowResolvePretend(t *testing.T) {
 		return &stubWorkspaceClient{}, nil
 	}
 
-	assert.NoError(t, handleWorkspaceFlowResolvePretend(testParams, testState))
+	assert.NoError(t, handleWorkspaceResolvePretend(testParams, testState))
 
 	_ = w.Close()
 	b, _ := io.ReadAll(r)
@@ -1061,7 +1138,7 @@ func Test_handleWorkspaceFlowResolvePretend_NoSession(t *testing.T) {
 		return nil, expectedError
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowResolvePretend(testParams, testState), expectedError)
+	assert.ErrorIs(t, handleWorkspaceResolvePretend(testParams, testState), expectedError)
 }
 
 func Test_handleWorkspaceFlowResolvePretend_WorkspaceId(t *testing.T) {
@@ -1071,7 +1148,7 @@ func Test_handleWorkspaceFlowResolvePretend_WorkspaceId(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, handleWorkspaceFlowResolvePretend(testParams, &task.State{}))
+	assert.NoError(t, handleWorkspaceResolvePretend(testParams, &task.State{}))
 }
 
 func Test_handleWorkspaceFlowSolutionComplete(t *testing.T) {
@@ -1259,7 +1336,8 @@ func Test_handleWorkspaceFlowSolutionContext_NoSolutionHandle(t *testing.T) {
 		SolutionVersion: "version",
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}), errorWorkflowHandleRequired)
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}),
+		workspace.Errors.WorkflowHandleRequired())
 }
 
 func Test_handleWorkspaceFlowSolutionContext_NoSolutionOem(t *testing.T) {
@@ -1268,7 +1346,7 @@ func Test_handleWorkspaceFlowSolutionContext_NoSolutionOem(t *testing.T) {
 		SolutionVersion: "version",
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}), errorWorkflowOemRequired)
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}), workspace.Errors.WorkflowOemRequired())
 }
 
 func Test_handleWorkspaceFlowSolutionContext_NoSolutionVersion(t *testing.T) {
@@ -1277,7 +1355,7 @@ func Test_handleWorkspaceFlowSolutionContext_NoSolutionVersion(t *testing.T) {
 		SolutionOem:    "oem",
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}), errorWorkflowVersionRequired)
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, &task.State{}), workspace.Errors.WorkflowVersionRequired())
 }
 
 func Test_handleWorkspaceFlowSolutionContext_WorkflowId(t *testing.T) {
@@ -1290,7 +1368,7 @@ func Test_handleWorkspaceFlowSolutionContext_WorkflowId(t *testing.T) {
 		Logger: logrus.New(),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, testState), errorWorkflowIdKnown)
+	assert.ErrorIs(t, handleWorkspaceFlowSolutionContext(testParams, testState), workspace.Errors.WorkflowIdKnown())
 }
 
 func Test_handleWorkspaceFlowSolutionIncomplete(t *testing.T) {
@@ -1304,7 +1382,7 @@ func Test_handleWorkspaceFlowSolutionIncomplete(t *testing.T) {
 
 func Test_handleWorkspaceFlowSolutionIncomplete_KnownId(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkflowIdKnown,
+		Error:  workspace.Errors.WorkflowIdKnown(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceFlowResolveParams{
@@ -1406,7 +1484,8 @@ func Test_handleWorkspaceListContext_InvalidNco(t *testing.T) {
 		FromDate: &invalidTime,
 	}
 
-	assert.ErrorIs(t, handleWorkspaceListContext(testParams, &task.State{}), errorWorkspaceInvalidNco)
+	assert.ErrorIs(t, handleWorkspaceListContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceInvalidNco())
 }
 
 func Test_handleWorkspaceListContext_InvalidOwner(t *testing.T) {
@@ -1440,7 +1519,8 @@ func Test_handleWorkspaceListContext_InvalidOwner(t *testing.T) {
 
 		if bytes, err = yaml.Marshal(testAuth); err == nil {
 			if _, err = fd.Write(bytes); err == nil {
-				assert.ErrorIs(t, handleWorkspaceListContext(testParams, &task.State{}), errorWorkspaceInvalidOwner)
+				assert.ErrorIs(t, handleWorkspaceListContext(testParams, &task.State{}),
+					workspace.Errors.WorkspaceInvalidOwner())
 				return
 			}
 		}
@@ -1819,7 +1899,8 @@ func Test_handleWorkspaceNodeListComplete_InvalidParams(t *testing.T) {
 	var testState = &task.State{}
 	var testParams = &WorkspaceNodeListParams{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeListComplete(testParams, testState), errorWorkspaceFlowRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeListComplete(testParams, testState),
+		workspace.Errors.WorkspaceFlowRequired())
 }
 
 func Test_handleWorkspaceNodeListComplete_ListError(t *testing.T) {
@@ -1934,7 +2015,8 @@ func Test_handleWorkspaceNodeListContext_CheckOutput(t *testing.T) {
 }
 
 func Test_handleWorkspaceNodeListContext_NoWorkflowHandle(t *testing.T) {
-	assert.ErrorIs(t, handleWorkspaceNodeListContext(&WorkspaceNodeListParams{}, &task.State{}), errorWorkspaceFlowRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeListContext(&WorkspaceNodeListParams{}, &task.State{}),
+		workspace.Errors.WorkspaceFlowRequired())
 }
 
 func Test_handleWorkspaceNodeListContext_NoWorkflowId(t *testing.T) {
@@ -1942,7 +2024,8 @@ func Test_handleWorkspaceNodeListContext_NoWorkflowId(t *testing.T) {
 		WorkflowHandle: "expectedHandle",
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeListContext(testParams, &task.State{}), errorWorkspaceFlowUnresolved)
+	assert.ErrorIs(t, handleWorkspaceNodeListContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceFlowUnresolved())
 }
 
 func Test_handleWorkspaceNodeListIncomplete(t *testing.T) {
@@ -1963,7 +2046,7 @@ func Test_handleWorkspaceNodeListIncomplete(t *testing.T) {
 		},
 	}
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -1999,7 +2082,7 @@ func Test_handleWorkspaceNodeListIncomplete(t *testing.T) {
 func Test_handleWorkspaceNodeListIncomplete_ListFlows_ConflictResults(t *testing.T) {
 	var expectedHandle = "wanted"
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2046,13 +2129,14 @@ func Test_handleWorkspaceNodeListIncomplete_ListFlows_ConflictResults(t *testing
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState), errorWorkspaceFlowConflict)
+	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState),
+		workspace.Errors.WorkspaceFlowConflict())
 }
 
 func Test_handleWorkspaceNodeListIncomplete_ListFlows_Error(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2078,7 +2162,7 @@ func Test_handleWorkspaceNodeListIncomplete_ListFlows_Error(t *testing.T) {
 
 func Test_handleWorkspaceNodeListIncomplete_ListFlows_InvalidWorkflow(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2113,7 +2197,7 @@ func Test_handleWorkspaceNodeListIncomplete_ListFlows_InvalidWorkflow(t *testing
 
 func Test_handleWorkspaceNodeListIncomplete_ListFlows_NoResults(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2134,12 +2218,13 @@ func Test_handleWorkspaceNodeListIncomplete_ListFlows_NoResults(t *testing.T) {
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState), errorWorkspaceFlowRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState),
+		workspace.Errors.WorkspaceFlowRequired())
 }
 
 func Test_handleWorkspaceNodeListIncomplete_ListFlows_NoSolutions(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2165,13 +2250,14 @@ func Test_handleWorkspaceNodeListIncomplete_ListFlows_NoSolutions(t *testing.T) 
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState), errorWorkspaceFlowRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState),
+		workspace.Errors.WorkspaceFlowRequired())
 }
 
 func Test_handleWorkspaceNodeListIncomplete_NoSession(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2199,7 +2285,7 @@ func Test_handleWorkspaceNodeListIncomplete_NoWorkspace(t *testing.T) {
 		Name: "notTheOne",
 	}
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2220,12 +2306,13 @@ func Test_handleWorkspaceNodeListIncomplete_NoWorkspace(t *testing.T) {
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState), errorWorkspaceNotFound)
+	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState),
+		workspace.Errors.WorkspaceNotFound())
 }
 
 func Test_handleWorkspaceNodeListIncomplete_NoWorkspace_Conflict(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2255,13 +2342,14 @@ func Test_handleWorkspaceNodeListIncomplete_NoWorkspace_Conflict(t *testing.T) {
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState), errorWorkspaceConflict)
+	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState),
+		workspace.Errors.WorkspaceConflict())
 }
 
 func Test_handleWorkspaceNodeListIncomplete_NoWorkspace_Error(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2287,7 +2375,7 @@ func Test_handleWorkspaceNodeListIncomplete_NoWorkspace_Error(t *testing.T) {
 
 func Test_handleWorkspaceNodeListIncomplete_NoWorkspace_NoResults(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2308,14 +2396,16 @@ func Test_handleWorkspaceNodeListIncomplete_NoWorkspace_NoResults(t *testing.T) 
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState), errorWorkspaceNotFound)
+	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState),
+		workspace.Errors.WorkspaceNotFound())
 }
 
 func Test_handleWorkspaceNodeListIncomplete_ResolvedError(t *testing.T) {
 	var testState = &task.State{}
 	var testParams = &WorkspaceNodeListParams{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState), errorWorkspaceFlowRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeListIncomplete(testParams, testState),
+		workspace.Errors.WorkspaceFlowRequired())
 }
 
 func Test_handleWorkspaceNodeListPretend(t *testing.T) {
@@ -2361,7 +2451,7 @@ func Test_handleWorkspaceNodeListPretend(t *testing.T) {
 func Test_handleWorkspaceNodeListPretend_NoSession(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2385,7 +2475,7 @@ func Test_handleWorkspaceNodeListPretend_NoSession(t *testing.T) {
 
 func Test_handleWorkspaceNodeListPretend_NoWorkspace(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2424,7 +2514,7 @@ func Test_handleWorkspaceNodeListPretend_NoWorkspace(t *testing.T) {
 
 func Test_handleWorkspaceNodeListPretend_Unresolved(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkspaceFlowUnresolved,
+		Error:  workspace.Errors.WorkspaceFlowUnresolved(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeListParams{
@@ -2486,9 +2576,11 @@ func Test_handleWorkspaceNodeResolveComplete(t *testing.T) {
 		Broker: Broker{
 			HostAddr: "hostAddr",
 		},
-		WorkspaceId: new(int64(77)),
-		FlowId:      new(int64(78)),
-		FnHandle:    expectedHandle,
+		NodeResolveParams: workspace.NodeResolveParams{
+			WorkspaceId: new(int64(77)),
+			FlowId:      new(int64(78)),
+			FnHandle:    expectedHandle,
+		},
 	}
 	var restoredFactory = clientFactory.Get
 
@@ -2544,8 +2636,10 @@ func Test_handleWorkspaceNodeResolveComplete_NoNode(t *testing.T) {
 		Broker: Broker{
 			HostAddr: "hostAddr",
 		},
-		WorkspaceName:  expectedWorkspace,
-		WorkflowHandle: expectedHandle,
+		NodeResolveParams: workspace.NodeResolveParams{
+			WorkspaceName:  expectedWorkspace,
+			WorkflowHandle: expectedHandle,
+		},
 	}
 	var restoredFactory = clientFactory.Get
 
@@ -2585,8 +2679,10 @@ func Test_handleWorkspaceNodeResolveComplete_FlowRequiredError(t *testing.T) {
 		Broker: Broker{
 			HostAddr: "hostAddr",
 		},
-		WorkspaceId:    new(int64(67)),
-		WorkflowHandle: "myWorkflow",
+		NodeResolveParams: workspace.NodeResolveParams{
+			WorkspaceId:    new(int64(67)),
+			WorkflowHandle: "myWorkflow",
+		},
 	}
 	var restoredFactory = clientFactory.Get
 
@@ -2599,7 +2695,8 @@ func Test_handleWorkspaceNodeResolveComplete_FlowRequiredError(t *testing.T) {
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeResolveComplete(testParams, testState), errorWorkspaceFlowRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeResolveComplete(testParams, testState),
+		workspace.Errors.WorkspaceFlowRequired())
 }
 
 func Test_handleWorkspaceNodeResolveComplete_ListFlowsError(t *testing.T) {
@@ -2623,7 +2720,9 @@ func Test_handleWorkspaceNodeResolveComplete_ListFlowsError(t *testing.T) {
 		Broker: Broker{
 			HostAddr: "hostAddr",
 		},
-		WorkspaceName: expectedName,
+		NodeResolveParams: workspace.NodeResolveParams{
+			WorkspaceName: expectedName,
+		},
 	}
 	var restoredFactory = clientFactory.Get
 
@@ -2650,8 +2749,10 @@ func Test_handleWorkspaceNodeResolveComplete_ListNodesError(t *testing.T) {
 		Broker: Broker{
 			HostAddr: "hostAddr",
 		},
-		WorkspaceId: new(int64(73)),
-		FlowId:      new(int64(74)),
+		NodeResolveParams: workspace.NodeResolveParams{
+			WorkspaceId: new(int64(73)),
+			FlowId:      new(int64(74)),
+		},
 	}
 	var restoredFactory = clientFactory.Get
 
@@ -2717,7 +2818,7 @@ func Test_handleWorkspaceNodeResolveComplete_SessionError(t *testing.T) {
 
 func Test_handleWorkspaceNodeResolveComplete_SfHandleError(t *testing.T) {
 	assert.ErrorIs(t, handleWorkspaceNodeResolveComplete(&WorkspaceNodeResolveParams{}, &task.State{}),
-		errorWorkspaceNodeSfHandleRequired)
+		workspace.Errors.WorkspaceNodeFnHandleRequired())
 }
 
 func Test_handleWorkspaceNodeResolveComplete_WorkspaceNotFound(t *testing.T) {
@@ -2735,7 +2836,9 @@ func Test_handleWorkspaceNodeResolveComplete_WorkspaceNotFound(t *testing.T) {
 		Broker: Broker{
 			HostAddr: "hostAddr",
 		},
-		WorkspaceName: "myWorkspace",
+		NodeResolveParams: workspace.NodeResolveParams{
+			WorkspaceName: "myWorkspace",
+		},
 	}
 	var restoredFactory = clientFactory.Get
 
@@ -2748,14 +2851,17 @@ func Test_handleWorkspaceNodeResolveComplete_WorkspaceNotFound(t *testing.T) {
 		}, nil
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeResolveComplete(testParams, testState), errorWorkspaceNotFound)
+	assert.ErrorIs(t, handleWorkspaceNodeResolveComplete(testParams, testState),
+		workspace.Errors.WorkspaceNotFound())
 }
 
 func Test_handleWorkspaceNodeResolveContext(t *testing.T) {
 	var testParams = &WorkspaceNodeResolveParams{
-		WorkspaceId: new(int64(37)),
-		FlowId:      new(int64(73)),
-		FnHandle:    "myHandle",
+		NodeResolveParams: workspace.NodeResolveParams{
+			WorkspaceId: new(int64(37)),
+			FlowId:      new(int64(73)),
+			FnHandle:    "myHandle",
+		},
 	}
 	var testState = &task.State{}
 
@@ -2765,37 +2871,47 @@ func Test_handleWorkspaceNodeResolveContext(t *testing.T) {
 
 func Test_handleWorkspaceNodeResolveContext_NodeKnownError(t *testing.T) {
 	var testParams = &WorkspaceNodeResolveParams{
-		NodeId: new(int64(37)),
+		NodeResolveParams: workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
 	}
 	var testState = &task.State{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeResolveContext(testParams, testState), errorWorkspaceNodeKnown)
+	assert.ErrorIs(t, handleWorkspaceNodeResolveContext(testParams, testState),
+		workspace.Errors.WorkspaceNodeKnown())
 }
 
 func Test_handleWorkspaceNodeResolveContext_SfHandleError(t *testing.T) {
 	var testParams = &WorkspaceNodeResolveParams{}
 	var testState = &task.State{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeResolveContext(testParams, testState), errorWorkspaceNodeSfHandleRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeResolveContext(testParams, testState),
+		workspace.Errors.WorkspaceNodeFnHandleRequired())
 }
 
 func Test_handleWorkspaceNodeResolveContext_WfHandleError(t *testing.T) {
 	var testParams = &WorkspaceNodeResolveParams{
-		FnHandle: "myFunction",
+		NodeResolveParams: workspace.NodeResolveParams{
+			FnHandle: "myFunction",
+		},
 	}
 	var testState = &task.State{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeResolveContext(testParams, testState), errorWorkflowHandleRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeResolveContext(testParams, testState),
+		workspace.Errors.WorkflowHandleRequired())
 }
 
 func Test_handleWorkspaceNodeResolveContext_WsNameError(t *testing.T) {
 	var testParams = &WorkspaceNodeResolveParams{
-		FnHandle:       "myFunction",
-		WorkflowHandle: "myWorkflow",
+		NodeResolveParams: workspace.NodeResolveParams{
+			FnHandle:       "myFunction",
+			WorkflowHandle: "myWorkflow",
+		},
 	}
 	var testState = &task.State{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeResolveContext(testParams, testState), errorWorkspaceNameRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeResolveContext(testParams, testState),
+		workspace.Errors.WorkspaceNameRequired())
 }
 
 func Test_handleWorkspaceNodeResolveIncomplete(t *testing.T) {
@@ -2805,16 +2921,18 @@ func Test_handleWorkspaceNodeResolveIncomplete(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleWorkspaceNodeResolveIncomplete(&WorkspaceNodeResolveParams{}, testState), expectedError)
-	assert.False(t, testState.Completed)
+	assert.True(t, testState.Completed)
 }
 
 func Test_handleWorkspaceNodeResolveIncomplete_NodeKnownError(t *testing.T) {
 	var testState = &task.State{
-		Error:  errorWorkspaceNodeKnown,
+		Error:  workspace.Errors.WorkspaceNodeKnown(),
 		Logger: logrus.New(),
 	}
 	var testParams = &WorkspaceNodeResolveParams{
-		NodeId: new(int64(37)),
+		NodeResolveParams: workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
 	}
 
 	assert.NoError(t, handleWorkspaceNodeResolveIncomplete(testParams, testState))
@@ -2865,7 +2983,9 @@ func Test_handleWorkspaceNodeResolvePretend_ClientError(t *testing.T) {
 		Broker: Broker{
 			HostAddr: "hostAddr",
 		},
-		NodeId: new(int64(37)),
+		NodeResolveParams: workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
 	}
 	var restoredFactory = clientFactory.Get
 
@@ -2882,11 +3002,13 @@ func Test_handleWorkspaceNodeResolvePretend_ClientError(t *testing.T) {
 func Test_handleWorkspaceNodeResolvePretend_NodeKnownError(t *testing.T) {
 	var testLogger, testHook = test.NewNullLogger()
 	var testState = &task.State{
-		Error:  errorWorkspaceNodeKnown,
+		Error:  workspace.Errors.WorkspaceNodeKnown(),
 		Logger: testLogger,
 	}
 	var testParams = &WorkspaceNodeResolveParams{
-		NodeId: new(int64(37)),
+		NodeResolveParams: workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
 	}
 
 	testLogger.SetLevel(logrus.DebugLevel)
@@ -2902,8 +3024,10 @@ func Test_handleWorkspaceNodeResolvePretend_NodeOnly(t *testing.T) {
 		Broker: Broker{
 			HostAddr: "hostAddr",
 		},
-		WorkspaceId: new(int64(37)),
-		FlowId:      new(int64(73)),
+		NodeResolveParams: workspace.NodeResolveParams{
+			WorkspaceId: new(int64(37)),
+			FlowId:      new(int64(73)),
+		},
 	}
 	var restoredFactory = clientFactory.Get
 	var stdoutRestore = os.Stdout
@@ -2941,6 +3065,739 @@ func Test_handleWorkspaceNodeResolvePretend_StateError(t *testing.T) {
 	assert.ErrorIs(t, handleWorkspaceNodeResolvePretend(&WorkspaceNodeResolveParams{}, testState), expectedError)
 }
 
+func Test_handleWorkspaceNodeSetListComplete(t *testing.T) {
+	var expectedNode = &WorkspaceNode{
+		Id: int64(37),
+		InputPorts: []WorkspaceNodePort{
+			{
+				DataSetId:  new(int64(73)),
+				PortHandle: "port",
+			},
+		},
+	}
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetListParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			inspectNode: expectedNode,
+		}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeSetListComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.([]WorkspaceNodePort); ok {
+		assert.Equal(t, expectedNode.InputPorts, actual)
+	} else {
+		assert.Fail(t, "expected a slice of WorkspaceNodePort")
+	}
+}
+
+func Test_handleWorkspaceNodeSetListComplete_InspectError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetListParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			inspectNodeError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeSetListComplete_NoOutput(t *testing.T) {
+	assert.ErrorIs(t, handleWorkspaceNodeSetListComplete(&WorkspaceNodeSetListParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeRequired())
+}
+
+func Test_handleWorkspaceNodeSetListComplete_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetListParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeSetListContext(t *testing.T) {
+	var testParams = &WorkspaceNodeSetListParams{
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(42)),
+		},
+	}
+	var testState = &task.State{}
+
+	assert.NoError(t, handleWorkspaceNodeSetListContext(testParams, testState))
+	assert.Equal(t, cast.ToString(*testParams.NodeId), testState.Output)
+}
+
+func Test_handleWorkspaceNodeSetListContext_InvalidNodeId(t *testing.T) {
+	assert.ErrorIs(t, handleWorkspaceNodeSetListContext(&WorkspaceNodeSetListParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeRequired())
+}
+
+func Test_handleWorkspaceNodeSetListContext_KnownOutput(t *testing.T) {
+	var testState = &task.State{Output: "output"}
+
+	assert.NoError(t, handleWorkspaceNodeSetListContext(&WorkspaceNodeSetListParams{}, testState))
+}
+
+func Test_handleWorkspaceNodeSetListPretend(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &WorkspaceNodeSetListParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+		os.Stdout = stdoutRestore
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeSetListPretend(testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, cast.ToString(*testParams.NodeId))
+}
+
+func Test_handleWorkspaceNodeSetListPretend_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &WorkspaceNodeSetListParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetListPretend(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeSetResolveComplete(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeSetParams: workspace.NodeSetParams{
+			PortHandle: "expected",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var expectedDataSet = &DataSet{
+		Id:     new(int64(73)),
+		Handle: "dsHandle",
+	}
+	var expectedNode = &WorkspaceNode{
+		Id: int64(42),
+		InputPorts: []WorkspaceNodePort{
+			{
+				DataSetId:  expectedDataSet.Id,
+				PortHandle: "expected",
+				DataSet:    expectedDataSet,
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			inspectNode: expectedNode,
+		}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeSetResolveComplete(testParams, testState))
+	assert.Empty(t, testState.Output)
+
+	if actual, ok := testState.Internal.(DataSet); ok {
+		assert.Equal(t, *expectedDataSet, actual)
+	} else {
+		assert.Fail(t, "expected a DataSet")
+	}
+}
+
+func Test_handleWorkspaceNodeSetResolveComplete_InspectError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			inspectNodeError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolveComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeSetResolveComplete_NoOutput(t *testing.T) {
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolveComplete(&WorkspaceNodeSetResolveParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeFnPortRequired())
+}
+
+func Test_handleWorkspaceNodeSetResolveComplete_NoDataSet(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeSetParams: workspace.NodeSetParams{
+			PortHandle: "expected",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var expectedNode = &WorkspaceNode{
+		Id: int64(42),
+		InputPorts: []WorkspaceNodePort{
+			{
+				PortHandle: "expected",
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			inspectNode: expectedNode,
+		}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeSetResolveComplete(testParams, testState))
+	assert.Nil(t, testState.Internal)
+	assert.Empty(t, testState.Output)
+}
+
+func Test_handleWorkspaceNodeSetResolveComplete_PortNotFound(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeSetParams: workspace.NodeSetParams{
+			PortHandle: "notFound",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var expectedNode = &WorkspaceNode{
+		Id: int64(42),
+		InputPorts: []WorkspaceNodePort{
+			{
+				PortHandle: "notTheOne",
+			},
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			inspectNode: expectedNode,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolveComplete(testParams, testState),
+		workspace.Errors.WorkspaceNodeFnPortNotFound())
+}
+
+func Test_handleWorkspaceNodeSetResolveComplete_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolveComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeSetResolveContext(t *testing.T) {
+	var expectedHandle = "port"
+	var testParams = &WorkspaceNodeSetResolveParams{
+		NodeSetParams: workspace.NodeSetParams{
+			PortHandle: expectedHandle,
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var testState = &task.State{}
+
+	assert.NoError(t, handleWorkspaceNodeSetResolveContext(testParams, testState))
+	assert.Equal(t, expectedHandle, testState.Output)
+}
+
+func Test_handleWorkspaceNodeSetResolveContext_DataSetKnown(t *testing.T) {
+	var testParams = &WorkspaceNodeSetResolveParams{
+		NodeSetParams: workspace.NodeSetParams{
+			DataSetId: new(int64(37)),
+		},
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolveContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceNodeSetKnown())
+}
+
+func Test_handleWorkspaceNodeSetResolveContext_InvalidNode(t *testing.T) {
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolveContext(&WorkspaceNodeSetResolveParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeRequired())
+}
+
+func Test_handleWorkspaceNodeSetResolveContext_InvalidPort(t *testing.T) {
+	var testParams = &WorkspaceNodeSetResolveParams{
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolveContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceNodeFnPortRequired())
+}
+
+func Test_handleWorkspaceNodeSetResolveContext_KnownOutput(t *testing.T) {
+	var testState = &task.State{Output: "output"}
+
+	assert.NoError(t, handleWorkspaceNodeSetResolveContext(&WorkspaceNodeSetResolveParams{}, testState))
+}
+
+func Test_handleWorkspaceNodeSetResolveIncomplete(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Error:  workspace.Errors.WorkspaceNodeSetKnown(),
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		NodeSetParams: workspace.NodeSetParams{
+			DataSetId: new(int64(37)),
+		},
+	}
+
+	assert.NoError(t, handleWorkspaceNodeSetResolveIncomplete(testParams, testState))
+	assert.True(t, testState.Completed)
+}
+
+func Test_handleWorkspaceNodeSetResolveIncomplete_StateError(t *testing.T) {
+	var expectedError = errors.New("error")
+	var testState = &task.State{
+		Error: expectedError,
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolveIncomplete(&WorkspaceNodeSetResolveParams{}, testState), expectedError)
+	assert.True(t, testState.Completed)
+}
+
+func Test_handleWorkspaceNodeSetResolvePretend(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeSetParams: workspace.NodeSetParams{
+			PortHandle: "port",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+		os.Stdout = stdoutRestore
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeSetResolvePretend(testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, cast.ToString(*testParams.NodeId))
+}
+
+func Test_handleWorkspaceNodeSetResolvePretend_DataSetKnown(t *testing.T) {
+	var testLogger, testHook = test.NewNullLogger()
+	var testParams = &WorkspaceNodeSetResolveParams{
+		NodeSetParams: workspace.NodeSetParams{
+			DataSetId: new(int64(42)),
+		},
+	}
+	var testState = &task.State{
+		Logger: testLogger,
+		Error:  workspace.Errors.WorkspaceNodeSetKnown(),
+	}
+
+	testLogger.SetLevel(logrus.DebugLevel)
+	assert.NoError(t, handleWorkspaceNodeSetResolvePretend(testParams, testState))
+	assert.Equal(t, 1, len(testHook.Entries))
+}
+
+func Test_handleWorkspaceNodeSetResolvePretend_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolvePretend(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeSetResolvePretend_StateError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Error: expectedError,
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetResolvePretend(&WorkspaceNodeSetResolveParams{}, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeSetUpdateComplete(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeSetParams: workspace.NodeSetParams{
+			DataSetId: new(int64(32)),
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var expectedNode = &WorkspaceNode{
+		Id:          int64(49),
+		WorkspaceId: int64(37),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			updateNodeInput: expectedNode,
+		}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeSetUpdateComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.(WorkspaceNode); ok {
+		assert.Equal(t, *expectedNode, actual)
+	} else {
+		assert.Fail(t, "expected a WorkspaceNode")
+	}
+}
+
+func Test_handleWorkspaceNodeSetUpdateComplete_NoOutput(t *testing.T) {
+	assert.ErrorIs(t, handleWorkspaceNodeSetUpdateComplete(&WorkspaceNodeSetResolveParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeSetRequired())
+}
+
+func Test_handleWorkspaceNodeSetUpdateComplete_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetUpdateComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeSetUpdateComplete_UpdateError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+		Output: "output",
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeSetParams: workspace.NodeSetParams{
+			DataSetId: new(int64(32)),
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{
+			updateNodeInputError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetUpdateComplete(testParams, testState), expectedError)
+}
+
+func Test_handleWorkspaceNodeSetUpdateContext(t *testing.T) {
+	var testParams = &WorkspaceNodeSetResolveParams{
+		NodeSetParams: workspace.NodeSetParams{
+			DataSetId: new(int64(37)),
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(42)),
+		},
+	}
+	var testState = &task.State{}
+
+	assert.NoError(t, handleWorkspaceNodeSetUpdateContext(testParams, testState))
+	assert.Equal(t, cast.ToString(*testParams.DataSetId), testState.Output)
+}
+
+func Test_handleWorkspaceNodeSetUpdateContext_InvalidDataSet(t *testing.T) {
+	assert.ErrorIs(t, handleWorkspaceNodeSetUpdateContext(&WorkspaceNodeSetResolveParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeSetRequired())
+}
+
+func Test_handleWorkspaceNodeSetUpdateContext_InvalidNode(t *testing.T) {
+	var testParams = &WorkspaceNodeSetResolveParams{
+		NodeSetParams: workspace.NodeSetParams{
+			DataSetId: new(int64(67)),
+		},
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetUpdateContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceNodeRequired())
+}
+
+func Test_handleWorkspaceNodeSetUpdateContext_KnownOutput(t *testing.T) {
+	var testState = &task.State{Output: "output"}
+
+	assert.NoError(t, handleWorkspaceNodeSetUpdateContext(&WorkspaceNodeSetResolveParams{}, testState))
+}
+
+func Test_handleWorkspaceNodeSetUpdatePretend(t *testing.T) {
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeSetParams: workspace.NodeSetParams{
+			DataSetId:  new(int64(32)),
+			PortHandle: "expectedPort",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(73)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+		os.Stdout = stdoutRestore
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubWorkspaceClient{}, nil
+	}
+
+	assert.NoError(t, handleWorkspaceNodeSetUpdatePretend(testParams, testState))
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, cast.ToString(*testParams.NodeId))
+	assert.Contains(t, output, cast.ToString(*testParams.DataSetId))
+	assert.Contains(t, output, testParams.PortHandle)
+
+}
+
+func Test_handleWorkspaceNodeSetUpdatePretend_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Logger: logrus.New(),
+	}
+	var testParams = &WorkspaceNodeSetResolveParams{
+		Broker: Broker{
+			HostAddr: "hostAddr",
+		},
+		NodeResolveParams: &workspace.NodeResolveParams{
+			NodeId: new(int64(37)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleWorkspaceNodeSetUpdatePretend(testParams, testState), expectedError)
+}
+
 func Test_handleWorkspaceNodeSourceContext(t *testing.T) {
 	var testState = &task.State{}
 	var testParams = &WorkspaceNodeSourceParams{
@@ -2960,13 +3817,15 @@ func Test_handleWorkspaceNodeSourceContext_DataSourceRequiredError(t *testing.T)
 		NodeId:                  new(int64(37)),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeSourceContext(testParams, &task.State{}), errorWorkspaceNodeSourceRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeSourceContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceNodeSourceRequired())
 }
 
 func Test_handleWorkspaceNodeSourceContext_NodeRequiredError(t *testing.T) {
 	var testParams = &WorkspaceNodeSourceParams{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeSourceContext(testParams, &task.State{}), errorWorkspaceNodeRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeSourceContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceNodeRequired())
 }
 
 func Test_handleWorkspaceNodeSourceContext_OutputKnown(t *testing.T) {
@@ -3049,7 +3908,8 @@ func Test_handleWorkspaceNodeSourceAddComplete_GetError(t *testing.T) {
 }
 
 func Test_handleWorkspaceNodeSourceAddComplete_OutputError(t *testing.T) {
-	assert.ErrorIs(t, handleWorkspaceNodeSourceAddComplete(&WorkspaceNodeSourceParams{}, &task.State{}), errorWorkspaceNodeSourceRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeSourceAddComplete(&WorkspaceNodeSourceParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeSourceRequired())
 }
 
 func Test_handleWorkspaceNodeSourceAddComplete_NoAssigned(t *testing.T) {
@@ -3193,7 +4053,8 @@ func Test_handleWorkspaceNodeSourcePretend(t *testing.T) {
 }
 
 func Test_handleWorkspaceNodeSourcePretend_OutputError(t *testing.T) {
-	assert.ErrorIs(t, handleWorkspaceNodeSourcePretend(&WorkspaceNodeSourceParams{}, &task.State{}), errorWorkspaceNodeSourceRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeSourcePretend(&WorkspaceNodeSourceParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeSourceRequired())
 }
 
 func Test_handleWorkspaceNodeSourcePretend_SessionError(t *testing.T) {
@@ -3295,7 +4156,8 @@ func Test_handleWorkspaceNodeSourceRemoveComplete_GetError(t *testing.T) {
 func Test_handleWorkspaceNodeSourceRemoveComplete_OutputError(t *testing.T) {
 	var testTask = &task.State{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeSourceRemoveComplete(&WorkspaceNodeSourceParams{}, testTask), errorWorkspaceNodeSourceRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeSourceRemoveComplete(&WorkspaceNodeSourceParams{}, testTask),
+		workspace.Errors.WorkspaceNodeSourceRequired())
 }
 
 func Test_handleWorkspaceNodeSourceRemoveComplete_NotAssigned(t *testing.T) {
@@ -3416,13 +4278,15 @@ func Test_handleWorkspaceNodeStoreContext_DataStoreRequiredError(t *testing.T) {
 		NodeId:                 new(int64(37)),
 	}
 
-	assert.ErrorIs(t, handleWorkspaceNodeStoreContext(testParams, &task.State{}), errorWorkspaceNodeStoreRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeStoreContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceNodeStoreRequired())
 }
 
 func Test_handleWorkspaceNodeStoreContext_NodeRequiredError(t *testing.T) {
 	var testParams = &WorkspaceNodeStoreParams{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeStoreContext(testParams, &task.State{}), errorWorkspaceNodeRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeStoreContext(testParams, &task.State{}),
+		workspace.Errors.WorkspaceNodeRequired())
 }
 
 func Test_handleWorkspaceNodeStoreContext_OutputKnown(t *testing.T) {
@@ -3505,7 +4369,8 @@ func Test_handleWorkspaceNodeStoreAddComplete_GetError(t *testing.T) {
 }
 
 func Test_handleWorkspaceNodeStoreAddComplete_OutputError(t *testing.T) {
-	assert.ErrorIs(t, handleWorkspaceNodeStoreAddComplete(&WorkspaceNodeStoreParams{}, &task.State{}), errorWorkspaceNodeStoreRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeStoreAddComplete(&WorkspaceNodeStoreParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeStoreRequired())
 }
 
 func Test_handleWorkspaceNodeStoreAddComplete_NoAssigned(t *testing.T) {
@@ -3649,7 +4514,8 @@ func Test_handleWorkspaceNodeStorePretend(t *testing.T) {
 }
 
 func Test_handleWorkspaceNodeStorePretend_OutputError(t *testing.T) {
-	assert.ErrorIs(t, handleWorkspaceNodeStorePretend(&WorkspaceNodeStoreParams{}, &task.State{}), errorWorkspaceNodeStoreRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeStorePretend(&WorkspaceNodeStoreParams{}, &task.State{}),
+		workspace.Errors.WorkspaceNodeStoreRequired())
 }
 
 func Test_handleWorkspaceNodeStorePretend_SessionError(t *testing.T) {
@@ -3751,7 +4617,8 @@ func Test_handleWorkspaceNodeStoreRemoveComplete_GetError(t *testing.T) {
 func Test_handleWorkspaceNodeStoreRemoveComplete_OutputError(t *testing.T) {
 	var testTask = &task.State{}
 
-	assert.ErrorIs(t, handleWorkspaceNodeStoreRemoveComplete(&WorkspaceNodeStoreParams{}, testTask), errorWorkspaceNodeStoreRequired)
+	assert.ErrorIs(t, handleWorkspaceNodeStoreRemoveComplete(&WorkspaceNodeStoreParams{}, testTask),
+		workspace.Errors.WorkspaceNodeStoreRequired())
 }
 
 func Test_handleWorkspaceNodeStoreRemoveComplete_NotAssigned(t *testing.T) {

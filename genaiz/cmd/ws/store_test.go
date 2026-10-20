@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz/cli"
+	"genaiz.com/genaiz/cmd/ws/args"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
@@ -138,7 +139,7 @@ func TestDataStoreExecutor_Add(t *testing.T) {
 	actual := testOutput.String()
 	assert.Regexp(t, regexp.MustCompile(`add data store:[\s\t]*`+cast.ToString(expectedDs)), actual)
 	assert.Regexp(t, regexp.MustCompile(`workspace id:[\s\t]*`+cast.ToString(expectedWorkspace)), actual)
-	assert.Regexp(t, regexp.MustCompile(`workspace flow id:[\s\t]*`+cast.ToString(expectedFlow)), actual)
+	assert.Regexp(t, regexp.MustCompile(`flow id:[\s\t]*`+cast.ToString(expectedFlow)), actual)
 	assert.Regexp(t, regexp.MustCompile(`node id:[\s\t]*`+cast.ToString(expectedNode)), actual)
 }
 
@@ -156,6 +157,7 @@ func TestDataStoreExecutor_PretendAdd(t *testing.T) {
 			DataInstanceOptions: testOptions,
 
 			accountParams:          config.NewAccountParams(testLedger, testOptions.optionAccount),
+			nodeArguments:          args.NewNodeResolution("", "", ""),
 			nodeResolveTaskFactory: newWorkspaceNodeResolveTaskPretendStub(&calledNodeResolved),
 		},
 		addDataStore: "myDs",
@@ -184,6 +186,7 @@ func TestDataStoreExecutor_PretendRemove(t *testing.T) {
 			DataInstanceOptions: testOptions,
 
 			accountParams:          config.NewAccountParams(testLedger, testOptions.optionAccount),
+			nodeArguments:          args.NewNodeResolution("", "", ""),
 			nodeResolveTaskFactory: newWorkspaceNodeResolveTaskPretendStub(&calledNodeResolved),
 		},
 		rmDataStore: "myDs",
@@ -218,11 +221,10 @@ func TestDataStoreExecutor_ProceedAdd(t *testing.T) {
 
 			accountParams:          config.NewAccountParams(testLedger, testOptions.optionAccount),
 			printerParams:          &stubPrinterParametric{printer: testPrinter},
-			nodeResolveTaskFactory: newWorkspaceNodeResolveTaskProceedCapture(&capturedNodeResolveParams),
+			nodeArguments:          args.NewNodeResolution(cast.ToString(expectedWorkspaceId), cast.ToString(expectedFlowId), ""),
+			nodeResolveTaskFactory: newWorkspaceNodeResolveProceedCapture(&capturedNodeResolveParams),
 		},
 		addDataStore: "myDs",
-		workspace:    cast.ToString(expectedWorkspaceId),
-		flow:         cast.ToString(expectedFlowId),
 
 		dataStoreResolveTaskFactory: newDataStoreResolveTaskProceedCapture(&captureDataStoreParams),
 		nodeStoreAddTaskFactory:     newWorkspaceNodeStoreTaskProceedCapture(&captureNodeStoreParams),
@@ -255,11 +257,10 @@ func TestDataStoreExecutor_ProceedAdd_DefaultPrinter(t *testing.T) {
 
 			accountParams:          config.NewAccountParams(testLedger, testOptions.optionAccount),
 			printerParams:          &stubPrinterParametric{defaultPrinter: true},
-			nodeResolveTaskFactory: newWorkspaceNodeResolveTaskProceedCapture(&capturedNodeResolveParams),
+			nodeArguments:          args.NewNodeResolution(cast.ToString(expectedWorkspaceId), cast.ToString(expectedFlowId), ""),
+			nodeResolveTaskFactory: newWorkspaceNodeResolveProceedCapture(&capturedNodeResolveParams),
 		},
 		addDataStore: "myDs",
-		workspace:    cast.ToString(expectedWorkspaceId),
-		flow:         cast.ToString(expectedFlowId),
 
 		dataStoreResolveTaskFactory: newDataStoreResolveTaskProceedCapture(&captureDataStoreParams),
 		nodeStoreAddTaskFactory:     newWorkspaceNodeStoreTaskProceedCapture(&captureNodeStoreParams),
@@ -293,11 +294,10 @@ func TestDataStoreExecutor_ProceedRemove(t *testing.T) {
 
 			accountParams:          config.NewAccountParams(testLedger, testOptions.optionAccount),
 			printerParams:          &stubPrinterParametric{printer: testPrinter},
-			nodeResolveTaskFactory: newWorkspaceNodeResolveTaskProceedCapture(&capturedNodeResolveParams),
+			nodeArguments:          args.NewNodeResolution(cast.ToString(expectedWorkspaceId), cast.ToString(expectedFlowId), ""),
+			nodeResolveTaskFactory: newWorkspaceNodeResolveProceedCapture(&capturedNodeResolveParams),
 		},
 		rmDataStore: "myDs",
-		workspace:   cast.ToString(expectedWorkspaceId),
-		flow:        cast.ToString(expectedFlowId),
 
 		dataStoreResolveTaskFactory: newDataStoreResolveTaskProceedCapture(&captureDataStoreParams),
 		nodeStoreRemoveTaskFactory:  newWorkspaceNodeStoreTaskProceedCapture(&captureNodeStoreParams),
@@ -331,11 +331,10 @@ func TestDataStoreExecutor_ProceedRemove_DefaultPrinter(t *testing.T) {
 
 			accountParams:          config.NewAccountParams(testLedger, testOptions.optionAccount),
 			printerParams:          &stubPrinterParametric{defaultPrinter: true},
-			nodeResolveTaskFactory: newWorkspaceNodeResolveTaskProceedCapture(&capturedNodeResolveParams),
+			nodeArguments:          args.NewNodeResolution(cast.ToString(expectedWorkspaceId), cast.ToString(expectedFlowId), ""),
+			nodeResolveTaskFactory: newWorkspaceNodeResolveProceedCapture(&capturedNodeResolveParams),
 		},
 		rmDataStore: cast.ToString(expectedDataStoreId),
-		workspace:   cast.ToString(expectedWorkspaceId),
-		flow:        cast.ToString(expectedFlowId),
 
 		dataStoreResolveTaskFactory: newDataStoreResolveTaskProceedCapture(&captureDataStoreParams),
 		nodeStoreRemoveTaskFactory:  newWorkspaceNodeStoreTaskProceedCapture(&captureNodeStoreParams),
@@ -384,7 +383,7 @@ func TestDataStoreExecutor_Remove(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`rm data store:[\s\t]*`+cast.ToString(expectedDs)), actual)
 	assert.Regexp(t, regexp.MustCompile(`workspace name:[\s\t]*`+cast.ToString(expectedWorkspace)), actual)
 	assert.Regexp(t, regexp.MustCompile(`workflow handle:[\s\t]*`+cast.ToString(expectedFlow)), actual)
-	assert.Regexp(t, regexp.MustCompile(`smart function handle:[\s\t]*`+cast.ToString(expectedNode)), actual)
+	assert.Regexp(t, regexp.MustCompile(`function handle:[\s\t]*`+cast.ToString(expectedNode)), actual)
 }
 
 func TestNewDataStoreExecutor_addFactory(t *testing.T) {

@@ -141,6 +141,46 @@ var (
 					WithValidator(config.Validation.Name)
 			},
 		},
+		DataSets: dataSetOptions{
+			Description: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("set-description").
+					WithUsage("description of the data set").
+					WithValidator(config.Validation.Blob)
+			},
+			Destination: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("destination").
+					WithShort("d").
+					WithUsage("location of the file in the data set").
+					WithValidator(config.Validation.FolderName)
+			},
+			Filename: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("filename").
+					WithShort("f").
+					WithUsage("name of the file at its destination, defaults to the provided path name")
+			},
+			Handle: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("set-handle").
+					WithUsage("handle of the data set").
+					WithValidator(config.Validation.Handle)
+			},
+			Name: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("set-name").
+					WithUsage("name of the data set").
+					WithValidator(config.Validation.Name)
+			},
+			Overwrite: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("overwrite").
+					WithShort("o").
+					WithUsage("overwrites any existing files").
+					WithDefaultValue(cast.ToString(false))
+			},
+		},
 		Docker: dockerOptions{
 			ContainerName: func() OptionBuilder {
 				return NewOptionBuilder().
@@ -810,6 +850,7 @@ type cliOptions struct {
 	Configs    configOptions
 	DataLinks  dataLinkOptions
 	DataPorts  dataPortOptions
+	DataSets   dataSetOptions
 	Docker     dockerOptions
 	Functions  functionOptions
 	Lockers    lockerOptions
@@ -846,6 +887,15 @@ type dataLinkOptions struct {
 type dataPortOptions struct {
 	Desc func() OptionBuilder
 	Name func() OptionBuilder
+}
+
+type dataSetOptions struct {
+	Description func() OptionBuilder
+	Destination func() OptionBuilder
+	Filename    func() OptionBuilder
+	Handle      func() OptionBuilder
+	Name        func() OptionBuilder
+	Overwrite   func() OptionBuilder
 }
 
 type dockerOptions struct {
@@ -989,33 +1039,48 @@ type workspaceOptions struct {
 	Visibility      func() OptionBuilder
 }
 
+// OptionBuilder provides a way to build options according to a parent template held statically by the cli package
 type OptionBuilder interface {
+	// BuildOption builds a generic option with a value type that will be managed outside any config.Ledger
 	BuildOption() *config.Option
 
+	// BuildBoolOption builds a boolean type option
 	BuildBoolOption() *config.BoolOption
 
+	// BuildListOption builds a list of string type option
 	BuildListOption() *config.ListOption
 
+	// BuildStringOption builds a string type option
 	BuildStringOption() *config.StringOption
 
+	// Optional will wrap any validator with a rule granting validated status on empty values
 	Optional(optional bool) OptionBuilder
 
+	// Validated allows an existing option with a validator to ignore any validator configured
 	Validated(validated bool) OptionBuilder
 
+	// WithDefaultGetter will set the provided config.Ledger visitor to retrieve a default value for the option
 	WithDefaultGetter(func(*config.Ledger) any) OptionBuilder
 
+	// WithDefaultSetter will set the provided config.Ledger visitor to set a default value for the option when config.Ledger InitDefaults is called
 	WithDefaultSetter(func(*config.Ledger) any) OptionBuilder
 
+	// WithDefaultValue will set the default value of an option the provided static string value. For config.BoolOption, the value will be cast to bool
 	WithDefaultValue(string) OptionBuilder
 
+	// WithKeys will set a keys specification from schema.Keys, providing environment variables, configuration key paths and aliases
 	WithKeys(*schema.Keys) OptionBuilder
 
+	// WithParam allows configuration of the option's long flag name
 	WithParam(string) OptionBuilder
 
+	// WithShort allows configuration of the options's flag single letter alias
 	WithShort(string) OptionBuilder
 
+	// WithUsage allows configuration of the options's description for when --help is invoked
 	WithUsage(string) OptionBuilder
 
+	// WithValidator ensures the option will be validated when the config.Ledger retrieves its value
 	WithValidator(config.Validates) OptionBuilder
 }
 

@@ -22,7 +22,7 @@ type ListExecutor struct {
 	accountParams            config.AccountParametric
 	printerParams            cli.PrinterParametric
 	workspaceFacadeProvider  func() mgmt.UserWorkspacesFacade
-	workspaceListTaskFactory mgmt.WorkspaceListTaskFactory
+	workspaceListTaskFactory broker.WorkspaceListTaskFactory
 }
 
 func (le ListExecutor) Display() {
@@ -145,7 +145,7 @@ func NewListExecutor(cmd *cobra.Command, ledger *config.Ledger, wsCli *Cli, opti
 		accountParams:            config.NewAccountParams(ledger, options.optionAccount),
 		printerParams:            cli.NewPrinterParam(ledger, options.optionJsonPrinter),
 		workspaceFacadeProvider:  mgmt.NewUserWorkspacesFacade,
-		workspaceListTaskFactory: broker.NewWorkspaceListTask,
+		workspaceListTaskFactory: broker.WorkspaceTasks.ListTaskFactory,
 	}
 }
 

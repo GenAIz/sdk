@@ -8,7 +8,8 @@ invoke a Workflow on a groups of Agents managed by the Broker.
     * [Workspace Creation](#workspace-creation)
     * [Workspace Flow Creation](#workspace-flow-creation)
     * [Workspace Listing](#workspace-listing)
-    * [Workspace Node listing](#workspace-node-listing)
+    * [Workspace Node Data Set](#workspace-node-data-set)
+    * [Workspace Node Listing](#workspace-node-listing)
     * [Workspace Node Source](#workspace-node-source)
     * [Workspace Node Store](#workspace-node-store)
 * [By Command](#commands)
@@ -70,6 +71,33 @@ flowchart LR
     wsCreate <--> wsList
 ```
 
+### Workspace Node Data Set
+
+Each node present under a Workspace Flow may accept configurations and other data files by declaring input ports for a
+Smart Function. The Workspace Node Data Set activity represents a user uploading, or setting a file onto a node's input
+port.
+
+The set command of this activity can be invoked multiple times with different paths and ports. It can also be used to
+overwrite previously set data. The activity is detailed under the scenarios
+of [set workspace node input file](../../features/workspace/set_workspace_node_input_file.feature).
+
+```mermaid
+---
+title: Workspace Node Data Set Activity
+---
+flowchart LR
+    user>user] --> login([account<br>login])
+    login --> lsWorkspace([list<br>workspace])
+    lsWorkspace --> lsFlows([list<br>flows])
+    lsFlows --> lsNodes([list<br>nodes])
+    login --> lsPorts([list<br>ports])
+    lsPorts --> lsDataSets([list<br>data sets])
+    lsNodes --> setFile([set data<br>file])
+    login --> createDataSet([create data<br>set])
+    createDataSet --> lsPorts
+    lsDataSets --> setFile
+```
+
 ### Workspace Node Listing
 
 Once a Workspace Flow has been created, the Orchestration assigns `Solution Workflow Nodes` to `Workspace Flow Nodes`.
@@ -95,8 +123,11 @@ flowchart LR
 
 With Workspace Flow Nodes discoverable, it becomes possible to extend the activity by assigning a previously
 published [Data Source](../data/index.md#source-listing) to a Flow Node. This activity depends
-on [Locker Publishing](../locker/index.md#data-source-publish), not detailed in the diagram, but still a necessary set of
-scenarios detailed under [Add workspace node source](../../features/workspace/add_workspace_node_source.feature).
+on [Locker Publishing](../locker/index.md#data-source-publish), not detailed in the diagram, but still a necessary set
+of scenarios detailed under [Add workspace node source](../../features/workspace/add_workspace_node_source.feature).
+
+The activity provides 2 commands: Adding a data source and removing it. Both commands follow the same command
+specification and pattern:
 
 ```mermaid
 ---
@@ -118,8 +149,11 @@ flowchart LR
 
 With Workspace Flow Nodes discoverable, it becomes possible to extend the activity by assigning a previously
 published [Data Store](../data/index.md#store-listing) to a Flow Node. This activity depends
-on [Locker Publishing](../locker/index.md#data-source-publish), not detailed in the diagram, but still a necessary set of
-scenarios detailed under [Add workspace node store](../../features/workspace/add_workspace_node_store.feature).
+on [Locker Publishing](../locker/index.md#data-source-publish), not detailed in the diagram, but still a necessary set
+of scenarios detailed under [Add workspace node store](../../features/workspace/add_workspace_node_store.feature).
+
+The activity provides 2 commands: Adding a data store and removing it. Both commands follow the same command
+specification and pattern:
 
 ```mermaid
 ---
@@ -152,3 +186,4 @@ flowchart LR
 * [Create workspace flow](../../features/workspace/create_workspace_flow.feature)
 * [List simple user workspaces](../../features/workspace/list_simple_user_workspaces.feature)
 * [List workspace nodes](../../features/workspace/list_workspace_nodes.feature)
+* [Set Workspace Node Input File](../../features/workspace/set_workspace_node_input_file.feature)
