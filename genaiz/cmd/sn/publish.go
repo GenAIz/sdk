@@ -18,6 +18,7 @@ import (
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
+	"genaiz.com/genaiz/task/docker/adapt"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -68,10 +69,10 @@ type PublishExecutor struct {
 	printerParams  cli.PrinterParametric
 	solutionReader *config.SolutionReader
 
-	inspectTaskFactory         sf.BuildTaskFactory
+	inspectTaskFactory         docker.InspectTaskFactory
 	provisionTaskFactory       sf.ProvisionTaskFactory
 	publishTaskFactory         sf.PublishTaskFactory
-	pushTaskFactory            sf.PushTaskFactory
+	pushTaskFactory            docker.PushTaskFactory
 	solutionPublishTaskFactory SolutionPublishTaskFactory
 }
 
@@ -260,10 +261,12 @@ func (pe *PublishExecutor) makeFunctionBuildParams(path string, vp *viper.Viper)
 		Env: task.Env{
 			Context: pe.Context,
 		},
-		DockerContext:    confDockerContext,
-		Dockerfile:       schema.Genaiz.Function.Build.File.GetString(vp),
-		DockerRepository: schema.Genaiz.Function.Build.Repository.GetString(vp),
-		DockerVersion:    schema.Genaiz.Function.Build.Version.GetString(vp),
+		BuildArguments: adapt.BuildArguments{
+			DockerContext:    confDockerContext,
+			Dockerfile:       schema.Genaiz.Function.Build.File.GetString(vp),
+			DockerRepository: schema.Genaiz.Function.Build.Repository.GetString(vp),
+			DockerVersion:    schema.Genaiz.Function.Build.Version.GetString(vp),
+		},
 	}
 }
 
@@ -425,10 +428,10 @@ func NewPublishExecutor(cmd *cobra.Command, ledger *config.Ledger, snCli *Cli,
 		printerParams:  cli.NewPrinterParam(ledger, options.optionJsonPrinter),
 		solutionReader: reader,
 
-		inspectTaskFactory:         docker.NewInspectTask,
+		inspectTaskFactory:         docker.BuildTasks.InspectTaskFactory,
 		provisionTaskFactory:       broker.NewFunctionProvisionTask,
 		publishTaskFactory:         broker.NewFunctionPublishTask,
-		pushTaskFactory:            docker.NewPushTask,
+		pushTaskFactory:            docker.PushTasks.PushTaskFactory,
 		solutionPublishTaskFactory: broker.NewSolutionPublishTask,
 	}
 }

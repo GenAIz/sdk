@@ -15,19 +15,15 @@ import (
 	"genaiz.com/genaiz/task/layout"
 )
 
-type ContainerTaskFactory func() *task.Task[docker.ContainerParams]
-
-type StartTaskFactory func() *task.Task[docker.ContainerParams]
-
 type StartExecutor struct {
 	BaseExecutor
 	dk.SyncBridge
 	*StartOptions
 
-	buildTaskFactory     BuildTaskFactory
-	containerTaskFactory ContainerTaskFactory
-	disposeTaskFactory   DisposeTaskFactory
-	startTaskFactory     StartTaskFactory
+	buildTaskFactory     docker.BuildTaskFactory
+	containerTaskFactory docker.CreateTaskFactory
+	disposeTaskFactory   docker.DisposeTaskFactory
+	startTaskFactory     docker.StartTaskFactory
 }
 
 func (se *StartExecutor) Display() {
@@ -187,10 +183,10 @@ func NewStartExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, op
 		SyncBridge:   dk.NewSyncBridgeBuilder().Build(),
 		StartOptions: options,
 
-		buildTaskFactory:     docker.NewBuildTask,
-		containerTaskFactory: docker.NewCreateTask,
-		disposeTaskFactory:   docker.NewDisposeTask,
-		startTaskFactory:     docker.NewStartTask,
+		buildTaskFactory:     docker.BuildTasks.StandardTaskFactory,
+		containerTaskFactory: docker.ContainerTasks.CreateTaskFactory,
+		disposeTaskFactory:   docker.ContainerTasks.DisposeTaskFactory,
+		startTaskFactory:     docker.ContainerTasks.StartTaskFactory,
 	}
 }
 

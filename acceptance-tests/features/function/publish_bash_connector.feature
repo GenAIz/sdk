@@ -20,8 +20,7 @@ Feature: connector publish with the bash example
     Then I should have an active session id with host "<orchestrator>" for username "<username>" under path "<path>"
 
   Scenario: create data link for data source
-    Given the scenario "login bash connector" ran with condition "service_completed_successfully"
-    And the following parameters
+    Given the following parameters
       | folder            | handle         | oem             | version |
       | my-bash-connector | datalink-src-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
@@ -29,16 +28,26 @@ Feature: connector publish with the bash example
     Then I should have a datalink under "<folder>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
 
   Scenario: create data link for data store
-    Given the scenario "create data link for data source" ran with condition "service_completed_successfully"
-    And the following parameters
+    Given the following parameters
       | folder            | handle         | oem             | version |
       | my-bash-connector | datalink-str-1 | com.genaiz.test | 1.0.0   |
     And the workdir changes to "<folder>"
     When I run the command "dk create <handle> --oem=<oem>"
     Then I should have a datalink under "<folder>" named "<handle>", with handle "<handle>", oem "<oem>" and version "<version>"
 
+  Scenario: publish data links
+    Given the scenario "login bash connector" ran with condition "service_completed_successfully"
+    And the scenario "create data link for data source" ran with condition "service_completed_successfully"
+    And the scenario "create data link for data store" ran with condition "service_completed_successfully"
+    And the following parameters
+      | handle         | oem             | version |
+      | datalink-src-1 | com.genaiz.test | 1.0.0   |
+      | datalink-str-1 | com.genaiz.test | 1.0.0   |
+    When I run the command "dk publish <oem>/<handle> --version=<version>"
+    Then I should have a datalink published to the orchestrator with fqdn "<oem>/<handle>:<version>"
+
   Scenario: add data source to connector
-    Given the scenario "create data link for data source" ran with condition "service_completed_successfully"
+    Given the scenario "publish data links" ran with condition "service_completed_successfully"
     And the following parameters
       | folder            | handle         | oem             | version |
       | my-bash-connector | datalink-src-1 | com.genaiz.test | 1.0.0   |
@@ -47,7 +56,7 @@ Feature: connector publish with the bash example
     Then I should have a data source under "<folder>" with datalink "<oem>/<handle>:<version>"
 
   Scenario: add data store to connector
-    Given the scenario "add data source to connector" ran with condition "service_completed_successfully"
+    Given the scenario "publish data links" ran with condition "service_completed_successfully"
     And the following parameters
       | folder            | handle         | oem             | version |
       | my-bash-connector | datalink-str-1 | com.genaiz.test | 1.0.0   |
@@ -68,8 +77,8 @@ Feature: connector publish with the bash example
     Given the scenario "add outbound proxy to connector" ran with condition "service_completed_successfully"
     And the execution group "<docker_gid>"
     And the following parameters
-      | folder            | oem        |
-      | my-bash-connector | com.genaiz |
+      | folder            | oem             |
+      | my-bash-connector | com.genaiz.test |
     And the workdir changes to "<folder>"
     When I run the command "sf build"
     Then I should have a docker image tagged "<oem>/<handle>:latest"
@@ -79,8 +88,8 @@ Feature: connector publish with the bash example
     And the scenario "login bash example" ran with condition "service_completed_successfully"
     And the registry is running with condition: "service_healthy"
     And the following parameters
-      | handle            | oem        | version |
-      | my-bash-connector | com.genaiz | 1.0.0   |
+      | handle            | oem             | version |
+      | my-bash-connector | com.genaiz.test | 1.0.0   |
     And the execution group "<docker_gid>"
     And the workdir changes to "<handle>"
     When I run the command "sf publish"

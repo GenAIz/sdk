@@ -1,14 +1,15 @@
 package docker
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client"
 	"github.com/spf13/cast"
 
 	"genaiz.com/genaiz-lib/lang/filez"
@@ -19,14 +20,13 @@ import (
 )
 
 var (
-	errorConflictPush       = errors.New("smart function can not be provisioned")
-	errorIllegalPush        = errors.New("can not push function, because of inactive state")
-	errImproperPushResponse = errors.New("docker push failed without a proper response")
-	errorNeutralPush        = errors.New("smart function digest is already known")
-	errorNoBuild            = errors.New("smart function push called without an image built")
-	errorNoProvision        = errors.New("smart function push called without a provision")
-	errorSynchronizedPush   = errors.New("smart function repository digest is unknown")
+	PushTasks struct {
+		PushTaskFactory PushTaskFactory // PushTaskFactory builds a task which can be used with an instance of PushParams to initiate the push of an image from dockerd to a registry
+	}
 )
+
+type PushTask = *task.Task[PushParams]
+type PushTaskFactory = func() PushTask
 
 type PushStatus struct {
 	Id             string                    `json:"id"`
@@ -42,7 +42,7 @@ type PushStatusAux struct {
 	Size   int64  `json:"Size"`
 }
 
-func NewPushStatuAux(plain string) *PushStatusAux {
+func NewPushStatusAux(plain string) *PushStatusAux {
 	var parts = strings.Split(plain, " ")
 
 	return &PushStatusAux{
@@ -59,24 +59,18 @@ type PushStatusProgressDetail struct {
 
 type PushParams struct {
 	task.Env
-	*BuildParams
 }
 
-func NewPushTask() *task.Task[PushParams] {
-	return &task.Task[PushParams]{
-		Name:         "docker-push",
-		OnPrepare:    handlePushContext,
-		OnComplete:   handlePushComplete,
-		OnIncomplete: handlePushIncomplete,
-		OnPretend:    handlePushPretend,
-	}
+func encodeAuthConfig(authConfig *registry.AuthConfig) (string, error) {
+	buf, _ := json.Marshal(authConfig)
+	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
 func handlePushContext(params *PushParams, state *task.State) error {
 	_ = params
 
 	if state.Output == "" {
-		return errorNoBuild
+		return Errors.PushImageNoBuild()
 	}
 
 	if state.Internal != nil {
@@ -85,39 +79,43 @@ func handlePushContext(params *PushParams, state *task.State) error {
 		if current.Auth == "" {
 			if current.IsFlagSet(broker.FunctionFlags.Active) {
 				state.Logger.Debugf("Function [%s] is already provisioned", current.Path)
-				return errorNeutralPush
+				return Errors.PushImageNeutral()
 			}
 
-			return errorIllegalPush
+			return Errors.PushImageInactive()
 		}
 
 		if !current.IsFlagSet(broker.FunctionFlags.Provisioning) {
 			state.Logger.Debugf("Function [%s] can not be pushed at this time", current.Path)
-			return errorConflictPush
+			return Errors.PushImageConflict()
 		}
 
 		return nil
 	}
 
-	return errorNoProvision
+	return Errors.PushImageNoProvision()
 }
 
 func handlePushComplete(params *PushParams, state *task.State) error {
 	if state.Internal != nil && state.Output != "" {
 		var dockerClient = dockerFactory.Get()
 		var remote = state.Internal.(*shared.Identity)
-		var jsonAuth, _ = registry.EncodeAuthConfig(registry.AuthConfig{
+		var jsonAuth, _ = encodeAuthConfig(&registry.AuthConfig{
 			RegistryToken: remote.Auth,
 		})
-		var pushOptions = image.PushOptions{
+		var pushOptions = client.ImagePushOptions{
 			RegistryAuth: jsonAuth,
+		}
+		var tagOptions = client.ImageTagOptions{
+			Source: state.Output,
+			Target: remote.Path,
 		}
 		var rd io.ReadCloser
 		var err error
 
 		state.Logger.Debugf("Tagging docker image [%s]", remote.Path)
 
-		if err = dockerClient.ImageTag(params.Context, state.Output, remote.Path); err == nil {
+		if _, err = dockerClient.ImageTag(params.Context, tagOptions); err == nil {
 			state.Logger.Debugf("Pushing smart function id [%s]", remote.Id)
 
 			if rd, err = dockerClient.ImagePush(params.Context, remote.Path, pushOptions); err == nil {
@@ -132,7 +130,7 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 							// Quirks-mode where a request is producing push result as a plain string in the status field
 							if strings.Contains(output.Status, "digest") {
 								state.Logger.Debugf("Quirks status payload: [%s]", output.Status)
-								return NewPushStatuAux(output.Status), nil
+								return NewPushStatusAux(output.Status), nil
 							}
 
 							state.Logger.Warningf("Quirks status did not provide a digest")
@@ -164,7 +162,7 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 					state.Reportf("Pushed smart function v%s [%s], %s, size: %d", remote.Version, remote.Id, remote.Hash, aux.Size)
 					return nil
 				} else if errors.Is(err, ioz.ErrorUntilNotFound) {
-					err = errImproperPushResponse
+					err = Errors.PushImageUnrecognizedResponse()
 				}
 			}
 		}
@@ -173,18 +171,18 @@ func handlePushComplete(params *PushParams, state *task.State) error {
 		return task.NewFailure(err)
 	}
 
-	return errorNoProvision
+	return Errors.PushImageNoProvision()
 }
 
 func handlePushIncomplete(params *PushParams, state *task.State) error {
 	_ = params
 	state.Completed = true
 
-	if errors.Is(state.Error, errorNeutralPush) && state.Internal != nil {
+	if errors.Is(state.Error, Errors.PushImageNeutral()) && state.Internal != nil {
 		var remote = state.Internal.(*shared.Identity)
 
 		if remote.Hash == "" {
-			return errorSynchronizedPush
+			return Errors.PushImageUnknownRepoDigest()
 		}
 
 		return nil
@@ -194,10 +192,12 @@ func handlePushIncomplete(params *PushParams, state *task.State) error {
 }
 
 func handlePushPretend(params *PushParams, state *task.State) error {
+	_ = params
+
 	if state.Internal != nil {
 		var remote = state.Internal.(*shared.Identity)
 
-		state.Logger.Debugf("Pretending to tag docker image [%s]", params.DockerRepository)
+		state.Logger.Debugf("Pretending to tag docker image [%s]", state.Output)
 		fmt.Printf("docker tag %s %s\n", remote.Hash, remote.Path)
 		state.Logger.Debugf("Pretending to push docker image [%s]", remote.Hash)
 		fmt.Printf("docker push %s\n", remote.Path)
@@ -205,5 +205,19 @@ func handlePushPretend(params *PushParams, state *task.State) error {
 		return nil
 	}
 
-	return errorNoProvision
+	return Errors.PushImageNoProvision()
+}
+
+func init() {
+	PushTasks.PushTaskFactory = newPushTask
+}
+
+func newPushTask() *task.Task[PushParams] {
+	return &task.Task[PushParams]{
+		Name:         "docker-push",
+		OnPrepare:    handlePushContext,
+		OnComplete:   handlePushComplete,
+		OnIncomplete: handlePushIncomplete,
+		OnPretend:    handlePushPretend,
+	}
 }

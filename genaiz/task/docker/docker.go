@@ -6,15 +6,9 @@ import (
 	"os/exec"
 	"sort"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/client"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 
 	"genaiz.com/genaiz-lib/lang/ioz"
 	"genaiz.com/genaiz-lib/lang/panicz"
@@ -34,37 +28,37 @@ var (
 
 // Client is a wrapper interface for the concrete object client.NewClientWithOpts under docker/api. This is useful for mocking calls to the client avoiding the need for a Docker installation when running tests
 type Client interface {
-	ContainerAttach(context.Context, string, container.AttachOptions) (types.HijackedResponse, error)
+	ContainerAttach(context.Context, string, client.ContainerAttachOptions) (client.ContainerAttachResult, error)
 
-	ContainerCreate(context.Context, *container.Config, *container.HostConfig, *network.NetworkingConfig, *ocispec.Platform, string) (container.CreateResponse, error)
+	ContainerCreate(context.Context, client.ContainerCreateOptions) (client.ContainerCreateResult, error)
 
-	ContainerInspect(context.Context, string) (container.InspectResponse, error)
+	ContainerInspect(context.Context, string, client.ContainerInspectOptions) (client.ContainerInspectResult, error)
 
-	ContainerKill(context.Context, string, string) error
+	ContainerKill(context.Context, string, client.ContainerKillOptions) (client.ContainerKillResult, error)
 
-	ContainerList(context.Context, container.ListOptions) ([]container.Summary, error)
+	ContainerList(context.Context, client.ContainerListOptions) (client.ContainerListResult, error)
 
-	ContainerRemove(context.Context, string, container.RemoveOptions) error
+	ContainerRemove(context.Context, string, client.ContainerRemoveOptions) (client.ContainerRemoveResult, error)
 
-	ContainerStart(context.Context, string, container.StartOptions) error
+	ContainerStart(context.Context, string, client.ContainerStartOptions) (client.ContainerStartResult, error)
 
-	ContainerStop(context.Context, string, container.StopOptions) error
+	ContainerStop(context.Context, string, client.ContainerStopOptions) (client.ContainerStopResult, error)
 
-	ContainerWait(context.Context, string, container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
+	ContainerWait(context.Context, string, client.ContainerWaitOptions) client.ContainerWaitResult
 
-	ImageBuild(context.Context, io.Reader, build.ImageBuildOptions) (build.ImageBuildResponse, error)
+	ImageBuild(context.Context, io.Reader, client.ImageBuildOptions) (client.ImageBuildResult, error)
 
-	ImageInspect(context.Context, string, ...client.ImageInspectOption) (image.InspectResponse, error)
+	ImageInspect(context.Context, string, ...client.ImageInspectOption) (client.ImageInspectResult, error)
 
-	ImageList(context.Context, image.ListOptions) ([]image.Summary, error)
+	ImageList(context.Context, client.ImageListOptions) (client.ImageListResult, error)
 
-	ImagesPrune(context.Context, filters.Args) (image.PruneReport, error)
+	ImagePrune(context.Context, client.ImagePruneOptions) (client.ImagePruneResult, error)
 
-	ImagePush(context.Context, string, image.PushOptions) (io.ReadCloser, error)
+	ImagePush(context.Context, string, client.ImagePushOptions) (client.ImagePushResponse, error)
 
-	ImageTag(context.Context, string, string) error
+	ImageTag(context.Context, client.ImageTagOptions) (client.ImageTagResult, error)
 
-	RegistryLogin(context.Context, registry.AuthConfig) (registry.AuthenticateOKBody, error)
+	RegistryLogin(context.Context, client.RegistryLoginOptions) (client.RegistryLoginResult, error)
 }
 
 type ClientFactory struct {
@@ -104,9 +98,9 @@ func (cs *ClientState) AddImages(images ...image.Summary) {
 func (cs *ClientState) DisplayString(summary *container.Summary) string {
 	if len(summary.Names) > 0 {
 		return summary.Names[0][1:]
-	} else {
-		return summary.ID[0:12]
 	}
+
+	return summary.ID[0:12]
 }
 
 func (cs *ClientState) GetContainers() []container.Summary {
@@ -178,7 +172,7 @@ func getDockerClient(cf *ClientFactory) (Client, error) {
 	var err error
 
 	if cf.dockerClient == nil {
-		cf.dockerClient, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		cf.dockerClient, err = client.New(client.FromEnv, client.WithAPIVersionFromEnv())
 	}
 
 	return cf.dockerClient, err

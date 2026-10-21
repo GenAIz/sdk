@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/sirupsen/logrus"
 
@@ -16,9 +17,39 @@ type Executor[P any] interface {
 	Pretend(*P, *State) *State
 }
 
-// Env contains references to the environment Context handling the task execution
+// Env contains references to the environment Context handling the task execution and optionally redirects for os.Stderr, os.Stdin and os.Stdout
 type Env struct {
 	Context context.Context
+	Err     *os.File
+	In      *os.File
+	Out     *os.File
+}
+
+// ErrorStream overrides os.Stderr if a task supports it, and the parameters provided use Env to configure execution
+func (e Env) ErrorStream() *os.File {
+	if e.Err == nil {
+		return os.Stderr
+	}
+
+	return e.Err
+}
+
+// InputStream overrides os.Stdin if a task supports it, and the parameters provided use Env to configure execution
+func (e Env) InputStream() *os.File {
+	if e.In == nil {
+		return os.Stdin
+	}
+
+	return e.In
+}
+
+// OutputStream overrides os.Stdout if a task supports it, and the parameters provided use Env to configure execution
+func (e Env) OutputStream() *os.File {
+	if e.Out == nil {
+		return os.Stdout
+	}
+
+	return e.Out
 }
 
 // State tracks the result(s) and state values of Task(s)' execution

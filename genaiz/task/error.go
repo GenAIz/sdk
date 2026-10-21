@@ -1,5 +1,7 @@
 package task
 
+import "fmt"
+
 // EagerErrors eagerly builds "final" error references which can be used, although not encouraged, in runtime flow control.
 // The primary use of this pattern is running unit tests which will check the error types propagated out of specific units.
 type EagerErrors struct {
@@ -33,6 +35,8 @@ type baseError struct {
 	Field   *string  `json:"field,omitempty"`
 	Message string   `json:"message"`
 	Status  *int     `json:"status,omitempty"`
+
+	wrapped error
 }
 
 func (fe baseError) Error() string {
@@ -49,6 +53,10 @@ func (fe baseError) IsFieldError() bool {
 
 func (fe baseError) IsRequestError() bool {
 	return fe.Status != nil
+}
+
+func (fe baseError) Unwrap() error {
+	return fe.wrapped
 }
 
 func NewError(msg string) Error {
@@ -123,5 +131,12 @@ func NewRequestError(msg string, status int) Error {
 	return &baseError{
 		Message: msg,
 		Status:  new(status),
+	}
+}
+
+func NewFormattedError(parent Error, format string, params ...any) Error {
+	return &baseError{
+		Message: fmt.Sprintf(format, params...),
+		wrapped: parent,
 	}
 }

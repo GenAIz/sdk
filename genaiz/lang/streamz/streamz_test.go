@@ -4,21 +4,59 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/stretchr/testify/assert"
 )
+
+const (
+	stubWriterPrefixLen = 8
+)
+
+var bufPool = &sync.Pool{New: func() interface{} { return bytes.NewBuffer(nil) }}
+
+type stubWriter struct {
+	io.Writer
+	prefix byte
+}
+
+func (w *stubWriter) Write(p []byte) (n int, err error) {
+	if w == nil || w.Writer == nil {
+		return 0, errors.New("writer not instantiated")
+	}
+	if p == nil {
+		return 0, nil
+	}
+
+	header := [stubWriterPrefixLen]byte{0: w.prefix}
+	binary.BigEndian.PutUint32(header[4:], uint32(len(p)))
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Write(header[:])
+	buf.Write(p)
+
+	n, err = w.Writer.Write(buf.Bytes())
+	n -= stubWriterPrefixLen
+	if n < 0 {
+		n = 0
+	}
+
+	buf.Reset()
+	bufPool.Put(buf)
+	return
+}
 
 type StubStreamer struct {
 	err error
 }
 
-func (ss StubStreamer) Stream(ctx context.Context) error {
+func (ss StubStreamer) Stream(context.Context) error {
 	if ss.err != nil {
 		return ss.err
 	}
@@ -28,7 +66,10 @@ func (ss StubStreamer) Stream(ctx context.Context) error {
 
 func TestHiJackedStreamer_ends(t *testing.T) {
 	var testTransfer = new(bytes.Buffer)
-	var testWriter = stdcopy.NewStdWriter(testTransfer, stdcopy.Stdout)
+	var testWriter = &stubWriter{
+		Writer: testTransfer,
+		prefix: byte(stdcopy.Stdout),
+	}
 	var expectedValue = "value"
 	var n, err = testWriter.Write([]byte(expectedValue))
 	var testStreamer *HiJackedIoStreamer
@@ -43,7 +84,10 @@ func TestHiJackedStreamer_ends(t *testing.T) {
 
 func TestHiJackedIoStreamer_Stream(t *testing.T) {
 	var testTransfer = new(bytes.Buffer)
-	var testWriter = stdcopy.NewStdWriter(testTransfer, stdcopy.Stdout)
+	var testWriter = &stubWriter{
+		Writer: testTransfer,
+		prefix: byte(stdcopy.Stdout),
+	}
 	var expectedValue = "value"
 	var n, err = testWriter.Write([]byte(expectedValue))
 	var testOut, testErr bytes.Buffer

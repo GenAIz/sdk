@@ -84,6 +84,14 @@ func TestNewFailure_unknown(t *testing.T) {
 	assert.NotEmpty(t, testError.Error())
 }
 
+func TestNewFormattedError(t *testing.T) {
+	var expectedError = NewError("expected")
+	var testError = NewFormattedError(expectedError, "custom message %s", "test")
+
+	// This works because Unwrap() returns expectedError
+	assert.ErrorIs(t, testError, expectedError)
+}
+
 func TestNewRequestError(t *testing.T) {
 	var expectedMessage = "expectedMessage"
 	var testError = NewRequestError(expectedMessage, 400)

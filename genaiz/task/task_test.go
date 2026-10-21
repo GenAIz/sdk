@@ -2,18 +2,66 @@ package task
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/mock"
 )
 
 var (
-	testLogger = &logrus.Logger{}
+	testLogger, _ = test.NewNullLogger()
 )
+
+func TestEnv_ErrorStream(t *testing.T) {
+	var testEnv = &Env{}
+	var testFile = filepath.Join(t.TempDir(), "testErr")
+
+	assert.Equal(t, os.Stderr, testEnv.ErrorStream())
+
+	if fd, err := os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+		testEnv.Err = fd
+		assert.Equal(t, fd, testEnv.ErrorStream())
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestEnv_InputStream(t *testing.T) {
+	var testEnv = &Env{}
+	var testFile = filepath.Join(t.TempDir(), "testInput")
+
+	assert.Equal(t, os.Stdin, testEnv.InputStream())
+
+	if fd, err := os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+		testEnv.In = fd
+		assert.Equal(t, fd, testEnv.InputStream())
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
+
+func TestEnv_OutputStream(t *testing.T) {
+	var testEnv = &Env{}
+	var testFile = filepath.Join(t.TempDir(), "testOutput")
+
+	assert.Equal(t, os.Stdout, testEnv.OutputStream())
+
+	if fd, err := os.Create(testFile); err == nil {
+		defer filez.CloseSilently(fd)
+		testEnv.Out = fd
+		assert.Equal(t, fd, testEnv.OutputStream())
+	} else {
+		assert.Fail(t, err.Error())
+	}
+}
 
 func TestState_Report(t *testing.T) {
 	var testState = &State{}

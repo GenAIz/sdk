@@ -10,8 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
@@ -19,284 +20,38 @@ import (
 
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/docker/adapt"
 	"genaiz.com/genaiz/task/shared"
 )
 
-func TestBuildParams_GetFilters(t *testing.T) {
-	var testParams = &BuildParams{
-		DockerRepository: "testRepository",
-		DockerVersion:    "version",
-	}
-
-	actual := testParams.GetFilters()
-	assert.Equal(t, []string{fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion)},
-		actual.Get("reference"))
-}
-
-func TestBuildParams_GetFiltersByRepo(t *testing.T) {
-	var testField = "field"
-	var expectedRepo = "repo"
-	var testParams = &BuildParams{
-		DockerRepository: expectedRepo,
-	}
-
-	actual := testParams.GetFiltersByRepo(testField)
-	assert.Equal(t, []string{expectedRepo + "*"}, actual.Get(testField))
-}
-
-func TestBuildParams_GetFiltersByRepo_WithNamespace(t *testing.T) {
-	var testField = "field"
-	var expectedRepo = "repo"
-	var testParams = &BuildParams{
-		DockerRepository: "namespace/" + expectedRepo,
-	}
-
-	actual := testParams.GetFiltersByRepo(testField)
-	assert.Equal(t, []string{expectedRepo + "*"}, actual.Get(testField))
-}
-
-func TestBuildParams_GetFiltersByVersion(t *testing.T) {
-	var testParams = &BuildParams{
-		DockerRepository: "testRepository",
-		DockerVersion:    "version",
-	}
-
-	actual := testParams.GetFiltersByVersion()
-	assert.Equal(t, []string{fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion)},
-		actual.Get("reference"))
-}
-
-func TestBuildParams_GetFiltersByVersion_Latest(t *testing.T) {
-	var testParams = &BuildParams{
-		DockerRepository: "testRepository",
-		DockerVersion:    "latest",
-	}
-
-	actual := testParams.GetFiltersByVersion()
-	assert.Equal(t, []string{testParams.DockerRepository + ":*"},
-		actual.Get("reference"))
-}
-
-func TestBuildParams_GetReference(t *testing.T) {
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-	}
-
-	assert.Equal(t, fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion), testParams.GetReference())
-}
-
-func TestBuildParams_GetVersion(t *testing.T) {
-	var testParams = &BuildParams{}
-	var expectedVersion = "version"
-
-	assert.Equal(t, "latest", testParams.GetVersion())
-	testParams.DockerVersion = expectedVersion
-	assert.Equal(t, expectedVersion, testParams.GetVersion())
-}
-
-func TestBuildParams_getErrorStream(t *testing.T) {
-	var testParams = &BuildParams{}
-	var testFile = filepath.Join(t.TempDir(), "testErr")
-
-	assert.Equal(t, os.Stderr, testParams.getErrorStream())
-	testParams.Streams = &BuildStreams{}
-	assert.Equal(t, os.Stderr, testParams.getErrorStream())
-
-	if fd, err := os.Create(testFile); err == nil {
-		testParams.Streams.Err = fd
-		assert.Equal(t, fd, testParams.getErrorStream())
-	} else {
-		assert.Fail(t, err.Error())
+func newBuildParams(repository, version string) *BuildParams {
+	return &BuildParams{
+		BuildArguments: adapt.BuildArguments{
+			DockerRepository: repository,
+			DockerVersion:    version,
+		},
 	}
 }
 
-func TestBuildParams_getInputStream(t *testing.T) {
-	var testParams = &BuildParams{}
-	var testFile = filepath.Join(t.TempDir(), "testInput")
+func TestBuildTasks_InspectTaskFactory(t *testing.T) {
+	var testTask = BuildTasks.InspectTaskFactory()
 
-	assert.Equal(t, os.Stdin, testParams.getInputStream())
-	testParams.Streams = &BuildStreams{}
-	assert.Equal(t, os.Stdin, testParams.getInputStream())
-
-	if fd, err := os.Create(testFile); err == nil {
-		testParams.Streams.In = fd
-		assert.Equal(t, fd, testParams.getInputStream())
-	} else {
-		assert.Fail(t, err.Error())
-	}
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnPretend)
 }
 
-func TestBuildParams_getOutputStream(t *testing.T) {
-	var testParams = &BuildParams{}
-	var testFile = filepath.Join(t.TempDir(), "testOutput")
+func TestBuildTasks_ListTaskFactory(t *testing.T) {
+	var testTask = BuildTasks.ListTaskFactory()
 
-	assert.Equal(t, os.Stdout, testParams.getOutputStream())
-	testParams.Streams = &BuildStreams{}
-	assert.Equal(t, os.Stdout, testParams.getOutputStream())
-
-	if fd, err := os.Create(testFile); err == nil {
-		testParams.Streams.Out = fd
-		assert.Equal(t, fd, testParams.getOutputStream())
-	} else {
-		assert.Fail(t, err.Error())
-	}
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.Nil(t, testTask.OnPretend)
 }
 
-func TestBuildParams_toBuildArgs(t *testing.T) {
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-	}
-
-	actual := testParams.toBuildArgs()
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, "build", actual[0])
-	assert.Equal(t, "--pull", actual[1])
-	assert.Equal(t, "-t", actual[2])
-	assert.Equal(t, fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion), actual[3])
-	assert.Equal(t, ".", actual[4])
-}
-
-func TestBuildParams_toBuildArgs_WithContext(t *testing.T) {
-	var expectedDir = t.TempDir()
-	var testParams = &BuildParams{
-		DockerContext:    expectedDir,
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-	}
-
-	actual := testParams.toBuildArgs()
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, "build", actual[0])
-	assert.Equal(t, "--pull", actual[1])
-	assert.Equal(t, "-t", actual[2])
-	assert.Equal(t, fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion), actual[3])
-	assert.Equal(t, expectedDir, actual[4])
-}
-
-func TestBuildParams_toBuildArgs_WithDockerfile(t *testing.T) {
-	var expectedFile = filepath.Join(t.TempDir(), "Dockerfile")
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-		Dockerfile:       expectedFile,
-	}
-
-	actual := testParams.toBuildArgs()
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, "build", actual[0])
-	assert.Equal(t, "--pull", actual[1])
-	assert.Equal(t, "-t", actual[2])
-	assert.Equal(t, fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion), actual[3])
-	assert.Equal(t, "-f", actual[4])
-	assert.Equal(t, expectedFile, actual[5])
-	assert.Equal(t, ".", actual[6])
-}
-
-func TestBuildParams_toBuildArgs_WithPlatform(t *testing.T) {
-	var expectedFile = filepath.Join(t.TempDir(), "Dockerfile")
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-		Dockerfile:       expectedFile,
-		Platform:         "testPlatform",
-	}
-
-	actual := testParams.toBuildArgs()
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, "build", actual[0])
-	assert.Equal(t, "--pull", actual[1])
-	assert.Equal(t, "-t", actual[2])
-	assert.Equal(t, fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion), actual[3])
-	assert.Equal(t, "-f", actual[4])
-	assert.Equal(t, expectedFile, actual[5])
-	assert.Equal(t, "--platform", actual[6])
-	assert.Equal(t, testParams.Platform, actual[7])
-	assert.Equal(t, ".", actual[8])
-}
-
-func TestBuildParams_toBuildArgs_WithLabel(t *testing.T) {
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-		Label:            true,
-	}
-
-	actual := testParams.toBuildArgs()
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, "build", actual[0])
-	assert.Equal(t, "--pull", actual[1])
-	assert.Equal(t, "-t", actual[2])
-	assert.Equal(t, fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion), actual[3])
-	assert.Equal(t, "--label", actual[4])
-	assert.Equal(t, ".", actual[5])
-}
-
-func TestBuildParams_toBuildArgs_WithNoCache(t *testing.T) {
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-		NoCache:          true,
-	}
-
-	actual := testParams.toBuildArgs()
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, "build", actual[0])
-	assert.Equal(t, "--pull", actual[1])
-	assert.Equal(t, "-t", actual[2])
-	assert.Equal(t, fmt.Sprintf("%s:%s", testParams.DockerRepository, testParams.DockerVersion), actual[3])
-	assert.Equal(t, "--no-cache", actual[4])
-	assert.Equal(t, ".", actual[5])
-}
-
-func TestBuildParams_toPruneArgs(t *testing.T) {
-	var testParams = &BuildParams{}
-
-	actual := testParams.toPruneArgs()
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, "buildx", actual[0])
-	assert.Equal(t, "prune", actual[1])
-	assert.Equal(t, "--force", actual[2])
-	assert.Equal(t, "--filter", actual[3])
-	assert.Equal(t, "until=12h", actual[4])
-}
-
-func TestBuildParams_toPruneArgs_NoCache(t *testing.T) {
-	var testParams = &BuildParams{
-		NoCache: true,
-	}
-
-	actual := testParams.toPruneArgs()
-	assert.NotEmpty(t, actual)
-	assert.Equal(t, 3, len(actual))
-	assert.Equal(t, "buildx", actual[0])
-	assert.Equal(t, "prune", actual[1])
-	assert.Equal(t, "--force", actual[2])
-}
-
-func TestNewBuildTask_Fork(t *testing.T) {
-	var patchedUid = mock.Patches{T: t}.OsGeteuid(1)
-	var patchLookup = mock.Patches{T: t}.ExecLookPath(func(string) (string, error) {
-		return "path", nil
-	})
-
-	defer patchLookup.Unpatch()
-	defer patchedUid.Unpatch()
-	actual := NewBuildTask()
-
-	if actual != nil {
-		assert.Equal(t, "docker-build-fork", actual.Name)
-		assert.NotEmpty(t, actual.OnPrepare)
-		assert.NotEmpty(t, actual.OnComplete)
-		assert.NotEmpty(t, actual.OnIncomplete)
-		assert.NotEmpty(t, actual.OnPretend)
-	} else {
-		assert.Fail(t, "no task built")
-	}
-}
-
-func TestNewBuildTask_Legacy(t *testing.T) {
+func TestBuildTasks_LegacyTaskFactory(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var patchPrintln = mock.Patches{T: t}.FmtPrintln(func(...any) {})
 	var patchLookup = mock.Patches{T: t}.ExecLookPath(func(string) (string, error) {
@@ -305,7 +60,7 @@ func TestNewBuildTask_Legacy(t *testing.T) {
 
 	defer patchLookup.Unpatch()
 	defer patchPrintln.Unpatch()
-	actual := NewBuildTask()
+	actual := BuildTasks.StandardTaskFactory()
 
 	if actual != nil {
 		assert.Equal(t, "docker-build-legacy", actual.Name)
@@ -320,7 +75,28 @@ func TestNewBuildTask_Legacy(t *testing.T) {
 	}
 }
 
-func TestNewBuildTask_RootError(t *testing.T) {
+func TestBuildTasks_StandardTaskFactory(t *testing.T) {
+	var patchedUid = mock.Patches{T: t}.OsGeteuid(1)
+	var patchLookup = mock.Patches{T: t}.ExecLookPath(func(string) (string, error) {
+		return "path", nil
+	})
+
+	defer patchLookup.Unpatch()
+	defer patchedUid.Unpatch()
+	actual := BuildTasks.StandardTaskFactory()
+
+	if actual != nil {
+		assert.Equal(t, "docker-build-fork", actual.Name)
+		assert.NotEmpty(t, actual.OnPrepare)
+		assert.NotEmpty(t, actual.OnComplete)
+		assert.NotEmpty(t, actual.OnIncomplete)
+		assert.NotEmpty(t, actual.OnPretend)
+	} else {
+		assert.Fail(t, "no task built")
+	}
+}
+
+func TestBuildTasks_StandardTaskFactory_RootError(t *testing.T) {
 	var patchedUid = mock.Patches{T: t}.OsGeteuid(0)
 	var patchLookup = mock.Patches{T: t}.ExecLookPath(func(string) (string, error) {
 		return "path", nil
@@ -328,37 +104,17 @@ func TestNewBuildTask_RootError(t *testing.T) {
 
 	defer patchLookup.Unpatch()
 	defer patchedUid.Unpatch()
-	assert.Panics(t, func() { NewBuildTask() })
-}
-
-func TestNewInspectTask(t *testing.T) {
-	var testTask = NewInspectTask()
-
-	assert.NotEmpty(t, testTask.Name)
-	assert.NotNil(t, testTask.OnPrepare)
-	assert.NotNil(t, testTask.OnComplete)
-	assert.NotNil(t, testTask.OnPretend)
-}
-
-func TestNewListTask(t *testing.T) {
-	var testTask = NewListTask()
-
-	assert.NotEmpty(t, testTask.Name)
-	assert.NotNil(t, testTask.OnPrepare)
-	assert.NotNil(t, testTask.OnComplete)
-	assert.Nil(t, testTask.OnPretend)
+	assert.Panics(t, func() { BuildTasks.StandardTaskFactory() })
 }
 
 func Test_handleBuildContext(t *testing.T) {
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
-	var testParams = &BuildParams{
-		DockerVersion: "version",
-	}
+	var testState = newTestState()
+	var testParams = newBuildParams("", "version")
 	var expectedSummary = image.Summary{ID: "expectedId"}
 	var stubClient = &stubDockerClient{
-		imageList: []image.Summary{expectedSummary},
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{expectedSummary},
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -367,19 +123,17 @@ func Test_handleBuildContext(t *testing.T) {
 }
 
 func Test_handleBuildContext_latestError(t *testing.T) {
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
-	var testParams = &BuildParams{
-		DockerVersion: "latest",
-	}
+	var testState = newTestState()
+	var testParams = newBuildParams("", "latest")
 	var expectedSummary = image.Summary{ID: "expectedId"}
 	var stubClient = &stubDockerClient{
-		imageList: []image.Summary{expectedSummary},
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{expectedSummary},
+		},
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handleBuildContext(testParams, testState), ErrorLatestBuild)
+	assert.ErrorIs(t, handleBuildContext(testParams, testState), Errors.BuildImageRebuildRequired())
 	assert.Equal(t, expectedSummary.ID, testState.Output)
 }
 
@@ -397,32 +151,21 @@ func Test_handleBuildContext_listError(t *testing.T) {
 }
 
 func Test_handleBuildContext_noResults(t *testing.T) {
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-	}
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
+	var testState = newTestState()
+	var testParams = newBuildParams("repository", "")
 	var stubClient = &stubDockerClient{}
 
 	defer installDockerClient(stubClient)()
-
-	if actual := handleBuildContext(testParams, testState); actual != nil {
-		assert.Contains(t, actual.Error(), testParams.GetReference())
-	} else {
-		assert.Fail(t, "expected error")
-	}
+	assert.ErrorIs(t, handleBuildContext(testParams, testState), Errors.listImageNotFound)
 }
 
 func Test_handleBuildForkCreate(t *testing.T) {
 	var testFolder = t.TempDir()
-	var testState = &task.State{Logger: logrus.New(), Output: "notEmpty"}
-
+	var testState = newTestState()
 	var testParams = &BuildParams{
 		Env: task.Env{
 			Context: t.Context(),
 		},
-		Streams: &BuildStreams{},
 	}
 	var fErr, fOut *os.File
 	var err error
@@ -432,8 +175,8 @@ func Test_handleBuildForkCreate(t *testing.T) {
 			var testFork = &stubFork{}
 
 			defer installFork(testFork)()
-			testParams.Streams.Err = fErr
-			testParams.Streams.Out = fOut
+			testParams.Err = fErr
+			testParams.Out = fOut
 			assert.NoError(t, handleBuildForkCreate("_path", testParams, testState))
 			assert.Empty(t, testState.Output)
 			assert.Same(t, fErr, testFork.stdErr)
@@ -447,8 +190,7 @@ func Test_handleBuildForkCreate(t *testing.T) {
 
 func Test_handleBuildForkCreate_RunError(t *testing.T) {
 	var expectedError = errors.New("expectedError")
-	var testLogger = logrus.New()
-	var testState = &task.State{Logger: testLogger}
+	var testState = newTestState()
 	var testFork = &stubFork{runError: expectedError}
 	var testParams = &BuildParams{
 		Env: task.Env{
@@ -463,8 +205,7 @@ func Test_handleBuildForkCreate_RunError(t *testing.T) {
 
 func Test_handleBuildForkCreate_WaitError(t *testing.T) {
 	var expectedError = errors.New("expectedError")
-	var testLogger = logrus.New()
-	var testState = &task.State{Logger: testLogger}
+	var testState = newTestState()
 	var testFork = &stubFork{waitError: expectedError}
 	var testParams = &BuildParams{
 		Env: task.Env{
@@ -481,8 +222,7 @@ func Test_handleBuildForkCreate_WaitError(t *testing.T) {
 func Test_handleBuildForkPrune(t *testing.T) {
 	var expectedShortId = "123456789ABC"
 	var expectedSize = int64(1024 * 1024)
-	var testLogger = logrus.New()
-	var testState = &task.State{Logger: testLogger}
+	var testState = newTestState()
 	var testParams = &BuildParams{
 		Env: task.Env{
 			Context: t.Context(),
@@ -490,10 +230,12 @@ func Test_handleBuildForkPrune(t *testing.T) {
 		Prune: true,
 	}
 	var stubClient = &stubDockerClient{
-		imageList: []image.Summary{{
-			ID:   "sha256:" + expectedShortId,
-			Size: expectedSize,
-		}},
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{{
+				ID:   "sha256:" + expectedShortId,
+				Size: expectedSize,
+			}},
+		},
 	}
 	var testFork = &stubFork{}
 
@@ -509,7 +251,7 @@ func Test_handleBuildForkPrune(t *testing.T) {
 
 func Test_handleBuildForkPrune_forkError(t *testing.T) {
 	var expectedError = errors.New("expected")
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var testParams = &BuildParams{
 		Env: task.Env{
 			Context: t.Context(),
@@ -520,7 +262,9 @@ func Test_handleBuildForkPrune_forkError(t *testing.T) {
 		runError: expectedError,
 	}
 	var testClient = &stubDockerClient{
-		imageList: []image.Summary{},
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{},
+		},
 	}
 
 	defer installFork(testFork)()
@@ -532,7 +276,7 @@ func Test_handleBuildForkPrune_forkError(t *testing.T) {
 func Test_handleBuildForkPrune_noPruning(t *testing.T) {
 	var testState = &task.State{Logger: logrus.New()}
 	var stubClient = &stubDockerClient{
-		imageList: []image.Summary{},
+		imageListResult: client.ImageListResult{},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -547,14 +291,13 @@ func Test_handleBuildForkPrune_stateError(t *testing.T) {
 }
 
 func Test_handleBuildLegacyCreate(t *testing.T) {
-	var testState = &task.State{
-		Logger: logrus.New(),
-		Output: "notEmpty",
-	}
+	var testState = newTestState()
 	var testParams = &BuildParams{
-		DockerContext:    t.TempDir(),
-		DockerRepository: "repository",
-		Label:            true,
+		BuildArguments: adapt.BuildArguments{
+			DockerContext:    t.TempDir(),
+			DockerRepository: "repository",
+			Label:            true,
+		},
 	}
 	var testResponse = []string{
 		"An illegal json string",
@@ -562,7 +305,9 @@ func Test_handleBuildLegacyCreate(t *testing.T) {
 		"{\"Stream\": \"a stream\"}",
 	}
 	var stubClient = &stubDockerClient{
-		imageBuildResponseReader: io.NopCloser(strings.NewReader(strings.Join(testResponse, "\n"))),
+		imageBuildResult: client.ImageBuildResult{
+			Body: io.NopCloser(strings.NewReader(strings.Join(testResponse, "\n"))),
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -574,9 +319,11 @@ func Test_handleBuildLegacyCreate(t *testing.T) {
 
 func Test_handleBuildLegacyCreate_buildError(t *testing.T) {
 	var expectedError = errors.New("expected")
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var testParams = &BuildParams{
-		DockerContext: t.TempDir(),
+		BuildArguments: adapt.BuildArguments{
+			DockerContext: t.TempDir(),
+		},
 	}
 	var stubClient = &stubDockerClient{imageBuildError: expectedError}
 
@@ -590,13 +337,15 @@ func Test_handleBuildPretend(t *testing.T) {
 		lines = append(lines, fmt.Sprintf(format, a...))
 	})
 	var testState = &task.State{
-		Error:  ErrorNoBuild,
-		Logger: logrus.New(),
+		Error:  Errors.BuildImageNotFound(),
+		Logger: testLogger,
 	}
 	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-		DockerContext:    t.TempDir(),
+		BuildArguments: adapt.BuildArguments{
+			DockerRepository: "repository",
+			DockerVersion:    "version",
+			DockerContext:    t.TempDir(),
+		},
 	}
 
 	defer patch.Unpatch()
@@ -609,11 +358,8 @@ func Test_handleBuildPretend(t *testing.T) {
 
 func Test_handleBuildPretend_alreadyBuilt(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
-	var testState = &task.State{Logger: logrus.New()}
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-	}
+	var testState = newTestState()
+	var testParams = newBuildParams("repository", "version")
 
 	defer patch.Unpatch()
 	assert.NoError(t, handleBuildPretend(testParams, testState))
@@ -628,14 +374,16 @@ func Test_handleBuildPretend_dockerFile(t *testing.T) {
 		lines = append(lines, fmt.Sprintf(format, a...))
 	})
 	var testState = &task.State{
-		Error:  ErrorNoBuild,
-		Logger: logrus.New(),
+		Error:  Errors.BuildImageNotFound(),
+		Logger: testLogger,
 	}
 	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-		DockerContext:    t.TempDir(),
-		Dockerfile:       "expectedFile",
+		BuildArguments: adapt.BuildArguments{
+			DockerRepository: "repository",
+			DockerVersion:    "version",
+			DockerContext:    t.TempDir(),
+			Dockerfile:       "expectedFile",
+		},
 	}
 
 	defer patch.Unpatch()
@@ -653,14 +401,16 @@ func Test_handleBuildPretend_withPruning(t *testing.T) {
 		lines = append(lines, fmt.Sprintf(format, a...))
 	})
 	var testState = &task.State{
-		Error:  ErrorNoBuild,
-		Logger: logrus.New(),
+		Error:  Errors.BuildImageNotFound(),
+		Logger: testLogger,
 	}
 	var testParams = &BuildParams{
-		DockerRepository: "repository",
-		DockerVersion:    "version",
-		DockerContext:    t.TempDir(),
-		Prune:            true,
+		BuildArguments: adapt.BuildArguments{
+			DockerRepository: "repository",
+			DockerVersion:    "version",
+			DockerContext:    t.TempDir(),
+		},
+		Prune: true,
 	}
 
 	defer patch.Unpatch()
@@ -673,13 +423,24 @@ func Test_handleBuildPretend_withPruning(t *testing.T) {
 }
 
 func Test_handleBuildPrune(t *testing.T) {
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var testParams = &BuildParams{
 		Prune: true,
 	}
 	var stubClient = &stubDockerClient{
-		imageList:           []image.Summary{},
-		imagePruneDeletions: []string{"deleted"},
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{},
+		},
+		imagePruneResult: client.ImagePruneResult{
+			Report: image.PruneReport{
+				ImagesDeleted: []image.DeleteResponse{
+					{
+						Deleted:  "deleted",
+						Untagged: "deleted",
+					},
+				},
+			},
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -687,9 +448,11 @@ func Test_handleBuildPrune(t *testing.T) {
 }
 
 func Test_handleBuildPrune_noPrune(t *testing.T) {
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var stubClient = &stubDockerClient{
-		imageList: []image.Summary{},
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{},
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -698,12 +461,11 @@ func Test_handleBuildPrune_noPrune(t *testing.T) {
 
 func Test_handleBuildPrune_pruneError(t *testing.T) {
 	var expectedError = errors.New("expected")
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var testParams = &BuildParams{
 		Prune: true,
 	}
 	var stubClient = &stubDockerClient{
-		imageList:       []image.Summary{},
 		imagePruneError: expectedError,
 	}
 
@@ -722,31 +484,36 @@ func Test_handleBuildPrune_stateError(t *testing.T) {
 }
 
 func Test_handleBuildReport_stateError(t *testing.T) {
-	var testState = &task.State{Error: ErrorLatestBuild}
+	var testState = &task.State{
+		Error: Errors.BuildImageRebuildRequired(),
+	}
 
-	assert.ErrorIs(t, handleBuildReport(&BuildParams{}, testState), ErrorLatestBuild)
+	assert.ErrorIs(t, handleBuildReport(&BuildParams{}, testState),
+		Errors.BuildImageRebuildRequired())
 }
 
 func Test_handleListContext(t *testing.T) {
 	var expectedId = "expectedId"
 	var expectedContainer = "expectedContainer"
-	var testState = &task.State{}
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-	}
+	var testState = newTestState()
+	var testParams = newBuildParams("repository", "")
 	var stubClient = &stubDockerClient{
-		containerList: []container.Summary{{
-			ID: expectedContainer,
-		}},
-		imageList: []image.Summary{{
-			ID: expectedId,
-		}},
+		containerListResult: client.ContainerListResult{
+			Items: []container.Summary{{
+				ID: expectedContainer,
+			}},
+		},
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{{
+				ID: expectedId,
+			}},
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.NoError(t, handleListContext(testParams, testState))
 	assert.NotNil(t, stubClient.imageListOptions)
-	assert.True(t, stubClient.imageListOptions.Filters.Contains("reference"))
+	assert.True(t, stubClient.imageListOptions.Filters["reference"]["repository:latest"])
 	assert.NotNil(t, testState.Internal)
 	tracking, ok := testState.Internal.(clientTracking)
 	assert.True(t, ok)
@@ -757,21 +524,21 @@ func Test_handleListContext(t *testing.T) {
 func Test_handleListContext_containerListError(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var expectedId = "expectedId"
-	var testState = &task.State{}
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-	}
+	var testState = newTestState()
+	var testParams = newBuildParams("repository", "")
 	var stubClient = &stubDockerClient{
 		containerListError: expectedError,
-		imageList: []image.Summary{{
-			ID: expectedId,
-		}},
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{{
+				ID: expectedId,
+			}},
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.ErrorIs(t, handleListContext(testParams, testState), expectedError)
 	assert.NotNil(t, stubClient.imageListOptions)
-	assert.True(t, stubClient.imageListOptions.Filters.Contains("reference"))
+	assert.True(t, stubClient.imageListOptions.Filters["reference"]["repository:latest"])
 	assert.NotNil(t, testState.Internal)
 	tracking, ok := testState.Internal.(clientTracking)
 	assert.True(t, ok)
@@ -789,11 +556,11 @@ func Test_handleListContext_imageListError(t *testing.T) {
 }
 
 func Test_handleListContext_noBuildError(t *testing.T) {
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var stubClient = &stubDockerClient{}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handleListContext(&BuildParams{}, testState), ErrorNoBuild)
+	assert.ErrorIs(t, handleListContext(&BuildParams{}, testState), Errors.BuildImageNotFound())
 }
 
 func Test_handleListComplete(t *testing.T) {
@@ -830,11 +597,9 @@ func Test_handleListComplete(t *testing.T) {
 				},
 			},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-	}
+	var testParams = newBuildParams("repository", "")
 
 	assert.NoError(t, handleListComplete(testParams, testState))
 	assert.Contains(t, testState.Output, expectedAlternateId)
@@ -857,11 +622,9 @@ func Test_handleListComplete_noContainers(t *testing.T) {
 				},
 			},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-	}
+	var testParams = newBuildParams("repository", "")
 
 	assert.NoError(t, handleListComplete(testParams, testState))
 	assert.Contains(t, testState.Output, "No containers")
@@ -870,9 +633,7 @@ func Test_handleListComplete_noContainers(t *testing.T) {
 
 func Test_handleListComplete_noImages(t *testing.T) {
 	var testState = &task.State{}
-	var testParams = &BuildParams{
-		DockerRepository: "repository",
-	}
+	var testParams = newBuildParams("repository", "")
 
 	assert.NoError(t, handleListComplete(testParams, testState))
 	assert.Contains(t, testState.Output, testParams.DockerRepository)
@@ -880,19 +641,19 @@ func Test_handleListComplete_noImages(t *testing.T) {
 
 func Test_handleInspectComplete(t *testing.T) {
 	var expectedDigest = hashPrefix + "123456789ABC"
-	var expectedImage = &image.Summary{
+	var expectedImage = &image.InspectResponse{
 		ID:          "expectedId",
 		RepoDigests: []string{expectedDigest},
 	}
-	var testParams = &BuildParams{
-		DockerVersion: "expectedVersion",
-	}
+	var testParams = newBuildParams("", "expectedVersion")
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedImage.ID,
 	}
 	var stubClient = &stubDockerClient{
-		imageInspect: expectedImage,
+		imageInspectResult: client.ImageInspectResult{
+			InspectResponse: *expectedImage,
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -910,7 +671,7 @@ func Test_handleInspectComplete_inspectError(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testParams = &BuildParams{}
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: "id",
 	}
 	var stubClient = &stubDockerClient{
@@ -923,25 +684,25 @@ func Test_handleInspectComplete_inspectError(t *testing.T) {
 }
 
 func Test_handleInspectComplete_noBuild(t *testing.T) {
-	assert.ErrorIs(t, handleInspectComplete(&BuildParams{}, &task.State{}), ErrorNoBuild)
+	assert.ErrorIs(t, handleInspectComplete(&BuildParams{}, &task.State{}), Errors.BuildImageNotFound())
 }
 
 func Test_handleInspectComplete_invalidRepoDigest(t *testing.T) {
-	var expectedImage = &image.Summary{
+	var expectedImage = &image.InspectResponse{
 		ID: "expectedId",
 		RepoDigests: []string{
 			"invalidDigest",
 		},
 	}
-	var testParams = &BuildParams{
-		DockerVersion: "expectedVersion",
-	}
+	var testParams = newBuildParams("", "expectedVersion")
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedImage.ID,
 	}
 	var stubClient = &stubDockerClient{
-		imageInspect: expectedImage,
+		imageInspectResult: client.ImageInspectResult{
+			InspectResponse: *expectedImage,
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -956,18 +717,18 @@ func Test_handleInspectComplete_invalidRepoDigest(t *testing.T) {
 }
 
 func Test_handleInspectComplete_noRepoDigest(t *testing.T) {
-	var expectedImage = &image.Summary{
+	var expectedImage = &image.InspectResponse{
 		ID: "expectedId",
 	}
-	var testParams = &BuildParams{
-		DockerVersion: "expectedVersion",
-	}
+	var testParams = newBuildParams("", "expectedVersion")
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedImage.ID,
 	}
 	var stubClient = &stubDockerClient{
-		imageInspect: expectedImage,
+		imageInspectResult: client.ImageInspectResult{
+			InspectResponse: *expectedImage,
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -983,14 +744,14 @@ func Test_handleInspectComplete_noRepoDigest(t *testing.T) {
 
 func Test_handleInspectContext(t *testing.T) {
 	var expectedId = "expectedId"
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
-	var testParams = &BuildParams{DockerVersion: "version"}
+	var testState = newTestState()
+	var testParams = newBuildParams("", "version")
 	var stubClient = &stubDockerClient{
-		imageList: []image.Summary{
-			{
-				ID: expectedId,
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{
+				{
+					ID: expectedId,
+				},
 			},
 		},
 	}
@@ -1002,9 +763,7 @@ func Test_handleInspectContext(t *testing.T) {
 
 func Test_handleInspectContext_buildError(t *testing.T) {
 	var expectedError = errors.New("expected")
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
+	var testState = newTestState()
 	var stubClient = &stubDockerClient{
 		imageListError: expectedError,
 	}
@@ -1014,11 +773,9 @@ func Test_handleInspectContext_buildError(t *testing.T) {
 }
 
 func Test_handleInspectContext_latestBuildError(t *testing.T) {
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
+	var testState = newTestState()
 	var stubClient = &stubDockerClient{
-		imageListError: ErrorLatestBuild,
+		imageListError: Errors.BuildImageRebuildRequired(),
 	}
 
 	defer installDockerClient(stubClient)()
@@ -1032,29 +789,27 @@ func Test_handleInspectContext_knownOutput(t *testing.T) {
 }
 
 func Test_handleInspectContext_noBuild(t *testing.T) {
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
-	var testParams = &BuildParams{DockerVersion: "version"}
+	var testState = newTestState()
+	var testParams = newBuildParams("", "version")
 	var stubClient = &stubDockerClient{
-		imageList: []image.Summary{
-			{},
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{
+				{},
+			},
 		},
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handleInspectContext(testParams, testState), ErrorNoBuild)
+	assert.ErrorIs(t, handleInspectContext(testParams, testState), Errors.BuildImageNotFound())
 }
 
 func Test_handleInspectPretend(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: "output",
 	}
-	var testParams = &BuildParams{
-		DockerVersion: "version",
-	}
+	var testParams = newBuildParams("", "version")
 
 	defer patch.Unpatch()
 	assert.NoError(t, handleInspectPretend(testParams, testState))
@@ -1070,8 +825,8 @@ func Test_handleInspectPretend(t *testing.T) {
 func Test_handleInspectPretend_latestBuild(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
 	var testState = &task.State{
-		Error:  ErrorLatestBuild,
-		Logger: logrus.New(),
+		Error:  Errors.BuildImageRebuildRequired(),
+		Logger: testLogger,
 		Output: "output",
 	}
 
@@ -1090,15 +845,14 @@ func Test_handleInspectPretend_stateError(t *testing.T) {
 	var expectedError = errors.New("expected")
 	var testState = &task.State{
 		Error:  expectedError,
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 
 	assert.ErrorIs(t, handleInspectPretend(&BuildParams{}, testState), expectedError)
 }
 
 func Test_stateDebug(t *testing.T) {
-	var testLogger = logrus.New()
-	var testTask = &task.State{Logger: testLogger}
+	var testTask = newTestState()
 	var testWriter = stateDebug(testTask)
 	var testHook = test.NewLocal(testLogger)
 	var expectedValue = "value"
@@ -1110,8 +864,7 @@ func Test_stateDebug(t *testing.T) {
 }
 
 func Test_stateError(t *testing.T) {
-	var testLogger = logrus.New()
-	var testTask = &task.State{Logger: testLogger}
+	var testTask = newTestState()
 	var testWriter = stateError(testTask)
 	var testHook = test.NewLocal(testLogger)
 	var expectedError = "this is an error"

@@ -5,25 +5,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/docker/adapt"
 )
 
-func TestRunParams_WaitCondition(t *testing.T) {
-	var testParams = &RunParams{}
-
-	assert.Equal(t, container.WaitConditionNextExit, testParams.WaitCondition())
-	testParams.Dispose = true
-	assert.Equal(t, container.WaitConditionRemoved, testParams.WaitCondition())
-}
-
-func TestNewRunTask(t *testing.T) {
-	var testTask = NewRunTask()
+func TestRunTasks_StandardTaskFactory(t *testing.T) {
+	var testTask = RunTasks.StandardTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotEmpty(t, testTask.OnPrepare)
@@ -31,8 +24,8 @@ func TestNewRunTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnPretend)
 }
 
-func TestNewTestTask(t *testing.T) {
-	var testTask = NewTestTask()
+func TestRunTasks_TestTaskFactory(t *testing.T) {
+	var testTask = RunTasks.TestTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotEmpty(t, testTask.OnPrepare)
@@ -41,87 +34,91 @@ func TestNewTestTask(t *testing.T) {
 }
 
 func Test_handleRunCompletion(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
+	var testParams = &ContainerParams{
+		ContainerArguments: adapt.ContainerArguments{
+			DockerImage: "expectedImageId",
+		},
+	}
 	var expectedId = "atLeast12CharactersLong"
-	var expectedImage = "expectedImageId"
 	var stubClient = &stubDockerClient{
-		containerCreate: &container.Summary{
+		containerCreateResult: client.ContainerCreateResult{
 			ID: expectedId,
 		},
 	}
 	var actual string
 
 	defer installDockerClient(stubClient)()
-	testParams.DockerImage = expectedImage
 	assert.ErrorIs(t, handleRunCompletion(testParams, testState), stubClient.containerStartError)
 	assert.Equal(t, expectedId[0:12], testState.Output)
 	actual = strings.Join(testState.Reports, "\n")
 	assert.Contains(t, actual, expectedId[0:12])
-	assert.Contains(t, actual, expectedImage)
+	assert.Contains(t, actual, testParams.DockerImage)
 }
 
 func Test_handleRunCompletion_CreateError(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var stubClient = &stubDockerClient{
 		containerCreateError: errors.New("expected"),
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handleRunCompletion(testParams, testState), stubClient.containerCreateError)
+	assert.ErrorIs(t, handleRunCompletion(&ContainerParams{}, testState), stubClient.containerCreateError)
 }
 
 func Test_handleRunCompletion_StartError(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var expectedId = "atLeast12CharactersLong"
 	var stubClient = &stubDockerClient{
-		containerCreate: &container.Summary{
+		containerCreateResult: client.ContainerCreateResult{
 			ID: expectedId,
 		},
 		containerStartError: errors.New("expected"),
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handleRunCompletion(testParams, testState), stubClient.containerStartError)
+	assert.ErrorIs(t, handleRunCompletion(&ContainerParams{}, testState), stubClient.containerStartError)
 }
 
 func Test_handleRunContext(t *testing.T) {
-	var testParams = &ContainerParams{DockerImage: "image"}
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
+	var testParams = &ContainerParams{
+		ContainerArguments: adapt.ContainerArguments{
+			DockerImage: "image",
+		},
+	}
 	var expectedId = "sha256:123456789ABCD"
 	var stubClient = &stubDockerClient{
-		imageList: []image.Summary{
-			{
-				ID: expectedId,
+		imageListResult: client.ImageListResult{
+			Items: []image.Summary{
+				{
+					ID: expectedId,
+				},
 			},
 		},
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.NoError(t, handleRunContext(testParams, testState), ErrorNoImage)
+	assert.NoError(t, handleRunContext(testParams, testState), Errors.RunImageNotFound())
 	assert.Equal(t, expectedId, testState.Output)
 }
 
 func Test_handleRunContext_empty(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var stubClient = &stubDockerClient{}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handleRunContext(testParams, testState), ErrorNoImage)
+	assert.ErrorIs(t, handleRunContext(&ContainerParams{}, testState), Errors.RunImageNotFound())
 }
 
 func Test_handleRunContext_error(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var stubClient = &stubDockerClient{
 		imageListError: errors.New("expected"),
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handleRunContext(testParams, testState), stubClient.imageListError)
+	assert.ErrorIs(t, handleRunContext(&ContainerParams{}, testState), stubClient.imageListError)
 }
 
 func Test_handleRunPretend(t *testing.T) {
@@ -129,7 +126,7 @@ func Test_handleRunPretend(t *testing.T) {
 	var testParams = &ContainerParams{}
 	var expectedImageId = "imageId"
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedImageId,
 	}
 	var actual []string
@@ -157,22 +154,25 @@ func Test_handleRunPretend(t *testing.T) {
 }
 
 func Test_handleTestCompletion_CreateError(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var stubClient = &stubDockerClient{
 		containerCreateError: errors.New("expected"),
 	}
 
 	defer installDockerClient(stubClient)()
-	assert.ErrorIs(t, handleTestCompletion(testParams, testState), stubClient.containerCreateError)
+	assert.ErrorIs(t, handleTestCompletion(&ContainerParams{}, testState), stubClient.containerCreateError)
 }
 
 func Test_handleTestCompletion_AttachError(t *testing.T) {
-	var testParams = &ContainerParams{RunParams: RunParams{Env: task.Env{Context: t.Context()}}}
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
+	var testParams = &ContainerParams{
+		Env: task.Env{
+			Context: t.Context(),
+		},
+	}
 	var expectedId = "atLeast12CharactersLong"
 	var stubClient = &stubDockerClient{
-		containerCreate: &container.Summary{
+		containerCreateResult: client.ContainerCreateResult{
 			ID: expectedId,
 		},
 		containerInspectError: errors.New("expected"),
