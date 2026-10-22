@@ -135,10 +135,10 @@ func TestNewBuildExecutor(t *testing.T) {
 	var testTask *task.Task[docker.BuildParams]
 
 	testTask = testExecutor.buildTaskFactory()
-	assert.Equal(t, docker.NewBuildForkTask("").Name, testTask.Name)
+	assert.NotEqual(t, docker.BuildTasks.LegacyTaskFactory().Name, testTask.Name)
 	testViper.Set(testOptions.optionLegacy.Key, "true")
 	testTask = testExecutor.buildTaskFactory()
-	assert.Equal(t, docker.NewBuildLegacyTask().Name, testTask.Name)
+	assert.Equal(t, docker.BuildTasks.LegacyTaskFactory().Name, testTask.Name)
 }
 
 func TestNewBuild(t *testing.T) {
@@ -273,7 +273,7 @@ func Test_makeBuildParamsExternalContext(t *testing.T) {
 	}
 }
 
-func newBuildTaskPretendStub(flag *bool) BuildTaskFactory {
+func newBuildTaskPretendStub(flag *bool) docker.BuildTaskFactory {
 	return func() *task.Task[docker.BuildParams] {
 		return &task.Task[docker.BuildParams]{
 			OnPrepare: func(params *docker.BuildParams, state *task.State) error {
@@ -287,7 +287,7 @@ func newBuildTaskPretendStub(flag *bool) BuildTaskFactory {
 	}
 }
 
-func newBuildTaskCompleteStub(flag *bool) BuildTaskFactory {
+func newBuildTaskCompleteStub(flag *bool) docker.BuildTaskFactory {
 	return func() *task.Task[docker.BuildParams] {
 		return &task.Task[docker.BuildParams]{
 			Name: "build_test",

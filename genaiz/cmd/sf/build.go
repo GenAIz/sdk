@@ -12,15 +12,14 @@ import (
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
+	"genaiz.com/genaiz/task/docker/adapt"
 )
-
-type BuildTaskFactory func() *task.Task[docker.BuildParams]
 
 type BuildExecutor struct {
 	BaseExecutor
 	*BuildOptions
 
-	buildTaskFactory BuildTaskFactory
+	buildTaskFactory docker.BuildTaskFactory
 }
 
 func (be *BuildExecutor) Display() {
@@ -98,10 +97,10 @@ func NewBuildExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 			var useLegacy = ledger.GetBool(options.optionLegacy)
 
 			if useLegacy {
-				return docker.NewBuildLegacyTask()
+				return docker.BuildTasks.LegacyTaskFactory()
 			}
 
-			return docker.NewBuildTask()
+			return docker.BuildTasks.StandardTaskFactory()
 		},
 	}
 }
@@ -140,10 +139,12 @@ func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
 	}
 
 	return &docker.BuildParams{
-		Env:              task.Env{Context: base.Context},
-		Dockerfile:       dockerFile,
-		DockerContext:    dockerContext,
-		DockerRepository: strings.ToLower(dockerRepo),
-		DockerVersion:    strings.ToLower(dockerVersion),
+		Env: task.Env{Context: base.Context},
+		BuildArguments: adapt.BuildArguments{
+			Dockerfile:       dockerFile,
+			DockerContext:    dockerContext,
+			DockerRepository: strings.ToLower(dockerRepo),
+			DockerVersion:    strings.ToLower(dockerVersion),
+		},
 	}
 }

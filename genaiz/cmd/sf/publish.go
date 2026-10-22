@@ -22,13 +22,9 @@ type GetTaskFactory func() *task.Task[broker.GetParams]
 
 type IdTaskFactory func() *task.Task[broker.GetParams]
 
-type InspectTaskFactory func() *task.Task[docker.BuildParams]
-
 type ProvisionTaskFactory func() *task.Task[broker.ProvisionParams]
 
 type PublishTaskFactory func() *task.Task[broker.PublishParams]
-
-type PushTaskFactory func() *task.Task[docker.PushParams]
 
 type PublishExecutor struct {
 	BaseExecutor
@@ -45,14 +41,14 @@ type PublishExecutor struct {
 
 	printerParams cli.PrinterParametric
 
-	buildTaskFactory     BuildTaskFactory
+	buildTaskFactory     docker.BuildTaskFactory
 	getTaskFactory       GetTaskFactory
 	idTaskFactory        IdTaskFactory
 	initTaskFactory      InitTaskFactory
-	inspectTaskFactory   InspectTaskFactory
+	inspectTaskFactory   docker.InspectTaskFactory
 	provisionTaskFactory ProvisionTaskFactory
 	publishTaskFactory   PublishTaskFactory
-	pushTaskFactory      PushTaskFactory
+	pushTaskFactory      docker.PushTaskFactory
 }
 
 func (pe *PublishExecutor) Display() {
@@ -330,13 +326,13 @@ func NewPublishExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, 
 
 		printerParams: cli.NewPrinterParam(ledger, options.optionJsonPrinter),
 
-		buildTaskFactory:     docker.NewBuildTask,
+		buildTaskFactory:     docker.BuildTasks.StandardTaskFactory,
 		getTaskFactory:       broker.NewFunctionGetTask,
 		idTaskFactory:        broker.NewFunctionIdTask,
 		initTaskFactory:      layout.NewInitTask,
-		inspectTaskFactory:   docker.NewInspectTask,
+		inspectTaskFactory:   docker.BuildTasks.InspectTaskFactory,
 		provisionTaskFactory: broker.NewFunctionProvisionTask,
-		pushTaskFactory:      docker.NewPushTask,
+		pushTaskFactory:      docker.PushTasks.PushTaskFactory,
 		publishTaskFactory:   broker.NewFunctionPublishTask,
 	}
 }

@@ -20,8 +20,8 @@ type TestExecutor struct {
 	dk.SyncBridge
 	*RunOptions
 
-	buildTaskFactory BuildTaskFactory
-	testTaskFactory  RunTaskFactory
+	buildTaskFactory docker.BuildTaskFactory
+	testTaskFactory  docker.RunTaskFactory
 }
 
 func (te *TestExecutor) Display() {
@@ -116,8 +116,8 @@ func NewTestExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, opt
 		SyncBridge: dk.NewSyncBridgeBuilder().Build(),
 		RunOptions: options,
 
-		buildTaskFactory: docker.NewBuildTask,
-		testTaskFactory:  docker.NewTestTask,
+		buildTaskFactory: docker.BuildTasks.StandardTaskFactory,
+		testTaskFactory:  docker.RunTasks.TestTaskFactory,
 	}
 }
 

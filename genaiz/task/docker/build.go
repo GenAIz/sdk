@@ -13,20 +13,19 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"github.com/sirupsen/logrus"
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/mapz"
 	"genaiz.com/genaiz-lib/lang/panicz"
-	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz-lib/lang/timez"
 	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/docker/adapt"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -35,218 +34,55 @@ const (
 )
 
 var (
-	ErrorLatestBuild = errors.New("latest needs to be rebuilt")
-	ErrorNoBuild     = errors.New("could not find a build image")
+	BuildTasks struct {
+		LegacyTaskFactory   BuildTaskFactory // LegacyTaskFactory builds a task which can be used with an instance of BuildParams to launch a Docker build with the legacy deprecated builder of dockerd
+		StandardTaskFactory BuildTaskFactory // StandardTaskFactory builds a task which can be used with an instance of BuildParams to launch a Docker build with the buildx plugin
 
-	errorImageNotFound = func(t string) error {
-		return fmt.Errorf("could not find image [%s]", t)
+		InspectTaskFactory InspectTaskFactory // InspectTaskFactory builds a task which can be used with an instance of BuildParams to launch a Docker image inspect command.
+		ListTaskFactory    ListTaskFactory    // ListTaskFactory builds a task which can be used with an instance of BuildParams to query images from dockerd
 	}
 )
 
-type HasReference interface {
-	GetNamePrefix() string
-
-	GetReference() string
-
-	GetVersion() string
-}
-
-type BuildParams struct {
-	task.Env
-	Dockerfile       string
-	DockerContext    string
-	DockerRepository string
-	DockerVersion    string
-	Label            bool
-	NoCache          bool
-	Platform         string
-	Prune            bool
-	Streams          *BuildStreams
-}
+type BuildTask = *task.Task[BuildParams]
+type BuildTaskFactory = func() BuildTask
+type InspectTask = *task.Task[BuildParams]
+type InspectTaskFactory = func() InspectTask
+type ListTask = *task.Task[BuildParams]
+type ListTaskFactory = func() ListTask
 
 type BuildOutput struct {
 	Stream string
 }
 
-type BuildStreams struct {
-	Err *os.File
-	In  *os.File
-	Out *os.File
-}
-
-func (p *BuildParams) GetFilters() filters.Args {
-	return filters.NewArgs(
-		filters.Arg("reference", p.GetReference()),
-	)
-}
-
-func (p *BuildParams) GetFiltersByRepo(field string) filters.Args {
-	var value string
-
-	if i := strings.Index(p.DockerRepository, "/"); i >= 0 {
-		value = p.DockerRepository[i+1:]
-	} else {
-		value = p.DockerRepository
-	}
-
-	return filters.NewArgs(filters.Arg(field, value+"*"))
-}
-
-func (p *BuildParams) GetFiltersByVersion() filters.Args {
-	if p.DockerVersion != "latest" {
-		return p.GetFilters()
-	}
-
-	return filters.NewArgs(
-		filters.Arg("reference", p.DockerRepository+":*"),
-	)
-}
-
-func (p *BuildParams) GetReference() string {
-	return stringz.SingleTagLabel(p.DockerRepository, ":", p.GetVersion())
-}
-
-func (p *BuildParams) GetVersion() string {
-	return stringz.FirstNonEmpty(p.DockerVersion, "latest")
-}
-
-func (p *BuildParams) getErrorStream() *os.File {
-	if p.Streams != nil && p.Streams.Err != nil {
-		return p.Streams.Err
-	}
-
-	return os.Stderr
-}
-
-func (p *BuildParams) getInputStream() *os.File {
-	if p.Streams != nil && p.Streams.In != nil {
-		return p.Streams.In
-	}
-
-	return os.Stdin
-}
-
-func (p *BuildParams) getOutputStream() *os.File {
-	if p.Streams != nil && p.Streams.Out != nil {
-		return p.Streams.Out
-	}
-
-	return os.Stdout
-}
-
-func (p *BuildParams) toBuildArgs() []string {
-	var args = []string{"build", "--pull", "-t", p.GetReference()}
-
-	if p.Dockerfile != "" {
-		args = append(args, "-f", p.Dockerfile)
-	}
-
-	if p.Platform != "" {
-		args = append(args, "--platform", p.Platform)
-	}
-
-	if p.Label {
-		args = append(args, "--label")
-	}
-
-	if p.NoCache {
-		args = append(args, "--no-cache")
-	}
-
-	// Needs to be last
-	if p.DockerContext == "" {
-		args = append(args, ".")
-	} else {
-		args = append(args, p.DockerContext)
-	}
-
-	return args
-}
-
-func (p *BuildParams) toPruneArgs() []string {
-	var result = []string{"buildx", "prune", "--force"}
-
-	if !p.NoCache {
-		// We'll keep half a day's worth of cached build artifacts to help the build process
-		result = append(result, "--filter", "until=12h")
-	}
-
-	return result
-}
-
-func NewBuildTask() *task.Task[BuildParams] {
-	if dockerPath, err := exec.LookPath("docker"); err == nil {
-		if os.Geteuid() == 0 {
-			// Since we are forking without the ability to validate the identity of the binary, prevent root from using build
-			panic("can not invoke the docker binary as root when building")
-		}
-
-		return NewBuildForkTask(dockerPath)
-	}
-
-	fmt.Println("DEPRECATED: The legacy Moby builder is deprecated and will be removed in a future release.\n" +
-		"You should install the docker-cli with docker-buildx to build images: https://docs.docker.com/go/buildx/")
-	return NewBuildLegacyTask()
-}
-
-func NewBuildLegacyTask() *task.Task[BuildParams] {
-	return &task.Task[BuildParams]{
-		Name:         "docker-build-legacy",
-		OnPrepare:    handleBuildContext,
-		OnIncomplete: handleBuildLegacyCreate,
-		OnComplete:   handleBuildPrune,
-		OnPretend:    handleBuildPretend,
-	}
-}
-
-func NewBuildForkTask(dockerPath string) *task.Task[BuildParams] {
-	return &task.Task[BuildParams]{
-		Name:         "docker-build-fork",
-		OnPrepare:    handleBuildContext,
-		OnIncomplete: lang.Assists(dockerPath, handleBuildForkCreate),
-		OnComplete:   lang.Assists(dockerPath, handleBuildForkPrune),
-		OnPretend:    handleBuildPretend,
-	}
-}
-
-func NewInspectTask() *task.Task[BuildParams] {
-	return &task.Task[BuildParams]{
-		Name:       "docker-inspect",
-		OnPrepare:  handleInspectContext,
-		OnComplete: handleInspectComplete,
-		OnPretend:  handleInspectPretend,
-	}
-}
-
-func NewListTask() *task.Task[BuildParams] {
-	return &task.Task[BuildParams]{
-		Name:       "docker-list",
-		OnPrepare:  handleListContext,
-		OnComplete: handleListComplete,
-	}
+type BuildParams struct {
+	task.Env
+	adapt.BuildArguments
+	Prune bool
 }
 
 func handleBuildContext(params *BuildParams, state *task.State) error {
 	var dockerClient = dockerFactory.Get()
 	var version = params.GetVersion()
 	var reference = params.GetReference()
-	var listFilters = params.GetFilters()
-	var summaries []image.Summary
+	var listOptions = client.ImageListOptions{
+		Filters: params.GetFilters(),
+	}
+	var result client.ImageListResult
 	var err error
 
 	state.Logger.Debugf("Finding a docker image for reference [%s]", reference)
 
-	if summaries, err = dockerClient.ImageList(params.Context, image.ListOptions{Filters: listFilters}); err == nil {
-		if len(summaries) == 0 {
+	if result, err = dockerClient.ImageList(params.Context, listOptions); err == nil {
+		if len(result.Items) == 0 {
 			state.Logger.Debugf("Could not find an image for reference [%s]", reference)
-			err = errorImageNotFound(reference)
+			err = Errors.ListImageNotFound(reference)
 		} else if version == "latest" {
 			state.Logger.Debugf("Version latest requires a fresh build")
-			state.Output = summaries[0].ID
-			err = ErrorLatestBuild
+			state.Output = result.Items[0].ID
+			err = Errors.BuildImageRebuildRequired()
 		} else {
 			state.Logger.Warningf("Found image with reference [%s]", reference)
-			state.Output = summaries[0].ID
+			state.Output = result.Items[0].ID
 			return nil
 		}
 	}
@@ -255,7 +91,7 @@ func handleBuildContext(params *BuildParams, state *task.State) error {
 }
 
 func handleBuildForkCreate(dockerPath string, params *BuildParams, state *task.State) error {
-	var args = params.toBuildArgs()
+	var args = params.CliArguments()
 	var cmd = exec.CommandContext(params.Context, dockerPath, args...)
 	var fork = forkFactory.Get(cmd)
 	var err error
@@ -263,8 +99,8 @@ func handleBuildForkCreate(dockerPath string, params *BuildParams, state *task.S
 	if state.Logger.IsLevelEnabled(logrus.DebugLevel) {
 		fork.WithPipeErr(stateError(state))
 	} else {
-		fork.WithStdErr(params.getErrorStream()).
-			WithStdOut(params.getOutputStream())
+		fork.WithStdErr(params.ErrorStream()).
+			WithStdOut(params.OutputStream())
 	}
 
 	state.Logger.Debugf("Building a docker image with cmd [%s]", cmd.String())
@@ -282,7 +118,7 @@ func handleBuildForkCreate(dockerPath string, params *BuildParams, state *task.S
 func handleBuildForkPrune(dockerPath string, params *BuildParams, state *task.State) error {
 	if state.Error == nil {
 		if params.Prune {
-			var args = params.toPruneArgs()
+			var args = params.PruneArguments()
 			var cmd = exec.CommandContext(params.Context, dockerPath, args...)
 			var fork = forkFactory.Get(cmd)
 			var err error
@@ -309,31 +145,31 @@ func handleBuildForkPrune(dockerPath string, params *BuildParams, state *task.St
 func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 	var dockerClient = dockerFactory.Get()
 	var reference = params.GetReference()
-	var options = build.ImageBuildOptions{
-		Dockerfile: params.Dockerfile,
-		Tags:       []string{reference},
-		Remove:     true,
-		Platform:   params.Platform,
-		PullParent: true,
-		NoCache:    params.NoCache,
-	}
 	var buildReader io.ReadCloser
 	var err error
-
-	if params.Label {
-		options.Labels = map[string]string{"sf": params.DockerRepository}
-	}
 
 	state.Logger.Debugf("Building a docker image tagged [%s] with the legacy builder", reference)
 
 	if buildReader, err = archive.TarWithOptions(params.DockerContext, &archive.TarOptions{}); err == nil {
-		var resp build.ImageBuildResponse
+		var options = client.ImageBuildOptions{
+			Dockerfile: params.Dockerfile,
+			Tags:       []string{reference},
+			Remove:     true,
+			Platforms:  params.GetPlatforms(),
+			PullParent: true,
+			NoCache:    params.NoCache,
+		}
+		var result client.ImageBuildResult
 
 		defer filez.CloseSilently(buildReader)
 
-		if resp, err = dockerClient.ImageBuild(params.Context, buildReader, options); err == nil {
-			var scanner = bufio.NewScanner(resp.Body)
-			defer filez.CloseSilently(resp.Body)
+		if params.Label {
+			options.Labels = map[string]string{"sf": params.DockerRepository}
+		}
+
+		if result, err = dockerClient.ImageBuild(params.Context, buildReader, options); err == nil {
+			var scanner = bufio.NewScanner(result.Body)
+			defer filez.CloseSilently(result.Body)
 
 			for scanner.Scan() {
 				var output BuildOutput
@@ -383,12 +219,13 @@ func handleBuildPrune(params *BuildParams, state *task.State) error {
 	if state.Error == nil {
 		if params.Prune {
 			var dockerClient = dockerFactory.Get()
-			var pruneFilters = filters.NewArgs(
-				filters.Arg("label", "sf="+params.DockerRepository),
-			)
+			var pruneOptions = client.ImagePruneOptions{
+				Filters: make(client.Filters).
+					Add("label", "sf="+params.DockerRepository),
+			}
 
-			if report, err := dockerClient.ImagesPrune(params.Context, pruneFilters); err == nil {
-				for _, deleted := range report.ImagesDeleted {
+			if result, err := dockerClient.ImagePrune(params.Context, pruneOptions); err == nil {
+				for _, deleted := range result.Report.ImagesDeleted {
 					state.Logger.Debugf("Removed dangling image id [%s], no longer in use", deleted.Deleted)
 				}
 			} else {
@@ -407,13 +244,15 @@ func handleBuildPrune(params *BuildParams, state *task.State) error {
 func handleBuildReport(params *BuildParams, state *task.State) error {
 	if state.Error == nil {
 		var dockerClient = dockerFactory.Get()
-		var listFilters = params.GetFilters()
-		var summaries []image.Summary
+		var listOptions = client.ImageListOptions{
+			Filters: params.GetFilters(),
+		}
+		var result client.ImageListResult
 		var err error
 
-		if summaries, err = dockerClient.ImageList(params.Context, image.ListOptions{Filters: listFilters}); err == nil {
-			if len(summaries) >= 1 {
-				var img = summaries[0]
+		if result, err = dockerClient.ImageList(params.Context, listOptions); err == nil {
+			if len(result.Items) >= 1 {
+				var img = result.Items[0]
 				var prefixLength = len(hashPrefix)
 				var shortId = img.ID[prefixLength : prefixLength+12]
 				var size = fmt.Sprintf("%3.1fMB", float64(img.Size/1024/1024))
@@ -431,29 +270,31 @@ func handleBuildReport(params *BuildParams, state *task.State) error {
 
 func handleListContext(params *BuildParams, state *task.State) error {
 	var dockerClient = dockerFactory.Get()
-	var imageFilters = params.GetFiltersByVersion()
-	var images []image.Summary
+	var listOptions = client.ImageListOptions{
+		Filters: params.GetFiltersByVersion(),
+	}
+	var imageResult client.ImageListResult
 	var err error
 
-	if images, err = dockerClient.ImageList(params.Context, image.ListOptions{Filters: imageFilters}); err == nil {
+	if imageResult, err = dockerClient.ImageList(params.Context, listOptions); err == nil {
 		var dockerState = NewClientState(state)
 
-		if len(images) > 0 {
-			var containers []container.Summary
-			var containerOptions = container.ListOptions{
+		if len(imageResult.Items) > 0 {
+			var containerOptions = client.ContainerListOptions{
 				All:     true,
 				Filters: params.GetFiltersByRepo("name"),
 			}
+			var containerResult client.ContainerListResult
 
-			dockerState.AddImages(images...)
+			dockerState.AddImages(imageResult.Items...)
 
-			if containers, err = dockerClient.ContainerList(params.Context, containerOptions); err == nil {
-				dockerState.AddContainers(containers...)
+			if containerResult, err = dockerClient.ContainerList(params.Context, containerOptions); err == nil {
+				dockerState.AddContainers(containerResult.Items...)
 				return nil
 			}
 		} else {
 			state.Logger.Debugf("Could not list images for the provided filter")
-			return ErrorNoBuild
+			return Errors.BuildImageNotFound()
 		}
 	}
 
@@ -495,24 +336,24 @@ func handleListComplete(params *BuildParams, state *task.State) error {
 func handleInspectComplete(params *BuildParams, state *task.State) error {
 	if state.Output != "" {
 		var dockerClient = dockerFactory.Get()
-		var resp image.InspectResponse
+		var result client.ImageInspectResult
 		var err error
 
 		state.Logger.Debugf("Inspecting docker image [%s]", state.Output)
 
-		if resp, err = dockerClient.ImageInspect(params.Context, state.Output); err == nil {
+		if result, err = dockerClient.ImageInspect(params.Context, state.Output); err == nil {
 			var digest string
 
-			if len(resp.RepoDigests) > 0 {
-				if i := strings.LastIndex(resp.RepoDigests[0], hashPrefix); i >= 0 {
-					digest = resp.RepoDigests[0][i:]
+			if len(result.RepoDigests) > 0 {
+				if i := strings.LastIndex(result.RepoDigests[0], hashPrefix); i >= 0 {
+					digest = result.RepoDigests[0][i:]
 				} else {
-					state.Logger.Errorf("Found invalid repo digest [%s] for image [%s]", resp.RepoDigests[0], state.Output)
+					state.Logger.Errorf("Found invalid repo digest [%s] for image [%s]", result.RepoDigests[0], state.Output)
 				}
 			}
 
 			state.Internal = &shared.Identity{
-				Id:      resp.ID,
+				Id:      result.ID,
 				Hash:    digest,
 				Version: params.GetVersion(),
 			}
@@ -522,7 +363,7 @@ func handleInspectComplete(params *BuildParams, state *task.State) error {
 		return err
 	}
 
-	return ErrorNoBuild
+	return Errors.BuildImageNotFound()
 }
 
 func handleInspectContext(params *BuildParams, state *task.State) error {
@@ -530,14 +371,14 @@ func handleInspectContext(params *BuildParams, state *task.State) error {
 		var err error
 
 		if err = handleBuildContext(params, state); err != nil {
-			if errors.Is(err, ErrorLatestBuild) {
+			if errors.Is(err, Errors.BuildImageRebuildRequired()) {
 				state.Internal = nil
 				return nil
 			}
 		}
 
 		if err == nil && state.Output == "" {
-			return ErrorNoBuild
+			return Errors.BuildImageNotFound()
 		}
 
 		return err
@@ -549,7 +390,7 @@ func handleInspectContext(params *BuildParams, state *task.State) error {
 func handleInspectPretend(params *BuildParams, state *task.State) error {
 	var reference = params.GetReference()
 
-	if state.Error == nil || errors.Is(state.Error, ErrorLatestBuild) {
+	if state.Error == nil || errors.Is(state.Error, Errors.BuildImageRebuildRequired()) {
 		state.Logger.Debugf("Pretending to inspect docker image [%s]", reference)
 		state.Internal = &shared.Identity{
 			Hash:    state.Output,
@@ -612,6 +453,65 @@ func listImages(images []image.Summary, output *bytes.Buffer, formatter timez.Fo
 	}
 
 	panicz.PanicIfError(writer.Flush())
+}
+
+func init() {
+	BuildTasks.LegacyTaskFactory = newBuildLegacyTask
+	BuildTasks.StandardTaskFactory = newBuildTask
+	BuildTasks.InspectTaskFactory = newInspectTask
+	BuildTasks.ListTaskFactory = newListTask
+}
+
+func newBuildForkTask(dockerPath string) *task.Task[BuildParams] {
+	return &task.Task[BuildParams]{
+		Name:         "docker-build-fork",
+		OnPrepare:    handleBuildContext,
+		OnIncomplete: lang.Assists(dockerPath, handleBuildForkCreate),
+		OnComplete:   lang.Assists(dockerPath, handleBuildForkPrune),
+		OnPretend:    handleBuildPretend,
+	}
+}
+
+func newBuildLegacyTask() *task.Task[BuildParams] {
+	return &task.Task[BuildParams]{
+		Name:         "docker-build-legacy",
+		OnPrepare:    handleBuildContext,
+		OnIncomplete: handleBuildLegacyCreate,
+		OnComplete:   handleBuildPrune,
+		OnPretend:    handleBuildPretend,
+	}
+}
+
+func newBuildTask() *task.Task[BuildParams] {
+	if dockerPath, err := exec.LookPath("docker"); err == nil {
+		if os.Geteuid() == 0 {
+			// Since we are forking without the ability to validate the identity of the binary, prevent root from using build
+			panic("can not invoke the docker binary as root when building")
+		}
+
+		return newBuildForkTask(dockerPath)
+	}
+
+	fmt.Println("DEPRECATED: The legacy Moby builder is deprecated and will be removed in a future release.\n" +
+		"You should install the docker-cli with docker-buildx to build images: https://docs.docker.com/go/buildx/")
+	return newBuildLegacyTask()
+}
+
+func newInspectTask() *task.Task[BuildParams] {
+	return &task.Task[BuildParams]{
+		Name:       "docker-inspect",
+		OnPrepare:  handleInspectContext,
+		OnComplete: handleInspectComplete,
+		OnPretend:  handleInspectPretend,
+	}
+}
+
+func newListTask() *task.Task[BuildParams] {
+	return &task.Task[BuildParams]{
+		Name:       "docker-list",
+		OnPrepare:  handleListContext,
+		OnComplete: handleListComplete,
+	}
 }
 
 func stateDebug(state *task.State) func(string) {

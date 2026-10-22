@@ -6,253 +6,47 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"regexp"
 	"slices"
 	"strings"
-	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/mount"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/client"
 
 	"genaiz.com/genaiz-lib/lang/dirz"
-	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz-lib/lang/signalz"
 	"genaiz.com/genaiz-lib/lang/stringz"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/lang/streamz"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/docker/adapt"
 	"genaiz.com/genaiz/task/shared"
 )
 
-const (
-	envFunctionType = "SF_TYPE"
-	envInputPath    = "SF_INPUT_PATH"
-	envLogPath      = "SF_LOG_PATH"
-	envOutputPath   = "SF_OUTPUT_PATH"
-	envProgressFile = "SF_PROGRESS_FILE"
-	envResultFile   = "SF_RESULT_FILE"
-	envStatusFile   = "SF_STATUS_FILE"
-	envVarPath      = "SF_VAR_PATH"
-)
-
 var (
+	ContainerTasks struct {
+		CreateTaskFactory  CreateTaskFactory  // CreateTaskFactory builds a task which can be used with an instance of ContainerParams to instruct the creation of a container with dockerd.
+		DisposeTaskFactory DisposeTaskFactory // DisposeTaskFactory builds a task which can be used to automatically remove a container after it has been stopped.
+		StartTaskFactory   StartTaskFactory   // StartTaskFactory builds a task which can be used with an instance of ContainerParams to start a previously created container.
+		StopTaskFactory    StopTaskFactory    // StopTaskFactory builds a task which can be used with an instance of ContainerParams to stop a previously started container.
+	}
+
 	signalProvider = signalz.NewSignalChannel
-
-	EnvKeys = []string{envFunctionType, envInputPath, envLogPath, envOutputPath,
-		envProgressFile, envResultFile, envStatusFile, envVarPath}
-	EnvFileMap = map[string]string{
-		envProgressFile: "$SF_VAR_PATH/progress",
-		envResultFile:   "$SF_VAR_PATH/result",
-		envStatusFile:   "$SF_VAR_PATH/status",
-	}
-
-	InputMount = ContainerMountPoint{
-		EnvVar:    envInputPath,
-		MountPath: "/mnt/in",
-		ReadOnly:  true,
-	}
-
-	LogMount = ContainerMountPoint{
-		EnvVar:    envLogPath,
-		MountPath: "/mnt/log",
-		ReadOnly:  false,
-	}
-
-	OutputMount = ContainerMountPoint{
-		EnvVar:    envOutputPath,
-		MountPath: "/mnt/out",
-		ReadOnly:  false,
-	}
-
-	VarMount = ContainerMountPoint{
-		EnvVar:    envVarPath,
-		MountPath: "/mnt/var",
-		ReadOnly:  false,
-	}
 )
 
-type ContainerMountBind struct {
-	ContainerMountPoint
-	HostPath string
-}
-
-type ContainerMountPoint struct {
-	EnvVar    string
-	MountPath string
-	ReadOnly  bool
-}
-
-func (cm ContainerMountPoint) GetEnvKeyValue() (string, string) {
-	return cm.EnvVar, cm.MountPath
-}
-
-func (cm ContainerMountPoint) MakeBind(hostPath string) ContainerMountBind {
-	return ContainerMountBind{
-		ContainerMountPoint: cm,
-		HostPath:            hostPath,
-	}
-}
-
-func (cm ContainerMountPoint) MakeMount(hostDir string) *mount.Mount {
-	return &mount.Mount{
-		Type:     mount.TypeBind,
-		Source:   hostDir,
-		Target:   cm.MountPath,
-		ReadOnly: cm.ReadOnly,
-		BindOptions: &mount.BindOptions{
-			CreateMountpoint: true,
-		},
-	}
-}
+type CreateTask = *task.Task[ContainerParams]
+type CreateTaskFactory = func() CreateTask
+type DisposeTask = *task.Task[ContainerParams]
+type DisposeTaskFactory = func() DisposeTask
+type StartTask = *task.Task[ContainerParams]
+type StartTaskFactory = func() StartTask
+type StopTask = *task.Task[ContainerParams]
+type StopTaskFactory = func() StopTask
 
 type ContainerParams struct {
-	RunParams
-	DockerImage string
-	EnvVars     map[string]string
-	Force       bool
-	MountInput  string
-	MountOutput string
-	MountLog    string
-	MountVar    string
-	Name        string
-	Prefix      string
-	VarSpecs    []shared.VarSpec
-}
-
-func (c *ContainerParams) GetEnvironment() map[string]string {
-	if c.EnvVars == nil {
-		c.EnvVars = make(map[string]string)
-	}
-
-	return c.EnvVars
-}
-
-func (c *ContainerParams) GetName(summaries []container.Summary) (string, error) {
-	if c.Name != "" {
-		return c.Name, nil
-	} else if c.Prefix != "" {
-		return fmt.Sprintf("%s-%d", c.Prefix, len(summaries)), nil
-	}
-
-	return "", errors.New("could not provide container name")
-}
-
-func (c *ContainerParams) GetContainerMountBinds() []ContainerMountBind {
-	var result []ContainerMountBind
-
-	if c.MountInput != "" {
-		result = append(result, InputMount.MakeBind(c.MountInput))
-	}
-
-	if c.MountLog != "" {
-		result = append(result, LogMount.MakeBind(c.MountLog))
-	}
-
-	if c.MountOutput != "" {
-		result = append(result, OutputMount.MakeBind(c.MountOutput))
-	}
-
-	if c.MountVar != "" {
-		result = append(result, VarMount.MakeBind(c.MountVar))
-	}
-
-	return result
-}
-
-func (c *ContainerParams) MakeDisposableName() string {
-	var result = ""
-
-	if c.Name != "" {
-		result = c.Name
-	} else if c.Prefix != "" {
-		if matched, _ := regexp.MatchString("-\\d+$", c.Prefix); matched {
-			var i = strings.LastIndex(c.Prefix, "-")
-
-			result = c.Prefix[:i]
-		} else {
-			result = c.Prefix
-		}
-	} else {
-		result = "container"
-	}
-
-	return result + fmt.Sprintf("-d%d", time.Now().UnixMilli())
-}
-
-func (c *ContainerParams) fmtArgs() string {
-	var stringParams = []string{
-		c.fmtMountBindArg(&InputMount, c.MountInput),
-		c.fmtMountBindArg(&OutputMount, c.MountOutput),
-		c.fmtMountBindArg(&LogMount, c.MountLog),
-		c.fmtMountBindArg(&VarMount, c.MountVar),
-		c.fmtMountEnvArg(&InputMount, c.MountInput),
-		c.fmtMountEnvArg(&OutputMount, c.MountOutput),
-		c.fmtMountEnvArg(&LogMount, c.MountLog),
-		c.fmtMountEnvArg(&VarMount, c.MountVar),
-	}
-
-	return strings.Join(stringz.AllNonEmpty(stringParams...), "   ")
-}
-
-func (c *ContainerParams) fmtMountBindArg(mount *ContainerMountPoint, path string) string {
-	if path != "" {
-		var local = filez.FromWorkDir(path)
-		var readOnly = ""
-
-		if mount.ReadOnly {
-			readOnly = ",ro"
-		}
-
-		return fmt.Sprintf("--mount type=bind,src=%s,dst=%s%s \\\n", local, mount.MountPath, readOnly)
-	}
-
-	return ""
-}
-
-func (c *ContainerParams) fmtMountEnvArg(mount *ContainerMountPoint, path string) string {
-	if path != "" {
-		return fmt.Sprintf("--env %s=%s \\\n", mount.EnvVar, mount.MountPath)
-	}
-
-	return ""
-}
-
-func NewCreateTask() *task.Task[ContainerParams] {
-	return &task.Task[ContainerParams]{
-		Name:         "docker-create",
-		OnPrepare:    handleContainerContext,
-		OnIncomplete: handleContainerCreate,
-		OnPretend:    handleContainerCreatePretend,
-	}
-}
-
-func NewDisposeTask() *task.Task[ContainerParams] {
-	return &task.Task[ContainerParams]{
-		Name:       "docker-rm",
-		OnPrepare:  handleContainerContext,
-		OnComplete: handleContainerDisposal,
-		OnPretend:  handleContainerDisposalPretend,
-	}
-}
-
-func NewStartTask() *task.Task[ContainerParams] {
-	return &task.Task[ContainerParams]{
-		Name:       "docker-start",
-		OnPrepare:  handleContainerContext,
-		OnComplete: handleContainerStart,
-		OnPretend:  handleContainerStartPretend,
-	}
-}
-
-func NewStopTask() *task.Task[ContainerParams] {
-	return &task.Task[ContainerParams]{
-		Name:       "docker-stop",
-		OnPrepare:  handleContainerContext,
-		OnComplete: handleContainerStop,
-		OnPretend:  handleContainerStopPretend,
-	}
+	task.Env
+	adapt.RunArguments
+	adapt.ContainerArguments
+	VarSpecs []shared.VarSpec
 }
 
 func handleContainerAttach(params *ContainerParams, state *task.State) error {
@@ -261,22 +55,31 @@ func handleContainerAttach(params *ContainerParams, state *task.State) error {
 	if summary := dockerState.SelectLatestContainer(); summary != nil {
 		var dockerClient = dockerFactory.Get()
 		var wait, cancel = context.WithCancel(params.Context)
-		var inspect container.InspectResponse
+		var inspect client.ContainerInspectResult
+		var options = client.ContainerInspectOptions{
+			Size: true,
+		}
 		var err error
 		defer cancel()
 
-		if inspect, err = dockerClient.ContainerInspect(wait, summary.ID); err == nil {
-			var attachOptions = container.AttachOptions{Stream: true, Stdout: true, Stderr: true}
+		state.Logger.Debugf("Selected container id [%s]", summary.ID)
+
+		if inspect, err = dockerClient.ContainerInspect(wait, summary.ID, options); err == nil {
+			var attachOptions = client.ContainerAttachOptions{Stream: true, Stdout: true, Stderr: true}
 			var channelReader chan error
 			var channelContainer chan int
-			var response types.HijackedResponse
+			var response client.ContainerAttachResult
 
-			if !inspect.Config.Tty {
+			if !inspect.Container.Config.Tty {
 				var noCancels = context.WithoutCancel(wait)
 				var channelShell = signalProvider()
 
 				go signalz.ForwardTerminate(noCancels, channelShell, func(code string) {
-					if err = dockerClient.ContainerKill(noCancels, summary.ID, code); err != nil {
+					var killOptions = client.ContainerKillOptions{
+						Signal: code,
+					}
+
+					if _, err = dockerClient.ContainerKill(noCancels, summary.ID, killOptions); err != nil {
 						state.Logger.Errorf("Could not kill container: %s", err)
 						state.Error = err
 					}
@@ -325,11 +128,8 @@ func handleContainerContext(params *ContainerParams, state *task.State) error {
 
 	if !dockerState.HasContainers() {
 		var dockerClient = dockerFactory.Get()
-		var listFilters = filters.NewArgs()
-		var listOptions = container.ListOptions{
-			All:     true,
-			Filters: listFilters,
-		}
+		var listFilters = make(client.Filters)
+		var listOptions client.ContainerListOptions
 
 		if params.Name != "" {
 			state.Logger.Debugf("Finding a docker container for name [%s]", params.Name)
@@ -338,15 +138,20 @@ func handleContainerContext(params *ContainerParams, state *task.State) error {
 			state.Logger.Debugf("Finding all docker containers for prefix [%s]", params.Prefix)
 			listFilters.Add("name", params.Prefix)
 		} else {
-			panic("name or prefix required for container commands")
+			return Errors.ContainerNameRequired()
 		}
 
-		if containers, err := dockerClient.ContainerList(params.Context, listOptions); err == nil {
-			if len(containers) == 0 {
-				return errors.New("container not found")
-			} else {
-				dockerState.AddContainers(containers...)
+		listOptions = client.ContainerListOptions{
+			All:     true,
+			Filters: listFilters,
+		}
+
+		if results, err := dockerClient.ContainerList(params.Context, listOptions); err == nil {
+			if len(results.Items) == 0 {
+				return Errors.ContainerNotFound()
 			}
+
+			dockerState.AddContainers(results.Items...)
 		} else {
 			return err
 		}
@@ -358,56 +163,58 @@ func handleContainerContext(params *ContainerParams, state *task.State) error {
 func handleContainerCreate(params *ContainerParams, state *task.State) error {
 	var dockerClient = dockerFactory.Get()
 	var dockerState = NewClientState(state)
-	var dockerImage = stringz.FirstNonEmpty(state.Output, params.DockerImage)
-	var hostConfig = &container.HostConfig{AutoRemove: params.Dispose}
-	var containerBinds = params.GetContainerMountBinds()
-	var containerName string
+	var containerName = params.GetName(dockerState.GetContainers())
 	var err error
 
-	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
-		if err = dockerState.MergeSpecs(params.VarSpecs); err == nil {
-			var envValues = makeEnvironmentValues(params.GetEnvironment(), dockerState.VarSpecs)
+	state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
 
-			if err = validateEnvironmentValues(dockerState.VarSpecs, envValues); err == nil {
-				var createConfig = &container.Config{
-					Env:   envValues,
-					Image: dockerImage,
-					Tty:   params.Interactive,
+	if err = dockerState.MergeSpecs(params.VarSpecs); err == nil {
+		var envValues = makeEnvironmentValues(params.GetEnvironment(), dockerState.VarSpecs)
+
+		if err = validateEnvironmentValues(dockerState.VarSpecs, envValues); err == nil {
+			var dockerImage = stringz.FirstNonEmpty(state.Output, params.DockerImage)
+			var containerBinds = params.GetMountBinds()
+			var createConfig = &container.Config{
+				Env:   envValues,
+				Image: dockerImage,
+				Tty:   params.Interactive,
+			}
+			var hostConfig = &container.HostConfig{AutoRemove: params.Dispose}
+			var createOptions = client.ContainerCreateOptions{
+				Config:     createConfig,
+				HostConfig: hostConfig,
+				Name:       containerName,
+			}
+			var result client.ContainerCreateResult
+			var mounts []mount.Mount
+
+			if uid, gid := os.Getuid(), os.Getgid(); uid >= 0 && gid >= 0 {
+				state.Logger.Debugf("Runtime user selected: [%d:%d]", uid, gid)
+				createConfig.User = fmt.Sprintf("%d:%d", uid, gid)
+			} else {
+				state.Logger.Warningf("Could not determine a runtime user [%d:%d]", uid, gid)
+			}
+
+			if params.Dispose {
+				state.Logger.Debugf("Auto-Remove of container after start is enabled")
+			}
+
+			if mounts = makeContainerMounts(containerBinds); len(mounts) > 0 {
+				hostConfig.Mounts = mounts
+
+				for _, bind := range hostConfig.Mounts {
+					state.Logger.Debugf("Binding %s to %s", bind.Source, bind.Target)
 				}
-				var resp container.CreateResponse
-				var mounts []mount.Mount
+			}
 
-				state.Logger.Debugf("Creating a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
-
-				if uid, gid := os.Getuid(), os.Getgid(); uid >= 0 && gid >= 0 {
-					state.Logger.Debugf("Runtime user selected: [%d:%d]", uid, gid)
-					createConfig.User = fmt.Sprintf("%d:%d", uid, gid)
-				} else {
-					state.Logger.Warningf("Could not determine a runtime user [%d:%d]", uid, gid)
+			if result, err = dockerClient.ContainerCreate(params.Context, createOptions); err == nil {
+				for _, w := range result.Warnings {
+					state.Logger.Warningf("%s", w)
 				}
 
-				if params.Dispose {
-					state.Logger.Debugf("Auto-Remove of container after start is enabled")
-				}
-
-				if mounts = makeContainerMounts(containerBinds); len(mounts) > 0 {
-					hostConfig.Mounts = mounts
-
-					for _, bind := range hostConfig.Mounts {
-						state.Logger.Debugf("Binding %s to %s", bind.Source, bind.Target)
-					}
-				}
-
-				if resp, err = dockerClient.ContainerCreate(params.Context, createConfig, hostConfig,
-					nil, nil, containerName); err == nil {
-					for _, w := range resp.Warnings {
-						state.Logger.Warningf("%s", w)
-					}
-
-					state.Output = resp.ID[0:12]
-					state.Logger.Debugf("Created docker container Id [%s]", state.Output)
-					return nil
-				}
+				state.Output = result.ID[0:12]
+				state.Logger.Debugf("Created docker container Id [%s]", state.Output)
+				return nil
 			}
 		}
 	}
@@ -417,38 +224,36 @@ func handleContainerCreate(params *ContainerParams, state *task.State) error {
 
 func handleContainerCreatePretend(params *ContainerParams, state *task.State) error {
 	var dockerState = NewClientState(state)
-	var containerName string
-	var mountValues []string
+	var containerName = params.GetName(dockerState.GetContainers())
+	var envValues = makeEnvironmentValues(params.GetEnvironment(), params.VarSpecs)
 	var err error
 
-	if containerName, err = params.GetName(dockerState.GetContainers()); err == nil {
-		var mountDefs = params.GetContainerMountBinds()
-		var envValues = makeEnvironmentValues(params.GetEnvironment(), params.VarSpecs)
+	state.Logger.Debugf("Pretending to create a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
+
+	if err = validateEnvironmentValues(params.VarSpecs, envValues); err == nil {
+		var mountDefs = params.GetMountBinds()
+		var mountValues []string
 		var mounts []mount.Mount
 
-		state.Logger.Debugf("Pretending to create a docker container with name [%s] for image [%s]", containerName, params.DockerImage)
+		if mounts = makeContainerMounts(mountDefs); len(mounts) > 0 {
+			for _, bind := range mounts {
+				var readonly = ""
 
-		if err = validateEnvironmentValues(params.VarSpecs, envValues); err == nil {
-			if mounts = makeContainerMounts(mountDefs); len(mounts) > 0 {
-				for _, bind := range mounts {
-					var readonly = ""
-
-					if bind.ReadOnly {
-						readonly = "ro=true"
-					}
-
-					mountValues = append(mountValues, fmt.Sprintf("--mount src=%s,dst=%s,type=%s%s",
-						bind.Source, bind.Target, bind.Type, readonly))
+				if bind.ReadOnly {
+					readonly = "ro=true"
 				}
-			}
 
-			for i, envVar := range envValues {
-				envValues[i] = "--env " + envVar
+				mountValues = append(mountValues, fmt.Sprintf("--mount src=%s,dst=%s,type=%s%s",
+					bind.Source, bind.Target, bind.Type, readonly))
 			}
-
-			fmt.Printf("docker create %s %s --name %s %s", strings.Join(envValues, " "),
-				strings.Join(mountValues, " "), containerName, params.DockerImage)
 		}
+
+		for i, envVar := range envValues {
+			envValues[i] = "--env " + envVar
+		}
+
+		fmt.Printf("docker create %s %s --name %s %s", strings.Join(envValues, " "),
+			strings.Join(mountValues, " "), containerName, params.DockerImage)
 	}
 
 	return err
@@ -462,7 +267,7 @@ func handleContainerDisposal(params *ContainerParams, state *task.State) error {
 	if count > 0 {
 		var dockerClient = dockerFactory.Get()
 		// Removed volumes and links as we'll just re-create them if needed on Create
-		var removeOptions = container.RemoveOptions{
+		var removeOptions = client.ContainerRemoveOptions{
 			RemoveVolumes: true,
 			Force:         params.Force,
 		}
@@ -472,7 +277,7 @@ func handleContainerDisposal(params *ContainerParams, state *task.State) error {
 
 			state.Logger.Debugf("Removing container [%s]", name)
 
-			if err = dockerClient.ContainerRemove(params.Context, ct.ID, removeOptions); err == nil {
+			if _, err = dockerClient.ContainerRemove(params.Context, ct.ID, removeOptions); err == nil {
 				state.Reportf("Disposed of container %s with status %s", name, ct.Status)
 			} else {
 				state.Logger.Debugf("Could not remove container [%s] with error [%s]", name, err)
@@ -515,10 +320,11 @@ func handleContainerStart(params *ContainerParams, state *task.State) error {
 	if summary := dockerState.SelectLatestContainer(); summary != nil {
 		var dockerClient = dockerFactory.Get()
 		var name = dockerState.DisplayString(summary)
+		var startOptions = client.ContainerStartOptions{}
 
 		state.Logger.Debugf("Starting docker container [%s]", name)
 
-		if err := dockerClient.ContainerStart(params.Context, summary.ID, container.StartOptions{}); err != nil {
+		if _, err := dockerClient.ContainerStart(params.Context, summary.ID, startOptions); err != nil {
 			return err
 		}
 
@@ -561,14 +367,14 @@ func handleContainerStop(params *ContainerParams, state *task.State) error {
 
 	if count > 0 {
 		var dockerClient = dockerFactory.Get()
-		var stopOptions = container.StopOptions{}
+		var stopOptions = client.ContainerStopOptions{}
 
 		if count > 1 {
 			state.Logger.Debugf("[%d] containers selected for stop", count)
 		}
 
 		if !params.Force {
-			stopOptions.Timeout = lang.Ref(-1)
+			stopOptions.Timeout = new(-1)
 		}
 
 		for _, ct := range dockerState.GetContainers() {
@@ -576,7 +382,7 @@ func handleContainerStop(params *ContainerParams, state *task.State) error {
 
 			state.Logger.Debugf("Stopping container [%s]", name)
 
-			if err = dockerClient.ContainerStop(params.Context, ct.ID, stopOptions); err == nil {
+			if _, err = dockerClient.ContainerStop(params.Context, ct.ID, stopOptions); err == nil {
 				state.Reportf("Stopped container %s with status %s", name, ct.Status)
 			} else {
 				state.Logger.Debugf("Could not stop container [%s] with error [%s]", ct.ID, err)
@@ -606,9 +412,20 @@ func handleContainerStopPretend(params *ContainerParams, state *task.State) erro
 	return nil
 }
 
+func init() {
+	ContainerTasks.CreateTaskFactory = newCreateTask
+	ContainerTasks.DisposeTaskFactory = newDisposeTask
+	ContainerTasks.StartTaskFactory = newStartTask
+	ContainerTasks.StopTaskFactory = newStopTask
+}
+
 func makeContainerChannel(ctx context.Context, params *ContainerParams, containerId string) chan int {
 	var dockerClient = dockerFactory.Get()
-	var channel, channelErr = dockerClient.ContainerWait(ctx, containerId, params.WaitCondition())
+	var waitOptions = client.ContainerWaitOptions{
+		Condition: params.WaitCondition(),
+	}
+	var waitResult = dockerClient.ContainerWait(ctx, containerId, waitOptions)
+	var channel, channelErr = waitResult.Result, waitResult.Error
 	var channelStatus = make(chan int)
 
 	go func() {
@@ -634,12 +451,12 @@ func makeContainerChannel(ctx context.Context, params *ContainerParams, containe
 	return channelStatus
 }
 
-func makeContainerMounts(definitions []ContainerMountBind) []mount.Mount {
+func makeContainerMounts(definitions []adapt.ContainerMountBind) []mount.Mount {
 	var result []mount.Mount
 
 	for _, def := range definitions {
 		_ = dirz.DoIfPathExist(def.HostPath, func() error {
-			result = append(result, *def.MakeMount(def.HostPath))
+			result = append(result, def.MakeMount(def.HostPath))
 			return nil
 		})
 	}
@@ -650,7 +467,7 @@ func makeContainerMounts(definitions []ContainerMountBind) []mount.Mount {
 func makeEnvironmentSpecs(propSpecs []shared.VarSpec) []string {
 	var result []string
 
-	result = append(result, EnvKeys...)
+	result = append(result, adapt.EnvKeys...)
 
 	for _, spec := range propSpecs {
 		result = append(result, spec.GetKey())
@@ -673,12 +490,18 @@ func makeEnvironmentValues(envMap map[string]string, specs []shared.VarSpec) []s
 
 		return value
 	}
+	var mountPoints = []adapt.ContainerMountPoint{
+		adapt.Mounts.Input,
+		adapt.Mounts.Output,
+		adapt.Mounts.Log,
+		adapt.Mounts.Var,
+	}
 	var result []string
 
-	maps.Copy(merged, EnvFileMap)
+	maps.Copy(merged, adapt.EnvFileMap)
 	maps.Copy(merged, envMap)
 
-	for _, mountPoint := range []ContainerMountPoint{InputMount, OutputMount, LogMount, VarMount} {
+	for _, mountPoint := range mountPoints {
 		if _, ok := merged[mountPoint.EnvVar]; !ok {
 			k, v := mountPoint.GetEnvKeyValue()
 			merged[k] = v
@@ -702,6 +525,42 @@ func makeEnvironmentValues(envMap map[string]string, specs []shared.VarSpec) []s
 	}
 
 	return result
+}
+
+func newCreateTask() *task.Task[ContainerParams] {
+	return &task.Task[ContainerParams]{
+		Name:         "docker-create",
+		OnPrepare:    handleContainerContext,
+		OnIncomplete: handleContainerCreate,
+		OnPretend:    handleContainerCreatePretend,
+	}
+}
+
+func newDisposeTask() *task.Task[ContainerParams] {
+	return &task.Task[ContainerParams]{
+		Name:       "docker-rm",
+		OnPrepare:  handleContainerContext,
+		OnComplete: handleContainerDisposal,
+		OnPretend:  handleContainerDisposalPretend,
+	}
+}
+
+func newStartTask() *task.Task[ContainerParams] {
+	return &task.Task[ContainerParams]{
+		Name:       "docker-start",
+		OnPrepare:  handleContainerContext,
+		OnComplete: handleContainerStart,
+		OnPretend:  handleContainerStartPretend,
+	}
+}
+
+func newStopTask() *task.Task[ContainerParams] {
+	return &task.Task[ContainerParams]{
+		Name:       "docker-stop",
+		OnPrepare:  handleContainerContext,
+		OnComplete: handleContainerStop,
+		OnPretend:  handleContainerStopPretend,
+	}
 }
 
 func validateEnvironmentValues(varSpecs []shared.VarSpec, envValues []string) error {
