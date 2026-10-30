@@ -10,12 +10,10 @@ import (
 	"genaiz.com/genaiz/task/docker"
 )
 
-type ListTaskFactory func() *task.Task[docker.BuildParams]
-
 type ListExecutor struct {
 	BaseExecutor
 
-	listTaskFactory ListTaskFactory
+	listTaskFactory docker.ListTaskFactory
 }
 
 func (le *ListExecutor) list() {
@@ -49,6 +47,6 @@ func NewListExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli) *List
 			Ledger:  ledger,
 		},
 
-		listTaskFactory: docker.NewListTask,
+		listTaskFactory: docker.BuildTasks.ListTaskFactory,
 	}
 }

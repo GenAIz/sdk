@@ -13,19 +13,18 @@ import (
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/docker"
+	"genaiz.com/genaiz/task/docker/adapt"
 	"genaiz.com/genaiz/task/layout"
 	"genaiz.com/genaiz/task/shared"
 )
-
-type RunTaskFactory func() *task.Task[docker.ContainerParams]
 
 type RunExecutor struct {
 	BaseExecutor
 	dk.SyncBridge
 	*RunOptions
 
-	buildTaskFactory BuildTaskFactory
-	runTaskFactory   RunTaskFactory
+	buildTaskFactory docker.BuildTaskFactory
+	runTaskFactory   docker.RunTaskFactory
 }
 
 func (re *RunExecutor) Display() {
@@ -148,8 +147,8 @@ func NewRunExecutor(ctx context.Context, ledger *config.Ledger, sfCli *Cli, opti
 		SyncBridge: dk.NewSyncBridgeBuilder().Build(),
 		RunOptions: options,
 
-		buildTaskFactory: docker.NewBuildTask,
-		runTaskFactory:   docker.NewRunTask,
+		buildTaskFactory: docker.BuildTasks.StandardTaskFactory,
+		runTaskFactory:   docker.RunTasks.StandardTaskFactory,
 	}
 }
 
@@ -230,19 +229,21 @@ func newRunParams(be BaseExecutor, ro *RunOptions) (*docker.ContainerParams, err
 		}
 
 		return &docker.ContainerParams{
-			RunParams: docker.RunParams{
-				Env:      task.Env{Context: be.Context},
+			Env: task.Env{Context: be.Context},
+			RunArguments: adapt.RunArguments{
 				Attached: false,
 				Dispose:  true,
 			},
-			DockerImage: be.Ledger.GetString(ro.optionRunImage),
-			EnvVars:     envVars,
-			MountInput:  be.Ledger.GetPath(ro.optionMountInput),
-			MountLog:    be.Ledger.GetPath(ro.optionMountLog),
-			MountOutput: be.Ledger.GetPath(ro.optionMountOutput),
-			MountVar:    be.Ledger.GetPath(ro.optionMountVar),
-			Prefix:      be.Ledger.GetString(ro.optionRunPrefix),
-			VarSpecs:    varSpecs,
+			ContainerArguments: adapt.ContainerArguments{
+				DockerImage: be.Ledger.GetString(ro.optionRunImage),
+				EnvVars:     envVars,
+				MountInput:  be.Ledger.GetPath(ro.optionMountInput),
+				MountLog:    be.Ledger.GetPath(ro.optionMountLog),
+				MountOutput: be.Ledger.GetPath(ro.optionMountOutput),
+				MountVar:    be.Ledger.GetPath(ro.optionMountVar),
+				Prefix:      be.Ledger.GetString(ro.optionRunPrefix),
+			},
+			VarSpecs: varSpecs,
 		}, nil
 	}
 

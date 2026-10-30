@@ -10,18 +10,15 @@ import (
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/docker"
+	"genaiz.com/genaiz/task/docker/adapt"
 )
-
-type DisposeTaskFactory func() *task.Task[docker.ContainerParams]
-
-type StopTaskFactory func() *task.Task[docker.ContainerParams]
 
 type StopExecutor struct {
 	BaseExecutor
 	*StopOptions
 
-	disposeTaskFactory DisposeTaskFactory
-	stopTaskFactory    StopTaskFactory
+	disposeTaskFactory docker.DisposeTaskFactory
+	stopTaskFactory    docker.StopTaskFactory
 }
 
 func (se *StopExecutor) Display() {
@@ -105,8 +102,8 @@ func NewStopExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, optio
 		},
 		StopOptions: options,
 
-		disposeTaskFactory: docker.NewDisposeTask,
-		stopTaskFactory:    docker.NewStopTask,
+		disposeTaskFactory: docker.ContainerTasks.DisposeTaskFactory,
+		stopTaskFactory:    docker.ContainerTasks.StopTaskFactory,
 	}
 }
 
@@ -134,13 +131,13 @@ func NewStopOptions(sfCli *Cli) *StopOptions {
 
 func makeContainerParams(be BaseExecutor, so *StopOptions, ro *RunOptions) *docker.ContainerParams {
 	return &docker.ContainerParams{
-		RunParams: docker.RunParams{
-			Env: task.Env{
-				Context: be.Context,
-			},
+		Env: task.Env{
+			Context: be.Context,
 		},
-		DockerImage: be.Ledger.GetString(ro.optionRunImage),
-		Name:        be.Ledger.GetString(so.optionContainerName),
-		Prefix:      be.Ledger.GetString(so.optionContainerPrefix),
+		ContainerArguments: adapt.ContainerArguments{
+			DockerImage: be.Ledger.GetString(ro.optionRunImage),
+			Name:        be.Ledger.GetString(so.optionContainerName),
+			Prefix:      be.Ledger.GetString(so.optionContainerPrefix),
+		},
 	}
 }

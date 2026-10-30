@@ -587,7 +587,7 @@ func TestNewRun(t *testing.T) {
 	}
 }
 
-func newRunTaskPretendStub(flag *bool) RunTaskFactory {
+func newRunTaskPretendStub(flag *bool) docker.RunTaskFactory {
 	return func() *task.Task[docker.ContainerParams] {
 		return &task.Task[docker.ContainerParams]{
 			OnPrepare: func(params *docker.ContainerParams, state *task.State) error {
@@ -601,7 +601,7 @@ func newRunTaskPretendStub(flag *bool) RunTaskFactory {
 	}
 }
 
-func newRunTaskCompleteStub(flag *bool) RunTaskFactory {
+func newRunTaskCompleteStub(flag *bool) docker.RunTaskFactory {
 	return func() *task.Task[docker.ContainerParams] {
 		return &task.Task[docker.ContainerParams]{
 			Name: "run_test",
@@ -616,7 +616,7 @@ func newRunTaskCompleteStub(flag *bool) RunTaskFactory {
 	}
 }
 
-func newRunTaskCompleteCapture(capture *docker.ContainerParams) RunTaskFactory {
+func newRunTaskCompleteCapture(capture *docker.ContainerParams) docker.RunTaskFactory {
 	return func() *task.Task[docker.ContainerParams] {
 		return &task.Task[docker.ContainerParams]{
 			Name: "run_test",

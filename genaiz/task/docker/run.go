@@ -1,53 +1,30 @@
 package docker
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 
 	"genaiz.com/genaiz-lib/lang/stringz"
 	"genaiz.com/genaiz/task"
+	"genaiz.com/genaiz/task/docker/adapt"
 )
 
 var (
-	ErrorNoImage = errors.New("image not found")
+	RunTasks struct {
+		StandardTaskFactory RunTaskFactory
+		TestTaskFactory     RunTaskFactory
+	}
 )
+
+type RunTask = *task.Task[ContainerParams]
+type RunTaskFactory = func() *task.Task[ContainerParams]
 
 type RunParams struct {
 	task.Env
-	Attached    bool
-	Dispose     bool
-	Interactive bool
-}
-
-func (r RunParams) WaitCondition() container.WaitCondition {
-	if r.Dispose {
-		return container.WaitConditionRemoved
-	}
-
-	return container.WaitConditionNextExit
-}
-
-func NewRunTask() *task.Task[ContainerParams] {
-	return &task.Task[ContainerParams]{
-		Name:       "docker-run",
-		OnPrepare:  handleRunContext,
-		OnComplete: handleRunCompletion,
-		OnPretend:  handleRunPretend,
-	}
-}
-
-func NewTestTask() *task.Task[ContainerParams] {
-	return &task.Task[ContainerParams]{
-		Name:       "docker-test",
-		OnPrepare:  handleRunContext,
-		OnComplete: handleTestCompletion,
-		OnPretend:  handleTestPretend,
-	}
+	adapt.RunArguments
 }
 
 func handleRunCompletion(params *ContainerParams, state *task.State) error {
@@ -74,31 +51,34 @@ func handleRunCompletion(params *ContainerParams, state *task.State) error {
 
 func handleRunContext(params *ContainerParams, state *task.State) error {
 	var dockerClient = dockerFactory.Get()
-	var listFilters = filters.NewArgs(
-		filters.Arg("reference", params.DockerImage),
-	)
+	var listOptions = client.ImageListOptions{
+		Filters: make(client.Filters).
+			Add("reference", params.DockerImage),
+	}
+	var result client.ImageListResult
+	var err error
 
 	state.Logger.Debugf("Finding docker image [%s]", params.DockerImage)
 
-	if summaries, err := dockerClient.ImageList(params.Context, image.ListOptions{Filters: listFilters}); err == nil {
-		if len(summaries) == 0 {
-			state.Logger.Errorf("Could not find an image for reference [%s]", params.DockerImage)
-			return ErrorNoImage
-		} else {
-			var imageSummary = summaries[0]
+	if result, err = dockerClient.ImageList(params.Context, listOptions); err == nil {
+		if len(result.Items) > 0 {
+			var imageSummary = result.Items[0]
 
 			state.Logger.Debugf("Found image id [%s] with reference [%s]", imageSummary.ID[7:19], params.DockerImage)
 			state.Output = imageSummary.ID
 			return nil
 		}
-	} else {
-		return err
+
+		state.Logger.Errorf("Could not find an image for reference [%s]", params.DockerImage)
+		return Errors.RunImageNotFound()
 	}
+
+	return err
 }
 
 func handleRunPretend(params *ContainerParams, state *task.State) error {
 	var dockerImage = stringz.FirstNonEmpty(state.Output, params.DockerImage)
-	var optionParams = params.fmtArgs()
+	var optionParams = params.MountArguments()
 	var detach, dispose string
 
 	state.Logger.Debugf("Pretending running docker image [%s]", dockerImage)
@@ -138,7 +118,7 @@ func handleTestCompletion(params *ContainerParams, state *task.State) error {
 }
 
 func handleTestPretend(params *ContainerParams, state *task.State) error {
-	var optionParams = params.fmtArgs()
+	var optionParams = params.MountArguments()
 	var dockerImage = stringz.FirstNonEmpty(state.Output, params.DockerImage)
 	var dispose string
 
@@ -152,4 +132,27 @@ func handleTestPretend(params *ContainerParams, state *task.State) error {
 	state.Completed = true
 	state.Output = ""
 	return nil
+}
+
+func init() {
+	RunTasks.StandardTaskFactory = newRunTask
+	RunTasks.TestTaskFactory = newTestTask
+}
+
+func newRunTask() *task.Task[ContainerParams] {
+	return &task.Task[ContainerParams]{
+		Name:       "docker-run",
+		OnPrepare:  handleRunContext,
+		OnComplete: handleRunCompletion,
+		OnPretend:  handleRunPretend,
+	}
+}
+
+func newTestTask() *task.Task[ContainerParams] {
+	return &task.Task[ContainerParams]{
+		Name:       "docker-test",
+		OnPrepare:  handleRunContext,
+		OnComplete: handleTestCompletion,
+		OnPretend:  handleTestPretend,
+	}
 }

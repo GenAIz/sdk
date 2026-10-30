@@ -1,15 +1,17 @@
 package docker
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/mock"
@@ -18,8 +20,28 @@ import (
 	"genaiz.com/genaiz/task/shared"
 )
 
-func TestNewPushTask(t *testing.T) {
-	var testTask = NewPushTask()
+type stubImageResponse struct {
+	readCloser io.ReadCloser
+}
+
+func (s stubImageResponse) Read(p []byte) (n int, err error) {
+	return s.readCloser.Read(p)
+}
+
+func (s stubImageResponse) Close() error {
+	return s.readCloser.Close()
+}
+
+func (s stubImageResponse) JSONMessages(context.Context) iter.Seq2[jsonstream.Message, error] {
+	panic("not expected to call JSONMessages")
+}
+
+func (s stubImageResponse) Wait(context.Context) error {
+	panic("not expected to call Wait")
+}
+
+func TestPushTasks_PushTaskFactory(t *testing.T) {
+	var testTask = PushTasks.PushTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotNil(t, testTask.OnPrepare)
@@ -41,7 +63,7 @@ func Test_handlePushComplete(t *testing.T) {
 			Path:    expectedPath,
 			Version: expectedVersion,
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedOutput,
 	}
 	var testPushStrings = []string{
@@ -52,14 +74,16 @@ func Test_handlePushComplete(t *testing.T) {
 		makeAuxPushResponse(expectedDigest, expectedVersion),
 	}
 	var stubClient = &stubDockerClient{
-		imagePushReader: io.NopCloser(strings.NewReader(strings.Join(testPushStrings, "\n"))),
+		imagePushResult: &stubImageResponse{
+			readCloser: io.NopCloser(strings.NewReader(strings.Join(testPushStrings, "\n"))),
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.NoError(t, handlePushComplete(testParams, testState))
 	assert.Equal(t, expectedOutput, testState.Output)
-	assert.Equal(t, expectedOutput, stubClient.imageTagId)
-	assert.Equal(t, expectedPath, stubClient.imageTagPath)
+	assert.Equal(t, expectedOutput, stubClient.imageTagOptions.Source)
+	assert.Equal(t, expectedPath, stubClient.imageTagOptions.Target)
 	assert.NotEmpty(t, stubClient.imagePushOptions.RegistryAuth)
 	assert.Equal(t, expectedPath, stubClient.imagePushPath)
 }
@@ -74,19 +98,20 @@ func Test_handlePushComplete_auxMissing(t *testing.T) {
 			Auth: expectedAuth,
 			Path: expectedPath,
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedOutput,
 	}
 	var stubClient = &stubDockerClient{
-		imagePushReader: io.NopCloser(strings.NewReader("{}")),
+		imagePushResult: &stubImageResponse{
+			readCloser: io.NopCloser(strings.NewReader("{}")),
+		},
 	}
 
 	defer installDockerClient(stubClient)()
-	actual := handlePushComplete(testParams, testState)
-	assert.Equal(t, errImproperPushResponse.Error(), actual.Error())
+	assert.ErrorIs(t, handlePushComplete(testParams, testState), Errors.PushImageUnrecognizedResponse())
 	assert.Empty(t, testState.Output)
-	assert.Equal(t, expectedOutput, stubClient.imageTagId)
-	assert.Equal(t, expectedPath, stubClient.imageTagPath)
+	assert.Equal(t, expectedOutput, stubClient.imageTagOptions.Source)
+	assert.Equal(t, expectedPath, stubClient.imageTagOptions.Target)
 	assert.NotEmpty(t, stubClient.imagePushOptions.RegistryAuth)
 	assert.Equal(t, expectedPath, stubClient.imagePushPath)
 }
@@ -101,18 +126,20 @@ func Test_handlePushComplete_jsonError(t *testing.T) {
 			Auth: expectedAuth,
 			Path: expectedPath,
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedOutput,
 	}
 	var stubClient = &stubDockerClient{
-		imagePushReader: io.NopCloser(strings.NewReader("not valid json")),
+		imagePushResult: &stubImageResponse{
+			readCloser: io.NopCloser(strings.NewReader("not valid json")),
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.Error(t, handlePushComplete(testParams, testState))
 	assert.Empty(t, testState.Output)
-	assert.Equal(t, expectedOutput, stubClient.imageTagId)
-	assert.Equal(t, expectedPath, stubClient.imageTagPath)
+	assert.Equal(t, expectedOutput, stubClient.imageTagOptions.Source)
+	assert.Equal(t, expectedPath, stubClient.imageTagOptions.Target)
 	assert.NotEmpty(t, stubClient.imagePushOptions.RegistryAuth)
 	assert.Equal(t, expectedPath, stubClient.imagePushPath)
 }
@@ -120,12 +147,12 @@ func Test_handlePushComplete_jsonError(t *testing.T) {
 func Test_handlePushComplete_provisionMissing(t *testing.T) {
 	var testState = &task.State{}
 
-	assert.ErrorIs(t, handlePushComplete(&PushParams{}, testState), errorNoProvision)
+	assert.ErrorIs(t, handlePushComplete(&PushParams{}, testState), Errors.PushImageNoProvision())
 	testState.Output = "output"
-	assert.ErrorIs(t, handlePushComplete(&PushParams{}, testState), errorNoProvision)
+	assert.ErrorIs(t, handlePushComplete(&PushParams{}, testState), Errors.PushImageNoProvision())
 	testState.Output = ""
 	testState.Internal = &shared.Identity{}
-	assert.ErrorIs(t, handlePushComplete(&PushParams{}, testState), errorNoProvision)
+	assert.ErrorIs(t, handlePushComplete(&PushParams{}, testState), Errors.PushImageNoProvision())
 }
 
 func Test_handlePushComplete_pushError(t *testing.T) {
@@ -138,7 +165,7 @@ func Test_handlePushComplete_pushError(t *testing.T) {
 			Auth: expectedAuth,
 			Path: expectedPath,
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedOutput,
 	}
 	var stubClient = &stubDockerClient{
@@ -149,8 +176,8 @@ func Test_handlePushComplete_pushError(t *testing.T) {
 	actual := handlePushComplete(testParams, testState)
 	assert.Equal(t, stubClient.imagePushError.Error(), actual.Error())
 	assert.Empty(t, testState.Output)
-	assert.Equal(t, expectedOutput, stubClient.imageTagId)
-	assert.Equal(t, expectedPath, stubClient.imageTagPath)
+	assert.Equal(t, expectedOutput, stubClient.imageTagOptions.Source)
+	assert.Equal(t, expectedPath, stubClient.imageTagOptions.Target)
 	assert.NotEmpty(t, stubClient.imagePushOptions.RegistryAuth)
 	assert.Equal(t, expectedPath, stubClient.imagePushPath)
 }
@@ -166,18 +193,20 @@ func Test_handlePushComplete_quirkStatus(t *testing.T) {
 			Auth: expectedAuth,
 			Path: expectedPath,
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedOutput,
 	}
 	var stubClient = &stubDockerClient{
-		imagePushReader: io.NopCloser(strings.NewReader("{\"status\":\"1.0.0-rc-0: digest: " + expectedHash + " size: 37\"}")),
+		imagePushResult: &stubImageResponse{
+			readCloser: io.NopCloser(strings.NewReader("{\"status\":\"1.0.0-rc-0: digest: " + expectedHash + " size: 73\"}")),
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.NoError(t, handlePushComplete(testParams, testState))
 	assert.Equal(t, expectedOutput, testState.Output)
-	assert.Equal(t, expectedOutput, stubClient.imageTagId)
-	assert.Equal(t, expectedPath, stubClient.imageTagPath)
+	assert.Equal(t, expectedOutput, stubClient.imageTagOptions.Source)
+	assert.Equal(t, expectedPath, stubClient.imageTagOptions.Target)
 	assert.NotEmpty(t, stubClient.imagePushOptions.RegistryAuth)
 	assert.Equal(t, expectedPath, stubClient.imagePushPath)
 }
@@ -190,7 +219,7 @@ func Test_handlePushComplete_tagError(t *testing.T) {
 		Internal: &shared.Identity{
 			Path: expectedPath,
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedOutput,
 	}
 	var stubClient = &stubDockerClient{
@@ -201,13 +230,13 @@ func Test_handlePushComplete_tagError(t *testing.T) {
 	actual := handlePushComplete(testParams, testState)
 	assert.Equal(t, stubClient.imageTagError.Error(), actual.Error())
 	assert.Empty(t, testState.Output)
-	assert.Equal(t, expectedOutput, stubClient.imageTagId)
-	assert.Equal(t, expectedPath, stubClient.imageTagPath)
+	assert.Equal(t, expectedOutput, stubClient.imageTagOptions.Source)
+	assert.Equal(t, expectedPath, stubClient.imageTagOptions.Target)
 }
 
 func Test_handlePushContext(t *testing.T) {
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: "some garbage",
 		Internal: &shared.Identity{
 			Auth:  "auth",
@@ -220,12 +249,12 @@ func Test_handlePushContext(t *testing.T) {
 }
 
 func Test_handlePushContext_buildMissing(t *testing.T) {
-	assert.ErrorIs(t, handlePushContext(&PushParams{}, &task.State{}), errorNoBuild)
+	assert.ErrorIs(t, handlePushContext(&PushParams{}, &task.State{}), Errors.PushImageNoBuild())
 }
 
 func Test_handlePushContext_conflictError(t *testing.T) {
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: "some garbage",
 		Internal: &shared.Identity{
 			Auth:  "auth",
@@ -234,12 +263,12 @@ func Test_handlePushContext_conflictError(t *testing.T) {
 	}
 	var testParams = &PushParams{}
 
-	assert.ErrorIs(t, handlePushContext(testParams, testState), errorConflictPush)
+	assert.ErrorIs(t, handlePushContext(testParams, testState), Errors.PushImageConflict())
 }
 
 func Test_handlePushContext_inactiveError(t *testing.T) {
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: "some garbage",
 		Internal: &shared.Identity{
 			Auth:  "",
@@ -248,12 +277,12 @@ func Test_handlePushContext_inactiveError(t *testing.T) {
 	}
 	var testParams = &PushParams{}
 
-	assert.ErrorIs(t, handlePushContext(testParams, testState), errorIllegalPush)
+	assert.ErrorIs(t, handlePushContext(testParams, testState), Errors.PushImageInactive())
 }
 
 func Test_handlePushContext_neutralError(t *testing.T) {
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: "some garbage",
 		Internal: &shared.Identity{
 			Auth:  "",
@@ -262,18 +291,18 @@ func Test_handlePushContext_neutralError(t *testing.T) {
 	}
 	var testParams = &PushParams{}
 
-	assert.ErrorIs(t, handlePushContext(testParams, testState), errorNeutralPush)
+	assert.ErrorIs(t, handlePushContext(testParams, testState), Errors.PushImageNeutral())
 }
 
 func Test_handlePushContext_provisioningMissing(t *testing.T) {
 	var testState = &task.State{Output: "some garbage"}
 
-	assert.ErrorIs(t, handlePushContext(&PushParams{}, testState), errorNoProvision)
+	assert.ErrorIs(t, handlePushContext(&PushParams{}, testState), Errors.PushImageNoProvision())
 }
 
 func Test_handlePushIncomplete(t *testing.T) {
 	var testState = &task.State{
-		Error: errorNeutralPush,
+		Error: Errors.PushImageNeutral(),
 		Internal: &shared.Identity{
 			Hash: "hash",
 		},
@@ -285,20 +314,20 @@ func Test_handlePushIncomplete(t *testing.T) {
 
 func Test_handlePushIncomplete_neutralError(t *testing.T) {
 	var testState = &task.State{
-		Error: errorNeutralPush,
+		Error: Errors.PushImageNeutral(),
 	}
 
-	assert.ErrorIs(t, handlePushIncomplete(&PushParams{}, testState), errorNeutralPush)
+	assert.ErrorIs(t, handlePushIncomplete(&PushParams{}, testState), Errors.PushImageNeutral())
 	assert.True(t, testState.Completed)
 }
 
 func Test_handlePushIncomplete_synchronizedError(t *testing.T) {
 	var testState = &task.State{
-		Error:    errorNeutralPush,
+		Error:    Errors.PushImageNeutral(),
 		Internal: &shared.Identity{},
 	}
 
-	assert.ErrorIs(t, handlePushIncomplete(&PushParams{}, testState), errorSynchronizedPush)
+	assert.ErrorIs(t, handlePushIncomplete(&PushParams{}, testState), Errors.PushImageUnknownRepoDigest())
 	assert.True(t, testState.Completed)
 }
 
@@ -319,17 +348,13 @@ func Test_handlePushPretend(t *testing.T) {
 	})
 	var expectedPath = "path"
 	var expectedHash = "hash"
-	var testParams = &PushParams{
-		BuildParams: &BuildParams{
-			DockerRepository: "testRepo",
-		},
-	}
+	var testParams = &PushParams{}
 	var testState = &task.State{
 		Internal: &shared.Identity{
 			Hash: expectedHash,
 			Path: expectedPath,
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 
 	defer patch.Unpatch()
@@ -343,7 +368,7 @@ func Test_handlePushPretend(t *testing.T) {
 }
 
 func Test_handlePushPretend_noProvision(t *testing.T) {
-	assert.ErrorIs(t, handlePushPretend(&PushParams{}, &task.State{}), errorNoProvision)
+	assert.ErrorIs(t, handlePushPretend(&PushParams{}, &task.State{}), Errors.PushImageNoProvision())
 }
 
 func makeAuxPushResponse(digest, version string) string {

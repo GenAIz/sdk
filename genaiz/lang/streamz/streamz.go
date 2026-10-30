@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
 )
 
 type Streams interface {

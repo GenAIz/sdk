@@ -13,11 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/client"
 	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
@@ -25,117 +24,20 @@ import (
 	"genaiz.com/genaiz-lib/mock/net"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/docker/adapt"
 	"genaiz.com/genaiz/task/shared"
 )
 
-func TestContainerMountPoint_MakeMount(t *testing.T) {
-	var testDir = t.TempDir()
-	var testMountPoint = &ContainerMountPoint{MountPath: "/mnt/path"}
-	var actual = testMountPoint.MakeMount(testDir)
-
-	assert.Equal(t, testDir, actual.Source)
-	assert.Equal(t, testMountPoint.MountPath, actual.Target)
-	assert.False(t, actual.ReadOnly)
-	assert.Equal(t, actual.BindOptions, &mount.BindOptions{CreateMountpoint: true})
-}
-
-func TestContainerParams_GetName(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var expectedName = "name"
-	var expectedPrefix = "prefix"
-	var actual, err = testParams.GetName([]container.Summary{})
-
-	assert.Empty(t, actual)
-	assert.Error(t, err)
-	testParams.Prefix = expectedPrefix
-	actual, err = testParams.GetName([]container.Summary{})
-	assert.NoError(t, err)
-	assert.Equal(t, expectedPrefix+"-0", actual)
-	testParams.Name = expectedName
-	actual, err = testParams.GetName([]container.Summary{})
-	assert.NoError(t, err)
-	assert.Equal(t, expectedName, actual)
-}
-
-func TestContainerParams_GetContainerMountBinds(t *testing.T) {
-	var testDir = t.TempDir()
-	var testParams = &ContainerParams{}
-	var actual []ContainerMountBind
-
-	assert.Empty(t, testParams.GetContainerMountBinds())
-	testParams.MountInput = filepath.Join(testDir, "input")
-	actual = testParams.GetContainerMountBinds()
-	assert.Equal(t, 1, len(actual))
-	assert.True(t, slices.ContainsFunc(actual, func(b ContainerMountBind) bool {
-		return b.HostPath == testParams.MountInput
-	}))
-	testParams.MountOutput = filepath.Join(testDir, "output")
-	actual = testParams.GetContainerMountBinds()
-	assert.Equal(t, 2, len(actual))
-	assert.True(t, slices.ContainsFunc(actual, func(b ContainerMountBind) bool {
-		return b.HostPath == testParams.MountOutput
-	}))
-	testParams.MountLog = filepath.Join(testDir, "log")
-	actual = testParams.GetContainerMountBinds()
-	assert.Equal(t, 3, len(actual))
-	assert.True(t, slices.ContainsFunc(actual, func(b ContainerMountBind) bool {
-		return b.HostPath == testParams.MountLog
-	}))
-	testParams.MountVar = filepath.Join(testDir, "var")
-	actual = testParams.GetContainerMountBinds()
-	assert.Equal(t, 4, len(actual))
-	assert.True(t, slices.ContainsFunc(actual, func(b ContainerMountBind) bool {
-		return b.HostPath == testParams.MountVar
-	}))
-}
-
-func TestContainerParams_MakeDisposableName(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var expectedPrefix = "prefix"
-
-	assert.True(t, strings.HasPrefix(testParams.MakeDisposableName(), "container"))
-	testParams.Prefix = expectedPrefix
-	assert.True(t, strings.HasPrefix(testParams.MakeDisposableName(), expectedPrefix))
-	testParams.Prefix = expectedPrefix + "-10"
-	assert.True(t, strings.HasPrefix(testParams.MakeDisposableName(), expectedPrefix))
-	testParams.Name = "name"
-	assert.True(t, strings.HasPrefix(testParams.MakeDisposableName(), testParams.Name))
-}
-
-func TestContainerParams_fmtArgs(t *testing.T) {
-	var testDir = t.TempDir()
-	var testParams = &ContainerParams{
-		MountInput:  filepath.Join(testDir, "input"),
-		MountOutput: filepath.Join(testDir, "output"),
-		MountLog:    filepath.Join(testDir, "log"),
-		MountVar:    filepath.Join(testDir, "var"),
+func newContainerParams(ctx context.Context) *ContainerParams {
+	return &ContainerParams{
+		Env: task.Env{
+			Context: ctx,
+		},
 	}
-	var actual = testParams.fmtArgs()
-
-	assert.Contains(t, actual, "src="+testParams.MountInput)
-	assert.Contains(t, actual, "src="+testParams.MountOutput)
-	assert.Contains(t, actual, "src="+testParams.MountLog)
-	assert.Contains(t, actual, "src="+testParams.MountVar)
-	assert.Contains(t, actual, InputMount.EnvVar+"="+InputMount.MountPath)
-	assert.Contains(t, actual, OutputMount.EnvVar+"="+OutputMount.MountPath)
-	assert.Contains(t, actual, LogMount.EnvVar+"="+LogMount.MountPath)
-	assert.Contains(t, actual, VarMount.EnvVar+"="+VarMount.MountPath)
 }
 
-func TestContainerParams_fmtMountBindArg(t *testing.T) {
-	var testParams = &ContainerParams{}
-
-	assert.Empty(t, testParams.fmtMountBindArg(&InputMount, ""))
-}
-
-func TestContainerParams_fmtMountEnvArg(t *testing.T) {
-	var testParams = &ContainerParams{}
-
-	assert.Empty(t, testParams.fmtMountEnvArg(&InputMount, ""))
-}
-
-func TestNewCreateTask(t *testing.T) {
-	var testTask = NewCreateTask()
+func TestContainerTasks_CreateTaskFactory(t *testing.T) {
+	var testTask = ContainerTasks.CreateTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotEmpty(t, testTask.OnPrepare)
@@ -144,8 +46,8 @@ func TestNewCreateTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnPretend)
 }
 
-func TestNewDisposeTask(t *testing.T) {
-	var testTask = NewDisposeTask()
+func TestContainerTasks_DisposeTaskFactory(t *testing.T) {
+	var testTask = ContainerTasks.DisposeTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotEmpty(t, testTask.OnPrepare)
@@ -154,8 +56,8 @@ func TestNewDisposeTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnPretend)
 }
 
-func TestNewStartTask(t *testing.T) {
-	var testTask = NewStartTask()
+func TestContainerTasks_StartTaskFactory(t *testing.T) {
+	var testTask = ContainerTasks.StartTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotEmpty(t, testTask.OnPrepare)
@@ -164,8 +66,8 @@ func TestNewStartTask(t *testing.T) {
 	assert.NotEmpty(t, testTask.OnPretend)
 }
 
-func TestNewStopTask(t *testing.T) {
-	var testTask = NewStopTask()
+func TestContainerTasks_StopTaskFactory(t *testing.T) {
+	var testTask = ContainerTasks.StopTaskFactory()
 
 	assert.NotEmpty(t, testTask.Name)
 	assert.NotEmpty(t, testTask.OnPrepare)
@@ -179,53 +81,77 @@ func Test_handleContainerAttach(t *testing.T) {
 }
 
 func Test_handleContainerAttach_AttachError(t *testing.T) {
-	var expectedContainer = container.Summary{ID: "expectedId"}
-	var testParams = &ContainerParams{RunParams: RunParams{Env: task.Env{Context: t.Context()}}}
+	var expectedId = "expectedId"
+	var testParams = newContainerParams(t.Context())
 	var testState = &task.State{
 		Internal: clientTracking{
-			containers: []container.Summary{expectedContainer},
+			containers: []container.Summary{
+				{
+					ID: expectedId,
+				},
+			},
 		},
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{
-		containerInspect: &expectedContainer,
-		containerInspectConfig: &container.Config{
-			Tty: true,
+		containerInspectResult: client.ContainerInspectResult{
+			Container: container.InspectResponse{
+				ID: expectedId,
+				Config: &container.Config{
+					Tty: true,
+				},
+			},
 		},
+
 		containerAttachError: errors.New("expected"),
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.ErrorIs(t, handleContainerAttach(testParams, testState), stubClient.containerAttachError)
-	assert.Equal(t, expectedContainer.ID, stubClient.containerInspectId)
-	assert.Equal(t, expectedContainer.ID, stubClient.containerAttachId)
+	assert.Equal(t, expectedId, stubClient.containerInspectId)
+	assert.Equal(t, expectedId, stubClient.containerAttachId)
 }
 
 func Test_handleContainerAttach_ChannelError(t *testing.T) {
-	var expectedContainer = container.Summary{ID: "expectedId", Names: []string{"name"}}
-	var testParams = &ContainerParams{RunParams: RunParams{Env: task.Env{Context: t.Context()}}}
+	var expectedId = "expectedId"
+	var expectedName = "name"
+	var testParams = newContainerParams(t.Context())
 	var testState = &task.State{
 		Internal: clientTracking{
-			containers: []container.Summary{expectedContainer},
+			containers: []container.Summary{
+				{
+					ID:    expectedId,
+					Names: []string{expectedName},
+				},
+			},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{
-		containerInspect: &expectedContainer,
-		containerInspectConfig: &container.Config{
-			Tty: true,
+		containerInspectResult: client.ContainerInspectResult{
+			Container: container.InspectResponse{
+				ID: expectedId,
+				Config: &container.Config{
+					Tty: true,
+				},
+			},
 		},
-		containerAttachResponse: &types.HijackedResponse{
-			Reader: bufio.NewReader(strings.NewReader("Will yield unrecognized input header")),
-			Conn:   net.StubConn{},
+		containerAttachResult: client.ContainerAttachResult{
+			HijackedResponse: client.HijackedResponse{
+				Reader: bufio.NewReader(strings.NewReader("Will yield unrecognized input header")),
+				Conn:   net.StubConn{},
+			},
 		},
-		containerWaitResponse: make(chan container.WaitResponse),
-		containerWaitError:    make(chan error),
+		containerWaitResult: client.ContainerWaitResult{
+			Result: make(chan container.WaitResponse),
+			Error:  make(chan error),
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.Error(t, handleContainerAttach(testParams, testState))
-	assert.Equal(t, expectedContainer.ID, stubClient.containerInspectId)
-	assert.Equal(t, expectedContainer.ID, stubClient.containerAttachId)
+	assert.Equal(t, expectedId, stubClient.containerInspectId)
+	assert.Equal(t, expectedId, stubClient.containerAttachId)
 	assert.NotEmpty(t, stubClient.containerAttachOptions)
 	assert.True(t, stubClient.containerAttachOptions.Stdout)
 	assert.True(t, stubClient.containerAttachOptions.Stderr)
@@ -234,35 +160,50 @@ func Test_handleContainerAttach_ChannelError(t *testing.T) {
 }
 
 func Test_handleContainerAttach_ChannelExitNonZero(t *testing.T) {
-	var expectedContainer = container.Summary{ID: "expectedId", Names: []string{"name"}}
-	var testParams = &ContainerParams{RunParams: RunParams{Env: task.Env{Context: t.Context()}}}
+	var expectedId = "expectedId"
+	var expectedName = "name"
+	var testParams = newContainerParams(t.Context())
 	var testState = &task.State{
 		Internal: clientTracking{
-			containers: []container.Summary{expectedContainer},
+			containers: []container.Summary{
+				{
+					ID:    expectedId,
+					Names: []string{expectedName},
+				},
+			},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
+	var testChannel = make(chan container.WaitResponse)
 	var stubClient = &stubDockerClient{
-		containerInspect: &expectedContainer,
-		containerInspectConfig: &container.Config{
-			Tty: true,
+		containerInspectResult: client.ContainerInspectResult{
+			Container: container.InspectResponse{
+				ID: expectedId,
+				Config: &container.Config{
+					Tty: true,
+				},
+			},
 		},
-		containerAttachResponse: &types.HijackedResponse{
-			Reader: bufio.NewReader(strings.NewReader("")),
-			Conn:   net.StubConn{},
+		containerAttachResult: client.ContainerAttachResult{
+			HijackedResponse: client.HijackedResponse{
+				Reader: bufio.NewReader(strings.NewReader("")),
+				Conn:   net.StubConn{},
+			},
 		},
-		containerWaitResponse: make(chan container.WaitResponse),
-		containerWaitError:    make(chan error),
+		containerWaitResult: client.ContainerWaitResult{
+			Result: testChannel,
+			Error:  make(chan error),
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	go func() {
-		stubClient.containerWaitResponse <- container.WaitResponse{StatusCode: 1}
+		testChannel <- container.WaitResponse{StatusCode: 1}
 	}()
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 	assert.Error(t, handleContainerAttach(testParams, testState))
-	assert.Equal(t, expectedContainer.ID, stubClient.containerInspectId)
-	assert.Equal(t, expectedContainer.ID, stubClient.containerAttachId)
+	assert.Equal(t, expectedId, stubClient.containerInspectId)
+	assert.Equal(t, expectedId, stubClient.containerAttachId)
 	assert.NotEmpty(t, stubClient.containerAttachOptions)
 	assert.True(t, stubClient.containerAttachOptions.Stdout)
 	assert.True(t, stubClient.containerAttachOptions.Stderr)
@@ -271,12 +212,17 @@ func Test_handleContainerAttach_ChannelExitNonZero(t *testing.T) {
 }
 
 func Test_handleContainerAttach_InspectError(t *testing.T) {
-	var expectedContainer = container.Summary{ID: "expectedId"}
-	var testParams = &ContainerParams{RunParams: RunParams{Env: task.Env{Context: t.Context()}}}
+	var expectedId = "expectedId"
+	var testParams = newContainerParams(t.Context())
 	var testState = &task.State{
 		Internal: clientTracking{
-			containers: []container.Summary{expectedContainer},
+			containers: []container.Summary{
+				{
+					ID: expectedId,
+				},
+			},
 		},
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{
 		containerInspectError: errors.New("expected"),
@@ -284,37 +230,45 @@ func Test_handleContainerAttach_InspectError(t *testing.T) {
 
 	defer installDockerClient(stubClient)()
 	assert.ErrorIs(t, handleContainerAttach(testParams, testState), stubClient.containerInspectError)
-	assert.Equal(t, expectedContainer.ID, stubClient.containerInspectId)
+	assert.Equal(t, expectedId, stubClient.containerInspectId)
 }
 
 func Test_handleContainerAttach_KillPanic(t *testing.T) {
-	var expectedContainer = container.Summary{ID: "expectedId", Names: []string{"name"}}
+	var expectedId = "expectedId"
+	var expectedName = "name"
 	var testContext = context.WithoutCancel(t.Context())
-	var testParams = &ContainerParams{
-		RunParams: RunParams{
-			Env: task.Env{
-				Context: testContext,
-			},
-		},
-	}
+	var testParams = newContainerParams(testContext)
 	var testState = &task.State{
 		Internal: clientTracking{
-			containers: []container.Summary{expectedContainer},
+			containers: []container.Summary{
+				{
+					ID:    expectedId,
+					Names: []string{expectedName},
+				},
+			},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{
-		containerInspect: &expectedContainer,
-		containerInspectConfig: &container.Config{
-			Tty: false,
+		containerInspectResult: client.ContainerInspectResult{
+			Container: container.InspectResponse{
+				ID: expectedId,
+				Config: &container.Config{
+					Tty: false,
+				},
+			},
 		},
-		containerAttachResponse: &types.HijackedResponse{
-			Reader: bufio.NewReader(strings.NewReader("")),
-			Conn:   net.StubConn{},
+		containerAttachResult: client.ContainerAttachResult{
+			HijackedResponse: client.HijackedResponse{
+				Reader: bufio.NewReader(strings.NewReader("")),
+				Conn:   net.StubConn{},
+			},
 		},
-		containerWaitResponse: make(chan container.WaitResponse),
-		containerWaitError:    make(chan error),
-		containerKillError:    errors.New("panic"),
+		containerWaitResult: client.ContainerWaitResult{
+			Result: make(chan container.WaitResponse),
+			Error:  make(chan error),
+		},
+		containerKillError: errors.New("panic"),
 	}
 	var stubSignals = make(chan os.Signal, 128)
 	var gate = false
@@ -351,32 +305,46 @@ func Test_handleContainerAttach_NoContainers(t *testing.T) {
 }
 
 func Test_handleContainerAttach_StartError(t *testing.T) {
-	var expectedContainer = container.Summary{ID: "expectedId", Names: []string{"name"}}
-	var testParams = &ContainerParams{RunParams: RunParams{Env: task.Env{Context: t.Context()}}}
+	var expectedId = "expectedId"
+	var expectedName = "name"
+	var testParams = newContainerParams(t.Context())
 	var testState = &task.State{
 		Internal: clientTracking{
-			containers: []container.Summary{expectedContainer},
+			containers: []container.Summary{
+				{
+					ID:    expectedId,
+					Names: []string{expectedName},
+				},
+			},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{
-		containerInspect: &expectedContainer,
-		containerInspectConfig: &container.Config{
-			Tty: true,
+		containerInspectResult: client.ContainerInspectResult{
+			Container: container.InspectResponse{
+				ID: expectedId,
+				Config: &container.Config{
+					Tty: true,
+				},
+			},
 		},
-		containerAttachResponse: &types.HijackedResponse{
-			Reader: bufio.NewReader(strings.NewReader("response")),
-			Conn:   net.StubConn{},
+		containerAttachResult: client.ContainerAttachResult{
+			HijackedResponse: client.HijackedResponse{
+				Reader: bufio.NewReader(strings.NewReader("response")),
+				Conn:   net.StubConn{},
+			},
 		},
-		containerStartError:   errors.New("expected"),
-		containerWaitResponse: make(chan container.WaitResponse),
-		containerWaitError:    make(chan error),
+		containerStartError: errors.New("expected"),
+		containerWaitResult: client.ContainerWaitResult{
+			Result: make(chan container.WaitResponse),
+			Error:  make(chan error),
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.ErrorIs(t, handleContainerAttach(testParams, testState), stubClient.containerStartError)
-	assert.Equal(t, expectedContainer.ID, stubClient.containerInspectId)
-	assert.Equal(t, expectedContainer.ID, stubClient.containerAttachId)
+	assert.Equal(t, expectedId, stubClient.containerInspectId)
+	assert.Equal(t, expectedId, stubClient.containerAttachId)
 	assert.NotEmpty(t, stubClient.containerAttachOptions)
 	assert.True(t, stubClient.containerAttachOptions.Stdout)
 	assert.True(t, stubClient.containerAttachOptions.Stderr)
@@ -385,39 +353,47 @@ func Test_handleContainerAttach_StartError(t *testing.T) {
 }
 
 func Test_handleContainerAttach_StartErrorDispose(t *testing.T) {
-	var expectedContainer = container.Summary{ID: "expectedId", Names: []string{"name"}}
-	var testParams = &ContainerParams{
-		RunParams: RunParams{
-			Dispose: true,
-			Env: task.Env{
-				Context: t.Context(),
-			},
-		},
-	}
+	var expectedId = "expectedId"
+	var expectedName = "name"
+	var testParams = newContainerParams(t.Context())
 	var testState = &task.State{
 		Internal: clientTracking{
-			containers: []container.Summary{expectedContainer},
+			containers: []container.Summary{
+				{
+					ID:    expectedId,
+					Names: []string{expectedName},
+				},
+			},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{
-		containerInspect: &expectedContainer,
-		containerInspectConfig: &container.Config{
-			Tty: true,
+		containerInspectResult: client.ContainerInspectResult{
+			Container: container.InspectResponse{
+				ID: expectedId,
+				Config: &container.Config{
+					Tty: true,
+				},
+			},
 		},
-		containerAttachResponse: &types.HijackedResponse{
-			Reader: bufio.NewReader(strings.NewReader("response")),
-			Conn:   net.StubConn{},
+		containerAttachResult: client.ContainerAttachResult{
+			HijackedResponse: client.HijackedResponse{
+				Reader: bufio.NewReader(strings.NewReader("response")),
+				Conn:   net.StubConn{},
+			},
 		},
-		containerStartError:   errors.New("expected"),
-		containerWaitResponse: make(chan container.WaitResponse),
-		containerWaitError:    make(chan error),
+		containerStartError: errors.New("expected"),
+		containerWaitResult: client.ContainerWaitResult{
+			Result: make(chan container.WaitResponse),
+			Error:  make(chan error),
+		},
 	}
 
 	defer installDockerClient(stubClient)()
+	testParams.Dispose = true
 	assert.ErrorIs(t, handleContainerAttach(testParams, testState), stubClient.containerStartError)
-	assert.Equal(t, expectedContainer.ID, stubClient.containerInspectId)
-	assert.Equal(t, expectedContainer.ID, stubClient.containerAttachId)
+	assert.Equal(t, expectedId, stubClient.containerInspectId)
+	assert.Equal(t, expectedId, stubClient.containerAttachId)
 	assert.NotEmpty(t, stubClient.containerAttachOptions)
 	assert.True(t, stubClient.containerAttachOptions.Stdout)
 	assert.True(t, stubClient.containerAttachOptions.Stderr)
@@ -427,44 +403,60 @@ func Test_handleContainerAttach_StartErrorDispose(t *testing.T) {
 
 func Test_handleContainerContext(t *testing.T) {
 	var testContainer = container.Summary{ID: "id"}
-	var testState = &task.State{Logger: logrus.New()}
-	var testParams = &ContainerParams{Name: "expectedName"}
+	var testState = newTestState()
+	var testParams = &ContainerParams{
+		ContainerArguments: adapt.ContainerArguments{
+			Name: "myName",
+		},
+	}
 	var stubClient = &stubDockerClient{
-		containerList: []container.Summary{testContainer},
+		containerListResult: client.ContainerListResult{
+			Items: []container.Summary{testContainer},
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.ErrorIs(t, handleContainerContext(testParams, testState), stubClient.containerListError)
-	assert.NotEmpty(t, stubClient.containerListFilter)
-	assert.True(t, stubClient.containerListFilter.Match("name", testParams.Name))
+	assert.NotEmpty(t, stubClient.containerListOptions.Filters)
+	assert.True(t, stubClient.containerListOptions.Filters["name"][testParams.Name])
 	assert.NotEmpty(t, testState.Internal)
-	assert.Equal(t, stubClient.containerList, NewClientState(testState).containers)
+	assert.Equal(t, stubClient.containerListResult.Items, NewClientState(testState).containers)
 }
 
 func Test_handleContainerContext_ContainerListError(t *testing.T) {
-	var testState = &task.State{Logger: logrus.New()}
-	var testParams = &ContainerParams{Prefix: "expectedPrefix"}
+	var testState = newTestState()
+	var testParams = &ContainerParams{
+		ContainerArguments: adapt.ContainerArguments{
+			Prefix: "expectedPrefix",
+		},
+	}
 	var stubClient = &stubDockerClient{
 		containerListError: errors.New("expected"),
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.ErrorIs(t, handleContainerContext(testParams, testState), stubClient.containerListError)
-	assert.NotEmpty(t, stubClient.containerListFilter)
-	assert.True(t, stubClient.containerListFilter.Match("name", testParams.Prefix))
+	assert.NotEmpty(t, stubClient.containerListOptions.Filters)
+	assert.True(t, stubClient.containerListOptions.Filters["name"][testParams.Prefix])
 }
 
 func Test_handleContainerContext_ContainerNotFound(t *testing.T) {
-	var testState = &task.State{Logger: logrus.New()}
-	var testParams = &ContainerParams{Name: "expectedName"}
+	var testState = newTestState()
+	var testParams = &ContainerParams{
+		ContainerArguments: adapt.ContainerArguments{
+			Name: "expectedName",
+		},
+	}
 	var stubClient = &stubDockerClient{
-		containerList: []container.Summary{},
+		containerListResult: client.ContainerListResult{
+			Items: []container.Summary{},
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.Error(t, handleContainerContext(testParams, testState))
-	assert.NotEmpty(t, stubClient.containerListFilter)
-	assert.True(t, stubClient.containerListFilter.Match("name", testParams.Name))
+	assert.NotEmpty(t, stubClient.containerListOptions.Filters)
+	assert.True(t, stubClient.containerListOptions.Filters["name"][testParams.Name])
 }
 
 func Test_handleContainerContext_HasContainers(t *testing.T) {
@@ -479,71 +471,84 @@ func Test_handleContainerContext_NoNaming(t *testing.T) {
 	var testState = &task.State{}
 	var testParams = &ContainerParams{}
 
-	assert.Panics(t, func() { _ = handleContainerContext(testParams, testState) })
+	assert.ErrorIs(t, handleContainerContext(testParams, testState), Errors.ContainerNameRequired())
 }
 
 func Test_handleContainerCreate(t *testing.T) {
 	var testDir = t.TempDir()
 	var expectedImage = "expectedImage"
 	var testState = &task.State{
-		Logger: logrus.New(),
+		Logger: testLogger,
 		Output: expectedImage,
 	}
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
+		RunArguments: adapt.RunArguments{
 			Dispose: true,
 		},
-		MountInput:  testDir,
-		MountLog:    testDir,
-		MountOutput: testDir,
-		MountVar:    testDir,
-		Prefix:      "expectedPrefix",
+		ContainerArguments: adapt.ContainerArguments{
+			MountInput:  testDir,
+			MountLog:    testDir,
+			MountOutput: testDir,
+			MountVar:    testDir,
+			Prefix:      "expectedPrefix",
+		},
 	}
-	var expectedContainer = &container.Summary{ID: "0123456789ABC"}
+	var expectedId = "0123456789ABC"
 	var stubClient = &stubDockerClient{
-		containerCreate:         expectedContainer,
-		containerCreateWarnings: []string{"testWarning"},
+		containerCreateResult: client.ContainerCreateResult{
+			ID: expectedId,
+		},
 	}
 
 	defer installDockerClient(stubClient)()
 	assert.NoError(t, handleContainerCreate(testParams, testState))
-	assert.NotEmpty(t, stubClient.containerCreateConfig)
-	assert.False(t, stubClient.containerCreateConfig.Tty)
-	assert.Equal(t, expectedImage, stubClient.containerCreateConfig.Image)
-	assert.Equal(t, expectedContainer.ID[0:12], testState.Output)
-	assert.Equal(t, fmt.Sprintf("%s-0", testParams.Prefix), stubClient.containerCreateName)
-	assert.NotEmpty(t, stubClient.containerHostConfig)
-	assert.Equal(t, 4, len(stubClient.containerHostConfig.Mounts))
-	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
-		return m.Source == testDir && m.Target == InputMount.MountPath
-	}))
-	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
-		return m.Source == testDir && m.Target == LogMount.MountPath
-	}))
-	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
-		return m.Source == testDir && m.Target == OutputMount.MountPath
-	}))
-	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
-		return m.Source == testDir && m.Target == VarMount.MountPath
-	}))
-	assert.Equal(t, 7, len(stubClient.containerCreateConfig.Env))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", InputMount.EnvVar, InputMount.MountPath))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", LogMount.EnvVar, LogMount.MountPath))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", OutputMount.EnvVar, OutputMount.MountPath))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", VarMount.EnvVar, VarMount.MountPath))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s/%s", envProgressFile, VarMount.MountPath, "progress"))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s/%s", envResultFile, VarMount.MountPath, "result"))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s/%s", envStatusFile, VarMount.MountPath, "status"))
+	assert.Equal(t, expectedId[0:12], testState.Output)
+	assert.Equal(t, fmt.Sprintf("%s-0", testParams.Prefix), stubClient.containerCreateOptions.Name)
+
+	if actualConfig := stubClient.containerCreateOptions.Config; actualConfig == nil {
+		assert.Fail(t, "expected ContainerCreateOptions.Config to be set")
+	} else {
+		assert.False(t, actualConfig.Tty)
+		assert.Equal(t, expectedImage, actualConfig.Image)
+		assert.Equal(t, 7, len(actualConfig.Env))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s", adapt.Mounts.Input.EnvVar, adapt.Mounts.Input.MountPath))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s", adapt.Mounts.Log.EnvVar, adapt.Mounts.Log.MountPath))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s", adapt.Mounts.Output.EnvVar, adapt.Mounts.Output.MountPath))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s", adapt.Mounts.Var.EnvVar, adapt.Mounts.Var.MountPath))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s/%s", adapt.EnvProgressFile, adapt.Mounts.Var.MountPath, "progress"))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s/%s", adapt.EnvResultFile, adapt.Mounts.Var.MountPath, "result"))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s/%s", adapt.EnvStatusFile, adapt.Mounts.Var.MountPath, "status"))
+	}
+
+	if hostConfig := stubClient.containerCreateOptions.HostConfig; hostConfig == nil {
+		assert.Fail(t, "expected ContainerCreateOptions.HostConfig to be set")
+	} else {
+		assert.Equal(t, 4, len(hostConfig.Mounts))
+		assert.True(t, slices.ContainsFunc(hostConfig.Mounts, func(m mount.Mount) bool {
+			return m.Source == testDir && m.Target == adapt.Mounts.Input.MountPath
+		}))
+		assert.True(t, slices.ContainsFunc(hostConfig.Mounts, func(m mount.Mount) bool {
+			return m.Source == testDir && m.Target == adapt.Mounts.Log.MountPath
+		}))
+		assert.True(t, slices.ContainsFunc(hostConfig.Mounts, func(m mount.Mount) bool {
+			return m.Source == testDir && m.Target == adapt.Mounts.Output.MountPath
+		}))
+		assert.True(t, slices.ContainsFunc(hostConfig.Mounts, func(m mount.Mount) bool {
+			return m.Source == testDir && m.Target == adapt.Mounts.Var.MountPath
+		}))
+	}
 }
 
 func Test_handleContainerCreate_CreateError(t *testing.T) {
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
+		RunArguments: adapt.RunArguments{
 			Dispose: true,
 		},
-		DockerImage: "expectedImage",
-		Prefix:      "expectedPrefix",
+		ContainerArguments: adapt.ContainerArguments{
+			DockerImage: "expectedImage",
+			Prefix:      "expectedPrefix",
+		},
 	}
 	var stubClient = &stubDockerClient{
 		containerCreateError: errors.New("expected"),
@@ -552,16 +557,19 @@ func Test_handleContainerCreate_CreateError(t *testing.T) {
 	defer installDockerClient(stubClient)()
 	assert.Error(t, handleContainerCreate(testParams, testState))
 	assert.Empty(t, testState.Output)
-	assert.NotEmpty(t, stubClient.containerCreateConfig)
-	assert.False(t, stubClient.containerCreateConfig.Tty)
-	assert.Equal(t, testParams.DockerImage, stubClient.containerCreateConfig.Image)
+
+	if actualConfig := stubClient.containerCreateOptions.Config; actualConfig == nil {
+		assert.Fail(t, "expected ContainerCreateOptions.Config to be set")
+	} else {
+		assert.False(t, actualConfig.Tty)
+		assert.Equal(t, testParams.DockerImage, actualConfig.Image)
+	}
 }
 
 func Test_handleContainerCreate_NamingError(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{}
+	var testState = newTestState()
 
-	assert.Error(t, handleContainerCreate(testParams, testState))
+	assert.Error(t, handleContainerCreate(&ContainerParams{}, testState))
 }
 
 func Test_handleContainerCreate_UserWarning(t *testing.T) {
@@ -569,73 +577,94 @@ func Test_handleContainerCreate_UserWarning(t *testing.T) {
 	var patchedUid = mock.Patches{T: t}.OsGetuid(-1)
 	var patchedGid = mock.Patches{T: t}.OsGetgid(-1)
 	var expectedImage = "expectedImage"
-	var testLogger, loggerHook = test.NewNullLogger()
 	var testState = &task.State{
 		Logger: testLogger,
 		Output: expectedImage,
 	}
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
+		RunArguments: adapt.RunArguments{
 			Dispose: true,
 		},
-		MountInput:  testDir,
-		MountLog:    testDir,
-		MountOutput: testDir,
-		MountVar:    testDir,
-		Prefix:      "expectedPrefix",
+		ContainerArguments: adapt.ContainerArguments{
+			MountInput:  testDir,
+			MountLog:    testDir,
+			MountOutput: testDir,
+			MountVar:    testDir,
+			Prefix:      "expectedPrefix",
+		},
 	}
-	var expectedContainer = &container.Summary{ID: "0123456789ABC"}
+	var expectedId = "0123456789ABC"
+	var expectedWarning = "testWarning"
 	var stubClient = &stubDockerClient{
-		containerCreate:         expectedContainer,
-		containerCreateWarnings: []string{"testWarning"},
+		containerCreateResult: client.ContainerCreateResult{
+			ID:       expectedId,
+			Warnings: []string{expectedWarning},
+		},
 	}
 
 	defer patchedUid.Unpatch()
 	defer patchedGid.Unpatch()
+	defer testHook.Reset()
 	defer installDockerClient(stubClient)()
+	testHook.Reset()
+	testLogger.Level = logrus.DebugLevel
 	assert.NoError(t, handleContainerCreate(testParams, testState))
-	assert.NotEmpty(t, stubClient.containerCreateConfig)
-	assert.False(t, stubClient.containerCreateConfig.Tty)
-	assert.Equal(t, expectedImage, stubClient.containerCreateConfig.Image)
-	assert.Equal(t, expectedContainer.ID[0:12], testState.Output)
-	assert.Equal(t, fmt.Sprintf("%s-0", testParams.Prefix), stubClient.containerCreateName)
-	assert.NotEmpty(t, stubClient.containerHostConfig)
-	assert.Equal(t, 4, len(stubClient.containerHostConfig.Mounts))
-	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
-		return m.Source == testDir && m.Target == InputMount.MountPath
-	}))
-	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
-		return m.Source == testDir && m.Target == LogMount.MountPath
-	}))
-	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
-		return m.Source == testDir && m.Target == OutputMount.MountPath
-	}))
-	assert.True(t, slices.ContainsFunc(stubClient.containerHostConfig.Mounts, func(m mount.Mount) bool {
-		return m.Source == testDir && m.Target == VarMount.MountPath
-	}))
-	assert.Equal(t, 7, len(stubClient.containerCreateConfig.Env))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", InputMount.EnvVar, InputMount.MountPath))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", LogMount.EnvVar, LogMount.MountPath))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", OutputMount.EnvVar, OutputMount.MountPath))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s", VarMount.EnvVar, VarMount.MountPath))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s/%s", envProgressFile, VarMount.MountPath, "progress"))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s/%s", envResultFile, VarMount.MountPath, "result"))
-	assert.Contains(t, stubClient.containerCreateConfig.Env, fmt.Sprintf("%s=%s/%s", envStatusFile, VarMount.MountPath, "status"))
-	assert.True(t, slices.ContainsFunc(loggerHook.Entries, func(entry logrus.Entry) bool {
+	assert.Equal(t, expectedId[0:12], testState.Output)
+	assert.Equal(t, fmt.Sprintf("%s-0", testParams.Prefix), stubClient.containerCreateOptions.Name)
+
+	if actualConfig := stubClient.containerCreateOptions.Config; actualConfig == nil {
+		assert.Fail(t, "expected ContainerCreateOptions.Config to be set")
+	} else {
+		assert.False(t, actualConfig.Tty)
+		assert.Equal(t, expectedImage, actualConfig.Image)
+		assert.Equal(t, 7, len(actualConfig.Env))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s", adapt.Mounts.Input.EnvVar, adapt.Mounts.Input.MountPath))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s", adapt.Mounts.Log.EnvVar, adapt.Mounts.Log.MountPath))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s", adapt.Mounts.Output.EnvVar, adapt.Mounts.Output.MountPath))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s", adapt.Mounts.Var.EnvVar, adapt.Mounts.Var.MountPath))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s/%s", adapt.EnvProgressFile, adapt.Mounts.Var.MountPath, "progress"))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s/%s", adapt.EnvResultFile, adapt.Mounts.Var.MountPath, "result"))
+		assert.Contains(t, actualConfig.Env, fmt.Sprintf("%s=%s/%s", adapt.EnvStatusFile, adapt.Mounts.Var.MountPath, "status"))
+	}
+
+	if hostConfig := stubClient.containerCreateOptions.HostConfig; hostConfig == nil {
+		assert.Fail(t, "expected ContainerCreateOptions.HostConfig to be set")
+	} else {
+		assert.Equal(t, 4, len(hostConfig.Mounts))
+		assert.True(t, slices.ContainsFunc(hostConfig.Mounts, func(m mount.Mount) bool {
+			return m.Source == testDir && m.Target == adapt.Mounts.Input.MountPath
+		}))
+		assert.True(t, slices.ContainsFunc(hostConfig.Mounts, func(m mount.Mount) bool {
+			return m.Source == testDir && m.Target == adapt.Mounts.Log.MountPath
+		}))
+		assert.True(t, slices.ContainsFunc(hostConfig.Mounts, func(m mount.Mount) bool {
+			return m.Source == testDir && m.Target == adapt.Mounts.Output.MountPath
+		}))
+		assert.True(t, slices.ContainsFunc(hostConfig.Mounts, func(m mount.Mount) bool {
+			return m.Source == testDir && m.Target == adapt.Mounts.Var.MountPath
+		}))
+	}
+
+	assert.True(t, slices.ContainsFunc(testHook.Entries, func(entry logrus.Entry) bool {
 		return strings.Contains(entry.Message, "[-1:-1]")
+	}))
+	assert.True(t, slices.ContainsFunc(testHook.Entries, func(entry logrus.Entry) bool {
+		return entry.Message == expectedWarning
 	}))
 }
 
 func Test_handleContainerCreate_ValidationError(t *testing.T) {
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
+		RunArguments: adapt.RunArguments{
 			Dispose: true,
 		},
-		DockerImage: "expectedImage",
-		Prefix:      "expectedPrefix",
-		EnvVars: map[string]string{
-			"NOT_LEGAL": "value",
+		ContainerArguments: adapt.ContainerArguments{
+			DockerImage: "expectedImage",
+			Prefix:      "expectedPrefix",
+			EnvVars: map[string]string{
+				"NOT_LEGAL": "value",
+			},
 		},
 		VarSpecs: []shared.VarSpec{
 			broker.PropSpec{
@@ -651,14 +680,16 @@ func Test_handleContainerCreate_ValidationError(t *testing.T) {
 func Test_handleContainerCreatePretend(t *testing.T) {
 	var testDir = t.TempDir()
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var testParams = &ContainerParams{
-		DockerImage: "expectedImage",
-		Prefix:      "expectedPrefix",
-		MountInput:  testDir,
-		MountLog:    testDir,
-		MountOutput: testDir,
-		MountVar:    testDir,
+		ContainerArguments: adapt.ContainerArguments{
+			DockerImage: "expectedImage",
+			Prefix:      "expectedPrefix",
+			MountInput:  testDir,
+			MountLog:    testDir,
+			MountOutput: testDir,
+			MountVar:    testDir,
+		},
 	}
 
 	defer patch.Unpatch()
@@ -667,26 +698,28 @@ func Test_handleContainerCreatePretend(t *testing.T) {
 	actual := cast.ToStringSlice(patch.CalledWith)
 	assert.Contains(t, actual, testParams.DockerImage)
 	assert.Contains(t, actual, fmt.Sprintf("%s-0", testParams.Prefix))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", InputMount.EnvVar, InputMount.MountPath))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", LogMount.EnvVar, LogMount.MountPath))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", OutputMount.EnvVar, OutputMount.MountPath))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", VarMount.EnvVar, VarMount.MountPath))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", envProgressFile, VarMount.MountPath, "progress"))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", envResultFile, VarMount.MountPath, "result"))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", envStatusFile, VarMount.MountPath, "status"))
-	assert.Contains(t, actual[2], fmt.Sprintf("src=%s,dst=%s,type=bind", testDir, InputMount.MountPath))
-	assert.Contains(t, actual[2], fmt.Sprintf("src=%s,dst=%s,type=bind", testDir, LogMount.MountPath))
-	assert.Contains(t, actual[2], fmt.Sprintf("src=%s,dst=%s,type=bind", testDir, OutputMount.MountPath))
-	assert.Contains(t, actual[2], fmt.Sprintf("src=%s,dst=%s,type=bind", testDir, VarMount.MountPath))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", adapt.Mounts.Input.EnvVar, adapt.Mounts.Input.MountPath))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", adapt.Mounts.Log.EnvVar, adapt.Mounts.Log.MountPath))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", adapt.Mounts.Output.EnvVar, adapt.Mounts.Output.MountPath))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", adapt.Mounts.Var.EnvVar, adapt.Mounts.Var.MountPath))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", adapt.EnvProgressFile, adapt.Mounts.Var.MountPath, "progress"))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", adapt.EnvResultFile, adapt.Mounts.Var.MountPath, "result"))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", adapt.EnvStatusFile, adapt.Mounts.Var.MountPath, "status"))
+	assert.Contains(t, actual[2], fmt.Sprintf("src=%s,dst=%s,type=bind", testDir, adapt.Mounts.Input.MountPath))
+	assert.Contains(t, actual[2], fmt.Sprintf("src=%s,dst=%s,type=bind", testDir, adapt.Mounts.Log.MountPath))
+	assert.Contains(t, actual[2], fmt.Sprintf("src=%s,dst=%s,type=bind", testDir, adapt.Mounts.Output.MountPath))
+	assert.Contains(t, actual[2], fmt.Sprintf("src=%s,dst=%s,type=bind", testDir, adapt.Mounts.Var.MountPath))
 }
 
 func Test_handleContainerCreatePretend_NoMounts(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
+	var testState = newTestState()
 	var testParams = &ContainerParams{
-		DockerImage: "expectedImage",
-		Prefix:      "expectedPrefix",
+		ContainerArguments: adapt.ContainerArguments{
+			DockerImage: "expectedImage",
+			Prefix:      "expectedPrefix",
+		},
 	}
-	var testState = &task.State{Logger: logrus.New()}
 
 	defer patch.Unpatch()
 	assert.NoError(t, handleContainerCreatePretend(testParams, testState))
@@ -694,32 +727,27 @@ func Test_handleContainerCreatePretend_NoMounts(t *testing.T) {
 	actual := cast.ToStringSlice(patch.CalledWith)
 	assert.Contains(t, actual, testParams.DockerImage)
 	assert.Contains(t, actual, fmt.Sprintf("%s-0", testParams.Prefix))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", InputMount.EnvVar, InputMount.MountPath))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", LogMount.EnvVar, LogMount.MountPath))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", OutputMount.EnvVar, OutputMount.MountPath))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", VarMount.EnvVar, VarMount.MountPath))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", envProgressFile, VarMount.MountPath, "progress"))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", envResultFile, VarMount.MountPath, "result"))
-	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", envStatusFile, VarMount.MountPath, "status"))
-}
-
-func Test_handleContainerCreatePretend_NamingError(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{}
-
-	assert.Error(t, handleContainerCreatePretend(testParams, testState))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", adapt.Mounts.Input.EnvVar, adapt.Mounts.Input.MountPath))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", adapt.Mounts.Log.EnvVar, adapt.Mounts.Log.MountPath))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", adapt.Mounts.Output.EnvVar, adapt.Mounts.Output.MountPath))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s", adapt.Mounts.Var.EnvVar, adapt.Mounts.Var.MountPath))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", adapt.EnvProgressFile, adapt.Mounts.Var.MountPath, "progress"))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", adapt.EnvResultFile, adapt.Mounts.Var.MountPath, "result"))
+	assert.Contains(t, actual[1], fmt.Sprintf("%s=%s/%s", adapt.EnvStatusFile, adapt.Mounts.Var.MountPath, "status"))
 }
 
 func Test_handleContainerCreatePretend_ValidationError(t *testing.T) {
-	var testState = &task.State{Logger: logrus.New()}
+	var testState = newTestState()
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
+		RunArguments: adapt.RunArguments{
 			Dispose: true,
 		},
-		DockerImage: "expectedImage",
-		Prefix:      "expectedPrefix",
-		EnvVars: map[string]string{
-			"LEGAL": "value",
+		ContainerArguments: adapt.ContainerArguments{
+			DockerImage: "expectedImage",
+			Prefix:      "expectedPrefix",
+			EnvVars: map[string]string{
+				"LEGAL": "value",
+			},
 		},
 		VarSpecs: []shared.VarSpec{
 			&broker.PropSpec{
@@ -735,12 +763,16 @@ func Test_handleContainerCreatePretend_ValidationError(t *testing.T) {
 
 func Test_handleContainerDisposal(t *testing.T) {
 	var expectedContainer = container.Summary{ID: "0123456789ABCD"}
-	var testParams = &ContainerParams{Force: true}
+	var testParams = &ContainerParams{
+		ContainerArguments: adapt.ContainerArguments{
+			Force: true,
+		},
+	}
 	var testState = &task.State{
 		Internal: clientTracking{
 			containers: []container.Summary{expectedContainer},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{}
 
@@ -754,12 +786,9 @@ func Test_handleContainerDisposal(t *testing.T) {
 }
 
 func Test_handleContainerDisposal_NoContainers(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{
-		Logger: logrus.New(),
-	}
+	var testState = newTestState()
 
-	assert.NoError(t, handleContainerDisposal(testParams, testState))
+	assert.NoError(t, handleContainerDisposal(&ContainerParams{}, testState))
 }
 
 func Test_handleContainerDisposal_RemoveError(t *testing.T) {
@@ -769,7 +798,7 @@ func Test_handleContainerDisposal_RemoveError(t *testing.T) {
 		Internal: clientTracking{
 			containers: []container.Summary{expectedContainer},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{
 		containerRemoveError: errors.New("expected"),
@@ -787,7 +816,7 @@ func Test_handleContainerDisposalPretend(t *testing.T) {
 		Internal: clientTracking{
 			containers: []container.Summary{expectedContainers},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var actual []string
 
@@ -801,12 +830,16 @@ func Test_handleContainerDisposalPretend(t *testing.T) {
 func Test_handleContainerDisposalPretend_Force(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
 	var expectedContainer = container.Summary{ID: "expectedId"}
-	var testParams = &ContainerParams{Force: true}
+	var testParams = &ContainerParams{
+		ContainerArguments: adapt.ContainerArguments{
+			Force: true,
+		},
+	}
 	var testState = &task.State{
 		Internal: clientTracking{
 			containers: []container.Summary{expectedContainer},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var actual []string
 
@@ -819,10 +852,7 @@ func Test_handleContainerDisposalPretend_Force(t *testing.T) {
 }
 
 func Test_handleContainerDisposalPretend_NoContainers(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{}
-
-	assert.NoError(t, handleContainerDisposalPretend(testParams, testState))
+	assert.NoError(t, handleContainerDisposalPretend(&ContainerParams{}, &task.State{}))
 }
 
 func Test_handleContainerStart(t *testing.T) {
@@ -830,7 +860,7 @@ func Test_handleContainerStart(t *testing.T) {
 	var testParams = &ContainerParams{}
 	var testState = &task.State{
 		Internal: clientTracking{containers: []container.Summary{expectedContainer}},
-		Logger:   logrus.New(),
+		Logger:   testLogger,
 	}
 	var stubClient = &stubDockerClient{}
 
@@ -846,7 +876,7 @@ func Test_handleContainerStart_Error(t *testing.T) {
 	var testParams = &ContainerParams{}
 	var testState = &task.State{
 		Internal: clientTracking{containers: []container.Summary{expectedContainer}},
-		Logger:   logrus.New(),
+		Logger:   testLogger,
 	}
 	var stubClient = &stubDockerClient{
 		containerStartError: errors.New("expected"),
@@ -860,19 +890,20 @@ func Test_handleContainerStart_Error(t *testing.T) {
 }
 
 func Test_handleContainerStart_NoContainers(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{}
-
-	assert.Error(t, handleContainerStart(testParams, testState))
+	assert.Error(t, handleContainerStart(&ContainerParams{}, &task.State{}))
 }
 
 func Test_handleContainerStartPretend(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
 	var expectedContainer = container.Summary{ID: "expectedId"}
-	var testParams = &ContainerParams{RunParams: RunParams{Attached: true}}
+	var testParams = &ContainerParams{
+		RunArguments: adapt.RunArguments{
+			Attached: true,
+		},
+	}
 	var testState = &task.State{
 		Internal: clientTracking{containers: []container.Summary{expectedContainer}},
-		Logger:   logrus.New(),
+		Logger:   testLogger,
 	}
 	var actual []string
 
@@ -890,10 +921,14 @@ func Test_handleContainerStartPretend(t *testing.T) {
 func Test_handleContainerStartPretend_Interactive(t *testing.T) {
 	var patch = mock.Patches{T: t}.FmtPrintf(func(format string, a ...any) {})
 	var expectedContainer = container.Summary{ID: "expectedId"}
-	var testParams = &ContainerParams{RunParams: RunParams{Interactive: true}}
+	var testParams = &ContainerParams{
+		RunArguments: adapt.RunArguments{
+			Interactive: true,
+		},
+	}
 	var testState = &task.State{
 		Internal: clientTracking{containers: []container.Summary{expectedContainer}},
-		Logger:   logrus.New(),
+		Logger:   testLogger,
 	}
 	var actual []string
 
@@ -909,21 +944,22 @@ func Test_handleContainerStartPretend_Interactive(t *testing.T) {
 }
 
 func Test_handleContainerStartPretend_NoContainers(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{}
-
-	assert.Error(t, handleContainerStartPretend(testParams, testState))
+	assert.Error(t, handleContainerStartPretend(&ContainerParams{}, &task.State{}))
 }
 
 func Test_handleContainerStop(t *testing.T) {
 	var expectedContainer = container.Summary{ID: "0123456789ABCD"}
 	var expectedSecondContainer = container.Summary{ID: "DCBA9876543210"}
-	var testParams = &ContainerParams{Force: true}
+	var testParams = &ContainerParams{
+		ContainerArguments: adapt.ContainerArguments{
+			Force: true,
+		},
+	}
 	var testState = &task.State{
 		Internal: clientTracking{
 			containers: []container.Summary{expectedContainer, expectedSecondContainer},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{}
 
@@ -949,7 +985,7 @@ func Test_handleContainerStop_StopError(t *testing.T) {
 		Internal: clientTracking{
 			containers: []container.Summary{expectedContainer},
 		},
-		Logger: logrus.New(),
+		Logger: testLogger,
 	}
 	var stubClient = &stubDockerClient{
 		containerStopError: errors.New("expected"),
@@ -1001,10 +1037,7 @@ func Test_handleContainerStopPretend_Force(t *testing.T) {
 }
 
 func Test_handleContainerStopPretend_NoContainers(t *testing.T) {
-	var testParams = &ContainerParams{}
-	var testState = &task.State{}
-
-	assert.NoError(t, handleContainerStopPretend(testParams, testState))
+	assert.NoError(t, handleContainerStopPretend(&ContainerParams{}, &task.State{}))
 }
 
 func Test_makeContainerChannel_ChannelError(t *testing.T) {
@@ -1013,15 +1046,15 @@ func Test_makeContainerChannel_ChannelError(t *testing.T) {
 	var expectedResponseChannel = make(chan container.WaitResponse)
 	var expectedErrorChannel = make(chan error)
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
-			Env: task.Env{
-				Context: parent,
-			},
+		Env: task.Env{
+			Context: parent,
 		},
 	}
 	var stubClient = &stubDockerClient{
-		containerWaitResponse: expectedResponseChannel,
-		containerWaitError:    expectedErrorChannel,
+		containerWaitResult: client.ContainerWaitResult{
+			Result: expectedResponseChannel,
+			Error:  expectedErrorChannel,
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -1039,15 +1072,15 @@ func Test_makeContainerChannel_ChannelError_ContextCanceled(t *testing.T) {
 	var expectedResponseChannel = make(chan container.WaitResponse)
 	var expectedErrorChannel = make(chan error)
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
-			Env: task.Env{
-				Context: parent,
-			},
+		Env: task.Env{
+			Context: parent,
 		},
 	}
 	var stubClient = &stubDockerClient{
-		containerWaitResponse: expectedResponseChannel,
-		containerWaitError:    expectedErrorChannel,
+		containerWaitResult: client.ContainerWaitResult{
+			Result: expectedResponseChannel,
+			Error:  expectedErrorChannel,
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -1064,15 +1097,15 @@ func Test_makeContainerChannel_Done(t *testing.T) {
 	var expectedResponseChannel = make(chan container.WaitResponse)
 	var expectedErrorChannel = make(chan error)
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
-			Env: task.Env{
-				Context: parent,
-			},
+		Env: task.Env{
+			Context: parent,
 		},
 	}
 	var stubClient = &stubDockerClient{
-		containerWaitResponse: expectedResponseChannel,
-		containerWaitError:    expectedErrorChannel,
+		containerWaitResult: client.ContainerWaitResult{
+			Result: expectedResponseChannel,
+			Error:  expectedErrorChannel,
+		},
 	}
 
 	defer installDockerClient(stubClient)()
@@ -1089,15 +1122,15 @@ func Test_makeContainerChannel_ResultError(t *testing.T) {
 	var expectedResponseChannel = make(chan container.WaitResponse)
 	var expectedErrorChannel = make(chan error)
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
-			Env: task.Env{
-				Context: parent,
-			},
+		Env: task.Env{
+			Context: parent,
 		},
 	}
 	var stubClient = &stubDockerClient{
-		containerWaitResponse: expectedResponseChannel,
-		containerWaitError:    expectedErrorChannel,
+		containerWaitResult: client.ContainerWaitResult{
+			Result: expectedResponseChannel,
+			Error:  expectedErrorChannel,
+		},
 	}
 
 	defer cancel()
@@ -1119,15 +1152,15 @@ func Test_makeContainerChannel_ResultStatusCode(t *testing.T) {
 	var expectedErrorChannel = make(chan error)
 	var expectedCode = int64(37)
 	var testParams = &ContainerParams{
-		RunParams: RunParams{
-			Env: task.Env{
-				Context: parent,
-			},
+		Env: task.Env{
+			Context: parent,
 		},
 	}
 	var stubClient = &stubDockerClient{
-		containerWaitResponse: expectedResponseChannel,
-		containerWaitError:    expectedErrorChannel,
+		containerWaitResult: client.ContainerWaitResult{
+			Result: expectedResponseChannel,
+			Error:  expectedErrorChannel,
+		},
 	}
 
 	defer cancel()
@@ -1155,18 +1188,20 @@ func Test_makeEnvironmentValues(t *testing.T) {
 	var actual []string
 
 	testEnvMap[foreignSpec.Key] = expectedForeignValue
-	testEnvMap[OutputMount.EnvVar] = expectedOutputOverride
-	testEnvMap[envProgressFile] = expectedProgressOverride
+	testEnvMap[adapt.Mounts.Output.EnvVar] = expectedOutputOverride
+	testEnvMap[adapt.EnvProgressFile] = expectedProgressOverride
 	testEnvMap[notResolvedSpec.Key] = expectedNotResolvedValue
 	actual = makeEnvironmentValues(testEnvMap, []shared.VarSpec{expectedSpec, notExpectedSpec, foreignSpec, notResolvedSpec})
 	assert.Equal(t, 10, len(actual))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s", envResultFile, VarMount.MountPath, filepath.Base(EnvFileMap[envResultFile])))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s", envStatusFile, VarMount.MountPath, filepath.Base(EnvFileMap[envStatusFile])))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s", envProgressFile, expectedProgressOverride))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s", VarMount.EnvVar, VarMount.MountPath))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s", LogMount.EnvVar, LogMount.MountPath))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s", InputMount.EnvVar, InputMount.MountPath))
-	assert.Contains(t, actual, fmt.Sprintf("%s=%s", OutputMount.EnvVar, expectedOutputOverride))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s",
+		adapt.EnvResultFile, adapt.Mounts.Var.MountPath, filepath.Base(adapt.EnvFileMap[adapt.EnvResultFile])))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s/%s",
+		adapt.EnvStatusFile, adapt.Mounts.Var.MountPath, filepath.Base(adapt.EnvFileMap[adapt.EnvStatusFile])))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s", adapt.EnvProgressFile, expectedProgressOverride))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s", adapt.Mounts.Var.EnvVar, adapt.Mounts.Var.MountPath))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s", adapt.Mounts.Log.EnvVar, adapt.Mounts.Log.MountPath))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s", adapt.Mounts.Input.EnvVar, adapt.Mounts.Input.MountPath))
+	assert.Contains(t, actual, fmt.Sprintf("%s=%s", adapt.Mounts.Output.EnvVar, expectedOutputOverride))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s", foreignSpec.Key, expectedForeignValue))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s", notResolvedSpec.Key, expectedNotResolvedValue))
 	assert.Contains(t, actual, fmt.Sprintf("%s=%s", expectedSpec.Key, expectedSpec.Value))
