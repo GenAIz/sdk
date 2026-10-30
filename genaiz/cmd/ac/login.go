@@ -152,7 +152,7 @@ func NewLogin(ledger *config.Ledger) *cobra.Command {
 		Use:     "login HOST",
 		Short:   "Authenticates an account with a GenAIz Broker",
 		Long:    "Authenticates an account with a GenAIz Broker provided a host url as argument",
-		Example: "genaiz account login broker.genaiz.com --username=myUser --refresh",
+		Example: "genaiz account login my-instance.genaiz.com",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			exec.Login(args[0])
