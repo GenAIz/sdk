@@ -7,6 +7,7 @@ invoke a Workflow on a groups of Agents managed by the Broker.
 * [Features](#features)
     * [Workspace Creation](#workspace-creation)
     * [Workspace Flow Creation](#workspace-flow-creation)
+    * [Workspace Flow Start](#workspace-flow-start)
     * [Workspace Listing](#workspace-listing)
     * [Workspace Node Data Set](#workspace-node-data-set)
     * [Workspace Node Listing](#workspace-node-listing)
@@ -52,6 +53,30 @@ flowchart LR
     snList --> flowCreate
     wfList --> flowCreate
     wsCreate <--> wsList
+```
+
+### Workspace Flow Start
+
+The workspace flow start activity requires a workspace flow from the [Workspace Flow Creation](#workspace-flow-creation)
+activity. The activity involves resolving the workspace and the targeted flow, trigger an update status on the flow and
+upon readiness established, create a Run, starting the flow. The list of scenarios is detailed
+under [start workspace flow](../../features/workspace/start_workspace_flow.feature).
+
+```mermaid
+---
+title: Workspace Flow Start Activity
+---
+flowchart LR
+    user>user] --> login([account<br>login])
+    user --> snCreate([create<br>solution])
+    snCreate --> snPublish([publish<br>solution])
+    login --> wsCreate([create<br>workspace])
+    login --> snPublish
+    wsCreate --> wsFlowCreate([create<br>flow])
+    snPublish --> wsFlowCreate
+    wsFlowCreate --> wsFlowStatusUpdate([flow<br>status update])
+    wsFlowStatusUpdate --> wsFlowStart
+    wsFlowCreate --> wsFlowStart([start<br>flow])
 ```
 
 ### Workspace Listing
@@ -173,9 +198,9 @@ flowchart LR
 
 ## Commands
 
-* [create](create.md)
-* [flow](flow.md)
-* [list](list.md)
+* [create](create.md#workspace-create)
+* [flow](flow.md#workspace-flow)
+* [list](list.md#workspace-listing)
 * [node](node.md#workspace-node)
 
 ## Test Cases
@@ -187,3 +212,4 @@ flowchart LR
 * [List simple user workspaces](../../features/workspace/list_simple_user_workspaces.feature)
 * [List workspace nodes](../../features/workspace/list_workspace_nodes.feature)
 * [Set Workspace Node Input File](../../features/workspace/set_workspace_node_input_file.feature)
+* [Start Workspace Flow](../../features/workspace/start_workspace_flow.feature)

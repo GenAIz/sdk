@@ -69,6 +69,13 @@ func TestWorkspaceErrors_WorkspaceFlowDefInvalid(t *testing.T) {
 	assert.ErrorIs(t, Errors.WorkspaceFlowDefInvalid(), testError)
 }
 
+func TestWorkspaceErrors_WorkspaceFlowNotReady(t *testing.T) {
+	var testError = Errors.WorkspaceFlowNotReady()
+
+	assert.NotNil(t, testError)
+	assert.ErrorIs(t, Errors.WorkspaceFlowNotReady(), testError)
+}
+
 func TestWorkspaceErrors_WorkspaceFlowRequired(t *testing.T) {
 	var testError = Errors.WorkspaceFlowRequired()
 

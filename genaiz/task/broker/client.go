@@ -43,6 +43,7 @@ const (
 	pathOemSolution   path    = "oem/solution"
 	pathOidcDevice    path    = "oidc/device"
 	pathOidcToken     path    = "oidc/token"
+	pathRun           path    = "run"
 	pathSession       path    = "user/session"
 	pathSolution      path    = "solution"
 	pathWorkspace     path    = "workspace"
@@ -108,6 +109,10 @@ type Client interface {
 
 	CreateWorkspaceFlowUrl() string
 
+	CreateWorkspaceRun(int64, string, bool) (*WorkspaceRun, error)
+
+	CreateWorkspaceRunUrl() string
+
 	ExportDataLink(string, string, string, string) (*DataLink, error)
 
 	FindDataLink(string, string, string) (*DataLink, error)
@@ -162,13 +167,17 @@ type Client interface {
 
 	ListSolutionsUrl() string
 
-	ListWorkspaceFlows(workspaceId int64, mask, flags int) ([]WorkspaceFlow, error)
+	ListWorkspaceFlows(int64, int, int) ([]WorkspaceFlow, error)
 
 	ListWorkspaceFlowsUrl() string
 
-	ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error)
+	ListWorkspaceNodes(int64) ([]WorkspaceNode, error)
 
 	ListWorkspaceNodesUrl() string
+
+	ListWorkspaceRuns(int64, int, int) ([]WorkspaceRun, error)
+
+	ListWorkspaceRunsUrl() string
 
 	ListWorkspaces(int, int) ([]Workspace, error)
 
@@ -212,6 +221,10 @@ type Client interface {
 
 	SessionValid(*Session) bool
 
+	StartWorkspaceRun(int64) (*WorkspaceRun, error)
+
+	StartWorkspaceRunUrl() string
+
 	UpdateDataSource(*DataLinkInstance, map[string]string) (*DataLinkInstance, error)
 
 	UpdateDataSourceUrl() string
@@ -219,6 +232,10 @@ type Client interface {
 	UpdateDataStore(*DataLinkInstance, map[string]string) (*DataLinkInstance, error)
 
 	UpdateDataStoreUrl() string
+
+	UpdateFlowStatus(int64) (*WorkspaceFlow, error)
+
+	UpdateFlowStatusUrl() string
 
 	UpdateNode(*WorkspaceNode) (*WorkspaceNode, error)
 
@@ -584,6 +601,43 @@ func (wns workspaceNodesSlices) graph() []WorkspaceNode {
 	return result
 }
 
+type workspaceRunsSlices struct {
+	Runs      []WorkspaceRun `json:"runs"`
+	Solutions []Solution     `json:"solutions"`
+	Workflows []Workflow     `json:"workflows"`
+}
+
+func (wrs workspaceRunsSlices) graph() []WorkspaceRun {
+	var solutionsById = mapz.MappedInt64(wrs.Solutions, func(solution Solution) int64 {
+		return intz.Int64ToDefault(solution.Id, -1)
+	})
+	var workflowsById = mapz.MappedInt64(wrs.Workflows, func(workflow Workflow) int64 {
+		return intz.Int64ToDefault(workflow.Id, -1)
+	})
+	var result []WorkspaceRun
+
+	for _, r := range wrs.Runs {
+		var solution *Solution
+		var workflow *Workflow
+
+		if r.SolutionId != nil {
+			if sol, ok := solutionsById[*r.SolutionId]; ok {
+				solution = &sol
+			}
+		}
+
+		if r.WorkflowId != nil {
+			if wf, ok := workflowsById[*r.WorkflowId]; ok {
+				workflow = &wf
+			}
+		}
+
+		result = append(result, r.withSolutionWorkflow(solution, workflow))
+	}
+
+	return result
+}
+
 func (c *client) CreateDataSet(dataSet *DataSet) (*DataSet, error) {
 	if c.AuthToken != "" {
 		var url string
@@ -792,6 +846,47 @@ func (c *client) CreateWorkspaceFlow(workspaceId int64, workflowId int64, name s
 
 func (c *client) CreateWorkspaceFlowUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "flow", "create")
+}
+
+func (c *client) CreateWorkspaceRun(flowId int64, name string, start bool) (*WorkspaceRun, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathRun, "create"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *WorkspaceRun
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[WorkspaceRun]{}).
+				FormData(map[string]string{
+					"workspaceFlowId": cast.ToString(flowId),
+					"start":           cast.ToString(start),
+					"name":            name,
+				}).Post(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *WorkspaceRun {
+					var payload = resp.Result().(*clientPayload[WorkspaceRun])
+
+					return &payload.Data
+				}); err == nil {
+					return result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) CreateWorkspaceRunUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathRun, "create")
 }
 
 func (c *client) ExportDataLink(oem, handle, version, sequence string) (*DataLink, error) {
@@ -1382,6 +1477,49 @@ func (c *client) ListWorkspaceNodesUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "read")
 }
 
+func (c *client) ListWorkspaceRuns(workspaceId int64, mask, flags int) ([]WorkspaceRun, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspaceFlow, "read"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *[]WorkspaceRun
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[*workspaceRunsSlices]{}).
+				QueryParams(map[string]string{
+					"workspaceId": cast.ToString(workspaceId),
+					"mask":        cast.ToString(mask),
+					"flags":       cast.ToString(flags),
+				}).
+				Get(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *[]WorkspaceRun {
+					var payload = resp.Result().(*clientPayload[*workspaceRunsSlices])
+					var flows = payload.Data.graph()
+
+					return &flows
+				}); err == nil {
+					return *result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) ListWorkspaceRunsUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathRun, "listByWorkspace")
+}
+
 func (c *client) ListWorkspaces(mask, flags int) ([]Workspace, error) {
 	if c.AuthToken != "" {
 		var url string
@@ -1827,6 +1965,45 @@ func (c *client) SessionValid(session *Session) bool {
 	return session.Id > 0 && session.UserId == c.UserId
 }
 
+func (c *client) StartWorkspaceRun(runId int64) (*WorkspaceRun, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathRun, "start"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+			var result *WorkspaceRun
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[WorkspaceRun]{}).
+				FormData(map[string]string{
+					"id": cast.ToString(runId),
+				}).Post(url)
+
+			if err == nil {
+				if result, err = resultOrError(resp, func(body any) *WorkspaceRun {
+					var payload = resp.Result().(*clientPayload[WorkspaceRun])
+
+					return &payload.Data
+				}); err == nil {
+					return result, nil
+				}
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) StartWorkspaceRunUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathRun, "start")
+}
+
 func (c *client) UpdateDataSource(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
 	if c.AuthToken != "" {
 		var url string
@@ -1913,6 +2090,43 @@ func (c *client) UpdateDataStore(instance *DataLinkInstance, props map[string]st
 
 func (c *client) UpdateDataStoreUrl() string {
 	return makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "update")
+}
+
+func (c *client) UpdateFlowStatus(flowId int64) (*WorkspaceFlow, error) {
+	if c.AuthToken != "" {
+		var url string
+		var err error
+
+		if url, err = c.makeUrl(apiVersion1, pathWorkspaceFlow, "updateStatus"); err == nil {
+			var rb = c.requestBridge()
+			var resp responseBridge
+
+			defer c.closeSilently(rb)
+			resp, err = rb.Json().
+				Cookie(c.makeCookie()).
+				Resulting(&clientPayload[WorkspaceFlow]{}).
+				FormData(map[string]string{
+					"id": cast.ToString(flowId),
+				}).
+				Post(url)
+
+			if err == nil {
+				return resultOrError(resp, func(body any) *WorkspaceFlow {
+					var payload = resp.Result().(*clientPayload[WorkspaceFlow])
+
+					return &payload.Data
+				})
+			}
+		}
+
+		return nil, err
+	}
+
+	return nil, errorNoAuth
+}
+
+func (c *client) UpdateFlowStatusUrl() string {
+	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "updateStatus")
 }
 
 func (c *client) UpdateNode(node *WorkspaceNode) (*WorkspaceNode, error) {

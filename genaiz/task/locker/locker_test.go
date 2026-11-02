@@ -65,6 +65,14 @@ func (s stubClient) CreateWorkspaceFlowUrl() string {
 	panic("unimplemented")
 }
 
+func (s stubClient) CreateWorkspaceRun(int64, string, bool) (*broker.WorkspaceRun, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) CreateWorkspaceRunUrl() string {
+	return s.decoratedClient.CreateWorkspaceRunUrl()
+}
+
 func (s stubClient) ExportDataLink(string, string, string, string) (*broker.DataLink, error) {
 	panic("unimplemented")
 }
@@ -189,6 +197,14 @@ func (s stubClient) ListWorkspaceNodesUrl() string {
 	panic("unimplemented")
 }
 
+func (s stubClient) ListWorkspaceRuns(int64, int, int) ([]broker.WorkspaceRun, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) ListWorkspaceRunsUrl() string {
+	return s.decoratedClient.ListWorkspaceRunsUrl()
+}
+
 func (s stubClient) ListWorkspaces(int, int) ([]broker.Workspace, error) {
 	panic("unimplemented")
 }
@@ -273,6 +289,14 @@ func (s stubClient) SessionValid(*broker.Session) bool {
 	panic("unimplemented")
 }
 
+func (s stubClient) StartWorkspaceRun(int64) (*broker.WorkspaceRun, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) StartWorkspaceRunUrl() string {
+	return s.decoratedClient.StartWorkspaceRunUrl()
+}
+
 func (s stubClient) UpdateDataSource(*broker.DataLinkInstance, map[string]string) (*broker.DataLinkInstance, error) {
 	panic("unimplemented")
 }
@@ -287,6 +311,14 @@ func (s stubClient) UpdateDataStore(*broker.DataLinkInstance, map[string]string)
 
 func (s stubClient) UpdateDataStoreUrl() string {
 	return s.decoratedClient.UpdateDataStoreUrl()
+}
+
+func (s stubClient) UpdateFlowStatus(int64) (*broker.WorkspaceFlow, error) {
+	panic("unimplemented")
+}
+
+func (s stubClient) UpdateFlowStatusUrl() string {
+	return s.decoratedClient.UpdateFlowStatusUrl()
 }
 
 func (s stubClient) UpdateNode(*broker.WorkspaceNode) (*broker.WorkspaceNode, error) {

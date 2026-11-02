@@ -15,6 +15,7 @@ import (
 	"genaiz.com/genaiz/mgmt"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/broker/workspace"
 )
 
 type stubCreateExecutor struct {
@@ -371,12 +372,50 @@ func TestNewCreateAuto_bridgeWorkspaces(t *testing.T) {
 	}
 }
 
-func TestNewCreateOptions(t *testing.T) {
+func TestCreateOptions_AccountParams(t *testing.T) {
+	var expectedAccount = "account"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
 	var testOptions = NewCreateOptions()
-	var actual = testOptions.allDefiners()
+	var testParametric = testOptions.AccountParams(testLedger)
 
-	assert.Contains(t, actual, testOptions.OptionAccount)
-	assert.Contains(t, actual, testOptions.OptionDescription)
-	assert.Contains(t, actual, testOptions.OptionJsonPrinter)
-	assert.Contains(t, actual, testOptions.OptionName)
+	testViper.Set(testOptions.optionAccount.Key, expectedAccount)
+	testParametric.BrokerParams()
+}
+
+func TestCreateOptions_CreateParams(t *testing.T) {
+	var expectedName = "name"
+	var expectedDesc = "desc"
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testOptions = NewCreateOptions()
+	var actualOptions *workspace.FlowCreateParams
+
+	testViper.Set(testOptions.optionName.Key, expectedName)
+	testViper.Set(testOptions.optionDescription.Key, expectedDesc)
+	actualOptions = testOptions.CreateParams(testLedger)
+	assert.Equal(t, expectedName, actualOptions.Name)
+	assert.Equal(t, expectedDesc, actualOptions.Description)
+}
+
+func TestCreateOptions_Options(t *testing.T) {
+	var testOptions = NewCreateOptions()
+
+	assert.Equal(t, 4, len(testOptions.Options()))
+}
+
+func TestCreateOptions_PrinterParams(t *testing.T) {
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var testOptions = NewCreateOptions()
+	var testParametric = testOptions.PrinterParams(testLedger)
+
+	testViper.Set(testOptions.optionJsonPrinter.Key, true)
+	assert.False(t, testParametric.IsDefault())
 }

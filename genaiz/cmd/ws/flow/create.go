@@ -10,6 +10,7 @@ import (
 	"genaiz.com/genaiz/mgmt"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/broker/workspace"
 )
 
 type CreateExecutor interface {
@@ -17,22 +18,6 @@ type CreateExecutor interface {
 }
 
 type CreateExecutorFactory func(command *cobra.Command) CreateExecutor
-
-type CreateOptions struct {
-	OptionAccount     *config.StringOption
-	OptionDescription *config.StringOption
-	OptionJsonPrinter *config.BoolOption
-	OptionName        *config.StringOption
-}
-
-func (co CreateOptions) allDefiners() []config.Definer {
-	return []config.Definer{
-		co.OptionAccount,
-		co.OptionDescription,
-		co.OptionJsonPrinter,
-		co.OptionName,
-	}
-}
 
 type CreateAutoBridge struct {
 	ledger     *config.Ledger
@@ -126,13 +111,53 @@ func (cab CreateAutoBridge) bridgeWorkflows(fqdnVersion string, toComplete strin
 	return nil, cobra.ShellCompDirectiveError
 }
 
+type CreateOptions struct {
+	optionAccount     *config.StringOption
+	optionDescription *config.StringOption
+	optionJsonPrinter *config.BoolOption
+	optionName        *config.StringOption
+}
+
+func (co CreateOptions) AccountParams(ledger *config.Ledger) config.AccountParametric {
+	return config.NewAccountParams(ledger, co.optionAccount)
+}
+
+func (co CreateOptions) CreateParams(ledger *config.Ledger) *workspace.FlowCreateParams {
+	return &workspace.FlowCreateParams{
+		Name:        ledger.GetString(co.optionName),
+		Description: ledger.GetString(co.optionDescription),
+	}
+}
+
+func (co CreateOptions) Options() []*config.Option {
+	return []*config.Option{
+		&co.optionName.Option,
+		&co.optionDescription.Option,
+		&co.optionAccount.Option,
+		&co.optionJsonPrinter.Option,
+	}
+}
+
+func (co CreateOptions) PrinterParams(ledger *config.Ledger) cli.PrinterParametric {
+	return cli.NewPrinterParam(ledger, co.optionJsonPrinter)
+}
+
+func (co CreateOptions) allDefiners() []config.Definer {
+	return []config.Definer{
+		co.optionAccount,
+		co.optionDescription,
+		co.optionJsonPrinter,
+		co.optionName,
+	}
+}
+
 func NewCreate(ledger *config.Ledger, options *CreateOptions, factory CreateExecutorFactory) *cobra.Command {
 	var createAuto = NewCreateAuto(ledger)
 	var createCmd = &cobra.Command{
 		Use:     "create [WORKSPACE_NAME]|WORKSPACE_ID [SOLUTION_FQDN_VERSION WORKFLOW_HANDLE]|WORKFLOW_ID",
 		Short:   "Creates a Workspace Flow container",
 		Long:    "Creates a Workspace Flow container definition for a Solution Workflow",
-		Example: "genaiz ws create my-workspace com.genaiz.dev/my-function:1.0.0 my-workflow --json",
+		Example: "genaiz ws flow create my-workspace com.genaiz.dev/my-function:1.0.0 my-workflow --json",
 		Args:    cobra.MatchAll(cobra.MinimumNArgs(2), cobra.MaximumNArgs(3)),
 		Run: func(cmd *cobra.Command, args []string) {
 			var exec = factory(cmd)
@@ -168,16 +193,16 @@ func NewCreateAuto(ledger *config.Ledger) *CreateAutoBridge {
 
 func NewCreateOptions() *CreateOptions {
 	return &CreateOptions{
-		OptionAccount: cli.Options.Workspaces.Account().
+		optionAccount: cli.Options.Workspaces.Account().
 			WithKeys(&schema.Genaiz.Workspace.Flow.Create.Account).
 			BuildStringOption(),
-		OptionDescription: cli.Options.Workspaces.FlowDescription().
+		optionDescription: cli.Options.Workspaces.FlowDescription().
 			WithKeys(&schema.Genaiz.Workspace.Flow.Create.Description).
 			BuildStringOption(),
-		OptionJsonPrinter: cli.Options.Printer.JsonPrinter().
+		optionJsonPrinter: cli.Options.Printer.JsonPrinter().
 			WithKeys(&schema.Genaiz.Workspace.Flow.Create.Printer).
 			BuildBoolOption(),
-		OptionName: cli.Options.Workspaces.FlowName().
+		optionName: cli.Options.Workspaces.FlowName().
 			WithKeys(&schema.Genaiz.Workspace.Flow.Create.Name).
 			BuildStringOption(),
 	}
