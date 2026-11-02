@@ -9,6 +9,7 @@ import (
 	"genaiz.com/genaiz/mgmt"
 	"genaiz.com/genaiz/mgmt/workspaces"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/broker/workspace"
 )
 
 type WorkspaceBridge interface {
@@ -78,12 +79,11 @@ type WorkspaceFlowAutoBridge struct {
 
 func (fab WorkspaceFlowAutoBridge) Bridge(toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 	var resolveParams = &broker.WorkspaceFlowResolveParams{
-		WorkspaceFlowCreateParams: &broker.WorkspaceFlowCreateParams{
-			Broker: &broker.Broker{
-				AuthFile: fab.ledger.AuthFile,
-			},
+		Broker: broker.Broker{
+			AuthFile: fab.ledger.AuthFile,
 		},
-		RcEnabled: true,
+		FlowCreateParams: &workspace.FlowCreateParams{},
+		RcEnabled:        true,
 	}
 	var params = &broker.WorkspaceFlowListParams{
 		WorkspaceFlowResolveParams: resolveParams,
@@ -97,8 +97,8 @@ func (fab WorkspaceFlowAutoBridge) Bridge(toComplete string) ([]cobra.Completion
 		params.ReadyOnly = fab.ledger.GetBool(fab.readyOnlyOption)
 	}
 
-	if id, err := strconv.Atoi(fab.workspace); err == nil {
-		resolveParams.WorkspaceId = new(int64(id))
+	if id, err := strconv.ParseInt(fab.workspace, 10, 64); err == nil {
+		resolveParams.SetWorkspaceId(id)
 	} else {
 		resolveParams.WorkspaceName = fab.workspace
 	}

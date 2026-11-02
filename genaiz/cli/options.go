@@ -516,6 +516,13 @@ var (
 					WithValidator(config.AnyOfEnumerated(broker.PropSpecTypes))
 			},
 		},
+		Runs: runOptions{
+			Name: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("name").
+					WithUsage("name of the run, defaults to a generated timestamp name if not specified")
+			},
+		},
 		Solutions: solutionOptions{
 			mgmtOptions: mgmtOptions{
 				Account: func() OptionBuilder {
@@ -858,6 +865,7 @@ type cliOptions struct {
 	Printer    printOptions
 	Proxies    proxyOptions
 	PropSpecs  propSpecsOptions
+	Runs       runOptions
 	Solutions  solutionOptions
 	Sources    sourceOptions
 	Stores     storeOptions
@@ -975,6 +983,10 @@ type proxyOptions struct {
 	Inactive func() OptionBuilder
 	Tcp      func() OptionBuilder
 	Udp      func() OptionBuilder
+}
+
+type runOptions struct {
+	Name func() OptionBuilder
 }
 
 type solutionOptions struct {

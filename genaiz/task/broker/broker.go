@@ -27,6 +27,15 @@ const (
 	PropSpecTypeInt     PropSpecType = "INT"
 	PropSpecTypeString  PropSpecType = "STRING"
 
+	RunNone      WorkspaceRunStatus = "NONE"
+	RunQueued    WorkspaceRunStatus = "QUEUED"
+	RunScheduled WorkspaceRunStatus = "SCHEDULED"
+	RunRunning   WorkspaceRunStatus = "RUNNING"
+	RunPaused    WorkspaceRunStatus = "PAUSED"
+	RunStopped   WorkspaceRunStatus = "STOPPED"
+	RunFailure   WorkspaceRunStatus = "FAILURE"
+	RunSuccess   WorkspaceRunStatus = "SUCCESS"
+
 	VisibilityPrivate Visibility = "PRIVATE"
 	VisibilityOrg     Visibility = "ORGANIZATION"
 )
@@ -67,6 +76,9 @@ var (
 	WorkspaceFlowFlags = &workspaceFlowFlags{
 		Active: 1 << 0,
 		Ready:  1 << 1,
+	}
+	WorkspaceRunFlags = &workspaceRunFlags{
+		Active: 1 << 0,
 	}
 	PropSpecTypes = enumz.NewEnumType(PropSpecTypeBoolean, PropSpecTypeDouble,
 		PropSpecTypeEnum, PropSpecTypeInt, PropSpecTypeString)
@@ -1413,4 +1425,66 @@ func ParseFqdnVersion(value string) (string, string, string) {
 	}
 
 	return oem, handle, ver
+}
+
+type WorkspaceRun struct {
+	Id              *int64 `json:"id,omitempty"`
+	Created         *int64 `json:"nco"`
+	Modified        *int64 `json:"nms"`
+	WorkspaceId     int64  `json:"workspaceId"`
+	WorkspaceFlowId int64  `json:"workspaceFlowId"`
+	SolutionId      *int64 `json:"solutionId,omitempty"`
+	WorkflowId      *int64 `json:"workflowId,omitempty"`
+	OwnerId         *int64 `json:"ownerId,omitempty"`
+	Flags           *int   `json:"flags,omitempty"`
+	Seq             *int   `json:"seq,omitempty"`
+	Name            string `json:"name,omitempty"`
+	Progress        int    `json:"progress"`
+	Status          string `json:"status"`
+
+	Solution *Solution `json:"-"`
+	Workflow *Workflow `json:"-"`
+}
+
+func (r WorkspaceRun) IsDone() bool {
+	return strings.EqualFold(r.Status, RunFailure) ||
+		strings.EqualFold(r.Status, RunStopped) ||
+		strings.EqualFold(r.Status, RunSuccess)
+}
+
+func (r WorkspaceRun) IsStartable() bool {
+	return strings.EqualFold(r.Status, RunNone) || strings.EqualFold(r.Status, RunPaused)
+}
+
+func (r WorkspaceRun) IsStarted() bool {
+	return strings.EqualFold(r.Status, RunQueued) ||
+		strings.EqualFold(r.Status, RunScheduled) ||
+		strings.EqualFold(r.Status, RunRunning)
+}
+
+func (r WorkspaceRun) withSolutionWorkflow(solution *Solution, workflow *Workflow) WorkspaceRun {
+	return WorkspaceRun{
+		Id:              r.Id,
+		Created:         r.Created,
+		Modified:        r.Modified,
+		WorkspaceId:     r.WorkspaceId,
+		WorkspaceFlowId: r.WorkspaceFlowId,
+		SolutionId:      r.SolutionId,
+		WorkflowId:      r.WorkflowId,
+		OwnerId:         r.OwnerId,
+		Flags:           r.Flags,
+		Seq:             r.Seq,
+		Name:            r.Name,
+		Progress:        r.Progress,
+		Status:          r.Status,
+
+		Solution: solution,
+		Workflow: workflow,
+	}
+}
+
+type WorkspaceRunStatus = string
+
+type workspaceRunFlags struct {
+	Active int
 }

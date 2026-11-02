@@ -13,6 +13,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/timez"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
+	"genaiz.com/genaiz/task/broker/workspace"
 )
 
 func TestUserWorkspace_Match(t *testing.T) {
@@ -187,7 +188,7 @@ func TestUserWorkspace_MarshalSlice(t *testing.T) {
 		assert.NotEmpty(t, values)
 		assert.Equal(t, values[0], cast.ToString(testUserWorkspace.Id))
 		assert.Equal(t, values[1], testUserWorkspace.Name)
-		assert.Equal(t, values[2], createdFormatter.FormatMillis(testCreated))
+		assert.Equal(t, values[2], DefaultTimeFormat.FormatMillis(testCreated))
 		assert.Equal(t, values[3], "yes")
 		assert.Equal(t, values[4], "yes")
 	} else {
@@ -408,7 +409,7 @@ func TestUserWorkspaceFlow_MarshalJSON_WithCreated(t *testing.T) {
 		assert.Contains(t, actual, fmt.Sprintf("\"solutionVersion\":\"%s\"", testWorkspaceFlow.SolutionVersion))
 		assert.Contains(t, actual, fmt.Sprintf("\"workflowId\":%d", testWorkspaceFlow.WorkflowId))
 		assert.Contains(t, actual, fmt.Sprintf("\"workflowHandle\":\"%s\"", testWorkspaceFlow.WorkflowHandle))
-		assert.Contains(t, actual, fmt.Sprintf("\"created\":\"%s\"", createdFormatter.FormatMillis(testWorkspaceFlow.Created)))
+		assert.Contains(t, actual, fmt.Sprintf("\"created\":\"%s\"", DefaultTimeFormat.FormatMillis(testWorkspaceFlow.Created)))
 		assert.Contains(t, actual, fmt.Sprintf("\"flags\":%d", broker.WorkspaceFlowFlags.Active))
 	} else {
 		assert.Fail(t, err.Error())
@@ -479,7 +480,7 @@ func TestUserWorkspaceNode_MarshalSlice_WithCreated(t *testing.T) {
 		assert.Equal(t, values[3], testWorkspaceFlow.SolutionHandle)
 		assert.Equal(t, values[4], testWorkspaceFlow.SolutionVersion)
 		assert.Equal(t, values[5], testWorkspaceFlow.WorkflowHandle)
-		assert.Equal(t, values[6], createdFormatter.FormatMillis(testCreated))
+		assert.Equal(t, values[6], DefaultTimeFormat.FormatMillis(testCreated))
 		assert.Equal(t, values[7], "yes")
 		assert.Equal(t, values[8], "yes")
 	} else {
@@ -598,7 +599,7 @@ func TestUserWorkspaceFlowsProvider_Get(t *testing.T) {
 	}
 	var testParams = &broker.WorkspaceFlowListParams{
 		WorkspaceFlowResolveParams: &broker.WorkspaceFlowResolveParams{
-			WorkspaceFlowCreateParams: &broker.WorkspaceFlowCreateParams{
+			FlowCreateParams: &workspace.FlowCreateParams{
 				WorkflowId: new(expectedWorkflowId),
 			},
 		},
@@ -619,7 +620,7 @@ func TestUserWorkspaceFlowsProvider_Get(t *testing.T) {
 		assert.Equal(t, testWorkspaceFlows[0].Id, actual[0].Id)
 		assert.Equal(t, testWorkspaceFlows[0].Solution.Workflows[0].Handle, actual[0].WorkflowHandle)
 		assert.Equal(t, testWorkspaceFlows[0].Flags, actual[0].Flags)
-		assert.Equal(t, expectedWorkspaceId, *calledResolveParams.WorkspaceId)
+		assert.Equal(t, expectedWorkspaceId, *calledResolveParams.GetWorkspaceId())
 		return
 	}
 
@@ -634,7 +635,7 @@ func TestUserWorkspaceFlowsProvider_Get_Failure(t *testing.T) {
 		},
 		params: &broker.WorkspaceFlowListParams{
 			WorkspaceFlowResolveParams: &broker.WorkspaceFlowResolveParams{
-				WorkspaceFlowCreateParams: &broker.WorkspaceFlowCreateParams{
+				FlowCreateParams: &workspace.FlowCreateParams{
 					WorkspaceId: new(int64(37)),
 					WorkflowId:  new(int64(42)),
 				},
@@ -676,7 +677,7 @@ func TestUserWorkspaceFlowsProvider_Get_Filtered(t *testing.T) {
 	}
 	var testParams = &broker.WorkspaceFlowListParams{
 		WorkspaceFlowResolveParams: &broker.WorkspaceFlowResolveParams{
-			WorkspaceFlowCreateParams: &broker.WorkspaceFlowCreateParams{
+			FlowCreateParams: &workspace.FlowCreateParams{
 				WorkflowId: new(expectedWorkflowId),
 			},
 		},
@@ -698,7 +699,7 @@ func TestUserWorkspaceFlowsProvider_Get_Filtered(t *testing.T) {
 		assert.Equal(t, testWorkspaceFlows[0].Id, actual[0].Id)
 		assert.Equal(t, testWorkspaceFlows[0].Solution.Workflows[0].Handle, actual[0].WorkflowHandle)
 		assert.Equal(t, testWorkspaceFlows[0].Flags, actual[0].Flags)
-		assert.Equal(t, expectedWorkspaceId, *calledResolveParams.WorkspaceId)
+		assert.Equal(t, expectedWorkspaceId, *calledResolveParams.GetWorkspaceId())
 		return
 	}
 
@@ -709,7 +710,7 @@ func TestUserWorkspaceFlowsProvider_Get_NoResults(t *testing.T) {
 	var calledListParams broker.WorkspaceFlowListParams
 	var testParams = &broker.WorkspaceFlowListParams{
 		WorkspaceFlowResolveParams: &broker.WorkspaceFlowResolveParams{
-			WorkspaceFlowCreateParams: &broker.WorkspaceFlowCreateParams{
+			FlowCreateParams: &workspace.FlowCreateParams{
 				WorkspaceId: new(int64(1337)),
 				WorkflowId:  new(int64(42)),
 			},
@@ -748,7 +749,7 @@ func TestUserWorkspaceFlowsProvider_Get_NoSolution(t *testing.T) {
 	}
 	var testParams = &broker.WorkspaceFlowListParams{
 		WorkspaceFlowResolveParams: &broker.WorkspaceFlowResolveParams{
-			WorkspaceFlowCreateParams: &broker.WorkspaceFlowCreateParams{
+			FlowCreateParams: &workspace.FlowCreateParams{
 				WorkflowId: new(expectedWorkflowId),
 			},
 		},
@@ -767,7 +768,7 @@ func TestUserWorkspaceFlowsProvider_Get_NoSolution(t *testing.T) {
 
 	if actual, err = testProvider.Get(); err == nil {
 		assert.Empty(t, actual)
-		assert.Equal(t, expectedWorkspaceId, *calledResolveParams.WorkspaceId)
+		assert.Equal(t, expectedWorkspaceId, *calledResolveParams.GetWorkspaceId())
 		return
 	}
 
@@ -837,7 +838,7 @@ func newWorkspaceFlowResolveTaskCompleteCapture(capture *broker.WorkspaceFlowRes
 				return nil
 			},
 			OnComplete: func(params *broker.WorkspaceFlowResolveParams, state *task.State) error {
-				params.WorkspaceId = &seededId
+				params.SetWorkspaceId(seededId)
 				*capture = *params
 				return nil
 			},

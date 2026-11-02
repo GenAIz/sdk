@@ -27,7 +27,7 @@ a workflow id is already known.
 
 * The command expects a workspace name that exists, if it can not find the specified workspace by name, it will return
   an error: `Error: workspace [...] could not be found`
-* If the workspace string passed is matched to multiple workspaces the command will return an error:
+* If the workspace string passed is matched to multiple workspaces, the command will return an error:
   `Error: workspace [...] can be several possibilities`
 
 #### WORKSPACE_ID
@@ -77,3 +77,66 @@ The account for which to list the available solutions.
 #### json
 
 The JSON flag indicates the command should return the Workspace Flow created as JSON output.
+
+### flow start
+
+```
+genaiz ws flow start [WORKSPACE_NAME]|WORKSPACE_ID [WORKFLOW_HANDLE]|FLOW_ID \
+  --name=NAME \
+  --account=[[<user>@]host] \
+  --json 
+```
+
+The start command can be used to create a Run, starting it immediately. It requires the ID of a Workspace Flow that is
+in the `READY` state. The command automatically updates the state of the flow before issuing the start request.
+
+If the flow can not be started the command returns an error: `Error: the workspace flow [...] is not ready`
+
+If the flow for the specified workspace already has a working `Run`, the command will reject the request as duplicating work: 
+`Error: flow [...] is already executing on this workspace` 
+
+#### WORKSPACE_NAME
+
+* The command expects a workspace name that exists, if it can not find the specified workspace by name, it will return
+  an error: `Error: workspace [...] could not be found`
+* If the workspace string passed is matched to multiple workspaces, the command will return an error:
+  `Error: workspace [...] can be several possibilities`
+
+#### WORKSPACE_ID
+
+* If the command finds the input is a valid integer, then a workspace by id is assumed to be the target. If it can not
+  find a workspace with the provided id, it will return an error: `Error: workspace [...] can not be accessed`
+
+#### WORKFLOW_HANDLE
+
+* If the command receives a string, it will list all workflows for the specified and attempt matching a single workflow
+  by handle. If no workflow correspond to the string, it will return an error: `Error: workflow [...] can not be found`
+* If the workflow handle passed is matched to multiple workflows, the command will return an error:
+  `Error: workflow [...] is used by multiple workspace flows`
+
+#### FLOW_ID
+
+* If the command receives an integer as second argument, the command will attempt retrieving a workspace flow with the
+  corresponding id. If no flows can be accessed the command returns an error: `Error: flow [...] could not be found`
+
+#### name
+
+The name of a Run is not required by the start command, but will be automatically tagged with a timestamp and possibly
+one of:
+flow name or workflow handle.
+
+* if the value of name is not a valid [name](../index.md#name), the command will fail with error:
+  `Error: name must not exceed 255 characters`
+
+#### account
+
+The account managing the workspace, under which the Run will start
+
+* if the value of the account does not evaluate to a Host address, the command returns an error:
+  `Error could not elect a session`
+* account values will auto-complete if the shell completion script is sourced.
+
+#### json
+
+The JSON option will replace the usual output report of the command by a JSON representation of the Run object created
+under the Orchestrator API.

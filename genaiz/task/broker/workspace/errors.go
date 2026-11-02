@@ -19,6 +19,7 @@ type workspaceErrors struct {
 	workspaceDefInvalid           task.Error
 	workspaceFlowConflict         task.Error
 	workspaceFlowDefInvalid       task.Error
+	workspaceFlowNotReady         task.Error
 	workspaceFlowRequired         task.Error
 	workspaceFlowUnresolved       task.Error
 	workspaceIdKnown              task.Error
@@ -82,6 +83,11 @@ func (e *workspaceErrors) WorkspaceFlowConflict() error {
 func (e *workspaceErrors) WorkspaceFlowDefInvalid() error {
 	return e.SetOrReturn(&e.workspaceFlowDefInvalid,
 		task.MakeErrorProvider("workspace flow definition is invalid"))
+}
+
+func (e *workspaceErrors) WorkspaceFlowNotReady() error {
+	return e.SetOrReturn(&e.workspaceFlowNotReady,
+		task.MakeErrorProvider("workspace flow is not ready"))
 }
 
 func (e *workspaceErrors) WorkspaceFlowRequired() error {

@@ -7,9 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/shared"
 )
 
@@ -27,6 +29,10 @@ func (sbc stubBaseClient) GetHostAddr() string {
 func (sbc stubBaseClient) Session() (*Session, error) {
 	return sbc.sessionExpected, sbc.sessionError
 }
+
+var (
+	testLogger, testHook = test.NewNullLogger()
+)
 
 func TestBroker_GetClient(t *testing.T) {
 	var expectedAddr = "expectedAddr"
@@ -1495,6 +1501,72 @@ func TestWorkspaceNodePort_WithDataSetId(t *testing.T) {
 	assert.Nil(t, actual.DataSet)
 }
 
+func TestWorkspaceRun_IsDone(t *testing.T) {
+	var testRun = &WorkspaceRun{}
+
+	assert.False(t, testRun.IsDone())
+	testRun.Status = RunFailure
+	assert.True(t, testRun.IsDone())
+	testRun.Status = RunNone
+	assert.False(t, testRun.IsDone())
+	testRun.Status = RunPaused
+	assert.False(t, testRun.IsDone())
+	testRun.Status = RunQueued
+	assert.False(t, testRun.IsDone())
+	testRun.Status = RunRunning
+	assert.False(t, testRun.IsDone())
+	testRun.Status = RunScheduled
+	assert.False(t, testRun.IsDone())
+	testRun.Status = RunStopped
+	assert.True(t, testRun.IsDone())
+	testRun.Status = RunSuccess
+	assert.True(t, testRun.IsDone())
+}
+
+func TestWorkspaceRun_IsStartable(t *testing.T) {
+	var testRun = &WorkspaceRun{}
+
+	assert.False(t, testRun.IsStartable())
+	testRun.Status = RunFailure
+	assert.False(t, testRun.IsStartable())
+	testRun.Status = RunNone
+	assert.True(t, testRun.IsStartable())
+	testRun.Status = RunPaused
+	assert.True(t, testRun.IsStartable())
+	testRun.Status = RunQueued
+	assert.False(t, testRun.IsStartable())
+	testRun.Status = RunRunning
+	assert.False(t, testRun.IsStartable())
+	testRun.Status = RunScheduled
+	assert.False(t, testRun.IsStartable())
+	testRun.Status = RunStopped
+	assert.False(t, testRun.IsStartable())
+	testRun.Status = RunSuccess
+	assert.False(t, testRun.IsStartable())
+}
+
+func TestWorkspaceRun_IsStarted(t *testing.T) {
+	var testRun = &WorkspaceRun{}
+
+	assert.False(t, testRun.IsStarted())
+	testRun.Status = RunFailure
+	assert.False(t, testRun.IsStarted())
+	testRun.Status = RunNone
+	assert.False(t, testRun.IsStarted())
+	testRun.Status = RunPaused
+	assert.False(t, testRun.IsStarted())
+	testRun.Status = RunQueued
+	assert.True(t, testRun.IsStarted())
+	testRun.Status = RunRunning
+	assert.True(t, testRun.IsStarted())
+	testRun.Status = RunScheduled
+	assert.True(t, testRun.IsStarted())
+	testRun.Status = RunStopped
+	assert.False(t, testRun.IsStarted())
+	testRun.Status = RunSuccess
+	assert.False(t, testRun.IsStarted())
+}
+
 func TestParseFqdnVersion(t *testing.T) {
 	var expectedOem = "oem"
 	var expectedHandle = "handle"
@@ -1514,4 +1586,11 @@ func TestParseFqdnVersion_SingleString(t *testing.T) {
 	assert.Equal(t, expectedSingle, oem)
 	assert.Empty(t, handle)
 	assert.Empty(t, ver)
+}
+
+func newTestState() *task.State {
+	testHook.Reset()
+	return &task.State{
+		Logger: testLogger,
+	}
 }

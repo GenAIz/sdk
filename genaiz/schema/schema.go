@@ -438,6 +438,11 @@ type Document struct {
 				Name        Keys
 				Printer     Keys
 			}
+			Start struct {
+				Account Keys
+				Name    Keys
+				Printer Keys
+			}
 		}
 		List struct {
 			Account     Keys
@@ -881,6 +886,10 @@ func init() {
 	Genaiz.Workspace.Flow.Create.Description = newKeys("Workspace.Flow.Create.Description", "WS_FLOW_CREATE_DESCRIPTION", "Ws.Flow.Create.Description")
 	Genaiz.Workspace.Flow.Create.Name = newKeys("Workspace.Flow.Create.Name", "WS_FLOW_CREATE_NAME", "Ws.Flow.Create.Name")
 	Genaiz.Workspace.Flow.Create.Printer = newKeys("Workspace.Flow.Create.Printer", "WS_FLOW_CREATE_PRINTER", "WS.Flow.Create.Printer")
+
+	Genaiz.Workspace.Flow.Start.Account = newKeys("Workspace.Flow.Start.Account", "WS_FLOW_START_ACCOUNT", "Ws.Flow.Start.Account")
+	Genaiz.Workspace.Flow.Start.Name = newKeys("Workspace.Flow.Start.Name", "WS_FLOW_START_NAME", "Ws.Flow.Start.Name")
+	Genaiz.Workspace.Flow.Start.Printer = newKeys("Workspace.Flow.Start.Printer", "WS_FLOW_START_PRINTER", "WS.Flow.Start.Printer")
 
 	Genaiz.Workspace.List.Account = newKeys("Workspace.List.Account", "WS_LIST_ACCOUNT", "Ws.List.Account")
 	Genaiz.Workspace.List.DateMonthly = newKeys("Workspace.List.DateMonthly", "WS_LIST_DATE_MONTHLY", "Ws.List.DateMonthly")
