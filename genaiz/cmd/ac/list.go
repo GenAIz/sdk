@@ -6,7 +6,7 @@ import (
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
-	"genaiz.com/genaiz/mgmt"
+	"genaiz.com/genaiz/mgmt/accounts"
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 )
@@ -15,28 +15,29 @@ type ListExecutor struct {
 	*ListOption
 	ledger *config.Ledger
 
-	printerParams             cli.PrinterParametric
-	userAccountFacadeProvider func() mgmt.UserAccountFacade
+	printerParams       cli.PrinterParametric
+	userAccountsFactory accounts.UserAccountsFactory
 }
 
 func (le ListExecutor) List(filter string) error {
-	var accountList = le.userAccountFacadeProvider()
 	var printer = le.printerParams.Printer()
-	var accounts, err = accountList.WithParams(le.newAuthParams()).
+	var userAccounts, err = le.userAccountsFactory.
+		WithParams(le.newAuthParams()).
 		WithLogger(le.ledger.Logger).
-		Filtering(filter).
+		WithFilter(filter).
+		Provider().
 		Get()
 
 	if err == nil {
-		return printer.Print(accounts)
+		return printer.Print(userAccounts)
 	}
 
 	return printer.Error(err)
 }
 
-func (le ListExecutor) newAuthParams() *broker.AuthParams {
-	return &broker.AuthParams{
-		Broker: &broker.Broker{
+func (le ListExecutor) newAuthParams() *broker.AccountListParams {
+	return &broker.AccountListParams{
+		Broker: broker.Broker{
 			AuthFile: le.ledger.AuthFile,
 		},
 		// Always show the expired accounts on list
@@ -80,9 +81,10 @@ func NewListExecutor(ledger *config.Ledger, options *ListOption) *ListExecutor {
 	return &ListExecutor{
 		ListOption: options,
 
-		ledger:                    ledger,
-		printerParams:             cli.NewPrinterParam(ledger, options.optionJsonPrinter),
-		userAccountFacadeProvider: mgmt.NewUserAccountFacade,
+		ledger:        ledger,
+		printerParams: cli.NewPrinterParam(ledger, options.optionJsonPrinter),
+
+		userAccountsFactory: accounts.NewUserAccountsFactory(),
 	}
 }
 
