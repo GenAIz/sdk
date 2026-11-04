@@ -36,12 +36,43 @@ func (df dualFormat) FormatMillis(epochMillis int64) string {
 	return df.formatLong(epochTime)
 }
 
+type distanceFormat struct {
+	formatLong  func(time.Time) string
+	formatShort func(time.Time) string
+
+	border   time.Time
+	distance time.Duration
+}
+
+func (df distanceFormat) FormatSeconds(epochSeconds int64) string {
+	return df.FormatMillis(epochSeconds * 1000)
+}
+
+func (df distanceFormat) FormatMillis(epochMillis int64) string {
+	var epochTime = time.UnixMilli(epochMillis)
+
+	if d := epochTime.Sub(df.border); d.Abs() > df.distance {
+		return df.formatLong(epochTime)
+	}
+
+	return df.formatShort(epochTime)
+}
+
 func NewMidnightFormatter() Formatter {
 	var year, month, day = time.Now().In(time.Local).Date()
 	var midnight = time.Date(year, month, day, 0, 0, 0, 0, time.Local).
 		Add(24 * time.Hour)
 
-	return NewFormatter(nil, &midnight)
+	return &distanceFormat{
+		formatLong: func(t time.Time) string {
+			return t.Format(time.DateOnly)
+		},
+		formatShort: func(t time.Time) string {
+			return t.Format(time.TimeOnly)
+		},
+		border:   midnight,
+		distance: time.Hour * 24,
+	}
 }
 
 func NewTodayFormatter() Formatter {
