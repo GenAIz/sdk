@@ -1,40 +1,37 @@
-package mgmt
+package accounts
 
 import (
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"genaiz.com/genaiz-lib/lang/stringz"
+	"genaiz.com/genaiz-lib/lang/timez"
+	"genaiz.com/genaiz/mgmt"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
 
-type UserAccountFacade Facade[[]UserAccount, broker.AuthParams]
+type UserAccountsFactory interface {
+	mgmt.Factory[broker.AccountListParams, []UserAccount]
+}
 
-type SessionListTaskFactory func() *task.Task[broker.AuthParams]
+type UserAccountsProvider = mgmt.Provider[[]UserAccount]
+type UserAccountsProviderFactory = mgmt.ProviderFactory[broker.AccountListParams, []UserAccount]
 
 type UserAccount struct {
 	Active   bool `cli:"Active" selected:"*"`
 	Name     string
 	Username string `cli:"User"`
 	HostAddr string `cli:"Host"`
-	Created  int64  `cli:"Created"`
-	Expiry   int64  `cli:"Expires" redGreen:"Expired"`
+	Created  string `cli:"Created"`
+	Expiry   string `cli:"Expires" redGreen:"Expired"`
 	Expired  bool   `cli:"Expired,noShow"`
 
 	matched string
 }
 
 func (ua UserAccount) MarshalJSON() ([]byte, error) {
-	var created string
-
-	if ua.Created > 0 {
-		created = createdFormatter.FormatMillis(ua.Created)
-	}
-
 	return json.Marshal(&struct {
 		Active   bool   `json:"active"`
 		Username string `json:"username"`
@@ -45,26 +42,18 @@ func (ua UserAccount) MarshalJSON() ([]byte, error) {
 		Active:   ua.Active,
 		Username: ua.Username,
 		HostAddr: ua.HostAddr,
-		Created:  created,
-		Expiry:   expiryFormatter.FormatMillis(ua.Expiry),
+		Created:  ua.Created,
+		Expiry:   ua.Expiry,
 	})
 }
 
 func (ua UserAccount) MarshalSlice() ([]string, error) {
-	var created string
-
-	if ua.Created > 0 {
-		created = createdFormatter.FormatMillis(ua.Created)
-	} else {
-		created = "-"
-	}
-
 	return []string{
 		stringz.YesOrNo(ua.Active),
 		ua.Username,
 		ua.HostAddr,
-		created,
-		expiryFormatter.FormatMillis(ua.Expiry),
+		stringz.FirstNonEmpty(ua.Created, "-"),
+		stringz.FirstNonEmpty(ua.Expiry, "-"),
 		stringz.YesOrNo(ua.Expired),
 	}, nil
 }
@@ -109,50 +98,41 @@ func (ua UserAccount) Matched() string {
 	return ua.matched
 }
 
-type userAccountsFacade struct {
-	baseLoggingFacade
-	params *broker.AuthParams
+type userAccountsFactory struct {
+	mgmt.ProviderFactory[broker.AccountListParams, []UserAccount]
 }
 
-func (uaf *userAccountsFacade) Filtering(filter string) Provider[[]UserAccount] {
+func (uf userAccountsFactory) provider(factory mgmt.ProviderFactory[broker.AccountListParams, []UserAccount]) mgmt.Provider[[]UserAccount] {
 	return &userAccountsProvider{
 		Plan: task.Plan{
-			Logger: uaf.logger,
+			Logger: factory.Logger,
 		},
-		filter:                 filter,
-		params:                 uaf.params,
-		sessionListTaskFactory: broker.NewAuthTask,
+
+		filter: factory.Filter,
+		format: factory.Format,
+		params: factory.Params,
+
+		accountListTaskFactory: broker.AccountTasks.ListTaskFactory,
 	}
-}
-
-func (uaf *userAccountsFacade) Provider() Provider[[]UserAccount] {
-	return uaf.Filtering("")
-}
-
-func (uaf *userAccountsFacade) WithLogger(logger *logrus.Logger) Facade[[]UserAccount, broker.AuthParams] {
-	uaf.logger = logger
-	return uaf
-}
-
-func (uaf *userAccountsFacade) WithParams(params *broker.AuthParams) Facade[[]UserAccount, broker.AuthParams] {
-	uaf.params = params
-	return uaf
 }
 
 type userAccountsProvider struct {
 	task.Plan
-	filter                 string
-	params                 *broker.AuthParams
-	sessionListTaskFactory SessionListTaskFactory
+
+	filter *string
+	format timez.Formatter
+	params *broker.AccountListParams
+
+	accountListTaskFactory broker.AccountListTaskFactory
 }
 
-func (uap userAccountsProvider) Get() ([]UserAccount, task.Error) {
+func (up userAccountsProvider) Get() ([]UserAccount, task.Error) {
 	var authAccounts *broker.AuthData
 	var failure interface{}
 
-	uap.OnReturn = func(i interface{}) { authAccounts = i.(*broker.AuthData) }
-	uap.OnFailure = func(i interface{}) { failure = i }
-	uap.Sequence(task.NewWorker(uap.params, uap.sessionListTaskFactory()))
+	up.OnReturn = func(i interface{}) { authAccounts = i.(*broker.AuthData) }
+	up.OnFailure = func(i interface{}) { failure = i }
+	up.Sequence(task.NewWorker(up.params, up.accountListTaskFactory()))
 
 	if failure == nil {
 		var result = make([]UserAccount, 0)
@@ -173,14 +153,14 @@ func (uap userAccountsProvider) Get() ([]UserAccount, task.Error) {
 				Name:     fmt.Sprintf("%s@%s", username, aa.HostAddr),
 				HostAddr: aa.HostAddr,
 				Username: username,
-				Expiry:   aa.Expiry,
-				Created:  aa.Created,
+				Expiry:   up.format.FormatMillis(aa.Expiry),
+				Created:  up.format.FormatMillis(aa.Created),
 				Expired:  aa.IsExpired(),
 			}
 
-			if uap.filter == "" {
+			if up.filter == nil {
 				result = append(result, *account)
-			} else if matched := account.Match(uap.filter); matched != nil {
+			} else if matched := account.Match(*up.filter); matched != nil {
 				result = append(result, *matched)
 			}
 		}
@@ -191,8 +171,12 @@ func (uap userAccountsProvider) Get() ([]UserAccount, task.Error) {
 	return nil, failure.(task.Error)
 }
 
-func NewUserAccountFacade() UserAccountFacade {
-	return &userAccountsFacade{
-		baseLoggingFacade: baseLoggingFacade{},
+func NewUserAccountsFactory() UserAccountsFactory {
+	var factory = &userAccountsFactory{
+		ProviderFactory: mgmt.ProviderFactory[broker.AccountListParams, []UserAccount]{
+			Format: timez.NewMidnightFormatter(),
+		},
 	}
+
+	return factory.WithProvider(factory.provider)
 }

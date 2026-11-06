@@ -148,11 +148,6 @@ func (ad *AuthData) Write(outFile string) error {
 	return err
 }
 
-type AuthParams struct {
-	*Broker
-	Expired bool
-}
-
 type AuthSession struct {
 	Created   int64
 	Expiry    int64
@@ -205,14 +200,6 @@ func NewActivateTask() *task.Task[Broker] {
 		Name:       "activate-auth",
 		OnPrepare:  handleActivateContext,
 		OnComplete: handleSessionActivate,
-	}
-}
-
-func NewAuthTask() *task.Task[AuthParams] {
-	return &task.Task[AuthParams]{
-		Name:       "auth-data",
-		OnPrepare:  handleAuthContext,
-		OnComplete: handleAuthList,
 	}
 }
 
@@ -278,60 +265,6 @@ func handleActivateContext(params *Broker, state *task.State) error {
 		return ErrorNoHostAddr
 	}
 
-	return nil
-}
-
-func handleAuthContext(params *AuthParams, state *task.State) error {
-	var auth = NewAuthData(params.AuthFile)
-
-	if len(auth.Accounts) > 0 {
-		state.Logger.Debug("Accounts found")
-		return nil
-	}
-
-	return ErrorSessionsEmpty
-}
-
-func handleAuthList(params *AuthParams, state *task.State) error {
-	var auth = NewAuthData(params.AuthFile)
-	var effectiveAuth *AuthData
-
-	if auth.Active < 0 || auth.Active >= len(auth.Accounts) {
-		effectiveAuth = &AuthData{
-			Active:   0,
-			Accounts: auth.Accounts,
-		}
-		state.Logger.Debug("Invalid activated index, defaulting to 0")
-	} else {
-		effectiveAuth = auth
-	}
-
-	if !params.Expired {
-		var accountsFiltered []*AuthAccount
-		var activeFiltered = effectiveAuth.Active
-
-		state.Logger.Debug("Filtering expired accounts")
-
-		for i, acc := range effectiveAuth.Accounts {
-			if !acc.IsExpired() {
-				accountsFiltered = append(accountsFiltered, acc)
-
-				if i == activeFiltered {
-					activeFiltered = len(accountsFiltered) - 1
-				}
-			} else if i == activeFiltered {
-				activeFiltered = 0
-			}
-		}
-
-		state.Internal = &AuthData{
-			Active:   activeFiltered,
-			Accounts: accountsFiltered,
-		}
-		return nil
-	}
-
-	state.Internal = effectiveAuth
 	return nil
 }
 

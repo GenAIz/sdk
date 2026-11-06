@@ -1,4 +1,4 @@
-package mgmt
+package accounts
 
 import (
 	"fmt"
@@ -9,21 +9,19 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"genaiz.com/genaiz-lib/lang/filez"
 	"genaiz.com/genaiz/task/broker"
 )
 
 func TestUserAccount_MarshalJSON(t *testing.T) {
-	var testExpiry = time.Now().Add(time.Hour).UnixMilli()
-	var testCreated = time.Now().UnixMilli()
 	var testUserAccount = &UserAccount{
 		Active:   true,
 		Username: "username",
 		HostAddr: "hostAddr",
-		Created:  testCreated,
-		Expiry:   testExpiry,
+		Created:  "testCreated",
+		Expiry:   "testExpired",
 	}
 	var bytes []byte
 	var err error
@@ -35,20 +33,19 @@ func TestUserAccount_MarshalJSON(t *testing.T) {
 		assert.Contains(t, actual, fmt.Sprintf("\"active\":%s", "true"))
 		assert.Contains(t, actual, fmt.Sprintf("\"username\":\"%s\"", testUserAccount.Username))
 		assert.Contains(t, actual, fmt.Sprintf("\"hostAddr\":\"%s\"", testUserAccount.HostAddr))
-		assert.Contains(t, actual, fmt.Sprintf("\"created\":\"%s\"", createdFormatter.FormatMillis(testCreated)))
-		assert.Contains(t, actual, fmt.Sprintf("\"expiry\":\"%s\"", expiryFormatter.FormatMillis(testExpiry)))
+		assert.Contains(t, actual, fmt.Sprintf("\"created\":\"%s\"", testUserAccount.Created))
+		assert.Contains(t, actual, fmt.Sprintf("\"expiry\":\"%s\"", testUserAccount.Expiry))
 	} else {
 		assert.Fail(t, err.Error())
 	}
 }
 
 func TestUserAccount_MarshalJSON_NoCreated(t *testing.T) {
-	var testExpiry = time.Now().UnixMilli()
 	var testUserAccount = &UserAccount{
 		Active:   true,
 		Username: "username",
 		HostAddr: "hostAddr",
-		Expiry:   testExpiry,
+		Expiry:   "expiry",
 	}
 	var bytes []byte
 	var err error
@@ -60,7 +57,7 @@ func TestUserAccount_MarshalJSON_NoCreated(t *testing.T) {
 		assert.Contains(t, actual, fmt.Sprintf("\"active\":%s", "true"))
 		assert.Contains(t, actual, fmt.Sprintf("\"username\":\"%s\"", testUserAccount.Username))
 		assert.Contains(t, actual, fmt.Sprintf("\"hostAddr\":\"%s\"", testUserAccount.HostAddr))
-		assert.Contains(t, actual, fmt.Sprintf("\"expiry\":\"%s\"", expiryFormatter.FormatMillis(testExpiry)))
+		assert.Contains(t, actual, fmt.Sprintf("\"expiry\":\"%s\"", testUserAccount.Expiry))
 		assert.NotContains(t, actual, "created")
 	} else {
 		assert.Fail(t, err.Error())
@@ -68,14 +65,12 @@ func TestUserAccount_MarshalJSON_NoCreated(t *testing.T) {
 }
 
 func TestUserAccount_MarshalSlice(t *testing.T) {
-	var testExpiry = time.Now().Add(time.Hour).UnixMilli()
-	var testCreated = time.Now().UnixMilli()
 	var testUserAccount = &UserAccount{
 		Active:   true,
 		Username: "username",
 		HostAddr: "hostAddr",
-		Created:  testCreated,
-		Expiry:   testExpiry,
+		Created:  "created",
+		Expiry:   "expiry",
 	}
 	var values []string
 	var err error
@@ -86,8 +81,8 @@ func TestUserAccount_MarshalSlice(t *testing.T) {
 		assert.Equal(t, values[0], "yes")
 		assert.Equal(t, values[1], testUserAccount.Username)
 		assert.Equal(t, values[2], testUserAccount.HostAddr)
-		assert.Equal(t, values[3], createdFormatter.FormatMillis(testCreated))
-		assert.Equal(t, values[4], expiryFormatter.FormatMillis(testExpiry))
+		assert.Equal(t, values[3], testUserAccount.Created)
+		assert.Equal(t, values[4], testUserAccount.Expiry)
 		assert.Equal(t, values[5], "no")
 	} else {
 		assert.Fail(t, err.Error())
@@ -95,12 +90,11 @@ func TestUserAccount_MarshalSlice(t *testing.T) {
 }
 
 func TestUserAccount_MarshalSlice_NoCreated(t *testing.T) {
-	var testExpiry = time.Now().Add(time.Hour).UnixMilli()
 	var testUserAccount = &UserAccount{
 		Active:   true,
 		Username: "username",
 		HostAddr: "hostAddr",
-		Expiry:   testExpiry,
+		Expiry:   "expiry",
 	}
 	var values []string
 	var err error
@@ -108,12 +102,12 @@ func TestUserAccount_MarshalSlice_NoCreated(t *testing.T) {
 	if values, err = testUserAccount.MarshalSlice(); err == nil {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, values)
-		assert.Equal(t, values[0], "yes")
-		assert.Equal(t, values[1], testUserAccount.Username)
-		assert.Equal(t, values[2], testUserAccount.HostAddr)
-		assert.Equal(t, values[3], "-")
-		assert.Equal(t, values[4], expiryFormatter.FormatMillis(testExpiry))
-		assert.Equal(t, values[5], "no")
+		assert.Equal(t, "yes", values[0])
+		assert.Equal(t, testUserAccount.Username, values[1])
+		assert.Equal(t, testUserAccount.HostAddr, values[2])
+		assert.Equal(t, "-", values[3])
+		assert.Equal(t, testUserAccount.Expiry, values[4])
+		assert.Equal(t, "no", values[5])
 	} else {
 		assert.Fail(t, err.Error())
 	}
@@ -169,17 +163,18 @@ func TestNewUserAccountFacade_Filtering(t *testing.T) {
 			},
 		},
 	}
-	var testParams = &broker.AuthParams{
-		Broker: &broker.Broker{
+	var testParams = &broker.AccountListParams{
+		Broker: broker.Broker{
 			AuthFile: testAuthFile,
 		},
 		Expired: false,
 	}
 	var testLogger = &logrus.Logger{}
-	var testProvider = NewUserAccountFacade().
+	var testProvider = NewUserAccountsFactory().
 		WithParams(testParams).
 		WithLogger(testLogger).
-		Filtering(expectedFilter)
+		WithFilter(expectedFilter).
+		Provider()
 	var bytes []byte
 	var err error
 
@@ -238,14 +233,14 @@ func TestNewUserAccountFacade_Provider(t *testing.T) {
 			},
 		},
 	}
-	var testParams = &broker.AuthParams{
-		Broker: &broker.Broker{
+	var testParams = &broker.AccountListParams{
+		Broker: broker.Broker{
 			AuthFile: testAuthFile,
 		},
 		Expired: false,
 	}
 	var testLogger = &logrus.Logger{}
-	var testProvider = NewUserAccountFacade().
+	var testProvider = NewUserAccountsFactory().
 		WithParams(testParams).
 		WithLogger(testLogger).
 		Provider()
@@ -278,13 +273,13 @@ func TestNewUserAccountFacade_Provider(t *testing.T) {
 
 func TestNewUserAccountFacade_Provider_Error(t *testing.T) {
 	var testAuthFile = filepath.Join(t.TempDir(), ".auth")
-	var testParams = &broker.AuthParams{
-		Broker: &broker.Broker{
+	var testParams = &broker.AccountListParams{
+		Broker: broker.Broker{
 			AuthFile: testAuthFile,
 		},
 	}
 	var testLogger = &logrus.Logger{}
-	var testProvider = NewUserAccountFacade().
+	var testProvider = NewUserAccountsFactory().
 		WithParams(testParams).
 		WithLogger(testLogger).
 		Provider()
