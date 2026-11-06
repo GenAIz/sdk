@@ -10,7 +10,7 @@ on:
 
 jobs:
   genaiz_package:
-    runs-on: ops
+    runs-on: ubuntu-latest
 
     permissions:
       contents: write
