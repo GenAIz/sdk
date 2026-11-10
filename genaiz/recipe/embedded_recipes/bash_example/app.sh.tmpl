@@ -37,8 +37,9 @@ if [ -n "$SF_INPUT_PATH" ]; then
 		echo "Copying all files to the output directory"
 		while IFS= read -r -d '' x
     do
-      cp "$SF_INPUT_PATH/$x" "$SF_OUTPUT_PATH/$x"
-    done <   <(find "$SF_INPUT_PATH" -maxdepth 1 -mindepth 1 -type f)
+      echo "Copying $x to $SF_OUTPUT_PATH/${x##*/}"
+      cp "$x" "$SF_OUTPUT_PATH/${x##*/}"
+    done <   <(find "$SF_INPUT_PATH" -maxdepth 1 -mindepth 1 -type f -print0)
 	fi
 fi
 
