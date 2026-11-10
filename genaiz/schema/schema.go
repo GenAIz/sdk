@@ -496,6 +496,15 @@ type Document struct {
 				}
 			}
 		}
+		Run struct {
+			List struct {
+				Account     Keys
+				DateMonthly Keys
+				DateToday   Keys
+				DateWeekly  Keys
+				Printer     Keys
+			}
+		}
 	}
 }
 
@@ -924,6 +933,12 @@ func init() {
 	Genaiz.Workspace.Node.Store.Add.Printer = newKeys("Workspace.Node.Str.Add.Printer", "WS_NODE_STR_ADD_PRINTER", "Ws.Node.Str.Add.Printer")
 	Genaiz.Workspace.Node.Store.Remove.Account = newKeys("Workspace.Node.Str.Remove.Account", "WS_NODE_STR_RM_ACCOUNT", "Ws.Node.Str.Rm.Account")
 	Genaiz.Workspace.Node.Store.Remove.Printer = newKeys("Workspace.Node.Str.Remove.Printer", "WS_NODE_STR_RM_PRINTER", "Ws.Node.Str.Rm.Printer")
+
+	Genaiz.Workspace.Run.List.Account = newKeys("Workspace.Run.List.Account", "WS_RUN_LIST_ACCOUNT", "Ws.Run.List.Account")
+	Genaiz.Workspace.Run.List.DateMonthly = newKeys("Workspace.Run.List.DateMonthly", "WS_RUN_LIST_MONTHLY", "Ws.Run.List.DateMonthly")
+	Genaiz.Workspace.Run.List.DateToday = newKeys("Workspace.Run.List.DateToday", "WS_RUN_LIST_TODAY", "Ws.Run.List.DateToday")
+	Genaiz.Workspace.Run.List.DateWeekly = newKeys("Workspace.Run.List.DateWeekly", "WS_RUN_LIST_WEEKLY", "Ws.Run.List.DateWeekly")
+	Genaiz.Workspace.Run.List.Printer = newKeys("Workspace.Run.List.Printer", "WS_RUN_LIST_PRINTER", "Ws.Run.List.Printer")
 }
 
 func newKeys(docKey, envKey string, pseudonyms ...string) Keys {

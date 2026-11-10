@@ -60,7 +60,7 @@ func NewList(ledger *config.Ledger, options *ListOptions, factory ListExecutorFa
 		Use:     "list [WORKSPACE_NAME]|WORKSPACE_ID [WORKFLOW_HANDLE]|FLOW_ID",
 		Short:   "Lists workspace flow nodes",
 		Long:    "Lists workspace flow nodes under the specified flow",
-		Example: "genaiz ws List my-workspace my-workflow --json",
+		Example: "genaiz ws list my-workspace my-workflow --json",
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			var exec = factory(cmd)

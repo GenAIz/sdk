@@ -14,6 +14,7 @@ import (
 
 	"github.com/awnumar/memguard"
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -33,6 +34,15 @@ import (
 type configStruct struct {
 	Key   string
 	Value string
+}
+
+func TestBuilder_WithLogger(t *testing.T) {
+	var testLogger, _ = test.NewNullLogger()
+	var testLedger = NewBuilder().WithLogger(testLogger).Build()
+
+	testLogger.Level = logrus.TraceLevel
+	testLedger.InitLogging()
+	assert.Equal(t, logrus.TraceLevel, testLedger.Logger.Level)
 }
 
 func TestBuilder_WithTemplates(t *testing.T) {

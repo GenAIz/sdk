@@ -3,11 +3,17 @@ package ws
 import (
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+)
+
+var (
+	testLogger, testHook = test.NewNullLogger()
 )
 
 type stubPrinter struct {
@@ -44,7 +50,7 @@ func TestNewWs(t *testing.T) {
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
 	var testCmd = NewWs(testLedger, nil, nil, nil)
 
-	assert.Equal(t, 4, len(testCmd.Commands()))
+	assert.Equal(t, 5, len(testCmd.Commands()))
 }
 
 func TestValidation_ArgsWorkspaceName(t *testing.T) {
@@ -77,4 +83,9 @@ func TestValidation_ArgsWorkspaceName_OutOfRange(t *testing.T) {
 	var testValidation = NewWsValidation()
 
 	assert.Panics(t, func() { _ = testValidation.ArgsWorkspaceName(1)(testCmd, []string{"testString"}) })
+}
+
+func getTestLogger() *logrus.Logger {
+	testHook.Reset()
+	return testLogger
 }

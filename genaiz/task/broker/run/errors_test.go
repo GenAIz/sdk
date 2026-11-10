@@ -35,6 +35,13 @@ func TestRunErrors_RunIdRequired(t *testing.T) {
 	assert.ErrorIs(t, Errors.RunIdRequired(), testError)
 }
 
+func TestRunErrors_RunListUnlimited(t *testing.T) {
+	var testError = Errors.RunListUnlimited()
+
+	assert.NotNil(t, testError)
+	assert.ErrorIs(t, Errors.RunListUnlimited(), testError)
+}
+
 func TestRunErrors_RunSolutionUnknown(t *testing.T) {
 	var testError = Errors.RunSolutionUnknown()
 

@@ -593,6 +593,7 @@ func NewLedger() *Ledger {
 type Builder struct {
 	Viper         func() *viper.Viper
 	Input         func() io.Reader
+	Logger        *logrus.Logger
 	Output        func() io.Writer
 	SecretHandler stdz.SecretHandler
 	TemplatePaths []string
@@ -603,6 +604,13 @@ type Builder struct {
 // Build builds a Ledger with the recorded Viper, Input and Output factory methods
 func (b *Builder) Build() *Ledger {
 	var templatePaths = b.TemplatePaths
+	var loggerFactory func(ledger *Ledger) *logrus.Logger
+
+	if b.Logger != nil {
+		loggerFactory = func(ledger *Ledger) *logrus.Logger {
+			return b.Logger
+		}
+	}
 
 	home, err := b.resolveUserPath()
 	cobra.CheckErr(err)
@@ -613,9 +621,10 @@ func (b *Builder) Build() *Ledger {
 	return &Ledger{
 		AuthFile:      filepath.Join(home, ".cache", "genaiz", ".auth"),
 		ConfigName:    defaultConfigName,
-		UserPath:      filepath.Join(home, ".config", "genaiz"),
+		LoggerFactory: loggerFactory,
 		TemplatePaths: templatePaths,
 		Timestamp:     time.Now(),
+		UserPath:      filepath.Join(home, ".config", "genaiz"),
 		WorkDir:       workDir,
 
 		input:             b.Input(),
@@ -632,6 +641,12 @@ func (b *Builder) WithInput(i io.Reader) *Builder {
 	b.Input = func() io.Reader {
 		return i
 	}
+	return b
+}
+
+// WithLogger will initialize the Ledger with the provided logger instance, useful for unit tests, but production-wise will be removed
+func (b *Builder) WithLogger(logger *logrus.Logger) *Builder {
+	b.Logger = logger
 	return b
 }
 

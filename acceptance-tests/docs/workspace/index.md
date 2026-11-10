@@ -13,6 +13,7 @@ invoke a Workflow on a groups of Agents managed by the Broker.
     * [Workspace Node Listing](#workspace-node-listing)
     * [Workspace Node Source](#workspace-node-source)
     * [Workspace Node Store](#workspace-node-store)
+    * [Workspace Run Listing](#workspace-run-listing)
 * [By Command](#commands)
 * [By Test Cases](#test-cases)
 
@@ -196,12 +197,33 @@ flowchart LR
     nodeList --> nodeStr
 ```
 
+### Workspace Run Listing
+
+Once a Workspace and a Workspace Flow have been created, a Workspace Flow can be started and then listed through
+the [list command](run.md#run-list). The activity involves many pre-cursors, which are detailed under the
+feature [list workspace runs](../../features/workspace/list_workspace_runs.feature).
+
+```mermaid
+---
+title: Workspace Run Listing
+---
+flowchart LR
+    user>user] --> login([account<br>login])
+    login --> listWorkspaces([list<br>workspaces])
+    listWorkspaces --> listFlows([list<br>workspace flows])
+    listFlows --> startFlow([start<br>workspace flow])
+    listWorkspaces --> listRuns([list<br>workspace run])
+    startFlow --> listRuns
+
+```
+
 ## Commands
 
 * [create](create.md#workspace-create)
 * [flow](flow.md#workspace-flow)
 * [list](list.md#workspace-listing)
 * [node](node.md#workspace-node)
+* [run](run.md#workspace-run)
 
 ## Test Cases
 
@@ -211,5 +233,6 @@ flowchart LR
 * [Create workspace flow](../../features/workspace/create_workspace_flow.feature)
 * [List simple user workspaces](../../features/workspace/list_simple_user_workspaces.feature)
 * [List workspace nodes](../../features/workspace/list_workspace_nodes.feature)
+* [List workspace runs](../../features/workspace/list_workspace_runs.feature)
 * [Set Workspace Node Input File](../../features/workspace/set_workspace_node_input_file.feature)
 * [Start Workspace Flow](../../features/workspace/start_workspace_flow.feature)

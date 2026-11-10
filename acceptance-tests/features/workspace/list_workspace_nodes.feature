@@ -9,7 +9,7 @@ Feature: list workspace nodes
     Given the following parameters
       | folder      | oem             | version | workflowHandle | workflowName | workflowDesc     |
       | my-solution | com.genaiz.test | 1.0.0   | workflow-1     | Default      | default workflow |
-    When I run the command "sn create <folder> --oem=<oem> --workflow-handle='<workflowHandle>'
+    When I run the command "sn create <folder> --oem=<oem> --workflow-handle='<workflowHandle>'"
     Then I should have a solution under "<folder>" named "<folder>" with oem "<oem>", handle "<folder>", description "<folder>" and version "<version>"
     And I should have a workflow under "<folder>" named "<workflowName>", handle "<workflowHandle>" with description "<workflowDesc>"
 
