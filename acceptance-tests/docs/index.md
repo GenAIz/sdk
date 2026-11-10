@@ -73,6 +73,7 @@ are described plainly in [Gherkin](https://cucumber.io/docs/gherkin/) format.
 * [genaiz workspace flow](workspace/flow.md#workspace-flow)
 * [genaiz workspace list](workspace/list.md#workspace-listing)
 * [genaiz workspace node](workspace/node.md#workspace-node)
+* [genaiz workspace run](workspace/run.md#workspace-run)
 
 ## Model Validation
 

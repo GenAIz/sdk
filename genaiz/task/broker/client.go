@@ -1482,7 +1482,7 @@ func (c *client) ListWorkspaceRuns(workspaceId int64, mask, flags int) ([]Worksp
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspaceFlow, "read"); err == nil {
+		if url, err = c.makeUrl(apiVersion1, pathRun, "listByWorkspace"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]WorkspaceRun

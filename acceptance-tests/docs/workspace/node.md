@@ -4,14 +4,13 @@ Node is a command group of workspace which targets node instances created under 
 inception. A node id is always a requirement for being able to configure a Node's Smart Function parameters before
 executing the Flow.
 
-* [Workspace Node](#workspace-node)
-    * [node data list](#node-data-list)
-    * [node data set](#node-data-set)
-    * [node data src add](#node-data-src-add)
-    * [node data src rm](#node-data-src-rm)
-    * [node data str add](#node-data-str-add)
-    * [node data str rm](#node-data-str-rm)
-    * [node list](#node-list)
+* [node data list](#node-data-list)
+* [node data set](#node-data-set)
+* [node data src add](#node-data-src-add)
+* [node data src rm](#node-data-src-rm)
+* [node data str add](#node-data-str-add)
+* [node data str rm](#node-data-str-rm)
+* [node list](#node-list)
 
 ### node data list
 

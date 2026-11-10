@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cast"
 
+	"genaiz.com/genaiz-lib/lang/slicez"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker/run"
 	"genaiz.com/genaiz/task/broker/workspace"
@@ -16,11 +17,14 @@ import (
 
 var (
 	RunTasks struct {
+		ListRunTaskFactory    RunListTaskFactory    // ListRunTaskFactory builds a task, which can be used with an instance of RunListParams to list the runs owned by a Workspace
 		ResolveRunTaskFactory RunResolveTaskFactory // ResolveRunTaskFactory builds a task, which can be used with an instance of RunResolveParams to find if a specified Flow already has a run ready to fire.
 		StartRunTaskFactory   RunStartTaskFactory   // StartRunTaskFactory builds a task, which can be used with an instance of RunStartParams to create a run from a Workspace Flow.
 	}
 )
 
+type RunListTask = *task.Task[RunListParams]
+type RunListTaskFactory = func() RunListTask
 type RunResolveTask = *task.Task[RunResolveParams]
 type RunResolveTaskFactory = func() RunResolveTask
 type RunStartTask = *task.Task[RunStartParams]
@@ -65,6 +69,24 @@ func (f RunFilter) FirstStarted(runs []WorkspaceRun) *WorkspaceRun {
 	}
 
 	return nil
+}
+
+type RunListParams struct {
+	Broker
+	*workspace.FlowReadParams
+	Since *time.Time
+}
+
+func (p *RunListParams) GetRunFlags() (int, int) {
+	return WorkspaceRunFlags.Active, WorkspaceRunFlags.Active
+}
+
+func (p *RunListParams) GetWorkspaceId() *int64 {
+	if p.FlowReadParams == nil {
+		return nil
+	}
+
+	return p.FlowReadParams.WorkspaceId
 }
 
 type RunResolveParams struct {
@@ -139,6 +161,80 @@ func (p *RunStartParams) GetRunId() *int64 {
 	}
 
 	return p.StartParams.RunId
+}
+
+func handleRunListComplete(params *RunListParams, state *task.State) error {
+	if state.Output != "" {
+		var brokerClient Client
+		var err error
+
+		state.Logger.Debugf("Listing runs for workspace [%s]", state.Output)
+
+		if brokerClient, err = params.GetClient(); err == nil {
+			var workspaceId = *params.GetWorkspaceId()
+			var mask, flags = params.GetRunFlags()
+			var runs []WorkspaceRun
+
+			state.Logger.Debugf("Filtering runs before [%s]", params.Since.Format(time.DateOnly))
+
+			if runs, err = brokerClient.ListWorkspaceRuns(workspaceId, mask, flags); err == nil {
+				var filtered = slicez.Filter(runs, func(workspaceRun WorkspaceRun) bool {
+					if workspaceRun.Created != nil {
+						var created = time.UnixMilli(*workspaceRun.Created)
+
+						return created.After(*params.Since)
+					}
+
+					return false
+				})
+
+				state.Internal = filtered
+				return nil
+			}
+		}
+
+		return err
+	}
+
+	return run.Errors.RunWorkspaceUnknown()
+}
+
+func handleRunListContext(params *RunListParams, state *task.State) error {
+	if state.Output == "" {
+		var workspaceId = params.GetWorkspaceId()
+
+		if workspaceId == nil {
+			return run.Errors.RunWorkspaceUnknown()
+		}
+
+		if params.Since == nil {
+			return run.Errors.RunListUnlimited()
+		}
+
+		state.Output = cast.ToString(*workspaceId)
+	}
+
+	return nil
+}
+
+func handleRunListPretend(params *RunListParams, state *task.State) error {
+	var brokerClient Client
+	var err error
+
+	if brokerClient, err = params.GetClient(); err == nil {
+		var workspaceId = *params.GetWorkspaceId()
+		var mask, flags = params.GetRunFlags()
+
+		state.Logger.Debugf("Pretending to list workspace runs for workspace [%d]", workspaceId)
+		fmt.Printf("genaiz raw get %s \\\n", brokerClient.ListWorkspaceRunsUrl())
+		fmt.Printf("  -f workspaceId=%d \\\n", workspaceId)
+		fmt.Printf("  -f mask=%d \\\n", mask)
+		fmt.Printf("  -f flags=%d \\\n", flags)
+		fmt.Println("  -r .")
+		return nil
+	}
+
+	return err
 }
 
 func handleRunResolveComplete(params *RunResolveParams, state *task.State) error {
@@ -379,7 +475,7 @@ func handleRunStartPretend(params *RunStartParams, state *task.State) error {
 				state.Logger.Debugf("Pretending to start workspace run id [%d]", *runId)
 				fmt.Printf("genaiz raw get %s \\\n", brokerClient.StartWorkspaceRunUrl())
 				fmt.Printf("  -f id=%d\\\n", *runId)
-				fmt.Printf("  -r .run")
+				fmt.Println("  -r .run")
 				return nil
 			}
 
@@ -393,8 +489,18 @@ func handleRunStartPretend(params *RunStartParams, state *task.State) error {
 }
 
 func init() {
+	RunTasks.ListRunTaskFactory = newRunListTask
 	RunTasks.ResolveRunTaskFactory = newRunResolveTask
 	RunTasks.StartRunTaskFactory = newRunStartTask
+}
+
+func newRunListTask() RunListTask {
+	return &task.Task[RunListParams]{
+		Name:       "run-list",
+		OnPrepare:  handleRunListContext,
+		OnComplete: handleRunListComplete,
+		OnPretend:  handleRunListPretend,
+	}
 }
 
 func newRunResolveTask() RunResolveTask {

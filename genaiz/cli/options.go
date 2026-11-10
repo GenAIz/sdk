@@ -517,6 +517,26 @@ var (
 			},
 		},
 		Runs: runOptions{
+			listOptions: listOptions{
+				DateMonthly: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("monthly").
+						WithUsage("filters the result sets for runs created this month").
+						WithDefaultValue(cast.ToString(false))
+				},
+				DateToday: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("today").
+						WithUsage("filters the result sets for runs created today").
+						WithDefaultValue(cast.ToString(false))
+				},
+				DateWeekly: func() OptionBuilder {
+					return NewOptionBuilder().
+						WithParam("weekly").
+						WithUsage("filters the result sets for runs created this week").
+						WithDefaultValue(cast.ToString(false))
+				},
+			},
 			Name: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("name").
@@ -986,6 +1006,7 @@ type proxyOptions struct {
 }
 
 type runOptions struct {
+	listOptions
 	Name func() OptionBuilder
 }
 

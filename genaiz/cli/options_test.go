@@ -750,6 +750,33 @@ func Test_OptionsProxyUdp(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
+func Test_OptionsRunsDateMonthly(t *testing.T) {
+	var testOption = Options.Runs.DateMonthly().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsRunsDateToday(t *testing.T) {
+	var testOption = Options.Runs.DateToday().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsRunsDateWeekly(t *testing.T) {
+	var testOption = Options.Runs.DateWeekly().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
 func Test_OptionsRunsName(t *testing.T) {
 	var testOption = Options.Runs.Name().BuildStringOption()
 

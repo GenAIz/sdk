@@ -7,10 +7,12 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 
+	"genaiz.com/genaiz-lib/lang/timez"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker/run"
 	"genaiz.com/genaiz/task/broker/workspace"
@@ -83,6 +85,212 @@ func TestRunResolveParams_SetFlowId(t *testing.T) {
 	assert.Equal(t, expectedId, *testParams.FlowId)
 	testParams.SetFlowId(new(int64(42)))
 	assert.NotEqual(t, expectedId, *testParams.FlowId)
+}
+
+func Test_handleRunListComplete(t *testing.T) {
+	var testState = &task.State{
+		Output: "output",
+		Logger: testLogger,
+	}
+	var testParams = &RunListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		FlowReadParams: &workspace.FlowReadParams{
+			WorkspaceId: new(int64(73)),
+		},
+		Since: timez.NewTodayTime(),
+	}
+	var expectedRuns = []WorkspaceRun{
+		{
+			Id: new(int64(37)),
+		},
+		{
+			Id:      new(int64(42)),
+			Created: new(time.Now().UnixMilli()),
+		},
+		{
+			Id:      new(int64(69)),
+			Created: new(time.Now().Add(-48 * time.Hour).UnixMilli()),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubRunClient{
+			listRuns: expectedRuns,
+		}, nil
+	}
+
+	assert.NoError(t, handleRunListComplete(testParams, testState))
+
+	if actual, ok := testState.Internal.([]WorkspaceRun); ok {
+		assert.Equal(t, 1, len(actual))
+		assert.Equal(t, expectedRuns[1].Id, actual[0].Id)
+	} else {
+		assert.Fail(t, "expected a slice of WorkspaceRun")
+	}
+}
+
+func Test_handleRunListComplete_ListError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Output: "output",
+		Logger: testLogger,
+	}
+	var testParams = &RunListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		FlowReadParams: &workspace.FlowReadParams{
+			WorkspaceId: new(int64(73)),
+		},
+		Since: timez.NewTodayTime(),
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubRunClient{
+			listRunsError: expectedError,
+		}, nil
+	}
+
+	assert.ErrorIs(t, handleRunListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleRunListComplete_NoOutput(t *testing.T) {
+	assert.ErrorIs(t, handleRunListComplete(&RunListParams{}, &task.State{}),
+		run.Errors.RunWorkspaceUnknown())
+}
+
+func Test_handleRunListComplete_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Output: "output",
+		Logger: testLogger,
+	}
+	var testParams = &RunListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleRunListComplete(testParams, testState), expectedError)
+}
+
+func Test_handleRunListContext(t *testing.T) {
+	var testParams = &RunListParams{
+		FlowReadParams: &workspace.FlowReadParams{
+			WorkspaceId: new(int64(73)),
+		},
+		Since: timez.NewTodayTime(),
+	}
+
+	assert.NoError(t, handleRunListContext(testParams, &task.State{}))
+}
+
+func Test_handleRunListContext_KnownOutput(t *testing.T) {
+	var testState = &task.State{Output: "output"}
+
+	assert.NoError(t, handleRunListContext(&RunListParams{}, testState))
+}
+
+func Test_handleRunListContext_SinceMissing(t *testing.T) {
+	var testParams = &RunListParams{
+		FlowReadParams: &workspace.FlowReadParams{
+			WorkspaceId: new(int64(42)),
+		},
+	}
+
+	assert.ErrorIs(t, handleRunListContext(testParams, &task.State{}), run.Errors.RunListUnlimited())
+}
+
+func Test_handleRunListContext_WorkspaceUnknown(t *testing.T) {
+	var testParams = &RunListParams{}
+
+	assert.ErrorIs(t, handleRunListContext(testParams, &task.State{}), run.Errors.RunWorkspaceUnknown())
+}
+
+func Test_handleRunListPretend(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Output: "output",
+		Logger: testLogger,
+	}
+	var testParams = &RunListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+		FlowReadParams: &workspace.FlowReadParams{
+			WorkspaceId: new(int64(96)),
+		},
+	}
+	var restoredFactory = clientFactory.Get
+	var stdoutRestore = os.Stdout
+	var r, w, _ = os.Pipe()
+
+	os.Stdout = w
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+		os.Stdout = stdoutRestore
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return &stubRunClient{}, nil
+	}
+
+	assert.NoError(t, handleRunListPretend(testParams, testState), expectedError)
+
+	_ = w.Close()
+	b, _ := io.ReadAll(r)
+	output := string(b)
+
+	assert.Contains(t, output, fmt.Sprintf("-f workspaceId=%d", *testParams.WorkspaceId))
+	assert.Contains(t, output, fmt.Sprintf("-f mask=%d", WorkspaceRunFlags.Active))
+	assert.Contains(t, output, fmt.Sprintf("-f flags=%d", WorkspaceRunFlags.Active))
+	assert.Contains(t, output, "-r .")
+}
+
+func Test_handleRunListPretend_SessionError(t *testing.T) {
+	var expectedError = errors.New("expected")
+	var testState = &task.State{
+		Output: "output",
+		Logger: testLogger,
+	}
+	var testParams = &RunListParams{
+		Broker: Broker{
+			AuthFile: "file",
+			HostAddr: "hostAddr",
+		},
+	}
+	var restoredFactory = clientFactory.Get
+
+	defer func() {
+		clientFactory.Get = restoredFactory
+	}()
+	clientFactory.Get = func(authFile, addr string) (Client, error) {
+		return nil, expectedError
+	}
+
+	assert.ErrorIs(t, handleRunListPretend(testParams, testState), expectedError)
 }
 
 func Test_handleRunResolveComplete(t *testing.T) {
@@ -1001,6 +1209,15 @@ func Test_handleRunStartPretend_StateError(t *testing.T) {
 	}
 
 	assert.ErrorIs(t, handleRunStartPretend(&RunStartParams{}, testState), expectedErrors)
+}
+
+func TestRunTasks_ListRunTask(t *testing.T) {
+	var testTask = RunTasks.ListRunTaskFactory()
+
+	assert.NotEmpty(t, testTask.Name)
+	assert.NotNil(t, testTask.OnPrepare)
+	assert.NotNil(t, testTask.OnComplete)
+	assert.NotNil(t, testTask.OnPretend)
 }
 
 func TestRunTasks_ResolveRunTask(t *testing.T) {

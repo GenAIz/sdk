@@ -16,6 +16,7 @@ type runErrors struct {
 	runFlowUnknown      task.Error
 	runIdKnown          task.Error
 	runIdRequired       task.Error
+	runListUnlimited    task.Error
 	runSolutionUnknown  task.Error
 	runUnprepared       task.Error
 	runWorkflowUnknown  task.Error
@@ -46,6 +47,11 @@ func (e *runErrors) RunIdKnown() error {
 func (e *runErrors) RunIdRequired() error {
 	return e.SetOrReturn(&e.runIdRequired,
 		task.MakeErrorProvider("run id is required"))
+}
+
+func (e *runErrors) RunListUnlimited() error {
+	return e.SetOrReturn(&e.runListUnlimited,
+		task.MakeErrorProvider("run lists should be time limited"))
 }
 
 func (e *runErrors) RunSolutionUnknown() error {
