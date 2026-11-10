@@ -1,6 +1,6 @@
 # GenAIz CLI
 
-<sub>Genaiz Version 1.0.10</sub>
+<sub>Genaiz Version 1.0.11</sub>
 
 The GenAIz CLI is a tool for creating, building and publishing Smart Functions to the GenAIz Orchestration platform. It
 also provides toolkits to manage Orchestrated Workspaces and execute their Workflows.

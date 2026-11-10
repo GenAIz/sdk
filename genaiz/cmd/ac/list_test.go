@@ -3,66 +3,50 @@ package ac
 import (
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz-lib/mock"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/mgmt"
+	"genaiz.com/genaiz/mgmt/accounts"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
 
-type stubUserAccountFacade struct {
-	getAccounts []mgmt.UserAccount
-	getError    task.Error
-	filter      string
-	logger      *logrus.Logger
-	params      *broker.AuthParams
+type stubUserAccountsFactory struct {
+	mgmt.ProviderFactory[broker.AccountListParams, []accounts.UserAccount]
 }
 
-func (s *stubUserAccountFacade) Filtering(filter string) mgmt.Provider[[]mgmt.UserAccount] {
-	s.filter = filter
-	return s
+type stubUserAccountsProvider struct {
+	accounts []accounts.UserAccount
+	getError task.Error
 }
 
-func (s *stubUserAccountFacade) Get() ([]mgmt.UserAccount, task.Error) {
-	return s.getAccounts, s.getError
-}
-
-func (s *stubUserAccountFacade) Provider() mgmt.Provider[[]mgmt.UserAccount] {
-	return s
-}
-
-func (s *stubUserAccountFacade) WithLogger(logger *logrus.Logger) mgmt.Facade[[]mgmt.UserAccount, broker.AuthParams] {
-	s.logger = logger
-	return s
-}
-
-func (s *stubUserAccountFacade) WithParams(params *broker.AuthParams) mgmt.Facade[[]mgmt.UserAccount, broker.AuthParams] {
-	s.params = params
-	return s
+func (s stubUserAccountsProvider) Get() ([]accounts.UserAccount, task.Error) {
+	return s.accounts, s.getError
 }
 
 func TestListExecutor_List(t *testing.T) {
 	var expectedFilter = "filter"
 	var testViper = viper.New()
 	var testLedger = config.NewBuilder().WithViper(testViper).Build()
-	var testUserAccountFacade = &stubUserAccountFacade{}
+	var testFactory = &stubUserAccountsFactory{}
+	var testProvider = &stubUserAccountsProvider{}
 	var testExecutor = &ListExecutor{
 		ListOption: NewListOptions(),
 
 		ledger:        testLedger,
 		printerParams: &stubCliPrinterParametric{},
-		userAccountFacadeProvider: func() mgmt.UserAccountFacade {
-			return testUserAccountFacade
-		},
+		userAccountsFactory: testFactory.WithProvider(
+			func(p accounts.UserAccountsProviderFactory) accounts.UserAccountsProvider {
+				return testProvider
+			},
+		),
 	}
 
 	assert.NoError(t, testExecutor.List(expectedFilter))
-	assert.Equal(t, expectedFilter, testUserAccountFacade.filter)
-	assert.Empty(t, testUserAccountFacade.getAccounts)
+	assert.Equal(t, &expectedFilter, testFactory.Filter)
 }
 
 func TestNewListExecutor_ListError(t *testing.T) {

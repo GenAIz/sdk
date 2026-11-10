@@ -6,6 +6,7 @@ import (
 	"genaiz.com/genaiz-lib/lang/panicz"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/mgmt"
+	"genaiz.com/genaiz/mgmt/accounts"
 	"genaiz.com/genaiz/task/broker"
 )
 
@@ -25,7 +26,7 @@ type autoBridge struct {
 }
 
 type bridgeAccounts struct {
-	facadeProvider func() mgmt.UserAccountFacade
+	providerFactory accounts.UserAccountsFactory
 }
 
 func (ba bridgeAccounts) Arguments(cmd *cobra.Command, ledger *config.Ledger) {
@@ -34,12 +35,14 @@ func (ba bridgeAccounts) Arguments(cmd *cobra.Command, ledger *config.Ledger) {
 	}
 }
 
-func (ba bridgeAccounts) Complete(facade mgmt.UserAccountFacade, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
-	if accounts, err := facade.Filtering(toComplete).Get(); err == nil {
-		if len(accounts) > 0 {
+func (ba bridgeAccounts) Complete(provider accounts.UserAccountsFactory, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+	var uaProvider = provider.WithFilter(toComplete).Provider()
+
+	if userAccounts, err := uaProvider.Get(); err == nil {
+		if len(userAccounts) > 0 {
 			var results []cobra.Completion
 
-			for _, a := range accounts {
+			for _, a := range userAccounts {
 				results = append(results, a.Matched())
 			}
 
@@ -62,15 +65,16 @@ func (ba bridgeAccounts) Option(cmd *cobra.Command, ledger *config.Ledger, optio
 }
 
 func (ba bridgeAccounts) bridge(ledger *config.Ledger, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
-	var facade = ba.facadeProvider().
+	var factory = ba.providerFactory.
 		WithLogger(ledger.Logger).
-		WithParams(&broker.AuthParams{
-			Broker: &broker.Broker{
+		WithFilter(toComplete).
+		WithParams(&broker.AccountListParams{
+			Broker: broker.Broker{
 				AuthFile: ledger.AuthFile,
 			},
 		})
 
-	return ba.Complete(facade, toComplete)
+	return ba.Complete(factory, toComplete)
 }
 
 type bridgeSolutions struct {
@@ -128,7 +132,7 @@ func init() {
 	AutoBridge = &autoBridge{
 		Accounts: func() AutoRegistering {
 			return &bridgeAccounts{
-				facadeProvider: mgmt.NewUserAccountFacade,
+				providerFactory: accounts.NewUserAccountsFactory(),
 			}
 		},
 		Solutions: func() AutoRegistering {
