@@ -233,8 +233,8 @@ func TestAuthData_Write(t *testing.T) {
 }
 
 func TestAuthSession_IsExpired(t *testing.T) {
-	assert.True(t, NewAuthSession(&Session{Expiry: 0}, "username", "token").IsExpired())
-	assert.False(t, NewAuthSession(&Session{Expiry: -1}, "username", "token").IsExpired())
+	assert.True(t, NewAuthSession(&Session{Expiry: 0}, "", "username", "token").IsExpired())
+	assert.False(t, NewAuthSession(&Session{Expiry: -1}, "", "username", "token").IsExpired())
 }
 
 func TestNewActivateTask(t *testing.T) {

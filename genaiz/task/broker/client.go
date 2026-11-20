@@ -33,6 +33,7 @@ const (
 	defaultExpiryMinutes  = 5 * 24 * 60
 	defaultTimeoutSeconds = 30
 
+	apiPrefix1        path    = "com.genaiz.broker"
 	apiVersion1       version = "v1"
 	pathDataLink      path    = "datalink"
 	pathDataSet       path    = "dataset"
@@ -253,6 +254,7 @@ type Client interface {
 }
 
 type client struct {
+	ApiPrefix string
 	AuthToken string
 	Expiry    int
 	HostAddr  string
@@ -675,7 +677,7 @@ func (c *client) CreateDataSet(dataSet *DataSet) (*DataSet, error) {
 }
 
 func (c *client) CreateDataSetUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSet, "create")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSet, "create")
 }
 
 func (c *client) CreateDataSource(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -719,7 +721,7 @@ func (c *client) CreateDataSource(instance *DataLinkInstance, props map[string]s
 }
 
 func (c *client) CreateDataSourceUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "create")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "create")
 }
 
 func (c *client) CreateDataStore(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -763,7 +765,7 @@ func (c *client) CreateDataStore(instance *DataLinkInstance, props map[string]st
 }
 
 func (c *client) CreateDataStoreUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "create")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "create")
 }
 
 func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
@@ -803,7 +805,7 @@ func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
 }
 
 func (c *client) CreateWorkspaceUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "create")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "create")
 }
 
 func (c *client) CreateWorkspaceFlow(workspaceId int64, workflowId int64, name string, description string) (*WorkspaceFlow, error) {
@@ -845,7 +847,7 @@ func (c *client) CreateWorkspaceFlow(workspaceId int64, workflowId int64, name s
 }
 
 func (c *client) CreateWorkspaceFlowUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "flow", "create")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "flow", "create")
 }
 
 func (c *client) CreateWorkspaceRun(flowId int64, name string, start bool) (*WorkspaceRun, error) {
@@ -886,7 +888,7 @@ func (c *client) CreateWorkspaceRun(flowId int64, name string, start bool) (*Wor
 }
 
 func (c *client) CreateWorkspaceRunUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathRun, "create")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathRun, "create")
 }
 
 func (c *client) ExportDataLink(oem, handle, version, sequence string) (*DataLink, error) {
@@ -1007,7 +1009,7 @@ func (c *client) FindSolution(oem, handle, version string) (*Solution, error) {
 }
 
 func (c *client) FindSolutionUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "readByFqdn")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "readByFqdn")
 }
 
 func (c *client) GetAuthToken() string {
@@ -1055,7 +1057,7 @@ func (c *client) GetFunction(id int64) (*Function, error) {
 }
 
 func (c *client) GetFunctionUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "get")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "get")
 }
 
 func (c *client) GetHostAddr() string {
@@ -1099,7 +1101,7 @@ func (c *client) GetNode(id int64) (*WorkspaceNode, error) {
 }
 
 func (c *client) GetNodeUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "get")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "get")
 }
 
 func (c *client) GetSolution(id int64) (*Solution, error) {
@@ -1139,7 +1141,7 @@ func (c *client) GetSolution(id int64) (*Solution, error) {
 }
 
 func (c *client) GetSolutionUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "get")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "get")
 }
 
 func (c *client) GetTimeout() int {
@@ -1189,7 +1191,7 @@ func (c *client) InspectNode(id int64) (*WorkspaceNode, error) {
 }
 
 func (c *client) InspectNodeUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "read")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "read")
 }
 
 func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error) {
@@ -1231,7 +1233,7 @@ func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error
 }
 
 func (c *client) ListDataLinksUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "list")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "list")
 }
 
 func (c *client) ListDataSetFiles(id int64, path string) ([]DataSetFile, error) {
@@ -1272,7 +1274,7 @@ func (c *client) ListDataSetFiles(id int64, path string) ([]DataSetFile, error) 
 }
 
 func (c *client) ListDataSetFilesUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSetFile, "list")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSetFile, "list")
 }
 
 func (c *client) ListDataSources() ([]DataLinkInstance, error) {
@@ -1310,7 +1312,7 @@ func (c *client) ListDataSources() ([]DataLinkInstance, error) {
 }
 
 func (c *client) ListDataSourcesUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "list")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "list")
 }
 
 func (c *client) ListDataStores() ([]DataLinkInstance, error) {
@@ -1348,7 +1350,7 @@ func (c *client) ListDataStores() ([]DataLinkInstance, error) {
 }
 
 func (c *client) ListDataStoresUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "list")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "list")
 }
 
 func (c *client) ListSolutions(oem string) ([]Solution, error) {
@@ -1390,7 +1392,7 @@ func (c *client) ListSolutions(oem string) ([]Solution, error) {
 }
 
 func (c *client) ListSolutionsUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "list")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "list")
 }
 
 func (c *client) ListWorkspaceFlows(workspaceId int64, mask, flags int) ([]WorkspaceFlow, error) {
@@ -1433,7 +1435,7 @@ func (c *client) ListWorkspaceFlows(workspaceId int64, mask, flags int) ([]Works
 }
 
 func (c *client) ListWorkspaceFlowsUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "listByWorkspace")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "listByWorkspace")
 }
 
 func (c *client) ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error) {
@@ -1474,7 +1476,7 @@ func (c *client) ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error) {
 }
 
 func (c *client) ListWorkspaceNodesUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "read")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "read")
 }
 
 func (c *client) ListWorkspaceRuns(workspaceId int64, mask, flags int) ([]WorkspaceRun, error) {
@@ -1517,7 +1519,7 @@ func (c *client) ListWorkspaceRuns(workspaceId int64, mask, flags int) ([]Worksp
 }
 
 func (c *client) ListWorkspaceRunsUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathRun, "listByWorkspace")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathRun, "listByWorkspace")
 }
 
 func (c *client) ListWorkspaces(mask, flags int) ([]Workspace, error) {
@@ -1558,7 +1560,7 @@ func (c *client) ListWorkspaces(mask, flags int) ([]Workspace, error) {
 }
 
 func (c *client) ListWorkspacesUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "list")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "list")
 }
 
 func (c *client) Login(username string, enclave *memguard.Enclave) (*AuthSession, error) {
@@ -1582,7 +1584,8 @@ func (c *client) Login(username string, enclave *memguard.Enclave) (*AuthSession
 			Post(url)
 
 		if err == nil {
-			return c.sessionOrError(resp, username)
+			// Kludge: the prefix is hardcoded on version 1.1.0 because we have no mechanism for discovery
+			return c.sessionOrError(resp, string(apiPrefix1), username)
 		}
 	}
 
@@ -1590,7 +1593,7 @@ func (c *client) Login(username string, enclave *memguard.Enclave) (*AuthSession
 }
 
 func (c *client) LoginUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "create")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSession, "create")
 }
 
 func (c *client) Logout(sessionId string) error {
@@ -1625,7 +1628,7 @@ func (c *client) Logout(sessionId string) error {
 }
 
 func (c *client) LogoutUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "delete")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSession, "delete")
 }
 
 func (c *client) OidcDeviceCode(deviceUrl string, deviceClient *DeviceClient) (*DeviceAuth, error) {
@@ -1732,7 +1735,8 @@ func (c *client) OidcTokenSession(tokenUrl, token string) (*AuthSession, error) 
 			}).
 			Post(url)
 
-		return c.sessionOrError(resp, filepath.Base(tokenUrl))
+		// Kludge: the prefix is hardcoded on version 1.1.0 because we have no mechanism for discovery
+		return c.sessionOrError(resp, string(apiPrefix1), filepath.Base(tokenUrl))
 	}
 
 	return nil, err
@@ -1809,7 +1813,7 @@ func (c *client) ProvisionFunction(function *Function, extras map[string]any) (*
 }
 
 func (c *client) ProvisionFunctionUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "provision")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "provision")
 }
 
 func (c *client) PublishDataLink(link *DataLink) (*DataLink, error) {
@@ -1847,7 +1851,7 @@ func (c *client) PublishDataLink(link *DataLink) (*DataLink, error) {
 }
 
 func (c *client) PublishDataLinkUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "publish")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "publish")
 }
 
 func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
@@ -1885,7 +1889,7 @@ func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 }
 
 func (c *client) PublishFunctionUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "publish")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "publish")
 }
 
 func (c *client) PublishSolution(solution *Solution) (*Solution, error) {
@@ -1924,7 +1928,7 @@ func (c *client) PublishSolution(solution *Solution) (*Solution, error) {
 }
 
 func (c *client) PublishSolutionUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathOemSolution, "publish")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathOemSolution, "publish")
 }
 
 func (c *client) Session() (*Session, error) {
@@ -1958,7 +1962,7 @@ func (c *client) Session() (*Session, error) {
 }
 
 func (c *client) SessionUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathSession, "get")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSession, "get")
 }
 
 func (c *client) SessionValid(session *Session) bool {
@@ -2001,7 +2005,7 @@ func (c *client) StartWorkspaceRun(runId int64) (*WorkspaceRun, error) {
 }
 
 func (c *client) StartWorkspaceRunUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathRun, "start")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathRun, "start")
 }
 
 func (c *client) UpdateDataSource(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -2045,7 +2049,7 @@ func (c *client) UpdateDataSource(instance *DataLinkInstance, props map[string]s
 }
 
 func (c *client) UpdateDataSourceUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "update")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "update")
 }
 
 func (c *client) UpdateDataStore(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -2089,7 +2093,7 @@ func (c *client) UpdateDataStore(instance *DataLinkInstance, props map[string]st
 }
 
 func (c *client) UpdateDataStoreUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "update")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "update")
 }
 
 func (c *client) UpdateFlowStatus(flowId int64) (*WorkspaceFlow, error) {
@@ -2126,7 +2130,7 @@ func (c *client) UpdateFlowStatus(flowId int64) (*WorkspaceFlow, error) {
 }
 
 func (c *client) UpdateFlowStatusUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "updateStatus")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "updateStatus")
 }
 
 func (c *client) UpdateNode(node *WorkspaceNode) (*WorkspaceNode, error) {
@@ -2168,7 +2172,7 @@ func (c *client) UpdateNode(node *WorkspaceNode) (*WorkspaceNode, error) {
 }
 
 func (c *client) UpdateNodeUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "update")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "update")
 }
 
 func (c *client) UpdateNodeInput(nodeId, dataSetId int64, portHandle string) (*WorkspaceNode, error) {
@@ -2207,7 +2211,7 @@ func (c *client) UpdateNodeInput(nodeId, dataSetId int64, portHandle string) (*W
 }
 
 func (c *client) UpdateNodeInputUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "updateInputPort")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "updateInputPort")
 }
 
 func (c *client) UploadDataSetFile(dataSetId int64, localPath string, renamed string, path string) (*DataSet, error) {
@@ -2254,13 +2258,14 @@ func (c *client) UploadDataSetFile(dataSetId int64, localPath string, renamed st
 }
 
 func (c *client) UploadDataSetFileUrl() string {
-	return makeHostUrl(c.HostAddr, apiVersion1, pathDataSetFile, "upload")
+	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSetFile, "upload")
 }
 
 func (c *client) WithAccount(account *AuthAccount) (Client, error) {
 	panicz.RequiresNotNil("account", account)
 
 	if !account.IsExpired() {
+		c.ApiPrefix = account.ApiPrefix
 		c.AuthToken = account.Token
 		c.UserId = account.UserId
 		return c, nil
@@ -2283,6 +2288,29 @@ func (c *client) closeSilently(client io.Closer) {
 	_ = client.Close()
 }
 
+func (c *client) makeHostUrl(host string, apiVersion version, path path, rpc ...string) string {
+	var result []string
+	var apiPrefix string
+
+	if !strings.HasPrefix(host, "http") {
+		result = append(result, env.DefaultProtocolPrefix(host))
+	}
+
+	if c.ApiPrefix == "" {
+		apiPrefix = string(apiVersion)
+	} else {
+		apiPrefix = fmt.Sprintf("%s/%s", c.ApiPrefix, apiVersion)
+	}
+
+	result = append(result, sanitizeHostUrl(host), apiPrefix, string(path))
+
+	if len(rpc) > 0 {
+		result = append(result, rpc...)
+	}
+
+	return strings.Join(result, "/")
+}
+
 func (c *client) makeCookie() *http.Cookie {
 	return &http.Cookie{Name: defaultCookieName, Value: c.AuthToken}
 }
@@ -2292,10 +2320,10 @@ func (c *client) makeUrl(version version, path path, rpc ...string) (string, err
 		return "", errorInvalidHost
 	}
 
-	return makeHostUrl(c.HostAddr, version, path, rpc...), nil
+	return c.makeHostUrl(c.HostAddr, version, path, rpc...), nil
 }
 
-func (c *client) sessionOrError(resp responseBridge, username string) (*AuthSession, error) {
+func (c *client) sessionOrError(resp responseBridge, apiPrefix, username string) (*AuthSession, error) {
 	var result *AuthSession
 	var err error
 
@@ -2308,8 +2336,9 @@ func (c *client) sessionOrError(resp responseBridge, username string) (*AuthSess
 			var payload = resp.Result().(*clientPayload[Session])
 
 			c.AuthToken = cookieValue
+			c.ApiPrefix = apiPrefix
 			c.UserId = payload.Data.UserId
-			result = NewAuthSession(&payload.Data, username, cookieValue)
+			result = NewAuthSession(&payload.Data, apiPrefix, username, cookieValue)
 		}
 	} else if resp.Status() != "" {
 		err = errors.New(resp.Status())
@@ -2434,24 +2463,9 @@ func jsonExpand(bytes []byte, extras map[string]any) (map[string]any, error) {
 	return nil, err
 }
 
-func makeHostUrl(host string, apiVersion version, path path, rpc ...string) string {
-	var result []string
-
-	if !strings.HasPrefix(host, "http") {
-		result = append(result, env.DefaultProtocolPrefix(host))
-	}
-
-	result = append(result, sanitizeHostUrl(host), string(apiVersion), string(path))
-
-	if len(rpc) > 0 {
-		result = append(result, rpc...)
-	}
-
-	return strings.Join(result, "/")
-}
-
 func newClientWithBridge(addr string, expiry int, bridge func() requestBridge) Client {
 	return &client{
+		ApiPrefix:     string(apiPrefix1),
 		Expiry:        expiry,
 		HostAddr:      addr,
 		requestBridge: bridge,

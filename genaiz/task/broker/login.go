@@ -105,6 +105,7 @@ func (ad *AuthData) Push(hostAddr string, session *AuthSession) *AuthData {
 	var accounts = []*AuthAccount{
 		{
 			AuthSession: &AuthSession{
+				ApiPrefix: session.ApiPrefix,
 				Created:   session.Created,
 				Expiry:    session.Expiry,
 				SessionId: session.SessionId,
@@ -149,6 +150,7 @@ func (ad *AuthData) Write(outFile string) error {
 }
 
 type AuthSession struct {
+	ApiPrefix string
 	Created   int64
 	Expiry    int64
 	SessionId int64
@@ -184,8 +186,9 @@ func NewAuthData(authFile ...string) *AuthData {
 	return &AuthData{}
 }
 
-func NewAuthSession(session *Session, username string, token string) *AuthSession {
+func NewAuthSession(session *Session, apiPrefix, username, token string) *AuthSession {
 	return &AuthSession{
+		ApiPrefix: apiPrefix,
 		Created:   time.Now().UnixMilli(),
 		Expiry:    session.Expiry,
 		Token:     token,
