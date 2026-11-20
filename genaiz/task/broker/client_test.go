@@ -3582,20 +3582,21 @@ func Test_jsonExpand(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func Test_makeHostUrl(t *testing.T) {
+func TestClient_makeHostUrl(t *testing.T) {
 	var expectedHost = "host"
 	var expectedPrefix = env.DefaultProtocolPrefix(expectedHost)
 	var expectedAddr = expectedPrefix + "/" + expectedHost
 	var expectedVerb = "verb"
+	var testClient = &client{}
 
 	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s", expectedPrefix, expectedHost, apiVersion1, pathFunction),
-		makeHostUrl(expectedHost, apiVersion1, pathFunction))
+		testClient.makeHostUrl(expectedHost, apiVersion1, pathFunction))
 	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s/%s", expectedPrefix, expectedHost, apiVersion1, pathFunction, expectedVerb),
-		makeHostUrl(expectedHost, apiVersion1, pathFunction, expectedVerb))
+		testClient.makeHostUrl(expectedHost, apiVersion1, pathFunction, expectedVerb))
 	assert.Equal(t, fmt.Sprintf("%s/%s/%s", expectedAddr, apiVersion1, pathFunction),
-		makeHostUrl(expectedAddr, apiVersion1, pathFunction))
+		testClient.makeHostUrl(expectedAddr, apiVersion1, pathFunction))
 	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s", expectedAddr, apiVersion1, pathFunction, expectedVerb),
-		makeHostUrl(expectedAddr, apiVersion1, pathFunction, expectedVerb))
+		testClient.makeHostUrl(expectedAddr, apiVersion1, pathFunction, expectedVerb))
 }
 
 func Test_resultOrError_BadRequest(t *testing.T) {
