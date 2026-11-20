@@ -27,13 +27,6 @@ func Test_OptionsNoBrowser(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
-func Test_OptionsAccountsPassword(t *testing.T) {
-	var testOption = Options.Accounts.Password().BuildStringOption()
-
-	assert.Equal(t, schema.Genaiz.Account.Login.Password.Doc, testOption.Key)
-	assert.Equal(t, schema.Genaiz.Account.Login.Password.Env, testOption.Env)
-}
-
 func Test_OptionsAccountsRefresh(t *testing.T) {
 	var testOption = Options.Accounts.Refresh().BuildBoolOption()
 

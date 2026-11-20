@@ -23,7 +23,7 @@ func TestPlan_Sequence_Continue(t *testing.T) {
 	var testPlan = &Plan{
 		Logger:            testLogger,
 		ContinueOnFailure: true,
-		OnFailure: func(i interface{}) {
+		OnFailure: func(i any) {
 			actualError = i.(error)
 		}}
 	var testPretender = NewPretender(&testParam, &Task[string]{
@@ -58,7 +58,7 @@ func TestPlan_Sequence_Error(t *testing.T) {
 	var testParam = "param"
 	var testPlan = &Plan{
 		Logger: testLogger,
-		OnFailure: func(i interface{}) {
+		OnFailure: func(i any) {
 			actualError = i.(error)
 		},
 	}
@@ -88,12 +88,12 @@ func TestPlan_Sequence_NoSuccess(t *testing.T) {
 }
 
 func TestPlan_Sequence_OnFailure(t *testing.T) {
-	var actualError interface{}
+	var actualError any
 	var expectedError = errors.New("error")
 	var testParam = "param"
 	var testPlan = &Plan{
 		Logger: testLogger,
-		OnFailure: func(i interface{}) {
+		OnFailure: func(i any) {
 			actualError = i
 		},
 	}
@@ -134,7 +134,7 @@ func TestPlan_Sequence_OnReturn(t *testing.T) {
 	defer patch.Unpatch()
 
 	NewPlanBuilder(testLogger).
-		WithReturn(func(i interface{}) {
+		WithReturn(func(i any) {
 			actual, ok = i.(struct{ A string })
 		}).Build().Sequence(testWorker)
 	assert.False(t, patch.Called)
@@ -143,13 +143,13 @@ func TestPlan_Sequence_OnReturn(t *testing.T) {
 }
 
 func TestPlan_Sequence_OnSuccess(t *testing.T) {
-	var actualOutput interface{}
+	var actualOutput any
 	var expectedOutput = "output"
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "param"
 	var testPlan = &Plan{
 		Logger: testLogger,
-		OnSuccess: func(i interface{}) {
+		OnSuccess: func(i any) {
 			actualOutput = i
 		},
 	}
@@ -170,14 +170,14 @@ func TestPlan_Sequence_OnSuccess(t *testing.T) {
 }
 
 func TestPlan_Sequence_OnPrintReportsOnly(t *testing.T) {
-	var actualOutput interface{}
+	var actualOutput any
 	var expectedOutput = "output"
 	var expectedReport = "report"
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "param"
 	var testPlan = &Plan{
 		Logger: testLogger,
-		OnSuccess: func(i interface{}) {
+		OnSuccess: func(i any) {
 			actualOutput = i
 		},
 		PrintReportsOnly: true,
@@ -230,7 +230,7 @@ func TestNewPlan_Success(t *testing.T) {
 func TestAttempt_Complete(t *testing.T) {
 	var expectedError = errors.New("test")
 	var actualError error
-	var testPlan = &Plan{Logger: testLogger, OnFailure: func(i interface{}) {
+	var testPlan = &Plan{Logger: testLogger, OnFailure: func(i any) {
 		actualError = i.(error)
 	}}
 	var testParam = "param"
@@ -244,13 +244,13 @@ func TestAttempt_Complete(t *testing.T) {
 }
 
 func TestConditional_OnFailure(t *testing.T) {
-	var actualError interface{}
+	var actualError any
 	var expectedError = errors.New("error")
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "param"
 	var testPlan = &Plan{
 		Logger: testLogger,
-		OnFailure: func(i interface{}) {
+		OnFailure: func(i any) {
 			actualError = i
 		},
 	}
@@ -273,13 +273,13 @@ func TestConditional_OnFailure(t *testing.T) {
 }
 
 func TestConditional_OnSuccess(t *testing.T) {
-	var actualOutput interface{}
+	var actualOutput any
 	var expectedOutput = "output"
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var testParam = "param"
 	var testPlan = &Plan{
 		Logger: testLogger,
-		OnSuccess: func(i interface{}) {
+		OnSuccess: func(i any) {
 			actualOutput = i
 		},
 	}
@@ -339,10 +339,10 @@ func TestSingle_OnPrintReportsOnly(t *testing.T) {
 	var patch = mock.Patches{T: t}.OsExit(func(int) {})
 	var expectedReport = "report"
 	var testParam = "param"
-	var actual interface{}
+	var actual any
 	var testPlan = &Plan{
 		Logger: testLogger,
-		OnSuccess: func(i interface{}) {
+		OnSuccess: func(i any) {
 			actual = i
 		},
 		PrintReportsOnly: true,
@@ -369,7 +369,7 @@ func TestSingle_OnReturn(t *testing.T) {
 	var actualReturn string
 	var testPlan = &Plan{
 		Logger: testLogger,
-		OnReturn: func(i interface{}) {
+		OnReturn: func(i any) {
 			actualReturn = cast.ToString(i)
 		}}
 

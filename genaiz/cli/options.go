@@ -21,10 +21,6 @@ var (
 					WithUsage("prevents the shell from redirecting login urls to the system default browser").
 					WithDefaultValue(cast.ToString(false))
 			},
-			Password: func() OptionBuilder {
-				return NewOptionBuilder().
-					WithKeys(&schema.Genaiz.Account.Login.Password)
-			},
 			Refresh: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithKeys(&schema.Genaiz.Account.Login.Refresh).
@@ -867,7 +863,6 @@ var (
 
 type accountOptions struct {
 	NoBrowser func() OptionBuilder
-	Password  func() OptionBuilder
 	Refresh   func() OptionBuilder
 	Username  func() OptionBuilder
 }

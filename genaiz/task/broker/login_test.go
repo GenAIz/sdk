@@ -255,15 +255,6 @@ func TestNewInspectTask(t *testing.T) {
 	assert.Empty(t, actual.OnPretend)
 }
 
-func TestNewLoginTask(t *testing.T) {
-	var actual = NewLoginTask()
-
-	assert.NotEmpty(t, actual.Name)
-	assert.NotEmpty(t, actual.OnPrepare)
-	assert.NotEmpty(t, actual.OnComplete)
-	assert.Empty(t, actual.OnPretend)
-}
-
 func TestNewLogoutTask(t *testing.T) {
 	var actual = NewLogoutTask()
 
@@ -712,113 +703,6 @@ func Test_handleLoginContext(t *testing.T) {
 		assert.NoError(t, handleLoginContext(testParams, testState))
 	} else {
 		assert.Fail(t, err.Error())
-	}
-}
-
-func Test_handleLoginCreate_LoginErr(t *testing.T) {
-	var dir = t.TempDir()
-
-	if fd, err := os.CreateTemp(dir, "genaiz.login*"); err == nil {
-		var restoredFactory = clientFactory.New
-		var testState = &task.State{Logger: logrus.New()}
-		var testParams = &LoginParams{
-			Broker: &Broker{
-				AuthFile: fd.Name(),
-				HostAddr: "hostAddr",
-			},
-			Username: "username",
-			Password: memguard.NewEnclave([]byte("password")),
-		}
-		var expectedError = errors.New("expected")
-
-		defer func() {
-			clientFactory.New = restoredFactory
-		}()
-		clientFactory.New = func(hostAddr string) Client {
-			return &stubLoginClient{
-				loginErr: expectedError,
-			}
-		}
-
-		assert.ErrorIs(t, handleLoginCreate(testParams, testState), expectedError)
-	}
-}
-
-func Test_handleLoginCreate_TokenPresent(t *testing.T) {
-	assert.NoError(t, handleLoginCreate(&LoginParams{}, &task.State{Output: "token"}))
-}
-
-func Test_handleLoginCreate_WriteErr(t *testing.T) {
-	var dir = t.TempDir()
-
-	if fd, err := os.CreateTemp(dir, "genaiz.login*"); err == nil {
-		var restoredFactory = clientFactory.New
-		var testState = &task.State{Logger: logrus.New()}
-		var testParams = &LoginParams{
-			Broker: &Broker{
-				AuthFile: fd.Name(),
-				HostAddr: "hostAddr",
-			},
-			Username: "username",
-			Password: memguard.NewEnclave([]byte("password")),
-		}
-
-		panicz.PanicIfError(os.Chmod(fd.Name(), 0400))
-
-		defer func() {
-			clientFactory.New = restoredFactory
-		}()
-		clientFactory.New = func(hostAddr string) Client {
-			return &stubLoginClient{
-				session: &AuthSession{
-					Token:    "token",
-					Username: "user",
-				},
-			}
-		}
-
-		assert.Error(t, handleLoginCreate(testParams, testState))
-	}
-}
-
-func Test_handleLoginCreate(t *testing.T) {
-	var dir = t.TempDir()
-
-	if fd, err := os.CreateTemp(dir, "genaiz.login*"); err == nil {
-		var expectedHost = "hostAddr"
-		var expectedUser = "username"
-		var expectedToken = "token"
-		var testState = &task.State{Logger: logrus.New()}
-		var testParams = &LoginParams{
-			Broker: &Broker{
-				AuthFile: fd.Name(),
-				HostAddr: expectedHost,
-			},
-			Username: expectedUser,
-			Password: memguard.NewEnclave([]byte("password")),
-		}
-		var restoredFactory = clientFactory.New
-		var actual *AuthAccount
-
-		defer func() {
-			clientFactory.New = restoredFactory
-		}()
-		clientFactory.New = func(hostAddr string) Client {
-			return &stubLoginClient{
-				session: &AuthSession{
-					Token:    expectedToken,
-					Username: expectedUser,
-				},
-			}
-		}
-
-		assert.NoError(t, handleLoginCreate(testParams, testState))
-
-		if actual, err = NewAuthData(fd.Name()).ForHostUser(expectedHost, expectedUser); err == nil {
-			assert.Equal(t, actual.Token, expectedToken)
-		}
-
-		assert.NoError(t, err)
 	}
 }
 

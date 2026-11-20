@@ -2,16 +2,12 @@ package ac
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/awnumar/memguard"
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
 	"genaiz.com/genaiz/lang"
-	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task"
 	"genaiz.com/genaiz/task/broker"
 )
@@ -26,11 +22,8 @@ type LoginExecutor struct {
 	Ledger *config.Ledger
 
 	optionNoBrowser *config.BoolOption
-	optionPassword  *config.StringOption
 	optionRefresh   *config.BoolOption
-	optionUsername  *config.StringOption
 
-	loginTaskFactory   LoginTaskFactory
 	oidcTaskFactory    OidcTaskFactory
 	sessionTaskFactory SessionTaskFactory
 }
@@ -62,9 +55,7 @@ func (le *LoginExecutor) Login(brokerAddr string) {
 func (le *LoginExecutor) allDefiners() []config.Definer {
 	return []config.Definer{
 		le.optionNoBrowser,
-		le.optionPassword,
 		le.optionRefresh,
-		le.optionUsername,
 	}
 }
 
@@ -80,36 +71,13 @@ func (le *LoginExecutor) loginWithOidc(brokerParams *broker.Broker) {
 		},
 	}
 
-	oidcPlan.Single(oidcWorker, func(msg interface{}) {
-		if strings.EqualFold(cast.ToString(msg), broker.ErrorOidcNotSupported.Error()) {
-			oidcError = msg.(error)
-			le.loginWithUsername(brokerParams)
-		} else {
-			lang.HandleExit(msg)
-		}
-	})
-}
-
-func (le *LoginExecutor) loginWithUsername(brokerParams *broker.Broker) {
-	var params = le.makeLoginParams(brokerParams)
-	var loginPlan = task.NewPlan("Login", le.Ledger.Logger)
-
-	loginPlan.OnSuccess = le.printSuccessHandler(brokerParams)
-	task.Single(loginPlan, params, le.loginTaskFactory())
+	oidcPlan.Single(oidcWorker, lang.HandleExit)
 }
 
 func (le *LoginExecutor) makeBrokerParams(brokerAddr string) *broker.Broker {
 	return &broker.Broker{
 		AuthFile: le.Ledger.AuthFile,
 		HostAddr: brokerAddr,
-	}
-}
-
-func (le *LoginExecutor) makeLoginParams(brokerParams *broker.Broker) *broker.LoginParams {
-	return &broker.LoginParams{
-		Broker:   brokerParams,
-		Username: le.queryUsername(),
-		Password: le.queryPassword(),
 	}
 }
 
@@ -126,32 +94,12 @@ func (le *LoginExecutor) printSuccessHandler(brokerParams *broker.Broker) func(i
 	}
 }
 
-func (le *LoginExecutor) queryPassword() *memguard.Enclave {
-	var password = le.Ledger.GetSecret(le.optionPassword)
-
-	if password == nil || password.Size() == 0 {
-		return le.Ledger.QuerySecret("password: ")
-	}
-
-	return password
-}
-
-func (le *LoginExecutor) queryUsername() string {
-	var username = le.Ledger.GetString(le.optionUsername)
-
-	if username == "" {
-		username = le.Ledger.QueryMandatory("username: ")
-	}
-
-	return strings.TrimSpace(username)
-}
-
 func NewLogin(ledger *config.Ledger) *cobra.Command {
 	var exec = NewLoginExecutor(ledger)
 	var login = &cobra.Command{
 		Use:     "login HOST",
 		Short:   "Authenticates an account with a GenAIz Broker",
-		Long:    "Authenticates an account with a GenAIz Broker provided a host url as argument",
+		Long:    "Authenticates an account with a GenAIz Broker provided an OIDC host url as argument",
 		Example: "genaiz account login my-instance.genaiz.com",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -168,13 +116,8 @@ func NewLoginExecutor(ledger *config.Ledger) *LoginExecutor {
 		Ledger: ledger,
 
 		optionNoBrowser: cli.Options.Accounts.NoBrowser().BuildBoolOption(),
-		optionPassword:  cli.Options.Accounts.Password().BuildStringOption(),
 		optionRefresh:   cli.Options.Accounts.Refresh().BuildBoolOption(),
-		optionUsername: cli.Options.Accounts.Username().
-			WithKeys(&schema.Genaiz.Account.Login.Username).
-			BuildStringOption(),
 
-		loginTaskFactory:   broker.NewLoginTask,
 		oidcTaskFactory:    broker.NewOidcTask,
 		sessionTaskFactory: broker.NewSessionTask,
 	}
