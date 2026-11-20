@@ -212,14 +212,6 @@ func NewInspectTask() *task.Task[Broker] {
 	}
 }
 
-func NewLoginTask() *task.Task[LoginParams] {
-	return &task.Task[LoginParams]{
-		Name:       "broker-login",
-		OnPrepare:  handleLoginContext,
-		OnComplete: handleLoginCreate,
-	}
-}
-
 func NewLogoutTask() *task.Task[LoginParams] {
 	return &task.Task[LoginParams]{
 		Name:       "broker-logout",
@@ -342,32 +334,6 @@ func handleLoginContext(params *LoginParams, state *task.State) error {
 
 	auth.Accounts = accounts
 	return auth.Write(params.AuthFile)
-}
-
-func handleLoginCreate(params *LoginParams, state *task.State) error {
-	var err error
-
-	if state.Output == "" {
-		var brokerClient = clientFactory.New(params.HostAddr)
-		var session *AuthSession
-
-		state.Logger.Debugf("Creating session on url [%s]", brokerClient.LoginUrl())
-
-		if session, err = brokerClient.Login(params.Username, params.Password); err == nil {
-			var auth = NewAuthData(params.AuthFile)
-			var newAuth = auth.Push(params.HostAddr, session)
-
-			if err = newAuth.Write(params.AuthFile); err == nil {
-				state.Output = session.Token
-				return nil
-			}
-		}
-
-		state.Logger.Errorf("Could not create session: [%s]", err)
-		return err
-	}
-
-	return nil
 }
 
 func handleLoginDelete(params *LoginParams, state *task.State) error {

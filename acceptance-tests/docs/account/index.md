@@ -5,7 +5,6 @@
 * [Account activation](../../features/account/activate_oidc_account.feature)
 * [Account session inspect](../../features/account/inspect_user_account.feature)
 * [Account listings](../../features/account/list_accounts_username_oidc.feature)
-* [Account login with username](../../features/account/login_username.feature)
 * [Account login with OIDC](../../features/account/login_oidc.feature)
 
 ## Commands
@@ -21,8 +20,8 @@
 `genaiz account activate HOST --username=USERNAME`
 
 The command will activate a session if it can find one for the specified host and username. Note that activating a
-session that is expired should not trigger a login request. If the intent is always to use a valid session [login](#login)
-should be invoked.
+session that is expired should not trigger a login request. If the intent is always to use a valid
+session [login](#login) should be invoked.
 
 If the command finds a session that is no longer valid, the command returns an error:
 `Error session is expired`.
@@ -97,14 +96,13 @@ CI/CD environments to keep tokens from spilling out of pipelines onto disk.
 
 ### Login
 
-`genaiz account login HOST --username=USERNAME --refresh --no-browser`
+`genaiz account login HOST --refresh --no-browser`
 
 The command manages an `.auth` file under the `$HOME/.cache/genaiz` folder. It records the token used to make requests
 to one or several broker services.
 
-It will always prompt for a password if a username is used. When no username is used the command will attempt to log in
-a user using the Broker's OIDC provided urls. If the broker does not support OIDC, login can not work without a username
-and password.
+The command will always attempt to log in a user using the Broker's OIDC provided urls. If the broker does not support
+OIDC, the command will return an error: `Error: broker does not support OIDC logins`
 
 The command will activate a valid session to the provided HOST, if that session is not the active one under
 `$HOST/.cache/genaiz/.auth` and is not expired.
@@ -115,12 +113,6 @@ The command will activate a valid session to the provided HOST, if that session 
 * defaults to https://HOST if the protocol is not provided
 * default to http://localhost if the HOST is localized and the build targets the dev environment `go build -tags dev`
 * include any ports with the string if necessary. By default, it won't add any
-
-#### username
-
-* if omitted the command will attempt a login with an OIDC url provided by the broker
-* if no OIDC url is provided by the broker, the command will prompt for a username
-* any string will do even empty `--username=`, the validity of it belongs to the orchestrator.
 
 #### refresh
 

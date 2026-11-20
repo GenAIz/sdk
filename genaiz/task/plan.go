@@ -16,14 +16,14 @@ type Worker func(*State) *State
 type Planner interface {
 	Sequence(...Worker)
 
-	Single(Worker, func(interface{}))
+	Single(Worker, func(any))
 }
 
 type PlanBuilder struct {
 	logger    *logrus.Logger
-	onFailure func(interface{})
-	onReturn  func(interface{})
-	onSuccess func(interface{})
+	onFailure func(any)
+	onReturn  func(any)
+	onSuccess func(any)
 }
 
 func (pb *PlanBuilder) Build() *Plan {
@@ -35,29 +35,29 @@ func (pb *PlanBuilder) Build() *Plan {
 	}
 }
 
-func (pb *PlanBuilder) WithFailures(onFailure func(interface{})) *PlanBuilder {
+func (pb *PlanBuilder) WithFailures(onFailure func(any)) *PlanBuilder {
 	pb.onFailure = onFailure
 	return pb
 }
 
-func (pb *PlanBuilder) WithReturn(onReturn func(interface{})) *PlanBuilder {
+func (pb *PlanBuilder) WithReturn(onReturn func(any)) *PlanBuilder {
 	pb.onReturn = onReturn
 	return pb
 }
 
-func (pb *PlanBuilder) WithSuccess(onSuccess func(interface{})) *PlanBuilder {
+func (pb *PlanBuilder) WithSuccess(onSuccess func(any)) *PlanBuilder {
 	pb.onSuccess = onSuccess
 	return pb
 }
 
 // Plan is a group of success, failure and logging facilities to apply in particular manner
 type Plan struct {
-	Logger            *logrus.Logger    // Logger to use for all task.Task managed by this Plan
-	OnReturn          func(interface{}) // OnReturn is a function called with the content of State.Internal, this is made for non-tail calls where the return is needed by the callee
-	OnSuccess         func(interface{}) // OnSuccess is a function called with the content of State.Output
-	OnFailure         func(interface{}) // OnFailure is a function called with the content of State.Error
-	ContinueOnFailure bool              // ContinueOnFailure will keep calling sequence workers even when a failure is reported
-	PrintReportsOnly  bool              // PrintReportsOnly relies on State.Report for displaying the result of a Plan
+	Logger            *logrus.Logger // Logger to use for all task.Task managed by this Plan
+	OnReturn          func(any)      // OnReturn is a function called with the content of State.Internal, this is made for non-tail calls where the return is needed by the callee
+	OnSuccess         func(any)      // OnSuccess is a function called with the content of State.Output
+	OnFailure         func(any)      // OnFailure is a function called with the content of State.Error
+	ContinueOnFailure bool           // ContinueOnFailure will keep calling sequence workers even when a failure is reported
+	PrintReportsOnly  bool           // PrintReportsOnly relies on State.Report for displaying the result of a Plan
 }
 
 // Sequence will execute all workers provided up until a worker's returned State signals an error or until the sequence is over. The state returned by each Worker is always passed to the following Worker in the list.
@@ -93,7 +93,7 @@ func (p Plan) Sequence(workers ...Worker) {
 //
 //   - If the Worker returns an error and OnFailure is set, it will be called with the error and Single will call the exitHandler
 //   - If the Worker is completed and OnSuccess is set, it will be called with the output
-func (p Plan) Single(worker Worker, exitHandler func(interface{})) {
+func (p Plan) Single(worker Worker, exitHandler func(any)) {
 	var result = &State{Completed: false, Logger: p.Logger}
 
 	if result = worker(result); result.Error != nil {
@@ -148,7 +148,7 @@ func NewWorker[P any](params *P, task *Task[P]) Worker {
 
 // Attempt will execute a single Worker provided but will simply return without handling program exit
 func Attempt[P any](plan Planner, params *P, task *Task[P]) {
-	plan.Single(NewWorker(params, task), func(msg interface{}) {})
+	plan.Single(NewWorker(params, task), func(msg any) {})
 }
 
 // Conditional is a shorthand way to express the execution of 2 task.Task(s) with the same params P depending on the veracity of the provided condition
@@ -165,15 +165,15 @@ func Conditional[P any](plan Planner, condition bool, params *P, ifTask, elseTas
 }
 
 // HandleFlag is a utility for creating handling functions which simply set the value of a flag on call
-func HandleFlag(flag *bool, value bool) func(interface{}) {
-	return func(i interface{}) {
+func HandleFlag(flag *bool, value bool) func(any) {
+	return func(i any) {
 		*flag = value
 	}
 }
 
 // HandleString is a utility for creating handling function which simply set the value of a string by casting the result passed as a string
-func HandleString(str *string) func(interface{}) {
-	return func(i interface{}) {
+func HandleString(str *string) func(any) {
+	return func(i any) {
 		*str = cast.ToString(i)
 	}
 }
@@ -183,8 +183,8 @@ func Single[P any](plan Planner, params *P, task *Task[P]) {
 	plan.Single(NewWorker(params, task), lang.HandleExit)
 }
 
-func newFailureWriter(planName string, logger *logrus.Logger) func(interface{}) {
-	return func(msg interface{}) {
+func newFailureWriter(planName string, logger *logrus.Logger) func(any) {
+	return func(msg any) {
 		logger.Errorf("%s failed with error: %s", planName, msg)
 		lang.HandleExit(msg)
 	}
@@ -196,7 +196,7 @@ func successString(msg string) {
 	}
 }
 
-func successWriter(i interface{}) {
+func successWriter(i any) {
 	if messages, ok := i.([]string); ok {
 		for _, msg := range messages {
 			successString(msg)
