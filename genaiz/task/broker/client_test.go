@@ -2257,6 +2257,22 @@ func TestClient_OidcDeviceUrl(t *testing.T) {
 	assert.Equal(t, expectedUrl, actual)
 }
 
+func TestClient_OidcDeviceUrl_NoUrl(t *testing.T) {
+	var testBridge = &stubBridge{
+		response: stubResponse{
+			success: true,
+			result: &clientPayload[string]{
+				Data: "",
+			},
+		},
+	}
+	var testClient = newTestClient(testBridge)
+
+	actual, err := testClient.OidcDeviceUrl()
+	assert.Empty(t, actual)
+	assert.ErrorIs(t, err, errorNotFound)
+}
+
 func TestClient_OidcDeviceUrl_RequestError(t *testing.T) {
 	var testBridge = &stubBridge{
 		response: stubResponse{
@@ -3337,9 +3353,15 @@ func TestClient_UploadDataSetFile_WithRenamedPath(t *testing.T) {
 
 func TestClient_UploadDataSetFileUrl(t *testing.T) {
 	var expectedHost = "host"
-	var testClient = &client{HostAddr: expectedHost}
+	var testClient = &client{
+		ApiPrefix:  "myPrefix",
+		ApiVersion: "myVersion",
+		HostAddr:   expectedHost,
+	}
 
 	assert.Contains(t, testClient.UploadDataSetFileUrl(), expectedHost)
+	assert.Contains(t, testClient.UploadDataSetFileUrl(), testClient.ApiPrefix)
+	assert.Contains(t, testClient.UploadDataSetFileUrl(), testClient.ApiVersion)
 }
 
 func TestActiveClient(t *testing.T) {
@@ -3396,7 +3418,7 @@ func TestActiveClient_Cached(t *testing.T) {
 		defer filez.CloseSilently(fd)
 
 		if err = testAuth.Write(fd.Name()); err == nil {
-			var expectedClient = NewClient(expectedHost)
+			var expectedClient = BaseClient(expectedHost, "myPrefix", "myVersion")
 			var actualClient Client
 
 			clientByHost[expectedHost] = expectedClient
@@ -3546,7 +3568,7 @@ func TestSeedClient(t *testing.T) {
 func TestNewClientFactory(t *testing.T) {
 	var expectedAddr = "expectedAddr"
 	var testClientFactory = NewClientFactory()
-	var testClient = testClientFactory.New(expectedAddr)
+	var testClient = testClientFactory.New(expectedAddr, apiPrefix1, apiVersion1)
 
 	assert.Equal(t, defaultExpiryMinutes, testClient.GetExpiry())
 	assert.Equal(t, defaultTimeoutSeconds, testClient.GetTimeout())
@@ -3588,15 +3610,16 @@ func TestClient_makeHostUrl(t *testing.T) {
 	var expectedAddr = expectedPrefix + "/" + expectedHost
 	var expectedVerb = "verb"
 	var testClient = &client{}
+	var apiPath = string(apiVersion1)
 
 	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s", expectedPrefix, expectedHost, apiVersion1, pathFunction),
-		testClient.makeHostUrl(expectedHost, apiVersion1, pathFunction))
+		testClient.makeHostUrl(expectedHost, apiPath, pathFunction))
 	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s/%s", expectedPrefix, expectedHost, apiVersion1, pathFunction, expectedVerb),
-		testClient.makeHostUrl(expectedHost, apiVersion1, pathFunction, expectedVerb))
+		testClient.makeHostUrl(expectedHost, apiPath, pathFunction, expectedVerb))
 	assert.Equal(t, fmt.Sprintf("%s/%s/%s", expectedAddr, apiVersion1, pathFunction),
-		testClient.makeHostUrl(expectedAddr, apiVersion1, pathFunction))
+		testClient.makeHostUrl(expectedAddr, apiPath, pathFunction))
 	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s", expectedAddr, apiVersion1, pathFunction, expectedVerb),
-		testClient.makeHostUrl(expectedAddr, apiVersion1, pathFunction, expectedVerb))
+		testClient.makeHostUrl(expectedAddr, apiPath, pathFunction, expectedVerb))
 }
 
 func Test_resultOrError_BadRequest(t *testing.T) {

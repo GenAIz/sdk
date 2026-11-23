@@ -17,7 +17,6 @@ import (
 
 	"genaiz.com/genaiz-lib/mock"
 	mio "genaiz.com/genaiz-lib/mock/io"
-	"genaiz.com/genaiz/lang"
 	"genaiz.com/genaiz/task"
 )
 
@@ -244,8 +243,8 @@ func TestOidcUrlHandler_PollForToken_PendingError(t *testing.T) {
 		BrowserRedirect: false,
 		Input:           io.NopCloser(strings.NewReader("\n")),
 		Output:          testOutput,
-		Timeout:         lang.Ref(0 * time.Millisecond),
-		Tries:           lang.Ref(1),
+		Timeout:         new(0 * time.Millisecond),
+		Tries:           new(1),
 	}
 	var expectedUrl = "expectedUrl"
 	var testAuth = &DeviceAuth{
@@ -267,8 +266,8 @@ func TestOidcUrlHandler_PollForToken_SlowDownError(t *testing.T) {
 		BrowserRedirect: false,
 		Input:           io.NopCloser(strings.NewReader("\n")),
 		Output:          testOutput,
-		Timeout:         lang.Ref(0 * time.Millisecond),
-		Tries:           lang.Ref(1),
+		Timeout:         new(0 * time.Millisecond),
+		Tries:           new(1),
 	}
 	var expectedUrl = "expectedUrl"
 	var testAuth = &DeviceAuth{
@@ -298,10 +297,12 @@ func Test_handleOidcContext(t *testing.T) {
 	defer func() {
 		clientFactory.New = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
+	clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 		return &stubOidcClient{
-			deviceUrl: expectedDeviceUrl,
-			tokenUrl:  expectedTokenUrl,
+			ApiPrefix:  string(prefix),
+			ApiVersion: string(version),
+			deviceUrl:  expectedDeviceUrl,
+			tokenUrl:   expectedTokenUrl,
 		}
 	}
 
@@ -323,8 +324,10 @@ func Test_handleOidcContext_DeviceUrlError(t *testing.T) {
 	defer func() {
 		clientFactory.New = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
+	clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 		return &stubOidcClient{
+			ApiPrefix:      string(prefix),
+			ApiVersion:     string(version),
 			deviceUrlError: errors.New("urlError"),
 		}
 	}
@@ -359,8 +362,10 @@ func Test_handleOidcContext_TokenUrlError(t *testing.T) {
 	defer func() {
 		clientFactory.New = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
+	clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 		return &stubOidcClient{
+			ApiPrefix:     string(prefix),
+			ApiVersion:    string(version),
 			deviceUrl:     "url",
 			tokenUrlError: errors.New("urlError"),
 		}
@@ -387,15 +392,17 @@ func Test_handleOidcCreate(t *testing.T) {
 			HostAddr: "host",
 		},
 		Output:  testOutput,
-		Timeout: lang.Ref(0 * time.Millisecond),
-		Tries:   lang.Ref(1),
+		Timeout: new(0 * time.Millisecond),
+		Tries:   new(1),
 	}
 
 	defer func() {
 		clientFactory.New = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
+	clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 		return &stubOidcClient{
+			ApiPrefix:  string(prefix),
+			ApiVersion: string(version),
 			deviceAuth: &DeviceAuth{
 				VerificationUriComplete: "uri",
 			},
@@ -424,15 +431,17 @@ func Test_handleOidcCreate_AuthWriteError(t *testing.T) {
 	var testParams = &OidcParams{
 		Broker:  &Broker{HostAddr: "host"},
 		Output:  testOutput,
-		Timeout: lang.Ref(0 * time.Millisecond),
-		Tries:   lang.Ref(1),
+		Timeout: new(0 * time.Millisecond),
+		Tries:   new(1),
 	}
 
 	defer func() {
 		clientFactory.New = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
+	clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 		return &stubOidcClient{
+			ApiPrefix:  string(prefix),
+			ApiVersion: string(version),
 			deviceAuth: &DeviceAuth{
 				VerificationUriComplete: "uri",
 			},
@@ -466,8 +475,10 @@ func Test_handleOidcCreate_DeviceCodeError(t *testing.T) {
 	defer func() {
 		clientFactory.New = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
+	clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 		return &stubOidcClient{
+			ApiPrefix:       string(prefix),
+			ApiVersion:      string(version),
 			deviceAuthError: expectedError,
 		}
 	}
@@ -496,15 +507,17 @@ func Test_handleOidcCreate_PollTokenError(t *testing.T) {
 	var testParams = &OidcParams{
 		Broker:  &Broker{HostAddr: "host"},
 		Output:  testOutput,
-		Timeout: lang.Ref(0 * time.Millisecond),
-		Tries:   lang.Ref(1),
+		Timeout: new(0 * time.Millisecond),
+		Tries:   new(1),
 	}
 
 	defer func() {
 		clientFactory.New = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
+	clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 		return &stubOidcClient{
+			ApiPrefix:  string(prefix),
+			ApiVersion: string(version),
 			deviceAuth: &DeviceAuth{
 				VerificationUriComplete: "uri",
 			},
@@ -529,15 +542,17 @@ func Test_handleOidcCreate_TokenSessionError(t *testing.T) {
 	var testParams = &OidcParams{
 		Broker:  &Broker{HostAddr: "host"},
 		Output:  testOutput,
-		Timeout: lang.Ref(0 * time.Millisecond),
-		Tries:   lang.Ref(1),
+		Timeout: new(0 * time.Millisecond),
+		Tries:   new(1),
 	}
 
 	defer func() {
 		clientFactory.New = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
+	clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 		return &stubOidcClient{
+			ApiPrefix:  string(prefix),
+			ApiVersion: string(version),
 			deviceAuth: &DeviceAuth{
 				VerificationUriComplete: "uri",
 			},
@@ -569,8 +584,10 @@ func Test_handleOidcCreate_UrlInitError(t *testing.T) {
 	defer func() {
 		clientFactory.New = restoredFactory
 	}()
-	clientFactory.New = func(hostAddr string) Client {
+	clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 		return &stubOidcClient{
+			ApiPrefix:  string(prefix),
+			ApiVersion: string(version),
 			deviceAuth: &DeviceAuth{
 				VerificationUriComplete: "uri",
 			},

@@ -94,9 +94,11 @@ var (
 )
 
 type Broker struct {
-	AuthFile string
-	HostAddr string
-	Username string
+	ApiPrefix  string
+	ApiVersion string
+	AuthFile   string
+	HostAddr   string
+	Username   string
 }
 
 func (b Broker) GetClient() (Client, error) {

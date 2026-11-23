@@ -96,7 +96,10 @@ CI/CD environments to keep tokens from spilling out of pipelines onto disk.
 
 ### Login
 
-`genaiz account login HOST --refresh --no-browser`
+```
+genaiz account login HOST --refresh --no-browser \
+    --api-version=2 --api-prefix=custom
+```
 
 The command manages an `.auth` file under the `$HOME/.cache/genaiz` folder. It records the token used to make requests
 to one or several broker services.
@@ -119,6 +122,21 @@ The command will activate a valid session to the provided HOST, if that session 
 * the flag is used to skip validation of the current session an obtain a new one
 * refreshing a non-existent session should not prevent a login
 * refreshing a session for Broker A should not affect the session of Broker B
+
+#### api-prefix
+
+Set the target prefix or context of deployment on the host url, if it isn't the latest deployed prefix. This is used to
+target different deployments hosted on the same address with upstream proxying.
+
+* by default, the value of `com.genaiz.broker` is used as the latest deployment context
+
+#### api-version
+
+Sets the api version prefix on the host url, if it isn't the latest deployed version. This is used to target older
+versioned systems hosted behind proxies.
+
+* if the api version specified is not an abbreviated version (ex: 1, or 1.2), the command will return an error:
+  `Error value [...] for option [account.login.version] is invalid`
 
 ### Logout
 

@@ -1216,6 +1216,19 @@ func TestLedger_StampString(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`value/[0-9]+`), actual)
 }
 
+func TestLedger_StdOut(t *testing.T) {
+	var testViper = viper.New()
+	var testOutput = new(bytes.Buffer)
+	var testLedger = NewBuilder().
+		WithOutput(io.Writer(testOutput)).
+		WithViper(testViper).
+		Build()
+
+	testLedger.StdOut("test %s", "message")
+	actual := testOutput.String()
+	assert.Equal(t, "test message", actual)
+}
+
 func TestLedger_ToWorkDir(t *testing.T) {
 	var expectedFlag = "flag"
 	var expectedPath = "path"

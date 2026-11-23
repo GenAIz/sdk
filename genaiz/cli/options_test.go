@@ -27,11 +27,27 @@ func Test_OptionsNoBrowser(t *testing.T) {
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
 }
 
+func Test_OptionsAccountsLegacy(t *testing.T) {
+	var testOption = Options.Accounts.Legacy().BuildBoolOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, cast.ToBool(testOption.DefaultValue))
+}
+
+func Test_OptionsAccountsPrefix(t *testing.T) {
+	var testOption = Options.Accounts.Prefix().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+}
+
 func Test_OptionsAccountsRefresh(t *testing.T) {
 	var testOption = Options.Accounts.Refresh().BuildBoolOption()
 
-	assert.Equal(t, schema.Genaiz.Account.Login.Refresh.Doc, testOption.Key)
-	assert.Equal(t, schema.Genaiz.Account.Login.Refresh.Env, testOption.Env)
+	assert.Empty(t, testOption.Key)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Short)
 	assert.False(t, cast.ToBool(testOption.DefaultValue))
@@ -44,6 +60,18 @@ func Test_OptionsAccountsUsername(t *testing.T) {
 	assert.Empty(t, testOption.Env)
 	assert.NotEmpty(t, testOption.Param)
 	assert.NotEmpty(t, testOption.Short)
+}
+
+func Test_OptionsAccountsVersion(t *testing.T) {
+	var testOption = Options.Accounts.Version().BuildStringOption()
+
+	assert.Empty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.False(t, testOption.Validator("notAVersion"))
+	assert.True(t, testOption.Validator("2"))
+	assert.True(t, testOption.Validator("1.1"))
+	assert.False(t, testOption.Validator("1.1.0"))
 }
 
 func Test_OptionsConfigsNoUpdate(t *testing.T) {

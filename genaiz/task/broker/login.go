@@ -105,13 +105,14 @@ func (ad *AuthData) Push(hostAddr string, session *AuthSession) *AuthData {
 	var accounts = []*AuthAccount{
 		{
 			AuthSession: &AuthSession{
-				ApiPrefix: session.ApiPrefix,
-				Created:   session.Created,
-				Expiry:    session.Expiry,
-				SessionId: session.SessionId,
-				Token:     session.Token,
-				UserId:    session.UserId,
-				Username:  session.Username,
+				ApiPrefix:  session.ApiPrefix,
+				ApiVersion: session.ApiVersion,
+				Created:    session.Created,
+				Expiry:     session.Expiry,
+				SessionId:  session.SessionId,
+				Token:      session.Token,
+				UserId:     session.UserId,
+				Username:   session.Username,
 			},
 			HostAddr: key,
 		},
@@ -150,13 +151,14 @@ func (ad *AuthData) Write(outFile string) error {
 }
 
 type AuthSession struct {
-	ApiPrefix string
-	Created   int64
-	Expiry    int64
-	SessionId int64
-	Token     string
-	UserId    int
-	Username  string
+	ApiPrefix  string
+	ApiVersion string
+	Created    int64
+	Expiry     int64
+	SessionId  int64
+	Token      string
+	UserId     int
+	Username   string
 }
 
 func (s *AuthSession) IsExpired() bool {
@@ -186,15 +188,16 @@ func NewAuthData(authFile ...string) *AuthData {
 	return &AuthData{}
 }
 
-func NewAuthSession(session *Session, apiPrefix, username, token string) *AuthSession {
+func NewAuthSession(session *Session, apiPrefix, apiVersion, username, token string) *AuthSession {
 	return &AuthSession{
-		ApiPrefix: apiPrefix,
-		Created:   time.Now().UnixMilli(),
-		Expiry:    session.Expiry,
-		Token:     token,
-		SessionId: session.Id,
-		UserId:    session.UserId,
-		Username:  username,
+		ApiPrefix:  apiPrefix,
+		ApiVersion: apiVersion,
+		Created:    time.Now().UnixMilli(),
+		Expiry:     session.Expiry,
+		Token:      token,
+		SessionId:  session.Id,
+		UserId:     session.UserId,
+		Username:   username,
 	}
 }
 

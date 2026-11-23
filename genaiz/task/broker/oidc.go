@@ -36,9 +36,10 @@ var (
 
 type OidcParams struct {
 	*Broker
+	BrowserRedirect bool
+	LegacyApi       bool
 	Input           io.ReadCloser
 	Output          io.Writer
-	BrowserRedirect bool
 	Tries           *int
 	Timeout         *time.Duration
 }
@@ -73,6 +74,21 @@ func (op OidcParams) GetTries() int {
 	}
 
 	return oidcDefaultTries
+}
+
+func (op OidcParams) newClient() Client {
+	if op.LegacyApi {
+		return clientFactory.Legacy(op.HostAddr, "/api", string(apiVersion1))
+	}
+
+	if op.ApiVersion == "" && op.ApiPrefix == "" {
+		// Latest default path
+		return clientFactory.New(op.HostAddr, apiPrefix1, apiVersion1)
+	} else if op.ApiVersion == "" {
+		return clientFactory.Legacy(op.HostAddr, op.ApiPrefix, string(apiVersion1))
+	}
+
+	return clientFactory.Legacy(op.HostAddr, op.ApiPrefix, op.ApiVersion)
 }
 
 type oidcTracking struct {
@@ -202,9 +218,10 @@ func NewOidcState(state *task.State) *OidcState {
 
 func NewOidcTask() *task.Task[OidcParams] {
 	return &task.Task[OidcParams]{
-		Name:       "broker-oidc",
-		OnPrepare:  handleOidcContext,
-		OnComplete: handleOidcCreate,
+		Name:         "broker-oidc",
+		OnPrepare:    handleOidcContext,
+		OnComplete:   handleOidcCreate,
+		OnIncomplete: handleOidcLegacy,
 	}
 }
 
@@ -223,7 +240,7 @@ func handleOidcContext(params *OidcParams, state *task.State) error {
 
 	if err = handleLoginContext(&LoginParams{Broker: params.Broker}, state); err == nil {
 		var oidcState = NewOidcState(state)
-		var brokerClient = clientFactory.New(params.HostAddr)
+		var brokerClient = params.newClient()
 		var deviceUrl string
 
 		state.Logger.Debugf("Querying oidc coordinates on broker [%s]", params.HostAddr)
@@ -248,7 +265,7 @@ func handleOidcCreate(params *OidcParams, state *task.State) error {
 	var oidcState = NewOidcState(state)
 
 	if oidcState.IsSupported() {
-		var brokerClient = clientFactory.New(params.HostAddr)
+		var brokerClient = params.newClient()
 		var deviceAuth *DeviceAuth
 		var err error
 
@@ -284,4 +301,31 @@ func handleOidcCreate(params *OidcParams, state *task.State) error {
 	}
 
 	return ErrorOidcNotSupported
+}
+
+func handleOidcLegacy(params *OidcParams, state *task.State) error {
+	if errors.Is(state.Error, ErrorOidcNotSupported) {
+		var oidcState = NewOidcState(state)
+		var brokerClient Client
+		var deviceUrl string
+		var err error
+
+		// Lets override the API version to version1, and try again with the legacy path /api
+		params.ApiVersion = string(apiVersion1)
+		state.Logger.Debugf("Querying oidc coordinates on legacy path of [%s] for api [%s]", params.HostAddr, params.ApiVersion)
+		brokerClient = params.newClient()
+
+		if deviceUrl, err = brokerClient.OidcDeviceUrl(); err == nil {
+			var tokenUrl string
+
+			if tokenUrl, err = brokerClient.OidcTokenUrl(); err == nil {
+				oidcState.SetDeviceUrl(deviceUrl)
+				oidcState.SetTokenUrl(tokenUrl)
+				return nil
+			}
+		}
+	}
+
+	state.Completed = true
+	return state.Error
 }

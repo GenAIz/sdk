@@ -254,11 +254,12 @@ type Client interface {
 }
 
 type client struct {
-	ApiPrefix string
-	AuthToken string
-	Expiry    int
-	HostAddr  string
-	UserId    int
+	ApiPrefix  string
+	ApiVersion string
+	AuthToken  string
+	Expiry     int
+	HostAddr   string
+	UserId     int
 
 	requestBridge func() requestBridge
 }
@@ -645,7 +646,7 @@ func (c *client) CreateDataSet(dataSet *DataSet) (*DataSet, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataSet, "create"); err == nil {
+		if url, err = c.makeUrl(pathDataSet, "create"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 
@@ -677,7 +678,7 @@ func (c *client) CreateDataSet(dataSet *DataSet) (*DataSet, error) {
 }
 
 func (c *client) CreateDataSetUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSet, "create")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataSet, "create")
 }
 
 func (c *client) CreateDataSource(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -685,7 +686,7 @@ func (c *client) CreateDataSource(instance *DataLinkInstance, props map[string]s
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataSource, "create"); err == nil {
+		if url, err = c.makeUrl(pathDataSource, "create"); err == nil {
 			var propString, _ = json.Marshal(props)
 			var rb = c.requestBridge()
 			var resp responseBridge
@@ -721,7 +722,7 @@ func (c *client) CreateDataSource(instance *DataLinkInstance, props map[string]s
 }
 
 func (c *client) CreateDataSourceUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "create")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataSource, "create")
 }
 
 func (c *client) CreateDataStore(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -729,7 +730,7 @@ func (c *client) CreateDataStore(instance *DataLinkInstance, props map[string]st
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataStore, "create"); err == nil {
+		if url, err = c.makeUrl(pathDataStore, "create"); err == nil {
 			var propString, _ = json.Marshal(props)
 			var rb = c.requestBridge()
 			var resp responseBridge
@@ -765,7 +766,7 @@ func (c *client) CreateDataStore(instance *DataLinkInstance, props map[string]st
 }
 
 func (c *client) CreateDataStoreUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "create")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataStore, "create")
 }
 
 func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
@@ -773,7 +774,7 @@ func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspace, "create"); err == nil {
+		if url, err = c.makeUrl(pathWorkspace, "create"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 
@@ -805,7 +806,7 @@ func (c *client) CreateWorkspace(workspace *Workspace) (*Workspace, error) {
 }
 
 func (c *client) CreateWorkspaceUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "create")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspace, "create")
 }
 
 func (c *client) CreateWorkspaceFlow(workspaceId int64, workflowId int64, name string, description string) (*WorkspaceFlow, error) {
@@ -813,7 +814,7 @@ func (c *client) CreateWorkspaceFlow(workspaceId int64, workflowId int64, name s
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspace, "flow", "create"); err == nil {
+		if url, err = c.makeUrl(pathWorkspace, "flow", "create"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *WorkspaceFlow
@@ -847,7 +848,7 @@ func (c *client) CreateWorkspaceFlow(workspaceId int64, workflowId int64, name s
 }
 
 func (c *client) CreateWorkspaceFlowUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "flow", "create")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspace, "flow", "create")
 }
 
 func (c *client) CreateWorkspaceRun(flowId int64, name string, start bool) (*WorkspaceRun, error) {
@@ -855,7 +856,7 @@ func (c *client) CreateWorkspaceRun(flowId int64, name string, start bool) (*Wor
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathRun, "create"); err == nil {
+		if url, err = c.makeUrl(pathRun, "create"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *WorkspaceRun
@@ -888,7 +889,7 @@ func (c *client) CreateWorkspaceRun(flowId int64, name string, start bool) (*Wor
 }
 
 func (c *client) CreateWorkspaceRunUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathRun, "create")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathRun, "create")
 }
 
 func (c *client) ExportDataLink(oem, handle, version, sequence string) (*DataLink, error) {
@@ -896,7 +897,7 @@ func (c *client) ExportDataLink(oem, handle, version, sequence string) (*DataLin
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataLink, "exportByFqdn"); err == nil {
+		if url, err = c.makeUrl(pathDataLink, "exportByFqdn"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *DataLink
@@ -939,7 +940,7 @@ func (c *client) FindDataLink(oem, handle, version string) (*DataLink, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataLink, "getByFqdn"); err == nil {
+		if url, err = c.makeUrl(pathDataLink, "getByFqdn"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *DataLink
@@ -976,7 +977,7 @@ func (c *client) FindSolution(oem, handle, version string) (*Solution, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathSolution, "readByFqdn"); err == nil {
+		if url, err = c.makeUrl(pathSolution, "readByFqdn"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *Solution
@@ -1009,7 +1010,7 @@ func (c *client) FindSolution(oem, handle, version string) (*Solution, error) {
 }
 
 func (c *client) FindSolutionUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "readByFqdn")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathSolution, "readByFqdn")
 }
 
 func (c *client) GetAuthToken() string {
@@ -1025,7 +1026,7 @@ func (c *client) GetFunction(id int64) (*Function, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathFunction, "get"); err == nil {
+		if url, err = c.makeUrl(pathFunction, "get"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *Function
@@ -1057,7 +1058,7 @@ func (c *client) GetFunction(id int64) (*Function, error) {
 }
 
 func (c *client) GetFunctionUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "get")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathFunction, "get")
 }
 
 func (c *client) GetHostAddr() string {
@@ -1069,7 +1070,7 @@ func (c *client) GetNode(id int64) (*WorkspaceNode, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspaceNode, "get"); err == nil {
+		if url, err = c.makeUrl(pathWorkspaceNode, "get"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *WorkspaceNode
@@ -1101,7 +1102,7 @@ func (c *client) GetNode(id int64) (*WorkspaceNode, error) {
 }
 
 func (c *client) GetNodeUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "get")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspaceNode, "get")
 }
 
 func (c *client) GetSolution(id int64) (*Solution, error) {
@@ -1109,7 +1110,7 @@ func (c *client) GetSolution(id int64) (*Solution, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathSolution, "get"); err == nil {
+		if url, err = c.makeUrl(pathSolution, "get"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *Solution
@@ -1141,7 +1142,7 @@ func (c *client) GetSolution(id int64) (*Solution, error) {
 }
 
 func (c *client) GetSolutionUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "get")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathSolution, "get")
 }
 
 func (c *client) GetTimeout() int {
@@ -1159,7 +1160,7 @@ func (c *client) InspectNode(id int64) (*WorkspaceNode, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspaceNode, "read"); err == nil {
+		if url, err = c.makeUrl(pathWorkspaceNode, "read"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *WorkspaceNode
@@ -1191,7 +1192,7 @@ func (c *client) InspectNode(id int64) (*WorkspaceNode, error) {
 }
 
 func (c *client) InspectNodeUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "read")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspaceNode, "read")
 }
 
 func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error) {
@@ -1199,7 +1200,7 @@ func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataLink, "list"); err == nil {
+		if url, err = c.makeUrl(pathDataLink, "list"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]DataLink
@@ -1233,7 +1234,7 @@ func (c *client) ListDataLinks(oem, handle string, flags int) ([]DataLink, error
 }
 
 func (c *client) ListDataLinksUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "list")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataLink, "list")
 }
 
 func (c *client) ListDataSetFiles(id int64, path string) ([]DataSetFile, error) {
@@ -1241,7 +1242,7 @@ func (c *client) ListDataSetFiles(id int64, path string) ([]DataSetFile, error) 
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataSetFile, "list"); err == nil {
+		if url, err = c.makeUrl(pathDataSetFile, "list"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]DataSetFile
@@ -1274,7 +1275,7 @@ func (c *client) ListDataSetFiles(id int64, path string) ([]DataSetFile, error) 
 }
 
 func (c *client) ListDataSetFilesUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSetFile, "list")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataSetFile, "list")
 }
 
 func (c *client) ListDataSources() ([]DataLinkInstance, error) {
@@ -1282,7 +1283,7 @@ func (c *client) ListDataSources() ([]DataLinkInstance, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataSource, "list"); err == nil {
+		if url, err = c.makeUrl(pathDataSource, "list"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]DataLinkInstance
@@ -1312,7 +1313,7 @@ func (c *client) ListDataSources() ([]DataLinkInstance, error) {
 }
 
 func (c *client) ListDataSourcesUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "list")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataSource, "list")
 }
 
 func (c *client) ListDataStores() ([]DataLinkInstance, error) {
@@ -1320,7 +1321,7 @@ func (c *client) ListDataStores() ([]DataLinkInstance, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataStore, "list"); err == nil {
+		if url, err = c.makeUrl(pathDataStore, "list"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]DataLinkInstance
@@ -1350,7 +1351,7 @@ func (c *client) ListDataStores() ([]DataLinkInstance, error) {
 }
 
 func (c *client) ListDataStoresUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "list")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataStore, "list")
 }
 
 func (c *client) ListSolutions(oem string) ([]Solution, error) {
@@ -1358,7 +1359,7 @@ func (c *client) ListSolutions(oem string) ([]Solution, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathSolution, "list"); err == nil {
+		if url, err = c.makeUrl(pathSolution, "list"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]Solution
@@ -1392,7 +1393,7 @@ func (c *client) ListSolutions(oem string) ([]Solution, error) {
 }
 
 func (c *client) ListSolutionsUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSolution, "list")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathSolution, "list")
 }
 
 func (c *client) ListWorkspaceFlows(workspaceId int64, mask, flags int) ([]WorkspaceFlow, error) {
@@ -1400,7 +1401,7 @@ func (c *client) ListWorkspaceFlows(workspaceId int64, mask, flags int) ([]Works
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspaceFlow, "listByWorkspace"); err == nil {
+		if url, err = c.makeUrl(pathWorkspaceFlow, "listByWorkspace"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]WorkspaceFlow
@@ -1435,7 +1436,7 @@ func (c *client) ListWorkspaceFlows(workspaceId int64, mask, flags int) ([]Works
 }
 
 func (c *client) ListWorkspaceFlowsUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "listByWorkspace")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspaceFlow, "listByWorkspace")
 }
 
 func (c *client) ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error) {
@@ -1443,7 +1444,7 @@ func (c *client) ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspaceFlow, "read"); err == nil {
+		if url, err = c.makeUrl(pathWorkspaceFlow, "read"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]WorkspaceNode
@@ -1476,7 +1477,7 @@ func (c *client) ListWorkspaceNodes(flowId int64) ([]WorkspaceNode, error) {
 }
 
 func (c *client) ListWorkspaceNodesUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "read")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspaceFlow, "read")
 }
 
 func (c *client) ListWorkspaceRuns(workspaceId int64, mask, flags int) ([]WorkspaceRun, error) {
@@ -1484,7 +1485,7 @@ func (c *client) ListWorkspaceRuns(workspaceId int64, mask, flags int) ([]Worksp
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathRun, "listByWorkspace"); err == nil {
+		if url, err = c.makeUrl(pathRun, "listByWorkspace"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]WorkspaceRun
@@ -1519,7 +1520,7 @@ func (c *client) ListWorkspaceRuns(workspaceId int64, mask, flags int) ([]Worksp
 }
 
 func (c *client) ListWorkspaceRunsUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathRun, "listByWorkspace")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathRun, "listByWorkspace")
 }
 
 func (c *client) ListWorkspaces(mask, flags int) ([]Workspace, error) {
@@ -1527,7 +1528,7 @@ func (c *client) ListWorkspaces(mask, flags int) ([]Workspace, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspace, "list"); err == nil {
+		if url, err = c.makeUrl(pathWorkspace, "list"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *[]Workspace
@@ -1560,14 +1561,14 @@ func (c *client) ListWorkspaces(mask, flags int) ([]Workspace, error) {
 }
 
 func (c *client) ListWorkspacesUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspace, "list")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspace, "list")
 }
 
 func (c *client) Login(username string, enclave *memguard.Enclave) (*AuthSession, error) {
 	var err error
 	var url string
 
-	if url, err = c.makeUrl(apiVersion1, pathSession, "create"); err == nil {
+	if url, err = c.makeUrl(pathSession, "create"); err == nil {
 		var rb = c.requestBridge()
 		var locked = secretz.FromEnclave(enclave)
 		var resp responseBridge
@@ -1584,8 +1585,7 @@ func (c *client) Login(username string, enclave *memguard.Enclave) (*AuthSession
 			Post(url)
 
 		if err == nil {
-			// Kludge: the prefix is hardcoded on version 1.1.0 because we have no mechanism for discovery
-			return c.sessionOrError(resp, string(apiPrefix1), username)
+			return c.sessionOrError(resp, username)
 		}
 	}
 
@@ -1593,14 +1593,14 @@ func (c *client) Login(username string, enclave *memguard.Enclave) (*AuthSession
 }
 
 func (c *client) LoginUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSession, "create")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathSession, "create")
 }
 
 func (c *client) Logout(sessionId string) error {
 	var url string
 	var err error
 
-	if url, err = c.makeUrl(apiVersion1, pathSession, "delete"); err == nil {
+	if url, err = c.makeUrl(pathSession, "delete"); err == nil {
 		var rb = c.requestBridge()
 		var resp responseBridge
 
@@ -1628,7 +1628,7 @@ func (c *client) Logout(sessionId string) error {
 }
 
 func (c *client) LogoutUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSession, "delete")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathSession, "delete")
 }
 
 func (c *client) OidcDeviceCode(deviceUrl string, deviceClient *DeviceClient) (*DeviceAuth, error) {
@@ -1662,7 +1662,7 @@ func (c *client) OidcDeviceUrl() (string, error) {
 	var url string
 	var err error
 
-	if url, err = c.makeUrl(apiVersion1, pathOidcDevice); err == nil {
+	if url, err = c.makeUrl(pathOidcDevice); err == nil {
 		var rb = c.requestBridge()
 		var resp responseBridge
 		var result *string
@@ -1678,8 +1678,12 @@ func (c *client) OidcDeviceUrl() (string, error) {
 				var payload = resp.Result().(*clientPayload[string])
 
 				return &payload.Data
-			}); err == nil {
+			}); err == nil && *result != "" {
 				return *result, nil
+			}
+
+			if err == nil {
+				err = errorNotFound
 			}
 		}
 	}
@@ -1722,7 +1726,7 @@ func (c *client) OidcTokenSession(tokenUrl, token string) (*AuthSession, error) 
 	var url string
 	var err error
 
-	if url, err = c.makeUrl(apiVersion1, pathSession, "oidc"); err == nil {
+	if url, err = c.makeUrl(pathSession, "oidc"); err == nil {
 		var rb = c.requestBridge()
 		var resp responseBridge
 
@@ -1735,8 +1739,7 @@ func (c *client) OidcTokenSession(tokenUrl, token string) (*AuthSession, error) 
 			}).
 			Post(url)
 
-		// Kludge: the prefix is hardcoded on version 1.1.0 because we have no mechanism for discovery
-		return c.sessionOrError(resp, string(apiPrefix1), filepath.Base(tokenUrl))
+		return c.sessionOrError(resp, filepath.Base(tokenUrl))
 	}
 
 	return nil, err
@@ -1746,7 +1749,7 @@ func (c *client) OidcTokenUrl() (string, error) {
 	var url string
 	var err error
 
-	if url, err = c.makeUrl(apiVersion1, pathOidcToken); err == nil {
+	if url, err = c.makeUrl(pathOidcToken); err == nil {
 		var rb = c.requestBridge()
 		var resp responseBridge
 		var result *string
@@ -1776,7 +1779,7 @@ func (c *client) ProvisionFunction(function *Function, extras map[string]any) (*
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathFunction, "provision"); err == nil {
+		if url, err = c.makeUrl(pathFunction, "provision"); err == nil {
 			var functionBytes, _ = json.Marshal(function.toModel())
 			var expandedMap map[string]any
 
@@ -1813,7 +1816,7 @@ func (c *client) ProvisionFunction(function *Function, extras map[string]any) (*
 }
 
 func (c *client) ProvisionFunctionUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "provision")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathFunction, "provision")
 }
 
 func (c *client) PublishDataLink(link *DataLink) (*DataLink, error) {
@@ -1821,7 +1824,7 @@ func (c *client) PublishDataLink(link *DataLink) (*DataLink, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataLink, "publish"); err == nil {
+		if url, err = c.makeUrl(pathDataLink, "publish"); err == nil {
 			var modelBytes, _ = json.Marshal(link)
 			var rb = c.requestBridge()
 			var resp responseBridge
@@ -1851,7 +1854,7 @@ func (c *client) PublishDataLink(link *DataLink) (*DataLink, error) {
 }
 
 func (c *client) PublishDataLinkUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataLink, "publish")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataLink, "publish")
 }
 
 func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
@@ -1859,7 +1862,7 @@ func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathFunction, "publish"); err == nil {
+		if url, err = c.makeUrl(pathFunction, "publish"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 
@@ -1889,7 +1892,7 @@ func (c *client) PublishFunction(identity *shared.Identity) (*Function, error) {
 }
 
 func (c *client) PublishFunctionUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathFunction, "publish")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathFunction, "publish")
 }
 
 func (c *client) PublishSolution(solution *Solution) (*Solution, error) {
@@ -1897,7 +1900,7 @@ func (c *client) PublishSolution(solution *Solution) (*Solution, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathOemSolution, "publish"); err == nil {
+		if url, err = c.makeUrl(pathOemSolution, "publish"); err == nil {
 			var solutionBytes, _ = json.Marshal(solution)
 			var rb = c.requestBridge()
 			var resp responseBridge
@@ -1928,7 +1931,7 @@ func (c *client) PublishSolution(solution *Solution) (*Solution, error) {
 }
 
 func (c *client) PublishSolutionUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathOemSolution, "publish")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathOemSolution, "publish")
 }
 
 func (c *client) Session() (*Session, error) {
@@ -1936,7 +1939,7 @@ func (c *client) Session() (*Session, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathSession, "get"); err == nil {
+		if url, err = c.makeUrl(pathSession, "get"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 
@@ -1962,7 +1965,7 @@ func (c *client) Session() (*Session, error) {
 }
 
 func (c *client) SessionUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathSession, "get")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathSession, "get")
 }
 
 func (c *client) SessionValid(session *Session) bool {
@@ -1974,7 +1977,7 @@ func (c *client) StartWorkspaceRun(runId int64) (*WorkspaceRun, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathRun, "start"); err == nil {
+		if url, err = c.makeUrl(pathRun, "start"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 			var result *WorkspaceRun
@@ -2005,7 +2008,7 @@ func (c *client) StartWorkspaceRun(runId int64) (*WorkspaceRun, error) {
 }
 
 func (c *client) StartWorkspaceRunUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathRun, "start")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathRun, "start")
 }
 
 func (c *client) UpdateDataSource(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -2013,7 +2016,7 @@ func (c *client) UpdateDataSource(instance *DataLinkInstance, props map[string]s
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataSource, "update"); err == nil {
+		if url, err = c.makeUrl(pathDataSource, "update"); err == nil {
 			var propString, _ = json.Marshal(props)
 			var rb = c.requestBridge()
 			var resp responseBridge
@@ -2049,7 +2052,7 @@ func (c *client) UpdateDataSource(instance *DataLinkInstance, props map[string]s
 }
 
 func (c *client) UpdateDataSourceUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSource, "update")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataSource, "update")
 }
 
 func (c *client) UpdateDataStore(instance *DataLinkInstance, props map[string]string) (*DataLinkInstance, error) {
@@ -2057,7 +2060,7 @@ func (c *client) UpdateDataStore(instance *DataLinkInstance, props map[string]st
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataStore, "update"); err == nil {
+		if url, err = c.makeUrl(pathDataStore, "update"); err == nil {
 			var propString, _ = json.Marshal(props)
 			var rb = c.requestBridge()
 			var resp responseBridge
@@ -2093,7 +2096,7 @@ func (c *client) UpdateDataStore(instance *DataLinkInstance, props map[string]st
 }
 
 func (c *client) UpdateDataStoreUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataStore, "update")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataStore, "update")
 }
 
 func (c *client) UpdateFlowStatus(flowId int64) (*WorkspaceFlow, error) {
@@ -2101,7 +2104,7 @@ func (c *client) UpdateFlowStatus(flowId int64) (*WorkspaceFlow, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspaceFlow, "updateStatus"); err == nil {
+		if url, err = c.makeUrl(pathWorkspaceFlow, "updateStatus"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 
@@ -2130,7 +2133,7 @@ func (c *client) UpdateFlowStatus(flowId int64) (*WorkspaceFlow, error) {
 }
 
 func (c *client) UpdateFlowStatusUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceFlow, "updateStatus")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspaceFlow, "updateStatus")
 }
 
 func (c *client) UpdateNode(node *WorkspaceNode) (*WorkspaceNode, error) {
@@ -2138,7 +2141,7 @@ func (c *client) UpdateNode(node *WorkspaceNode) (*WorkspaceNode, error) {
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspaceNode, "update"); err == nil {
+		if url, err = c.makeUrl(pathWorkspaceNode, "update"); err == nil {
 			var dataSourceIds = slicez.Transform(node.DataSourceIds, intz.Int64ToString)
 			var dataStoreIds = slicez.Transform(node.DataStoreIds, intz.Int64ToString)
 			var rb = c.requestBridge()
@@ -2172,7 +2175,7 @@ func (c *client) UpdateNode(node *WorkspaceNode) (*WorkspaceNode, error) {
 }
 
 func (c *client) UpdateNodeUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "update")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspaceNode, "update")
 }
 
 func (c *client) UpdateNodeInput(nodeId, dataSetId int64, portHandle string) (*WorkspaceNode, error) {
@@ -2180,7 +2183,7 @@ func (c *client) UpdateNodeInput(nodeId, dataSetId int64, portHandle string) (*W
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathWorkspaceNode, "updateInputPort"); err == nil {
+		if url, err = c.makeUrl(pathWorkspaceNode, "updateInputPort"); err == nil {
 			var rb = c.requestBridge()
 			var resp responseBridge
 
@@ -2211,7 +2214,7 @@ func (c *client) UpdateNodeInput(nodeId, dataSetId int64, portHandle string) (*W
 }
 
 func (c *client) UpdateNodeInputUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathWorkspaceNode, "updateInputPort")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathWorkspaceNode, "updateInputPort")
 }
 
 func (c *client) UploadDataSetFile(dataSetId int64, localPath string, renamed string, path string) (*DataSet, error) {
@@ -2219,7 +2222,7 @@ func (c *client) UploadDataSetFile(dataSetId int64, localPath string, renamed st
 		var url string
 		var err error
 
-		if url, err = c.makeUrl(apiVersion1, pathDataSetFile, "upload"); err == nil {
+		if url, err = c.makeUrl(pathDataSetFile, "upload"); err == nil {
 			var rb = c.requestBridge()
 			var formData = map[string]string{
 				"id": cast.ToString(dataSetId),
@@ -2258,7 +2261,7 @@ func (c *client) UploadDataSetFile(dataSetId int64, localPath string, renamed st
 }
 
 func (c *client) UploadDataSetFileUrl() string {
-	return c.makeHostUrl(c.HostAddr, apiVersion1, pathDataSetFile, "upload")
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, pathDataSetFile, "upload")
 }
 
 func (c *client) WithAccount(account *AuthAccount) (Client, error) {
@@ -2266,6 +2269,7 @@ func (c *client) WithAccount(account *AuthAccount) (Client, error) {
 
 	if !account.IsExpired() {
 		c.ApiPrefix = account.ApiPrefix
+		c.ApiVersion = account.ApiVersion
 		c.AuthToken = account.Token
 		c.UserId = account.UserId
 		return c, nil
@@ -2288,7 +2292,7 @@ func (c *client) closeSilently(client io.Closer) {
 	_ = client.Close()
 }
 
-func (c *client) makeHostUrl(host string, apiVersion version, path path, rpc ...string) string {
+func (c *client) makeHostUrl(host, apiVersion string, path path, rpc ...string) string {
 	var result []string
 	var apiPrefix string
 
@@ -2297,7 +2301,7 @@ func (c *client) makeHostUrl(host string, apiVersion version, path path, rpc ...
 	}
 
 	if c.ApiPrefix == "" {
-		apiPrefix = string(apiVersion)
+		apiPrefix = apiVersion
 	} else {
 		apiPrefix = fmt.Sprintf("%s/%s", c.ApiPrefix, apiVersion)
 	}
@@ -2315,15 +2319,15 @@ func (c *client) makeCookie() *http.Cookie {
 	return &http.Cookie{Name: defaultCookieName, Value: c.AuthToken}
 }
 
-func (c *client) makeUrl(version version, path path, rpc ...string) (string, error) {
+func (c *client) makeUrl(path path, rpc ...string) (string, error) {
 	if c.HostAddr == "" {
 		return "", errorInvalidHost
 	}
 
-	return c.makeHostUrl(c.HostAddr, version, path, rpc...), nil
+	return c.makeHostUrl(c.HostAddr, c.ApiVersion, path, rpc...), nil
 }
 
-func (c *client) sessionOrError(resp responseBridge, apiPrefix, username string) (*AuthSession, error) {
+func (c *client) sessionOrError(resp responseBridge, username string) (*AuthSession, error) {
 	var result *AuthSession
 	var err error
 
@@ -2336,9 +2340,8 @@ func (c *client) sessionOrError(resp responseBridge, apiPrefix, username string)
 			var payload = resp.Result().(*clientPayload[Session])
 
 			c.AuthToken = cookieValue
-			c.ApiPrefix = apiPrefix
 			c.UserId = payload.Data.UserId
-			result = NewAuthSession(&payload.Data, apiPrefix, username, cookieValue)
+			result = NewAuthSession(&payload.Data, c.ApiPrefix, c.ApiVersion, username, cookieValue)
 		}
 	} else if resp.Status() != "" {
 		err = errors.New(resp.Status())
@@ -2352,7 +2355,8 @@ func (c *client) sessionOrError(resp responseBridge, apiPrefix, username string)
 type ClientFactory struct {
 	Active func(string) (Client, error)
 	Get    func(string, string) (Client, error)
-	New    func(string) Client
+	Legacy func(string, string, string) Client
+	New    func(string, path, version) Client
 	Seed   func(string, string) (Client, error)
 }
 
@@ -2366,7 +2370,8 @@ func ActiveClient(authFile string) (Client, error) {
 		if result = clientByHost[account.HostAddr]; result == nil {
 			var err error
 
-			if result, err = NewClient(account.HostAddr).WithAccount(account); err == nil {
+			if result, err = BaseClient(account.HostAddr, account.ApiPrefix, account.ApiVersion).
+				WithAccount(account); err == nil {
 				clientByHost[account.HostAddr] = result
 				return result, nil
 			}
@@ -2390,7 +2395,8 @@ func GetClient(authFile string, addr string) (Client, error) {
 		var err error
 
 		if account, err = auth.Find(key); err == nil {
-			if result, err = NewClient(key).WithAccount(account); err == nil {
+			if result, err = BaseClient(key, account.ApiPrefix, account.ApiVersion).
+				WithAccount(account); err == nil {
 				clientByHost[key] = result
 				return result, nil
 			}
@@ -2402,8 +2408,8 @@ func GetClient(authFile string, addr string) (Client, error) {
 	return result, nil
 }
 
-func NewClient(addr string) Client {
-	return newClientWithBridge(addr, defaultExpiryMinutes, func() requestBridge {
+func BaseClient(addr, prefix, version string) Client {
+	return newClientWithBridge(addr, prefix, version, defaultExpiryMinutes, func() requestBridge {
 		var cl = resty.New().
 			AddRequestMiddleware(protocolGateChecker).
 			SetTimeout(defaultTimeoutSeconds * time.Second)
@@ -2413,6 +2419,10 @@ func NewClient(addr string) Client {
 			request: cl.R(),
 		}
 	})
+}
+
+func NewClient(addr string, prefix path, version version) Client {
+	return BaseClient(addr, string(prefix), string(version))
 }
 
 func SeedClient(addr string, authToken string) (Client, error) {
@@ -2429,7 +2439,7 @@ func SeedClient(addr string, authToken string) (Client, error) {
 		},
 	}
 
-	clientByHost[key], _ = NewClient(key).WithAccount(account)
+	clientByHost[key], _ = NewClient(key, apiPrefix1, apiVersion1).WithAccount(account)
 	return clientByHost[key], nil
 }
 
@@ -2437,6 +2447,7 @@ func NewClientFactory() *ClientFactory {
 	return &ClientFactory{
 		Active: ActiveClient,
 		Get:    GetClient,
+		Legacy: BaseClient,
 		New:    NewClient,
 		Seed:   SeedClient,
 	}
@@ -2463,9 +2474,10 @@ func jsonExpand(bytes []byte, extras map[string]any) (map[string]any, error) {
 	return nil, err
 }
 
-func newClientWithBridge(addr string, expiry int, bridge func() requestBridge) Client {
+func newClientWithBridge(addr, apiPrefix, apiVersion string, expiry int, bridge func() requestBridge) Client {
 	return &client{
-		ApiPrefix:     string(apiPrefix1),
+		ApiPrefix:     apiPrefix,
+		ApiVersion:    apiVersion,
 		Expiry:        expiry,
 		HostAddr:      addr,
 		requestBridge: bridge,

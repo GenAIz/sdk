@@ -233,8 +233,8 @@ func TestAuthData_Write(t *testing.T) {
 }
 
 func TestAuthSession_IsExpired(t *testing.T) {
-	assert.True(t, NewAuthSession(&Session{Expiry: 0}, "", "username", "token").IsExpired())
-	assert.False(t, NewAuthSession(&Session{Expiry: -1}, "", "username", "token").IsExpired())
+	assert.True(t, NewAuthSession(&Session{Expiry: 0}, "", "", "username", "token").IsExpired())
+	assert.False(t, NewAuthSession(&Session{Expiry: -1}, "", "", "username", "token").IsExpired())
 }
 
 func TestNewActivateTask(t *testing.T) {
@@ -1037,7 +1037,7 @@ func Test_handleSessionActivate(t *testing.T) {
 		defer func() {
 			clientFactory.New = restoredFactory
 		}()
-		clientFactory.New = func(hostAddr string) Client {
+		clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 			return &stubLoginClient{
 				session: &AuthSession{
 					Token:    "token",
@@ -1081,7 +1081,7 @@ func Test_handleSessionActivate_Expired(t *testing.T) {
 		defer func() {
 			clientFactory.New = restoredFactory
 		}()
-		clientFactory.New = func(hostAddr string) Client {
+		clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 			return &stubLoginClient{
 				session: &AuthSession{
 					Token:    "token",
@@ -1141,7 +1141,7 @@ func Test_handleSessionActivate_WriteError(t *testing.T) {
 		defer func() {
 			clientFactory.New = restoredFactory
 		}()
-		clientFactory.New = func(hostAddr string) Client {
+		clientFactory.New = func(hostAddr string, prefix path, version version) Client {
 			return &stubLoginClient{
 				session: &AuthSession{
 					Token:    "token",
