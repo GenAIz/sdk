@@ -3,11 +3,17 @@ package ac
 import (
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"genaiz.com/genaiz/cli"
 	"genaiz.com/genaiz/config"
+)
+
+var (
+	testLogger, testHook = test.NewNullLogger()
 )
 
 type stubCliPrinterParametric struct {
@@ -56,4 +62,9 @@ func TestNewAc(t *testing.T) {
 
 	assert.Equal(t, 5, len(testAc.Commands()))
 	assert.NoError(t, testAc.Execute())
+}
+
+func getTestLogger() *logrus.Logger {
+	testHook.Reset()
+	return testLogger
 }

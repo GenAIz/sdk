@@ -561,6 +561,11 @@ func (lr *Ledger) StampString(option *StringOption) string {
 	return layout.StampString(raw, lr.Timestamp)
 }
 
+// StdOut is a convenient way of outputting from the output configured on the Ledger
+func (lr *Ledger) StdOut(message string, args ...any) {
+	_, _ = fmt.Fprintf(lr.output, message, args...)
+}
+
 // ToWorkDir sets the value of the provided StringOption's pflag.Flag from a pflag.FlagSet to the current Ledger.WorkDir
 func (lr *Ledger) ToWorkDir(option *StringOption, flags *pflag.FlagSet) {
 	if flag := flags.Lookup(option.Param); flag != nil {

@@ -28,9 +28,12 @@ type Document struct {
 			Printer Keys
 		}
 		Login struct {
+			Legacy   Keys
 			Password Keys
+			Prefix   Keys
 			Refresh  Keys
 			Username Keys
+			Version  Keys
 		}
 		Logout struct {
 			Username Keys
@@ -585,9 +588,12 @@ func init() {
 
 	Genaiz.Account.List.Printer = newKeys("Account.List.Printer", "AC_LIST_PRINTER", "Ac.List.Printer")
 
+	Genaiz.Account.Login.Legacy = newKeys("Account.Login.Legacy", "AC_LOGIN_LEGACY", "Ac.Login.Legacy")
 	Genaiz.Account.Login.Password = newKeys("p", "GENAIZ_PASSWORD")
+	Genaiz.Account.Login.Prefix = newKeys("Account.Login.Prefix", "AC_LOGIN_PREFIX", "Ac.Login.Prefix")
 	Genaiz.Account.Login.Refresh = newKeys("Account.Login.Refresh", "AC_LOGIN_REFRESH", "Ac.Login.Refresh")
 	Genaiz.Account.Login.Username = newKeys("Account.Login.Username", "GENAIZ_USERNAME", "Ac.Login.Username")
+	Genaiz.Account.Login.Version = newKeys("Account.Login.Version", "AC_LOGIN_VERSION", "Ac.Login.Version")
 
 	Genaiz.Account.Logout.Username = newKeys("Account.Logout.Username", "GENAIZ_USERNAME", "Ac.Logout.Username")
 

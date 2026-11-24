@@ -15,23 +15,41 @@ import (
 var (
 	Options = &cliOptions{
 		Accounts: accountOptions{
+			Legacy: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("legacy").
+					WithUsage("short hand for specify the oldest supported prefix and version when authenticating").
+					WithDefaultValue(cast.ToString(false))
+			},
 			NoBrowser: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("no-browser").
 					WithUsage("prevents the shell from redirecting login urls to the system default browser").
 					WithDefaultValue(cast.ToString(false))
 			},
+			Prefix: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("api-prefix").
+					WithUsage("specifies the prefix for the api on the host, defaulting to the latest known deployment standard")
+			},
 			Refresh: func() OptionBuilder {
 				return NewOptionBuilder().
-					WithKeys(&schema.Genaiz.Account.Login.Refresh).
 					WithParam("refresh").
 					WithShort("r").
+					WithUsage("if an account is already logged in, force a new authentication").
 					WithDefaultValue(cast.ToString(false))
 			},
 			Username: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("username").
 					WithShort("u")
+			},
+			Version: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithParam("api-version").
+					WithUsage("specifies the version for the api on the host, ex: 1, 1.1, etc...").
+					WithUsage("defaulting to the latest known deployment standard").
+					WithValidator(config.Validation.VersionAbbr)
 			},
 		},
 		Configs: configOptions{
@@ -862,9 +880,12 @@ var (
 )
 
 type accountOptions struct {
+	Legacy    func() OptionBuilder
 	NoBrowser func() OptionBuilder
+	Prefix    func() OptionBuilder
 	Refresh   func() OptionBuilder
 	Username  func() OptionBuilder
+	Version   func() OptionBuilder
 }
 
 type cliOptions struct {

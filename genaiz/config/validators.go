@@ -18,6 +18,7 @@ var (
 	envKeyValueString = stringMatches(`^[a-zA-Z0-9_]+=.*$`)
 	nameMaxSize       = stringMaxLength(255)
 	versionNumber     = stringMatches(`^(?:[1-9][0-9]*|0)$`)
+	versionAbbr       = stringMatches(`^[1-9](?:\.[0-9])?$`)
 
 	Validation = validators{
 		Blob:          stringMaxLength(4096),
@@ -37,6 +38,7 @@ var (
 		Repository:    validateRepository,
 		RequiredName:  AllOf(stringMinLength(1), nameMaxSize),
 		Version:       validateVersion,
+		VersionAbbr:   versionAbbr,
 		VersionNumber: versionNumber,
 	}
 )
@@ -64,6 +66,7 @@ type validators struct {
 	Repository    Validates
 	RequiredName  Validates
 	Version       Validates
+	VersionAbbr   Validates
 	VersionNumber Validates
 }
 
