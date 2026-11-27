@@ -60,6 +60,24 @@ type BuildParams struct {
 	Prune bool
 }
 
+func (p BuildParams) makeBuildArgsMap() map[string]*string {
+	var result = map[string]*string{}
+
+	for _, arg := range p.BuildArgs {
+		var parts = strings.Split(arg, "=")
+
+		if len(parts) == 2 {
+			if parts[1] == "" {
+				result[parts[0]] = nil
+			} else {
+				result[parts[0]] = new(parts[1])
+			}
+		}
+	}
+
+	return result
+}
+
 func handleBuildContext(params *BuildParams, state *task.State) error {
 	var dockerClient = dockerFactory.Get()
 	var version = params.GetVersion()
@@ -154,6 +172,7 @@ func handleBuildLegacyCreate(params *BuildParams, state *task.State) error {
 		var options = client.ImageBuildOptions{
 			Dockerfile: params.Dockerfile,
 			Tags:       []string{reference},
+			BuildArgs:  params.makeBuildArgsMap(),
 			Remove:     true,
 			Platforms:  params.GetPlatforms(),
 			PullParent: true,
@@ -200,12 +219,7 @@ func handleBuildPretend(params *BuildParams, state *task.State) error {
 
 	if state.Error != nil {
 		state.Logger.Debugf("Incomplete build context needs to be built [%s]", state.Error)
-
-		if params.Dockerfile == "" {
-			fmt.Printf("docker build -t %s %s\n", reference, params.DockerContext)
-		} else {
-			fmt.Printf("docker build -f %s -t %s %s\n", params.Dockerfile, reference, params.DockerContext)
-		}
+		fmt.Printf("docker %s\n", strings.Join(params.CliArguments(), " "))
 
 		if params.Prune {
 			fmt.Printf("docker image prune --filter label=%s=%s\n", "sf", params.DockerRepository)

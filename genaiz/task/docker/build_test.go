@@ -33,6 +33,20 @@ func newBuildParams(repository, version string) *BuildParams {
 	}
 }
 
+func TestBuildParams_makeBuildArgsMap(t *testing.T) {
+	var expectedArg1 = "TEST=value"
+	var expectedArg2 = "RESET="
+	var expectedInvalid = "INVALID"
+	var testParams = &BuildParams{
+		BuildArgs: []string{expectedArg1, expectedArg2, expectedInvalid},
+	}
+
+	actual := testParams.makeBuildArgsMap()
+	assert.Equal(t, 2, len(actual))
+	assert.Equal(t, new("value"), actual["TEST"])
+	assert.Nil(t, actual["RESET"])
+}
+
 func TestBuildTasks_InspectTaskFactory(t *testing.T) {
 	var testTask = BuildTasks.InspectTaskFactory()
 

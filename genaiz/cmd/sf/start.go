@@ -50,7 +50,7 @@ func (se *StartExecutor) Pretend() {
 
 	if envMap, err = se.makeEnvMap(se.Ledger); err == nil {
 		var replace = se.Ledger.GetBool(se.optionContainerReplace)
-		var buildParams = makeBuildParams(&se.BaseExecutor)
+		var buildParams = makeBuildParams(&se.BaseExecutor, NewBuildOptions())
 		var params = se.makeStartParams(replace, envMap)
 		var plan = task.NewPlan("Start", se.Ledger.Logger)
 		var datalinks = se.getFunctionDataLinks(se.Ledger)
@@ -85,7 +85,7 @@ func (se *StartExecutor) Proceed() {
 	if envMap, err = se.makeEnvMap(se.Ledger); err == nil {
 		var replace = se.Ledger.GetBool(se.optionContainerReplace)
 		var params = se.makeStartParams(replace, envMap)
-		var buildParams = makeBuildParams(&se.BaseExecutor)
+		var buildParams = makeBuildParams(&se.BaseExecutor, NewBuildOptions())
 		var plan = task.NewPlan("Start", se.Ledger.Logger)
 		var datalinks = se.getFunctionDataLinks(se.Ledger)
 		var datalinkWorkers []task.Worker

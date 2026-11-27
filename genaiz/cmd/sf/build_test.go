@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -63,18 +62,17 @@ func TestBuildExecutor_Display(t *testing.T) {
 func TestBuildExecutor_Pretend(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithLogger(getTestLogger()).
+		WithViper(testViper).
+		Build()
 	var calledBuild = false
 	var testExecutor = &BuildExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    NewSfCli(nil, nil, nil),
 		},
-		BuildOptions: &BuildOptions{
-			optionLabelling: cli.Options.Docker.Label().BuildBoolOption(),
-			optionPlatform:  cli.Options.Docker.Platform().BuildStringOption(),
-			optionPruning:   cli.Options.Docker.Prune().BuildBoolOption(),
-		},
+		BuildOptions: NewBuildOptions(),
 
 		buildTaskFactory: newBuildTaskPretendStub(&calledBuild),
 	}
@@ -96,18 +94,17 @@ func TestBuildExecutor_Pretend(t *testing.T) {
 func TestBuildExecutor_Proceed(t *testing.T) {
 	var testDir = t.TempDir()
 	var testViper = viper.New()
-	var testLedger = config.NewBuilder().WithViper(testViper).Build()
+	var testLedger = config.NewBuilder().
+		WithLogger(getTestLogger()).
+		WithViper(testViper).
+		Build()
 	var calledBuild = false
 	var testExecutor = &BuildExecutor{
 		BaseExecutor: BaseExecutor{
 			Ledger: testLedger,
 			Cli:    NewSfCli(nil, nil, nil),
 		},
-		BuildOptions: &BuildOptions{
-			optionLabelling: cli.Options.Docker.Label().BuildBoolOption(),
-			optionPlatform:  cli.Options.Docker.Platform().BuildStringOption(),
-			optionPruning:   cli.Options.Docker.Prune().BuildBoolOption(),
-		},
+		BuildOptions: NewBuildOptions(),
 
 		buildTaskFactory: newBuildTaskCompleteStub(&calledBuild),
 	}
@@ -119,9 +116,55 @@ func TestBuildExecutor_Proceed(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
-		testLedger.Logger = logrus.New()
+		testLedger.InitLogging()
 		testExecutor.Proceed()
 		assert.True(t, calledBuild)
+	} else {
+		assert.NoError(t, err)
+	}
+}
+
+func TestBuildExecutor_Proceed_WithBuildArgs(t *testing.T) {
+	var capturedBuild docker.BuildParams
+	var testDir = t.TempDir()
+	var testViper = viper.New()
+	var testLedger = config.NewBuilder().
+		WithViper(testViper).
+		Build()
+	var expectedArg1 = "TEST=value"
+	var expectedArg2 = "TEST_2=$TEST_KEY"
+	// This edge cases will not be processed by the command
+	var expectedArg3 = "TEST_EDGE=edgeValue=$edge"
+	var expectedPlatform = "expectedPlatform"
+	var testExecutor = &BuildExecutor{
+		BaseExecutor: BaseExecutor{
+			Ledger: testLedger,
+			Cli:    NewSfCli(nil, nil, nil),
+		},
+		BuildOptions: NewBuildOptions(),
+
+		buildTaskFactory: newBuildTaskCompleteCapture(&capturedBuild),
+	}
+
+	if tmpFile, err := os.Create(filepath.Join(testDir, "GDockerfile")); err == nil {
+		var fileName = tmpFile.Name()
+
+		t.Setenv("TEST_KEY", "value2")
+
+		defer filez.CloseSilently(tmpFile)
+		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
+		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fileName)
+		testViper.Set(testExecutor.Cli.optionDockerContext.Key, filepath.Dir(fileName))
+		testViper.Set(testExecutor.optionBuildArgs.Key, []string{expectedArg1, expectedArg2, expectedArg3})
+		testViper.Set(testExecutor.optionPlatform.Key, expectedPlatform)
+		testLedger.InitLogging()
+		testExecutor.Proceed()
+		assert.NotEmpty(t, capturedBuild)
+		assert.Equal(t, 3, len(capturedBuild.BuildArgs))
+		assert.Equal(t, expectedArg1, capturedBuild.BuildArgs[0])
+		assert.Equal(t, "TEST_2=value2", capturedBuild.BuildArgs[1])
+		assert.Equal(t, "TEST_EDGE=edgeValue=$edge", capturedBuild.BuildArgs[2])
+		assert.Equal(t, expectedPlatform, capturedBuild.Platform)
 	} else {
 		assert.NoError(t, err)
 	}
@@ -187,7 +230,7 @@ func Test_makeBuildParamsCwdContext(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(testDir, "Dockerfile"))
-		testParam := makeBuildParams(testExecutor)
+		testParam := makeBuildParams(testExecutor, NewBuildOptions())
 		assert.EqualValues(t, ".", testParam.DockerContext)
 		assert.Empty(t, testParam.Dockerfile)
 	}
@@ -215,7 +258,7 @@ func Test_makeBuildParamsCwdModule(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fd.Name())
-		testParam := makeBuildParams(testExecutor)
+		testParam := makeBuildParams(testExecutor, NewBuildOptions())
 		assert.EqualValues(t, ".", testParam.DockerContext)
 		assert.EqualValues(t, filepath.Join(expectedModule, expectedFile), testParam.Dockerfile)
 	}
@@ -242,7 +285,7 @@ func Test_makeBuildParamsCwdNotStandard(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, filepath.Join(testDir, expectedFile))
-		testParam := makeBuildParams(testExecutor)
+		testParam := makeBuildParams(testExecutor, NewBuildOptions())
 		assert.EqualValues(t, ".", testParam.DockerContext)
 		assert.EqualValues(t, expectedFile, testParam.Dockerfile)
 	}
@@ -267,7 +310,7 @@ func Test_makeBuildParamsExternalContext(t *testing.T) {
 		testViper.Set(testExecutor.Cli.optionDockerRepo.Key, "namespace/repo")
 		testViper.Set(testExecutor.Cli.optionDockerContext.Key, testDir)
 		testViper.Set(testExecutor.Cli.optionDockerFile.Key, fd.Name())
-		testParam := makeBuildParams(testExecutor)
+		testParam := makeBuildParams(testExecutor, NewBuildOptions())
 		assert.EqualValues(t, testDir, testParam.DockerContext)
 		assert.EqualValues(t, fd.Name(), testParam.Dockerfile)
 	}
@@ -281,6 +324,21 @@ func newBuildTaskPretendStub(flag *bool) docker.BuildTaskFactory {
 			},
 			OnPretend: func(params *docker.BuildParams, state *task.State) error {
 				*flag = true
+				return nil
+			},
+		}
+	}
+}
+
+func newBuildTaskCompleteCapture(captured *docker.BuildParams) docker.BuildTaskFactory {
+	return func() *task.Task[docker.BuildParams] {
+		return &task.Task[docker.BuildParams]{
+			Name: "build_test",
+			OnPrepare: func(params *docker.BuildParams, state *task.State) error {
+				return nil
+			},
+			OnComplete: func(params *docker.BuildParams, state *task.State) error {
+				*captured = *params
 				return nil
 			},
 		}

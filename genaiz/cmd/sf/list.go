@@ -17,8 +17,11 @@ type ListExecutor struct {
 }
 
 func (le *ListExecutor) list() {
-	var buildParams = makeBuildParams(&le.BaseExecutor)
 	var plan = task.NewPlan("List", le.Ledger.Logger)
+	var buildParams = &docker.BuildParams{
+		Env:            task.Env{Context: le.Context},
+		BuildArguments: *newBuildArguments(&le.BaseExecutor),
+	}
 
 	task.Single(plan, buildParams, le.listTaskFactory())
 }

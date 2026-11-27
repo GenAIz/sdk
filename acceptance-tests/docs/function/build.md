@@ -1,12 +1,15 @@
 ## Function Build
 
 ```
-genaiz sf build --context|-c=PATH --file|-f=FILE --repository=LOCAL --version|-v=VERSION \
-  --platform=PLATFORM --label --legacy-builder --no-cache --prune
+genaiz sf build --context|-c=PATH --file|-f=FILE \
+  --repository=LOCAL --version|-v=VERSION \
+  --build-arg=MY_ARG=value --build-arg=MY_ARG_2=value2 \
+  --platform=PLATFORM \
+  --label --legacy-builder --no-cache --prune
  ```
 
 Build executes a single build task which may or may not use the docker-cli executable to complete the command. Build
-will use the legacy Moby compiled in build instruction, using dockerd if it can not locate a docker command on the
+will use the legacy Moby compiled in build instruction, using `dockerd` if it can not locate a docker command on the
 user's PATH. Otherwise, it will invoke `docker build` as a child process.
 
 A successful command should print a summary of the image, created with its tag, short id and size. The id printed should
@@ -19,7 +22,7 @@ calls. It is also used to infer where the `Genaiz.yaml` would be, which can lead
 option, to split both paths)
 
 * if there is no context specified the build command assumes it is established as the current working dir.
-* the context is passed to the docker build command or the dockerd build endpoint to match the Dockerfile's build
+* the context is passed to the docker build command or the `dockerd` build endpoint to match the Dockerfile's build
   context, it doesn't necessarily imply the same folder as the [file](#file) param.
 * if the resolved context does not correspond to an existing folder, the command will return an error with the key of
   the field and the invalid value; `Error: value [...] for option [function.build.context] is invalid`
@@ -50,6 +53,16 @@ parameter of filter images built.
   the [init](init.md) command to say `<branch>-latest`
 * note that the version string used for build is not validated against the SemVer format
 
+### build-arg
+
+Build arguments to add to the `docker buildx` command. These can be expanded from environment variables on the option line or from the Genaiz.yaml 
+
+* if a build argument is not formatted with MY_ARG=value, the command will return an error: `Error: value [...] for option [function.build.buildarg] is invalid`
+* if the value of a build arg is prefixed with `$`, the command will try to expand it from the shell environment. If no value exist for the specified name, the command will return an error: `Error: value [...] is not a known environment key`
+
+> [!IMPORTANT]
+> Currently, build-arg as an option is only taken by the build command. If you want the argument to stick on [run](run.md), [start](start.md) or [test](test.md), you need to use a key under Genaiz.yaml or the environment variable `SF_BUILD_BUILDARGS` with a space-delimited list of values.
+
 ### platform
 
 Platform is typically managed by the Broker and the Orchestration available to an account. A build will always need to
@@ -72,7 +85,7 @@ Function.
 
 ### legacy-builder
 
-* legacy-builder instructs the build command to use the legacy build endpoint of dockerd to create the image. This can
+* legacy-builder instructs the build command to use the legacy build endpoint of `dockerd` to create the image. This can
   be useful in cases where the `docker` command is not available or in cases where Buildkit is not compatible with the
   user's platform (Windows)
 * by default, the build command will look up the users' PATH to locate `docker`. If it's not located, the legacy-builder

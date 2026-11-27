@@ -287,6 +287,19 @@ func Test_OptionsDataPortsName(t *testing.T) {
 	assert.True(t, testOption.Validator("a description"))
 }
 
+func Test_OptionsDockerBuildArg(t *testing.T) {
+	var testOption = Options.Docker.BuildArg().BuildListOption()
+
+	assert.NotEmpty(t, testOption.Key)
+	assert.NotEmpty(t, testOption.Param)
+	assert.NotEmpty(t, testOption.Usage)
+	assert.True(t, testOption.Validator("TEST=Value"))
+	assert.False(t, testOption.Validator("TEST"))
+	// We allow unsetting args
+	assert.True(t, testOption.Validator("TEST="))
+	assert.False(t, testOption.Validator("=value"))
+}
+
 func Test_OptionsDockerContainerName(t *testing.T) {
 	var testOption = Options.Docker.ContainerName().BuildStringOption()
 

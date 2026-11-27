@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,6 +22,10 @@ import (
 	"genaiz.com/genaiz/schema"
 	"genaiz.com/genaiz/task/broker"
 	"genaiz.com/genaiz/task/shared"
+)
+
+var (
+	testLogger, testHook = test.NewNullLogger()
 )
 
 func TestBaseExecutor_validate(t *testing.T) {
@@ -394,4 +400,9 @@ func TestNewSfCli_invalidHandle(t *testing.T) {
 	} else {
 		assert.Fail(t, err.Error())
 	}
+}
+
+func getTestLogger() *logrus.Logger {
+	testHook.Reset()
+	return testLogger
 }

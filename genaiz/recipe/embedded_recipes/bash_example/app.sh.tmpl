@@ -43,6 +43,12 @@ if [ -n "$SF_INPUT_PATH" ]; then
 	fi
 fi
 
+if [ -n "$SF_OUTPUT_PATH" ] && [ -n "$SF_TEST_ARG" ]; then
+  echo
+  echo "Writing arguments"
+  echo "$SF_TEST_ARG" > "$SF_OUTPUT_PATH"/arguments.txt
+fi
+
 if [ -n "$SF_LOG_PATH" ]; then
 	echo
 	echo "Logging current time within log/time.txt"
