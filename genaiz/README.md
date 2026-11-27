@@ -16,7 +16,7 @@
 ## Architecture
 
 The CLI architecture follows a pattern of integrations with the [Cobra](https://github.com/spf13/cobra)
-and [Viper](https://github.com/spf13/viper) frameworks, popular with various GoLang projects. The architecture was
+and [Viper](https://github.com/spf13/viper) frameworks, popular with various Golang projects. The architecture was
 augmented with layers to decouple the spf13 framing from the actual task logic behind the commands.
 
 There are several distinct layers in the code: The `cmd` layer, is where we use Cobra and Viper heavily. The `config`

@@ -1,4 +1,7 @@
-FROM alpine:3.23.3
+FROM alpine:3.24.4
+
+ARG TEST_ARG=original
+ENV SF_TEST_ARG=$TEST_ARG
 
 {{- $bin_path := or .SF_BIN_PATH "/opt/genaiz/bash-example/bin"}}
 

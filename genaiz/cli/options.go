@@ -196,6 +196,13 @@ var (
 			},
 		},
 		Docker: dockerOptions{
+			BuildArg: func() OptionBuilder {
+				return NewOptionBuilder().
+					WithKeys(&schema.Genaiz.Function.Build.BuildArgs).
+					WithParam("build-arg").
+					WithUsage("specifies additional build arguments for the smart function build").
+					WithValidator(config.Validation.EnvKeyValue)
+			},
 			ContainerName: func() OptionBuilder {
 				return NewOptionBuilder().
 					WithParam("name").
@@ -943,6 +950,7 @@ type dataSetOptions struct {
 }
 
 type dockerOptions struct {
+	BuildArg        func() OptionBuilder
 	ContainerName   func() OptionBuilder
 	ContainerPrefix func() OptionBuilder
 	ContextPath     func() OptionBuilder

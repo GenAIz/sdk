@@ -56,7 +56,7 @@ flowchart LR
 
 The function building activity is pre-cursor to [Function Publishing](#function-publishing) and also to the more
 complex [Solution Publishing](../solution/index.md#solution-publishing). Build will rely on the user's environment,
-using the provided `Dockerfile` and the meta-data under the `Genaiz` configuration file, and package a `Docker Image` of
+using the provided `Dockerfile` and the metadata under the `Genaiz` configuration file, and package a `Docker Image` of
 the Smart Function.
 
 From the point of view of [Function Init](#function-initialization), it can be visualized as:

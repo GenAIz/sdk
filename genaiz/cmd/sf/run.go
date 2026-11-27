@@ -44,7 +44,7 @@ func (re *RunExecutor) Pretend() {
 		re.Ledger.DisplayChangeDir()
 
 		if re.rebuildImage {
-			workers = append(workers, task.NewPretender(makeBuildParams(&re.BaseExecutor), re.buildTaskFactory()))
+			workers = append(workers, task.NewPretender(makeBuildParams(&re.BaseExecutor, NewBuildOptions()), re.buildTaskFactory()))
 		}
 
 		if datalinkWorkers, err = re.MakeSyncPretenders(dataLinks, re.Ledger, re.optionNoPropSync); err == nil {
@@ -69,7 +69,7 @@ func (re *RunExecutor) Proceed() {
 		var workers []task.Worker
 
 		if re.rebuildImage {
-			workers = append(workers, task.NewWorker(makeBuildParams(&re.BaseExecutor), re.buildTaskFactory()))
+			workers = append(workers, task.NewWorker(makeBuildParams(&re.BaseExecutor, NewBuildOptions()), re.buildTaskFactory()))
 		}
 
 		if datalinkWorkers, err = re.MakeSyncWorkers(dataLinks, re.Ledger, re.optionNoPropSync); err == nil {

@@ -23,6 +23,17 @@ func TestBuildArguments_CliArguments(t *testing.T) {
 	assert.Equal(t, ".", actual[4])
 }
 
+func TestBuildArguments_CliArguments_WithBuildArg(t *testing.T) {
+	var expectedArg = "test=argument"
+	var testArgs = &BuildArguments{
+		BuildArgs: []string{expectedArg},
+	}
+
+	actual := testArgs.CliArguments()
+	assert.NotEmpty(t, actual)
+	assert.Equal(t, expectedArg, actual[5])
+}
+
 func TestBuildArguments_CliArguments_WithContext(t *testing.T) {
 	var expectedDir = t.TempDir()
 	var testArgs = &BuildArguments{

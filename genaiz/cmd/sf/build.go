@@ -2,6 +2,7 @@ package sf
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,15 +44,15 @@ func (be *BuildExecutor) Proceed() {
 
 // makeBuildParams creates a docker.BuildParams from resolving parameters, configuration files and environment variables
 func (be *BuildExecutor) makeBuildParams() *docker.BuildParams {
-	var result = makeBuildParams(&be.BaseExecutor)
+	var result = makeBuildParams(&be.BaseExecutor, be.BuildOptions)
 
 	result.Label = be.Ledger.GetBool(be.optionLabelling)
-	result.Platform = be.Ledger.GetString(be.optionPlatform)
 	result.Prune = be.Ledger.GetBool(be.optionPruning)
 	return result
 }
 
 type BuildOptions struct {
+	optionBuildArgs *config.ListOption
 	optionLabelling *config.BoolOption
 	optionLegacy    *config.BoolOption
 	optionNoCache   *config.BoolOption
@@ -61,6 +62,7 @@ type BuildOptions struct {
 
 func (bo BuildOptions) allDefiners() []config.Definer {
 	return []config.Definer{
+		bo.optionBuildArgs,
 		bo.optionLabelling,
 		bo.optionLegacy,
 		bo.optionNoCache,
@@ -70,19 +72,19 @@ func (bo BuildOptions) allDefiners() []config.Definer {
 }
 
 func NewBuild(ledger *config.Ledger, cli *Cli) *cobra.Command {
-	var options = NewBuildOptions()
-	var build = &cobra.Command{
+	var buildOptions = NewBuildOptions()
+	var buildCmd = &cobra.Command{
 		Use:     "build",
 		Short:   "Builds a Smart Function",
 		Long:    "Builds a Smart Function image tagging it with repository and version values",
 		Example: "genaiz sf build --file=Dockerfile2 --context=../smartfunc --repository=genaiz.com/sf/smartfunc --version=v1.0",
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Exec(ledger, NewBuildExecutor(cmd.Context(), ledger, cli, options))
+			cli.Exec(ledger, NewBuildExecutor(cmd.Context(), ledger, cli, buildOptions))
 		},
 	}
 
-	ledger.Register(build, options.allDefiners()...)
-	return build
+	ledger.Register(buildCmd, buildOptions.allDefiners()...)
+	return buildCmd
 }
 
 func NewBuildExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, options *BuildOptions) *BuildExecutor {
@@ -107,6 +109,7 @@ func NewBuildExecutor(ctx context.Context, ledger *config.Ledger, cli *Cli, opti
 
 func NewBuildOptions() *BuildOptions {
 	return &BuildOptions{
+		optionBuildArgs: cli.Options.Docker.BuildArg().BuildListOption(),
 		optionLabelling: cli.Options.Docker.Label().BuildBoolOption(),
 		optionLegacy:    cli.Options.Docker.Legacy().BuildBoolOption(),
 		optionNoCache:   cli.Options.Docker.NoCache().BuildBoolOption(),
@@ -115,7 +118,35 @@ func NewBuildOptions() *BuildOptions {
 	}
 }
 
-func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
+func makeBuildParams(base *BaseExecutor, buildOptions *BuildOptions) *docker.BuildParams {
+	var adaptedArgs = newBuildArguments(base)
+	var buildArgs = base.Ledger.GetList(buildOptions.optionBuildArgs)
+	var platform = base.Ledger.GetString(buildOptions.optionPlatform)
+
+	if platform != "" {
+		adaptedArgs.Platform = platform
+	}
+
+	for _, arg := range buildArgs {
+		if strings.Contains(arg, "$") {
+			var argTokens = strings.Split(arg, "=")
+
+			if len(argTokens) == 2 {
+				adaptedArgs.BuildArgs = append(adaptedArgs.BuildArgs, fmt.Sprintf("%s=%s", argTokens[0], os.ExpandEnv(argTokens[1])))
+				continue
+			}
+		}
+
+		adaptedArgs.BuildArgs = append(adaptedArgs.BuildArgs, arg)
+	}
+
+	return &docker.BuildParams{
+		Env:            task.Env{Context: base.Context},
+		BuildArguments: *adaptedArgs,
+	}
+}
+
+func newBuildArguments(base *BaseExecutor) *adapt.BuildArguments {
 	var cwd, _ = os.Getwd()
 	var dockerContext = base.Ledger.GetString(base.Cli.optionDockerContext)
 	var dockerFile = base.Ledger.GetString(base.Cli.optionDockerFile)
@@ -138,13 +169,10 @@ func makeBuildParams(base *BaseExecutor) *docker.BuildParams {
 		}
 	}
 
-	return &docker.BuildParams{
-		Env: task.Env{Context: base.Context},
-		BuildArguments: adapt.BuildArguments{
-			Dockerfile:       dockerFile,
-			DockerContext:    dockerContext,
-			DockerRepository: strings.ToLower(dockerRepo),
-			DockerVersion:    strings.ToLower(dockerVersion),
-		},
+	return &adapt.BuildArguments{
+		Dockerfile:       dockerFile,
+		DockerContext:    dockerContext,
+		DockerRepository: strings.ToLower(dockerRepo),
+		DockerVersion:    strings.ToLower(dockerVersion),
 	}
 }

@@ -1,6 +1,6 @@
 # GenAIz CLI
 
-<sub>Genaiz Version 1.1.1</sub>
+<sub>Genaiz Version 1.1.2</sub>
 
 The GenAIz CLI is a tool for creating, building and publishing Smart Functions to the GenAIz Orchestration platform. It
 also provides toolkits to manage Orchestrated Workspaces and execute their Workflows.
@@ -390,7 +390,7 @@ groups
 
 Your user should be in the same group owning the docker.sock file.
 
-If all conditions are met, and you are using a Linx/amd64 distributions, write to `sdk 'at' genaiz.com` with the
+If all conditions are met, and you are using a Linux/amd64 distributions, write to `sdk 'at' genaiz.com` with the
 following details:
 
 * Docker version

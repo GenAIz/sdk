@@ -11,6 +11,7 @@ import (
 
 // BuildArguments represents the set of arguments the build docker task support when using the Deprecated legacy builder on dockerd or an available `buildx` command from the docker CLI.
 type BuildArguments struct {
+	BuildArgs        []string
 	Dockerfile       string
 	DockerContext    string
 	DockerRepository string
@@ -25,6 +26,10 @@ func (a BuildArguments) CliArguments() []string {
 
 	if a.Dockerfile != "" {
 		args = append(args, "-f", a.Dockerfile)
+	}
+
+	for _, buildArg := range a.BuildArgs {
+		args = append(args, "--build-arg", buildArg)
 	}
 
 	if a.Platform != "" {

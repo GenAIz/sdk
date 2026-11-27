@@ -66,7 +66,10 @@ func (pe *PublishExecutor) Display() {
 }
 
 func (pe *PublishExecutor) Pretend() {
-	var buildParams = makeBuildParams(&pe.BaseExecutor)
+	var buildParams = &docker.BuildParams{
+		Env:            task.Env{Context: pe.Context},
+		BuildArguments: *newBuildArguments(&pe.BaseExecutor),
+	}
 	var provisionParams = pe.makeProvisionParams()
 	var publishParams = pe.makePublishParams(provisionParams)
 	var pushParams = pe.makePushParams()
@@ -98,7 +101,7 @@ func (pe *PublishExecutor) Pretend() {
 func (pe *PublishExecutor) Proceed() {
 	var rebuild = pe.Ledger.GetBool(pe.optionRebuild)
 	var noUpdate = pe.Ledger.GetBool(pe.optionNoUpdate)
-	var buildParams = makeBuildParams(&pe.BaseExecutor)
+	var buildParams = makeBuildParams(&pe.BaseExecutor, NewBuildOptions())
 	var provisionParams = pe.makeProvisionParams()
 	var getParams = provisionParams.ToGetParams()
 	var publishParams = pe.makePublishParams(provisionParams)

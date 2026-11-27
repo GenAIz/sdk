@@ -41,7 +41,8 @@ func (te *TestExecutor) Pretend() {
 		te.Ledger.DisplayChangeDir()
 
 		if te.rebuildImage {
-			workers = append(workers, task.NewPretender(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
+			workers = append(workers, task.NewPretender(
+				makeBuildParams(&te.BaseExecutor, NewBuildOptions()), te.buildTaskFactory()))
 		}
 
 		if datalinkWorkers, err = te.MakeSyncPretenders(datalinks, te.Ledger, te.optionNoPropSync); err == nil {
@@ -66,7 +67,8 @@ func (te *TestExecutor) Proceed() {
 		var workers []task.Worker
 
 		if te.RunOptions.rebuildImage {
-			workers = append(workers, task.NewWorker(makeBuildParams(&te.BaseExecutor), te.buildTaskFactory()))
+			workers = append(workers, task.NewWorker(
+				makeBuildParams(&te.BaseExecutor, NewBuildOptions()), te.buildTaskFactory()))
 		}
 
 		if datalinkWorkers, err = te.MakeSyncWorkers(datalinks, te.Ledger, te.optionNoPropSync); err == nil {

@@ -137,6 +137,7 @@ type Document struct {
 	}
 	Function struct {
 		Build struct {
+			BuildArgs     Keys
 			Context       Keys
 			File          Keys
 			Label         Keys
@@ -673,6 +674,7 @@ func init() {
 	Genaiz.DataLink.Sync.UserDefined = newKeys("DataLink.Sync.UserDefined", "DK_SYNC_USER_DEFINED", "Dk.Sync.UserDefined")
 	Genaiz.DataLink.Sync.Version = newKeys("DataLink.Sync.Version", "DK_SYNC_VERSION", "Dk.Sync.Version")
 
+	Genaiz.Function.Build.BuildArgs = newKeys("Function.Build.BuildArgs", "SF_BUILD_BUILDARGS", "Sf.Build.BuildArgs")
 	Genaiz.Function.Build.Context = newKeys("Function.Build.Context", "SF_BUILD_CONTEXT", "Sf.Build.Context")
 	Genaiz.Function.Build.File = newKeys("Function.Build.File", "SF_BUILD_FILE", "Sf.Build.File")
 	Genaiz.Function.Build.Label = newKeys("Function.Build.Label", "SF_BUILD_LABEL", "Sf.Build.Label")
